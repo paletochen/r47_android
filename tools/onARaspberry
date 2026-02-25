@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# This doesn't work on Raspberry with the 64 bit arch linux distro...
+# There is no Raspberry in the output of cat /proc/cpuinfo
+#
+# /proc/device-tree/model exists on recent Raspberry models (4 for sure, 3?)
+# may be that is the solution
+
+CPUINFO=/proc/cpuinfo
+
+if [ -f $CPUINFO ]; then
+	grep -q Raspberry $CPUINFO
+	if [ $? = 0 ]; then
+		echo "true"
+	else
+		echo "false"
+	fi
+else
+	echo "false"
+fi

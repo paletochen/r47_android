@@ -1,0 +1,107 @@
+# R47 Master Ignore List
+
+# --- 1. Android Build Bloat (Recursive) ---
+**/.cxx/
+**/build/
+**/.gradle/
+**/local.properties
+**/*.apk
+**/*.aab
+**/*.so
+**/*.o
+**/*.obj
+**/*.pyc
+**/__pycache__/
+
+# --- 2. Meson / Build Artifacts ---
+/build/
+/build.sim/
+/build.dmcp*/
+/build.rel*/
+/meson-logs/
+/meson-private/
+build.ninja
+.ninja_deps
+.ninja_log
+compile_commands.json
+
+# --- 3. C47 Core Generated & Specifics ---
+/wp43
+/c47
+/r47
+/testSuite
+/generate*
+/ttf2RasterFonts
+/wp43.exe
+/c47.exe
+/r47.exe
+/testSuite.exe
+/generate*.exe
+/ttf2RasterFonts.exe
+backup.bin
+backup.cfg
+backupR47.cfg
+wp43.sav    
+wp43.dat
+c47.sav
+c47.dat
+*.s47
+*.zip
+20*.REGS.TSV
+20*.bmp
+tags
+/PROGRAMS/ALLPGMS/
+/SAVFILES/
+src/generated/*.c
+src/generated/*.h
+
+# --- 4. Subprojects ---
+/subprojects/*
+!/subprojects/*.wrap
+!/subprojects/packagefiles/
+
+# --- 5. OS / IDE Bloat ---
+.DS_Store
+._*
+.vscode/
+*.code-workspace
+.idea/
+*.iml
+.directory
+*~
+.fuse_hidden*
+.nfs*
+Thumbs.db
+[Dd]esktop.ini
+
+# --- 6. Explicitly TRACK these in Vault ---
+!android/
+!PROGRAMS/
+!manual/
+!tools/
+!.agent/
+!.gemini/
+!MANIFEST_PRIVATE.md
+!MANIFEST_PUBLIC.md
+!RELEASE_NOTES.md
+!R47_Design_Doc.md
+!R47_all.pdf
+!build_android.sh
+!sync_repo.sh
+!status_private.sh
+!publish_private.sh
+!publish_public.sh
+!sync_public.sh
+!dist.sh
+!Makefile
+!README.md
+!.gitignore
+!.gitlab-ci.yml
+
+# --- 7. Upstream Whitelist (Delta Mode) ---
+# We ignore src/c47/ but keep our patches
+/src/c47/
+!/src/c47/programming/input.c
+!/src/c47/programming/lblGtoXeq.c
+!/src/c47/screen.c
+!/src/c47/meson.build

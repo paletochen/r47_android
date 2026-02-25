@@ -1,0 +1,11 @@
+[wrap-file]
+directory = gmp-6.2.1
+
+source_url = https://gmplib.org/download/gmp/gmp-6.2.1.tar.bz2
+source_filename = gmp-6.2.1.tar.bz2
+source_hash = 4b94e6327439b8ab149c3c37c10b3ae1e3606113b7653adc0a57b4effbde34cf
+
+patch_directory = gmp-6.2.1
+
+[provide]
+dependency_names = arm-gmp-6.2.1

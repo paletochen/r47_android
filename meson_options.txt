@@ -1,0 +1,29 @@
+option('CI_COMMIT_TAG',
+  type        : 'string',
+  value       : '',
+  description : 'Commit tag for version information in a release'
+)
+
+option('RASPBERRY',
+  type        : 'boolean',
+  value       : false,
+  description : 'Set if running on a RaspberryPi for a better layout'
+)
+
+option('DMCPVERSION',
+  type        : 'string',
+  value       : '',
+  description : 'dmcp or dmcp5'
+)
+
+option('DECNUMBER_FASTMUL',
+  type        : 'boolean',
+  value       : false,
+  description : 'Set if use decnumber with enabled FASTMUL option'
+)
+
+option('DMCP_PACKAGE',
+  type        : 'string',
+  value       : '',
+  description : 'define variable acc. to defines.h to save space for DM42 dmcp builds'
+)

@@ -1,0 +1,114 @@
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory app:title="Preferences">
+        <SwitchPreferenceCompat
+            app:key="haptic_enabled"
+            app:title="Enable Haptic Feedback"
+            app:defaultValue="true" />
+        <SwitchPreferenceCompat
+            app:key="haptic_hifi_enabled"
+            app:title="High-Fidelity Haptics (Modern)"
+            app:defaultValue="true"
+            app:dependency="haptic_enabled" />
+        <SeekBarPreference
+            app:key="haptic_intensity"
+            app:title="Haptic Intensity"
+            app:min="0"
+            android:max="255"
+            app:defaultValue="180"
+            app:dependency="haptic_enabled"
+            app:showSeekBarValue="true" />
+        <SwitchPreferenceCompat
+            app:key="keep_screen_on"
+            app:title="Keep Screen On"
+            app:defaultValue="false" />
+        <SwitchPreferenceCompat
+            app:key="auto_save_minimize"
+            app:title="Auto-Save on Minimize"
+            app:defaultValue="true" />
+        <SwitchPreferenceCompat
+            app:key="force_close_on_exit"
+            app:title="Force Close on f-shift EXIT"
+            app:summaryOn="Finishes activity and removes from recents"
+            app:summaryOff="Minimizes to background (stays in recents)"
+            app:defaultValue="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="Audio Settings">
+        <SwitchPreferenceCompat
+            app:key="beeper_enabled"
+            app:title="Simulated Beeper"
+            app:defaultValue="true" />
+        <SeekBarPreference
+            app:key="beeper_volume"
+            app:title="Beeper Volume"
+            app:min="0"
+            android:max="100"
+            app:defaultValue="20"
+            app:dependency="beeper_enabled"
+            app:showSeekBarValue="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="Customization">
+        <Preference
+            app:key="work_directory"
+            app:title="Work Directory"
+            app:summary="Select a folder for organized storage (STATE, PROGRAMS, etc.)" />
+        <SwitchPreferenceCompat
+            app:key="fullscreen_mode"
+            app:title="Full Screen Mode"
+            app:summaryOn="Hides status and navigation bars"
+            app:summaryOff="Shows status and navigation bars (for 3-button navigation)"
+            app:defaultValue="true" />
+        <ListPreference
+            app:key="current_skin"
+            app:title="Calculator Skin"
+            app:entries="@array/skin_entries"
+            app:entryValues="@array/skin_values"
+            app:defaultValue="r47_texture" />
+        <ListPreference
+            app:key="lcd_mode"
+            app:title="LCD Mode"
+            app:entries="@array/lcd_entries"
+            app:entryValues="@array/lcd_values"
+            app:defaultValue="vintage" />
+        <ListPreference
+            app:key="scaling_mode"
+            app:title="Scaling"
+            app:entries="@array/scaling_entries"
+            app:entryValues="@array/scaling_values"
+            app:defaultValue="full_width" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="Developer Tools">
+        <SwitchPreferenceCompat
+            app:key="show_touch_zones"
+            app:title="Show Touch Zones"
+            app:defaultValue="false" />
+        <Preference
+            app:key="factory_reset"
+            app:title="Reset to Factory Defaults"
+            app:summary="Wipe all data and restart app" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="About R47">
+        <Preference
+            app:key="about_version"
+            app:title="Version"
+            app:summary="R47 Android Port (c7ecb72ba)" />
+        <Preference
+            app:key="visit_gitlab"
+            app:title="Visit Project Page (GitLab)" />
+        <Preference
+            app:key="view_wiki"
+            app:title="View R47 Wiki" />
+        <Preference
+            app:key="visit_swissmicros"
+            app:title="Visit SwissMicros Site" />
+        <Preference
+            app:key="view_manual"
+            app:title="View Local Manual (Select PDF)" />
+    </PreferenceCategory>
+
+</PreferenceScreen>

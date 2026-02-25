@@ -1,0 +1,37 @@
+#!/bin/bash
+
+input=$1
+output=$2
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+        # Host is Mac: use gstat for GNU version
+        STAT=gstat
+else
+        # Assume host is Linux: stat is GNU version
+        STAT=stat
+fi
+
+filesize() {
+	$STAT -Lc%s "$1"
+}
+
+if [ ! -f "$input" ];then
+	echo "ERROR: Missing qspi file '$input'"
+	exit 1
+fi
+
+nsz=`filesize $input`
+
+cat << OI
+====
+QSPI Contents:
+   Size: $nsz
+====
+OI
+
+cat << OI > $output
+
+#define QSPI_DATA_SIZE $nsz
+#define QSPI_DATA_CRC 0x000CFED6
+
+OI

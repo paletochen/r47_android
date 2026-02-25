@@ -1,0 +1,46 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Theme.R47" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Primary brand color (f-shift yellow). -->
+        <item name="colorPrimary">#FFBF00</item>
+        <item name="colorOnPrimary">#000000</item>
+        <!-- Secondary brand color (g-shift blue). Used for toggles and headers. -->
+        <item name="colorSecondary">#7EB6BA</item>
+        <item name="colorOnSecondary">#000000</item>
+        <item name="colorSecondaryContainer">#7EB6BA</item>
+        <item name="colorOnSecondaryContainer">#000000</item>
+        
+        <!-- Tertiary colors (also mapped to blue to avoid purple fallbacks) -->
+        <item name="colorTertiary">#7EB6BA</item>
+        <item name="colorOnTertiary">#000000</item>
+        <item name="colorTertiaryContainer">#7EB6BA</item>
+        <item name="colorOnTertiaryContainer">#000000</item>
+
+        <!-- Container for primary (fallback for some UI elements) -->
+        <item name="colorPrimaryContainer">#7EB6BA</item>
+        <item name="colorOnPrimaryContainer">#000000</item>
+        <!-- Customize your theme here. -->
+        <!-- Legacy/Fallback compatibility -->
+        <item name="colorControlActivated">#7EB6BA</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+    </style>
+
+    <style name="VisibleReplicaKey">
+        <item name="android:layout_width">47dp</item>
+        <item name="android:layout_height">32dp</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:textSize">10sp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:padding">0dp</item>
+        <item name="android:fontFamily">sans-serif-condensed</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="android:elevation">0dp</item>
+    </style>
+    
+    <style name="SoftVisibleReplicaKey" parent="VisibleReplicaKey">
+       <!-- Same style for now -->
+    </style>
+</resources>

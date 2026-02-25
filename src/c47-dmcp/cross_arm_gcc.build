@@ -1,0 +1,41 @@
+[binaries]
+c       = ['ccache', 'arm-none-eabi-gcc']
+cpp     = ['ccache', 'arm-none-eabi-g++']
+ld      = 'arm-none-eabi-ld'
+ar      = 'arm-none-eabi-ar'
+as      = 'arm-none-eabi-as'
+size    = 'arm-none-eabi-size'
+objdump = 'arm-none-eabi-objdump'
+objcopy = 'arm-none-eabi-objcopy'
+strip   = 'arm-none-eabi-strip'
+gdb     = 'arm-none-eabi-gdb'
+
+[built-in options]
+c_args = [
+  '-mthumb',
+  '-march=armv7e-m',
+  '-mcpu=cortex-m4',
+  '-mfloat-abi=hard',
+  '-mfpu=fpv4-sp-d16',
+  '--specs=nosys.specs',
+  '-s',
+  '-fsigned-char',
+  '-ffunction-sections',
+  '-fdata-sections',
+  '-fno-strict-aliasing',
+  '-fmerge-all-constants',
+  '-nostartfiles']
+
+c_link_args = [
+  '-mthumb',
+  '-march=armv7e-m',
+  '-mcpu=cortex-m4',
+  '-mfloat-abi=hard',
+  '-mfpu=fpv4-sp-d16',
+  '-Wl,--no-undefined']
+
+[host_machine]
+system     = 'none'
+cpu_family = 'arm'
+cpu        = 'cortex-m4'
+endian     = 'little'

@@ -1,0 +1,26 @@
+<resources>
+    <string-array name="skin_entries">
+        <item>Classic (Standard)</item>
+    </string-array>
+    <string-array name="skin_values">
+        <item>r47_texture</item>
+    </string-array>
+
+    <string-array name="lcd_entries">
+        <item>Vintage Green</item>
+        <item>High Contrast</item>
+    </string-array>
+    <string-array name="lcd_values">
+        <item>vintage</item>
+        <item>high_contrast</item>
+    </string-array>
+
+    <string-array name="scaling_entries">
+        <item>Full Width</item>
+        <item>1:1 Physical</item>
+    </string-array>
+    <string-array name="scaling_values">
+        <item>full_width</item>
+        <item>physical</item>
+    </string-array>
+</resources>
