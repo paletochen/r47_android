@@ -1,12 +1,10 @@
 #!/bin/bash
-# R47 Transparent Firmware Builder (v2 - Shadow Identity)
-# This script ensures both filenames AND internal OS metadata identify 
-# correctly with the SwissMicros core hash without modifying core files.
+# R47 Transparent Firmware Builder (v3 - Dynamic Filtering)
+# This script executes the upstream 'dist' logic but filters out legacy 
+# hardware builds (Packages 1, 2, 3) and enforces correct versioning.
 set -e
 
 # 1. Calculate the SwissMicros Core Hash (8 chars)
-# Public shell: Prioritize 'upstream/master' (SwissMicros)
-# Private vault: Prioritize 'upstream/master' then 'origin/master'
 CORE_HASH=$(git rev-parse --short=8 upstream/master 2>/dev/null || \
             git rev-parse --short=8 origin/master 2>/dev/null || \
             echo "unknown")
@@ -17,54 +15,45 @@ if [ "$CORE_HASH" == "unknown" ]; then
 fi
 
 VERSION_OVERRIDE="${CORE_HASH}-mod"
-
 echo "--- 🔍 Detected SwissMicros Core Identity: $VERSION_OVERRIDE ---"
 
 # 2. Setup the Shadow Identity Wrapper
-# This intercepts the build system's 'git describe' calls to prevent local 
-# private commits from contaminating the internal firmware version.
+# This intercepts the build system's 'git describe' calls.
 SHADOW_BIN_DIR="$(pwd)/.shadow_bin"
 mkdir -p "$SHADOW_BIN_DIR"
 cat <<EOF > "$SHADOW_BIN_DIR/git"
 #!/bin/bash
 if [[ "\$*" == *"describe"* ]]; then
-    # Return the core hash when the build system asks for the version
     echo "$VERSION_OVERRIDE"
 else
-    # Pass everything else to the real git
     exec /usr/bin/git "\$@"
 fi
 EOF
 chmod +x "$SHADOW_BIN_DIR/git"
 
-# Inject the shadow wrapper into the path for the duration of this script
+# Inject shadow wrapper
 ORIG_PATH="$PATH"
 export PATH="$SHADOW_BIN_DIR:$PATH"
 
-echo "🧹 Cleaning..."
-make clean
+# 3. Dynamic Filtering of the 'dist' script
+# We filter out lines 24-31 (Legacy DM42 packages) to prevent size errors.
+# We also ensure the VERSION override is passed to every 'make' call.
+echo "--- 🛡️ Filtering Legacy Hardware Builds (Packages 1, 2, 3) ---"
+FILTERED_DIST=".dist_filtered.sh"
 
-# 3. Build with Shadow Identity
-# We pass VERSION to make for filenames, and the Shadow Git handles the internal vcs.h
-echo "📦 Building dist_macos..."
-make VERSION="$VERSION_OVERRIDE" BUILD_PC=build.rel build.rel sim simr47
-make dist_macos VERSION="$VERSION_OVERRIDE" BUILD_PC=build.rel
+# Create a version of the 'dist' script that:
+# - Removes the problematic lines 24-31
+# - Appends our VERSION override to all 'make' commands
+sed '24,31d' dist | sed "s/make /make VERSION=\"$VERSION_OVERRIDE\" /g" > "$FILTERED_DIST"
+chmod +x "$FILTERED_DIST"
 
-echo "📦 Building dist_dmcp..."
-make dist_dmcp VERSION="$VERSION_OVERRIDE"
+# 4. Execute the Filtered Build
+echo "🚀 Starting Surgical Build..."
+bash "./$FILTERED_DIST"
 
-echo "📦 Building dist_dmcp5..."
-make dist_dmcp5 VERSION="$VERSION_OVERRIDE"
-
-echo "📦 Building dist_dmcp5r47..."
-make dist_dmcp5r47 VERSION="$VERSION_OVERRIDE"
-
-echo "📦 Building dist_dmcpr47..."
-make dist_dmcpr47 VERSION="$VERSION_OVERRIDE"
-
-# 4. Cleanup Shadow Wrapper
+# 5. Cleanup
 export PATH="$ORIG_PATH"
 rm -rf "$SHADOW_BIN_DIR"
+rm -f "$FILTERED_DIST"
 
-echo "--- ✅ Transparent Build Complete: $VERSION_OVERRIDE ---"
-echo "Internal metadata and filenames are now perfectly aligned with SwissMicros Core."
+echo "--- ✅ Transparent Filtered Build Complete: $VERSION_OVERRIDE ---"
