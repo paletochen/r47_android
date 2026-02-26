@@ -5,16 +5,18 @@ plugins {
 
 android {
     namespace 'com.example.r47'
-    compileSdk 34
+    compileSdk project.findProperty('r47.compileSdk')?.toInteger() ?: 34
 
     defaultConfig {
         applicationId "com.example.r47"
-        minSdk 24
-        targetSdk 34
+        minSdk project.findProperty('r47.minSdk')?.toInteger() ?: 24
+        targetSdk project.findProperty('r47.targetSdk')?.toInteger() ?: 34
         versionCode 1
         versionName "1.0"
         
-        ndkVersion "26.1.10909125"
+        // Use property override if provided, otherwise default to a verified version
+        // To use system default, user can pass -Pr47.ndkVersion=
+        ndkVersion project.findProperty('r47.ndkVersion') ?: "26.1.10909125"
 
         externalNativeBuild {
             cmake {
@@ -44,7 +46,7 @@ android {
     externalNativeBuild {
         cmake {
             path "src/main/cpp/CMakeLists.txt"
-            version "3.22.1"
+            version project.findProperty('r47.cmakeVersion') ?: "3.22.1"
         }
     }
     

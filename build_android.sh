@@ -27,14 +27,32 @@ fi
 PROJECT_ROOT="$(pwd)"
 export ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}
 
-# Try to match the NDK version specified in build.gradle
-PROJECT_NDK_VERSION=$(grep "ndkVersion" "$PROJECT_ROOT/android/app/build.gradle" | sed 's/.*"\(.*\)".*/\1/')
-if [ -n "$PROJECT_NDK_VERSION" ] && [ -d "$ANDROID_SDK_ROOT/ndk/$PROJECT_NDK_VERSION" ]; then
-    echo "Using project-specified NDK version: $PROJECT_NDK_VERSION"
-    export ANDROID_NDK_ROOT="$ANDROID_SDK_ROOT/ndk/$PROJECT_NDK_VERSION"
+# --- NDK Version Selection ---
+# 1. Check for Environment Override
+# 2. Check for Gradle Property in android/gradle.properties
+# 3. Extract Default from build.gradle
+# 4. Fallback to latest installed
+IF_NDK_VERSION=${R47_NDK_VERSION}
+if [ -z "$IF_NDK_VERSION" ]; then
+    IF_NDK_VERSION=$(grep "r47.ndkVersion=" "$PROJECT_ROOT/android/gradle.properties" 2>/dev/null | cut -d'=' -f2)
+fi
+if [ -z "$IF_NDK_VERSION" ]; then
+    IF_NDK_VERSION=$(grep "ndkVersion" "$PROJECT_ROOT/android/app/build.gradle" | grep -o '".*"' | sed 's/"//g')
+fi
+
+if [ -n "$IF_NDK_VERSION" ] && [ -d "$ANDROID_SDK_ROOT/ndk/$IF_NDK_VERSION" ]; then
+    echo "Using detected NDK version: $IF_NDK_VERSION"
+    export ANDROID_NDK_ROOT="$ANDROID_SDK_ROOT/ndk/$IF_NDK_VERSION"
 else
-    DEFAULT_NDK_SIDE_BY_SIDE="$ANDROID_SDK_ROOT/ndk/$(ls -1 "$ANDROID_SDK_ROOT/ndk" 2>/dev/null | tail -n1)"
-    export ANDROID_NDK_ROOT=${ANDROID_NDK_ROOT:-$DEFAULT_NDK_SIDE_BY_SIDE}
+    # Fallback to latest available NDK
+    LATEST_NDK=$(ls -1 "$ANDROID_SDK_ROOT/ndk" 2>/dev/null | sort -V | tail -n1)
+    if [ -n "$LATEST_NDK" ]; then
+        echo "NDK $IF_NDK_VERSION not found. Falling back to latest: $LATEST_NDK"
+        export ANDROID_NDK_ROOT="$ANDROID_SDK_ROOT/ndk/$LATEST_NDK"
+    else
+        echo "ERROR: No NDK found in $ANDROID_SDK_ROOT/ndk"
+        exit 1
+    fi
 fi
 
 export ANDROID_HOME=$ANDROID_SDK_ROOT

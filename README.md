@@ -51,5 +51,21 @@ Ensure `ANDROID_SDK_ROOT` is set in your environment.
 ```
 The resulting APK will be located in `android/app/build/outputs/apk/debug/`.
 
+### 🛠️ Advanced Build Configuration
+If you have different versions of the Android SDK, NDK, or CMake installed (common on Windows), you can override the defaults without modifying the repository files.
+
+Create or edit `android/gradle.properties`:
+```properties
+r47.compileSdk=35
+r47.targetSdk=35
+r47.ndkVersion=29.0.14206865
+r47.cmakeVersion=3.28.1
+```
+Alternatively, pass them via the environment (for `build_android.sh`):
+```bash
+export R47_NDK_VERSION="29.0.14206865"
+./build_android.sh
+```
+
 ## 📜 Acknowledgments
 Based on the excellent work by the [WP43/C47 team](https://gitlab.com/rpncalculators/c43) and [SwissMicros](https://www.swissmicros.com/). This port is an independent community contribution.
