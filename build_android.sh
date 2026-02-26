@@ -190,10 +190,14 @@ if [ ! -f "$GRADLE_CMD" ]; then
 fi
 chmod +x "$GRADLE_CMD"
 
+# Pass detected NDK/SDK versions as Project Properties to override build.gradle defaults
+GRADLE_PROPS="-Pr47.ndkVersion=$IF_NDK_VERSION"
+if [ -n "$R47_COMPILE_SDK" ]; then GRADLE_PROPS="$GRADLE_PROPS -Pr47.compileSdk=$R47_COMPILE_SDK"; fi
+
 # Clean cxx to ensure fresh cmake run
 rm -rf app/.cxx
 $GRADLE_CMD clean
-$GRADLE_CMD assembleDebug
+$GRADLE_CMD assembleDebug $GRADLE_PROPS
 
 APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
 if [ -f "$APK_PATH" ]; then
