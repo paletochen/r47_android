@@ -199,7 +199,7 @@ rm -rf app/.cxx
 $GRADLE_CMD clean
 $GRADLE_CMD assembleDebug $GRADLE_PROPS
 
-APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
+APK_PATH="app/build/outputs/apk/debug/R47calculator-debug.apk"
 if [ -f "$APK_PATH" ]; then
     echo "SUCCESS: APK created at: $ANDROID_PROJECT_DIR/$APK_PATH"
 else

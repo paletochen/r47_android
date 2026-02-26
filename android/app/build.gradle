@@ -64,6 +64,12 @@ android {
             useLegacyPackaging true
         }
     }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            outputFileName = "R47calculator-${variant.name}.apk"
+        }
+    }
 }
 
 dependencies {
