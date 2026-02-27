@@ -155,7 +155,7 @@ EOF
 echo "--- Copying Assets ---"
 DRAWABLE_DIR="$ANDROID_PROJECT_DIR/app/src/main/res/drawable"
 mkdir -p "$DRAWABLE_DIR"
-cp -v r47.png "$DRAWABLE_DIR/r47_texture.png"
+# Note: r47_texture.png is managed within the Android project; do not overwrite from core.
 
 ASSETS_FONTS_DIR="$ANDROID_PROJECT_DIR/app/src/main/assets/fonts"
 mkdir -p "$ASSETS_FONTS_DIR"

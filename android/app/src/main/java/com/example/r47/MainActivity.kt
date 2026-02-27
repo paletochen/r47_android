@@ -110,26 +110,34 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         } else onFileCancelledNative()
     }
 
-    private fun performHapticClick(v: View) {
+    private fun performHapticClick() {
         if (!isHapticEnabled || hapticIntensity <= 0) return
-        val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator ?: return
+        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+            vibratorManager?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        } ?: return
+
         if (!vibrator.hasVibrator()) return
 
-        if (isHighFidelityHapticEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // Modern powerful haptics: Custom waveform scaled by intensity
-            val effect = VibrationEffect.createWaveform(
-                longArrayOf(0, 10, 20, 5),
-                intArrayOf(0, hapticIntensity, 0, hapticIntensity / 2),
-                -1
-            )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val effect = if (isHighFidelityHapticEnabled) {
+                // Modern powerful haptics: Custom waveform scaled by intensity
+                VibrationEffect.createWaveform(
+                    longArrayOf(0, 10, 20, 5),
+                    intArrayOf(0, hapticIntensity, 0, hapticIntensity / 2),
+                    -1
+                )
+            } else {
+                // Standard mode: Simple one-shot pulse scaled by intensity
+                VibrationEffect.createOneShot(15, hapticIntensity)
+            }
             vibrator.vibrate(effect)
         } else {
-            // Standard mode: Simple one-shot pulse scaled by intensity
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createOneShot(15, hapticIntensity))
-            } else {
-                vibrator.vibrate(15)
-            }
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(15)
         }
     }
 
@@ -1118,17 +1126,17 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
                 }
                 val keyBtn = Button(this); keyBtn.background = null 
                 keyBtn.isFocusable = false; keyBtn.isFocusableInTouchMode = false
-                keyBtn.setOnTouchListener { v, event ->
+                keyBtn.setOnTouchListener { btn, event ->
                     Log.d(TAG, "Button $code touch: ${event.action}")
                     lastTouchX = event.rawX; lastTouchY = event.rawY
                     when (event.action) {
                         MotionEvent.ACTION_DOWN -> { 
-                            v.isPressed = true
-                            performHapticClick(v)
+                            btn.isPressed = true
+                            performHapticClick()
                             coreTasks.offer { sendKey(code) } 
                         }
                         MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { 
-                            v.isPressed = false
+                            btn.isPressed = false
                             coreTasks.offer { sendKey(0) } 
                         }
                     }
