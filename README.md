@@ -52,19 +52,39 @@ Ensure `ANDROID_SDK_ROOT` is set in your environment.
 The resulting APK will be located in `android/app/build/outputs/apk/debug/`.
 
 ### 🛠️ Advanced Build Configuration
-If you have different versions of the Android SDK, NDK, or CMake installed (common on Windows), you can override the defaults without modifying the repository files.
+If you have different versions of the Android SDK, NDK, or CMake installed (common on Windows), you can override the defaults. Depending on your operating system and terminal, some methods may be more reliable than others.
 
-Create or edit `android/gradle.properties`:
+#### Option 1: Using gradle.properties (Most Reliable / Cross-Platform)
+Create or edit `android/gradle.properties`. This method works on all systems (Linux, macOS, Windows) and is the recommended approach:
 ```properties
 r47.compileSdk=35
 r47.targetSdk=35
 r47.ndkVersion=29.0.14206865
 r47.cmakeVersion=3.28.1
 ```
-Alternatively, pass them via the environment (for `build_android.sh`):
+
+#### Option 2: Environment Variables (Linux / macOS / WSL)
+You can pass the NDK version as an environment variable before running the build script:
 ```bash
 export R47_NDK_VERSION="29.0.14206865"
 ./build_android.sh
+```
+
+#### Option 3: PowerShell / CMD (Windows Native)
+If you are running from a native Windows terminal without WSL or Git Bash:
+**PowerShell:**
+```powershell
+$env:R47_NDK_VERSION="29.0.14206865"; ./build_android.sh
+```
+**CMD:**
+```cmd
+set R47_NDK_VERSION=29.0.14206865 && ./build_android.sh
+```
+
+#### Option 4: Manual local.properties (Alternative for Windows)
+Some Windows users have reported success by manually appending the version to `local.properties`:
+```cmd
+echo ndkVersion=29.0.14206865 >> android/local.properties
 ```
 
 ## 📜 Acknowledgments

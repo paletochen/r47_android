@@ -16,7 +16,7 @@ android {
         
         // Use property override if provided, otherwise default to a verified version
         // To use system default, user can pass -Pr47.ndkVersion=
-        ndkVersion project.findProperty('r47.ndkVersion') ?: "26.1.10909125"
+        ndkVersion project.findProperty('r47.ndkVersion') ?: "29.0.14206865"
 
         externalNativeBuild {
             cmake {
