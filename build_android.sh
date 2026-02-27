@@ -177,7 +177,7 @@ fi
 
 # Create local.properties
 echo "sdk.dir=$ANDROID_SDK_ROOT" > "$ANDROID_PROJECT_DIR/local.properties"
-echo "ndk.dir=$ANDROID_NDK_ROOT" >> "$ANDROID_PROJECT_DIR/local.properties"
+# Note: ndk.dir is deprecated; we pass the version via Gradle property instead.
 
 cd "$ANDROID_PROJECT_DIR"
 
