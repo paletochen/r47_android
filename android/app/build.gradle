@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace 'com.example.r47'
-    compileSdk project.findProperty('r47.compileSdk')?.toInteger() ?: 34
+    compileSdk project.findProperty('r47.compileSdk')?.toInteger() ?: 35
 
     defaultConfig {
         applicationId "com.example.r47"
         minSdk project.findProperty('r47.minSdk')?.toInteger() ?: 24
-        targetSdk project.findProperty('r47.targetSdk')?.toInteger() ?: 34
+        targetSdk project.findProperty('r47.targetSdk')?.toInteger() ?: 35
         versionCode 1
         versionName "1.0"
         

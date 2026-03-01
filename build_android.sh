@@ -186,7 +186,7 @@ echo "--- Building APK ---"
 GRADLE_CMD="./gradlew"
 
 if [ ! -f "$GRADLE_CMD" ]; then
-    gradle wrapper --gradle-version 8.2 --distribution-type bin
+    gradle wrapper --gradle-version 8.9 --distribution-type bin
 fi
 chmod +x "$GRADLE_CMD"
 

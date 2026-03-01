@@ -62,6 +62,7 @@ r47.targetSdk=35
 r47.ndkVersion=29.0.14206865
 r47.cmakeVersion=3.28.1
 ```
+Note: You can also target **API 36 (Android 16 preview)** by setting `r47.compileSdk=36` and `r47.targetSdk=36` if you have the preview SDK installed.
 
 #### Option 2: Environment Variables (Linux / macOS / WSL)
 You can pass the NDK version as an environment variable before running the build script:
