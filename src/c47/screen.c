@@ -478,7 +478,7 @@ char letteredRegisterName(calcRegister_t regist) {
       if(showFunctionNameCounter <= 0) {
         hideFunctionName();
         tmpString[0] = 0;
-        showFunctionName(ITM_NOP, 0, "SF:R");
+        // showFunctionName(ITM_NOP, 0, "SF:R");
       }
     }
 
@@ -516,7 +516,7 @@ char letteredRegisterName(calcRegister_t regist) {
       if(showFunctionNameCounter <= 0) {
         hideFunctionName();
         tmpString[0] = 0;
-        showFunctionName(ITM_NOP, 0, "SF:R");
+        // showFunctionName(ITM_NOP, 0, "SF:R");
       }
     }
 
@@ -676,7 +676,7 @@ void execTimerApp(uint16_t timerType) {
     if(calcMode != CM_PEM) {
       refreshRegisterLineRestoreT(); //clearRegisterLine(Y_POSITION_OF_REGISTER_T_LINE - 4, REGISTER_LINE_HEIGHT); //JM FN clear the previous shift function name
     }
-    showFunctionName(ITM_NOP, 0, "SF:N");
+    // showFunctionName(ITM_NOP, 0, "SF:N");
     FN_timed_out_to_NOP_or_Executed = true;
     underline_softkey(1<<(FN_key_pressed-38), 3);   //  Purposely select row 3 which does not exist, just to activate the 'clear previous line'
     FN_timeouts_in_progress = false;
@@ -999,7 +999,9 @@ void execTimerApp(uint16_t timerType) {
           showFunctionName(JM_auto_longpress_enabled, JM_TO_CL_LONG + 50, funcParam);     //Add a marginal amout of time to prevent racing of end conditions.
         }
         else {
-          showFunctionName(JM_auto_longpress_enabled, JM_TO_CL_LONG + 50, "SF:LL");     //Add a marginal amout of time to prevent racing of end conditions.
+          if (JM_auto_longpress_enabled != ITM_NOP) {
+            showFunctionName(JM_auto_longpress_enabled, JM_TO_CL_LONG + 50, "SF:LL");     //Add a marginal amout of time to prevent racing of end conditions.
+          }
         }
         JM_auto_longpress_enabled = 0;                                       //showFunctionName must not time out longer than the timer that is started below
 
