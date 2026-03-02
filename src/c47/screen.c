@@ -478,7 +478,9 @@ char letteredRegisterName(calcRegister_t regist) {
       if(showFunctionNameCounter <= 0) {
         hideFunctionName();
         tmpString[0] = 0;
-        // showFunctionName(ITM_NOP, 0, "SF:R");
+        if (!isArrowUp(currentKeyCode) && !isArrowDown(currentKeyCode)) {
+            showFunctionName(ITM_NOP, 0, "SF:R");
+        }
       }
     }
 
@@ -516,7 +518,9 @@ char letteredRegisterName(calcRegister_t regist) {
       if(showFunctionNameCounter <= 0) {
         hideFunctionName();
         tmpString[0] = 0;
-        // showFunctionName(ITM_NOP, 0, "SF:R");
+        if (!isArrowUp(currentKeyCode) && !isArrowDown(currentKeyCode)) {
+            showFunctionName(ITM_NOP, 0, "SF:R");
+        }
       }
     }
 
@@ -676,7 +680,7 @@ void execTimerApp(uint16_t timerType) {
     if(calcMode != CM_PEM) {
       refreshRegisterLineRestoreT(); //clearRegisterLine(Y_POSITION_OF_REGISTER_T_LINE - 4, REGISTER_LINE_HEIGHT); //JM FN clear the previous shift function name
     }
-    // showFunctionName(ITM_NOP, 0, "SF:N");
+    showFunctionName(ITM_NOP, 0, "SF:N");
     FN_timed_out_to_NOP_or_Executed = true;
     underline_softkey(1<<(FN_key_pressed-38), 3);   //  Purposely select row 3 which does not exist, just to activate the 'clear previous line'
     FN_timeouts_in_progress = false;
@@ -789,6 +793,15 @@ void execTimerApp(uint16_t timerType) {
   }
 #endif // LONGPRESS_CFG
 
+
+  static void clearShiftTemporaryIndications(bool_t condition) {
+    if(isShift(currentKeyCode) && (temporaryInformation != TI_NO_INFO) && condition) {
+      temporaryInformation = TI_NO_INFO;
+      screenUpdatingMode &= ~(SCRUPD_MANUAL_STACK | SCRUPD_MANUAL_STATUSBAR);
+      refreshScreen(1311);
+    }
+  }
+
   void Shft_handler() {
     if(Shft_LongPress_f_g) {
       if(fnTimerGetStatus(TO_FG_LONG) == TMR_COMPLETED) {
@@ -819,21 +832,24 @@ void execTimerApp(uint16_t timerType) {
               closeNim();
               screenUpdatingMode &= ~SCRUPD_MANUAL_MENU;
             }
+            //USER mode
             if(getSystemFlag(FLAG_USER) && (calcMode != CM_AIM) && (calcMode != CM_EIM) && !getSystemFlag(FLAG_ALPHA) && (item > 0)) {
-
               if((calcMode == CM_NIM  || (calcMode == CM_PEM && aimBuffer[0] != 0 && !getSystemFlag(FLAG_ALPHA)))
                   && (item == ITM_HASH_JM || item == ITM_toINT )) {
-                  processKeyAction(item);
+                clearShiftTemporaryIndications(shiftG || shiftF);
+                processKeyAction(item);
               }
               else if(calcMode != CM_PEM && indexOfItems[item].func == addItemToBuffer) {
+                clearShiftTemporaryIndications(shiftG || shiftF);
                 addItemToNimBuffer(item);
               }
               else {
+                clearShiftTemporaryIndications((item != ITM_SNAP) && (shiftG || shiftF));
                 _executeItem(item,keyCode);
               }
-
             }
-            else {
+            else { //non-USER mode
+              clearShiftTemporaryIndications(shiftG || shiftF);
               char *funcParam = "";
               keyStateCode = (getSystemFlag(FLAG_ALPHA) ? 3 : 0) + 2;
               funcParam = (char *)getNthString((uint8_t *)userKeyLabel, keyCode * 6 + keyStateCode);
@@ -899,7 +915,8 @@ void execTimerApp(uint16_t timerType) {
         }
       }
     }
-    else if(Shft_timeouts) {
+    else if(Shft_timeouts) { //fg longpress
+      clearShiftTemporaryIndications(shiftG);                     //clear TI when arriving here, when longpress is timed out, and clear while on g
       if(fnTimerGetStatus(TO_FG_LONG) == TMR_COMPLETED) {
         fnTimerStop(TO_3S_CTFF);
         if(!shiftF && !shiftG) {
@@ -959,13 +976,22 @@ void execTimerApp(uint16_t timerType) {
 
         if(calcMode == CM_NORMAL && programRunStop == PGM_STOPPED && (isArrowUp(currentKeyCode))) {
           aimBuffer[0] = 0;
-          ++currentLocalStepNumber;
-          currentStep = findNextStep(currentStep);
+          fnSkip(0);
           refreshRegisterLine(REGISTER_T);
+          if(JM_auto_longpress_enabled == ITM_NOP) {
+            FN_timeouts_in_progress = false;
+            fnTimerStop(TO_FN_LONG);
+            return; //do not restart timer
+          }
         }
         else if(calcMode == CM_NORMAL && programRunStop == PGM_SINGLE_STEP && (isArrowDown(currentKeyCode))) {
           programRunStop = PGM_STOPPED;
           refreshRegisterLine(REGISTER_T);
+          if(JM_auto_longpress_enabled == ITM_NOP) {
+            FN_timeouts_in_progress = false;
+            fnTimerStop(TO_FN_LONG);
+            return; //do not restart timer
+          }
         }
 
         //printf("LongpressKey_handler = %d %s currentKeyCode=%d\n",JM_auto_longpress_enabled, indexOfItems[abs(JM_auto_longpress_enabled)].itemCatalogName, currentKeyCode);
@@ -988,7 +1014,7 @@ void execTimerApp(uint16_t timerType) {
           } else
           if(calcMode == CM_EIM || tam.alpha) {
             screenUpdatingMode &= ~(SCRUPD_MANUAL_MENU | SCRUPD_SKIP_MENU_ONE_TIME);
-            refreshScreen(131);
+            refreshScreen(1312);
           }
           return;
         }
@@ -999,9 +1025,7 @@ void execTimerApp(uint16_t timerType) {
           showFunctionName(JM_auto_longpress_enabled, JM_TO_CL_LONG + 50, funcParam);     //Add a marginal amout of time to prevent racing of end conditions.
         }
         else {
-          if (JM_auto_longpress_enabled != ITM_NOP) {
-            showFunctionName(JM_auto_longpress_enabled, JM_TO_CL_LONG + 50, "SF:LL");     //Add a marginal amout of time to prevent racing of end conditions.
-          }
+          showFunctionName(JM_auto_longpress_enabled, JM_TO_CL_LONG + 50, "SF:LL");     //Add a marginal amout of time to prevent racing of end conditions.
         }
         JM_auto_longpress_enabled = 0;                                       //showFunctionName must not time out longer than the timer that is started below
 
