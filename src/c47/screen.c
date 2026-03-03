@@ -478,7 +478,9 @@ char letteredRegisterName(calcRegister_t regist) {
       if(showFunctionNameCounter <= 0) {
         hideFunctionName();
         tmpString[0] = 0;
-        if (!isArrowUp(currentKeyCode) && !isArrowDown(currentKeyCode)) {
+        bool_t isArrow = isArrowUp(currentKeyCode) || isArrowDown(currentKeyCode);
+        bool_t isMultiPageMenu = (softmenu[softmenuStack[0].softmenuId].numItems > 6);
+        if (!isArrow || isMultiPageMenu) {
             showFunctionName(ITM_NOP, 0, "SF:R");
         }
       }
@@ -518,7 +520,9 @@ char letteredRegisterName(calcRegister_t regist) {
       if(showFunctionNameCounter <= 0) {
         hideFunctionName();
         tmpString[0] = 0;
-        if (!isArrowUp(currentKeyCode) && !isArrowDown(currentKeyCode)) {
+        bool_t isArrow = isArrowUp(currentKeyCode) || isArrowDown(currentKeyCode);
+        bool_t isMultiPageMenu = (softmenu[softmenuStack[0].softmenuId].numItems > 6);
+        if (!isArrow || isMultiPageMenu) {
             showFunctionName(ITM_NOP, 0, "SF:R");
         }
       }
