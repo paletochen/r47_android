@@ -105,3 +105,7 @@ Thumbs.db
 !/src/c47/programming/lblGtoXeq.c
 !/src/c47/screen.c
 !/src/c47/meson.build
+
+# --- 8. Android Core Copies (Ignore copies of the core) ---
+/android/app/src/main/cpp/c47/
+!/android/app/src/main/cpp/c47-android/

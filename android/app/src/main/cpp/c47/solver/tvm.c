@@ -158,7 +158,7 @@ int calculatePV(const real_t *fv,
   if(realCompareAbsLessThan(&ip, const_1e_37)) {
     // PV = -PMT*NPPER - FV
     realFMA(pmt, npper, fv, pv, &ctxtTvm);
-    realSetNegativeSign(pv);
+    realChangeSign(pv);
     return 0;
   }
 
@@ -216,7 +216,7 @@ int calculateFV(const real_t *pv,
   if(realCompareAbsLessThan(&ip, const_1e_37)) {
     // FV = -PV - PMT*NPPER
     realFMA(pmt, npper, pv, fv, &ctxtTvm);
-    realSetNegativeSign(fv);
+    realChangeSign(fv);
     return 0;
   }
 
@@ -233,7 +233,7 @@ int calculateFV(const real_t *pv,
 
   // FV from PV = -PV * (1+ip)^NPPER
   realMultiply(pv, &powerTerm, &temp1, &ctxtTvm);
-  realSetNegativeSign(&temp1);
+  realChangeSign(&temp1);
 
   // Annuity factor = [(1+ip)^NPPER - 1] / ip
   realDivide(&temp2, &ip, &annuityFactor, &ctxtTvm);
@@ -280,7 +280,7 @@ int calculatePMT(const real_t *pv,
     // PMT = -(PV + FV) / NPPER
     realAdd(pv, fv, &temp1, &ctxtTvm);
     realDivide(&temp1, npper, pmt, &ctxtTvm);
-    realSetNegativeSign(pmt);
+    realChangeSign(pmt);
     return 0;
   }
 
@@ -348,7 +348,7 @@ int calculateNPPER(const real_t *pv,
     }
     realAdd(pv, fv, &temp1, &ctxtTvm);
     realDivide(&temp1, pmt, npper, &ctxtTvm);
-    realSetNegativeSign(npper);
+    realChangeSign(npper);
     return 0;
   }
 
@@ -361,7 +361,7 @@ int calculateNPPER(const real_t *pv,
     }
 
     realDivide(fv, pv, &ratio, &ctxtTvm);
-    realSetNegativeSign(&ratio);
+    realChangeSign(&ratio);
 
     // Check for non-positive argument to ln
     if(!realIsPositive(&ratio)) {
@@ -383,7 +383,7 @@ int calculateNPPER(const real_t *pv,
   // Case 2: PMT ≠ 0, ip ≠ 0
   // Calculate A = -FV*ip + PMT*(1+ip*p)
   realMultiply(fv, &ip, &temp1, &ctxtTvm);
-  realSetNegativeSign(&temp1);
+  realChangeSign(&temp1);
   realFMA(&ip, p, const_1, &temp2, &ctxtTvm);
   realFMA(pmt, &temp2, &temp1, &a, &ctxtTvm);
 
@@ -461,7 +461,7 @@ int calculatePPER(const real_t *pv,
 
     // ip = (-FV/PV)^(1/NPPER) - 1
     realDivide(fv, pv, &temp1, &ctxtTvm);
-    realSetNegativeSign(&temp1);
+    realChangeSign(&temp1);
 
     if(!realIsPositive(&temp1)) {
       return tvmRangeError(3);
@@ -561,7 +561,7 @@ int calculateCPER(const real_t *pv,
 
     // ip = (-FV/PV)^(1/NPPER) - 1
     realDivide(fv, pv, &temp1, &ctxtTvm);
-    realSetNegativeSign(&temp1);
+    realChangeSign(&temp1);
 
     if(!realIsPositive(&temp1)) {
       return tvmRangeError(3);
