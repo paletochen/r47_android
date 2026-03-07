@@ -1,1 +1,1 @@
-- Updated to commit a3b8a7af which fixes TVM bug
+- Added new Dynamic skin
