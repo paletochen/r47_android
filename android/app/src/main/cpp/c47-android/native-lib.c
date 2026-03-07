@@ -480,6 +480,7 @@ Java_com_example_r47_MainActivity_setSlotNative(JNIEnv* env, jobject thiz, jint 
 
 JNIEXPORT void JNICALL
 Java_com_example_r47_MainActivity_sendKey(JNIEnv* env, jobject thiz, jint keyCode) {
+    if (!ram) return;
     char charKey[4];
     onUIActivity();
     if (keyCode > 0) {
@@ -507,37 +508,100 @@ Java_com_example_r47_MainActivity_sendKey(JNIEnv* env, jobject thiz, jint keyCod
 }
 
 JNIEXPORT jstring JNICALL
-Java_com_example_r47_MainActivity_getButtonLabel(JNIEnv* env, jobject thiz, jint keyCode, jint type) {
+Java_com_example_r47_MainActivity_getButtonLabelNative(JNIEnv* env, jobject thiz, jint keyCode, jint type) {
     if (!ram) return (*env)->NewStringUTF(env, "");
-    const calcKey_t *keys = getSystemFlag(FLAG_USER) ? kbd_usr : kbd_std;
-    if (keyCode < 1 || keyCode > 37) return (*env)->NewStringUTF(env, "");
-    const calcKey_t *key = &keys[keyCode - 1];
-    int16_t item = 0;
-    switch(type) {
-        case 0: item = key->primary; break;
-        case 1: item = key->fShifted; break;
-        case 2: item = key->gShifted; break;
-        case 3: item = key->primaryAim; break; 
+    pthread_mutex_lock(&screenMutex);
+    extern bool_t getSystemFlag(int32_t sf);
+    
+    // FLAG_ALPHA is 0x800e
+    bool_t alphaOn = (calcMode == CM_AIM) || 
+                     ((calcMode == CM_PEM || calcMode == CM_ASSIGN) && getSystemFlag(0x800e)) ||
+                     ((tam.mode != 0 || tam.alpha) && getSystemFlag(0x800e));
+
+    const calcKey_t *keys = getSystemFlag(0x8014) ? kbd_usr : kbd_std;
+    if (keyCode < 1 || keyCode > 37) {
+        pthread_mutex_unlock(&screenMutex);
+        return (*env)->NewStringUTF(env, "");
     }
-    if (item == 0) return (*env)->NewStringUTF(env, "");
+    const calcKey_t *key = &keys[keyCode - 1];
+    
+    int16_t item = 0;
+    if (alphaOn) {
+        switch(type) {
+            case 0: item = key->primaryAim; break;
+            case 1: item = key->fShiftedAim; break;
+            case 2: item = key->gShiftedAim; break;
+            case 3: item = 0; break; 
+        }
+    } else {
+        switch(type) {
+            case 0: {
+                if (shiftF) item = key->fShifted;
+                else if (shiftG) item = key->gShifted;
+                else item = key->primary; 
+                break;
+            }
+            case 1: item = key->fShifted; break;
+            case 2: item = key->gShifted; break;
+            case 3: item = key->primaryAim; break; 
+        }
+    }
+
+    if (item == 0) {
+        pthread_mutex_unlock(&screenMutex);
+        return (*env)->NewStringUTF(env, "");
+    }
     const char *name = indexOfItems[abs(item)].itemSoftmenuName;
-    if (!name) return (*env)->NewStringUTF(env, "");
+    if (!name) {
+        pthread_mutex_unlock(&screenMutex);
+        return (*env)->NewStringUTF(env, "");
+    }
     uint8_t utf8[64]; memset(utf8, 0, sizeof(utf8)); stringToUtf8(name, utf8);
+    pthread_mutex_unlock(&screenMutex);
     return (*env)->NewStringUTF(env, (char*)utf8);
 }
 
 JNIEXPORT jstring JNICALL
-Java_com_example_r47_MainActivity_getSoftkeyLabel(JNIEnv* env, jobject thiz, jint fnKeyIndex) {
+Java_com_example_r47_MainActivity_getSoftkeyLabelNative(JNIEnv* env, jobject thiz, jint fnKeyIndex) {
     if (!ram || fnKeyIndex < 1 || fnKeyIndex > 6) return (*env)->NewStringUTF(env, "");
+    pthread_mutex_lock(&screenMutex);
     int16_t m = softmenuStack[0].softmenuId;
-    if (m < 0 || m >= NUMBER_OF_DYNAMIC_SOFTMENUS) return (*env)->NewStringUTF(env, "");
+    if (m < 0 || m >= NUMBER_OF_DYNAMIC_SOFTMENUS) {
+        pthread_mutex_unlock(&screenMutex);
+        return (*env)->NewStringUTF(env, "");
+    }
     int16_t firstItem = softmenuStack[0].firstItem;
     int16_t itemShift = (shiftF ? 6 : (shiftG ? 12 : 0));
     int16_t idx = firstItem + itemShift + (fnKeyIndex - 1);
     char *labelName = (char *)getNthString(dynamicSoftmenu[m].menuContent, idx);
-    if (!labelName || labelName[0] == 0) return (*env)->NewStringUTF(env, "");
+    if (!labelName || labelName[0] == 0) {
+        pthread_mutex_unlock(&screenMutex);
+        return (*env)->NewStringUTF(env, "");
+    }
     uint8_t utf8[64]; memset(utf8, 0, sizeof(utf8)); stringToUtf8(labelName, utf8);
+    pthread_mutex_unlock(&screenMutex);
     return (*env)->NewStringUTF(env, (char*)utf8);
+}
+
+JNIEXPORT jintArray JNICALL
+Java_com_example_r47_MainActivity_getKeyboardStateNative(JNIEnv* env, jobject thiz) {
+    if (!ram) return NULL;
+    pthread_mutex_lock(&screenMutex);
+    jintArray result = (*env)->NewIntArray(env, 5);
+    if (result == NULL) {
+        pthread_mutex_unlock(&screenMutex);
+        return NULL;
+    }
+    jint fill[5];
+    fill[0] = (jint)shiftF;
+    fill[1] = (jint)shiftG;
+    fill[2] = (jint)calcMode;
+    extern bool_t getSystemFlag(int32_t sf);
+    fill[3] = (jint)getSystemFlag(0x8014); // FLAG_USER
+    fill[4] = (jint)getSystemFlag(0x800e); // FLAG_ALPHA
+    (*env)->SetIntArrayRegion(env, result, 0, 5, fill);
+    pthread_mutex_unlock(&screenMutex);
+    return result;
 }
 
 JNIEXPORT void JNICALL

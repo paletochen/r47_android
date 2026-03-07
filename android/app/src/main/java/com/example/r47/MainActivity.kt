@@ -5,6 +5,7 @@ import android.app.PictureInPictureParams
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.Typeface
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
@@ -234,7 +235,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     fun stopTone() {}
 
     private fun copyXToClipboard() {
-        coreTasks.offer {
+        offerCoreTask {
             try {
                 val xVal = getXRegisterNative()
                 mainHandler.post {
@@ -251,7 +252,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val item = clipboard.primaryClip?.getItemAt(0)
         val text = item?.text?.toString() ?: return
-        coreTasks.offer {
+        offerCoreTask {
             for (char in text) {
                 if (char == 'i' || char == 'j') {
                     sendSimFuncNative(if (char == 'i') 1159 else 1160)
@@ -319,6 +320,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             "current_skin" -> {
                 currentSkin = prefs.getString(key, "r47_texture") ?: "r47_texture"
                 replicaOverlay.setSkin(currentSkin)
+                setupInteractiveZones()
             }
             "lcd_mode" -> {
                 lcdMode = prefs.getString(key, "vintage") ?: "vintage"
@@ -424,206 +426,206 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         getSimIdFromEvent(keyCode, event)?.let { (id, isFn) ->
             activeKeyIdMap[keyCode] = id to isFn
             when (id) {
-                "SEQ_PERCENT" -> coreTasks.offer {
+                "SEQ_PERCENT" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true)
                     Thread.sleep(50); sendSimKeyNative("07", false, false); Thread.sleep(50); sendSimKeyNative("07", false, true)
                 }
-                "SEQ_FACTORIAL" -> coreTasks.offer {
+                "SEQ_FACTORIAL" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true)
                     Thread.sleep(50); sendSimKeyNative("02", false, false); Thread.sleep(50); sendSimKeyNative("02", false, true)
                 }
-                "SEQ_DOTD" -> coreTasks.offer {
+                "SEQ_DOTD" -> offerCoreTask {
                     sendSimKeyNative("11", false, false); Thread.sleep(50); sendSimKeyNative("11", false, true)
                     Thread.sleep(50); sendSimKeyNative("03", false, false); Thread.sleep(50); sendSimKeyNative("03", false, true)
                 }
-                "SEQ_HASH" -> coreTasks.offer {
+                "SEQ_HASH" -> offerCoreTask {
                     sendSimKeyNative("11", false, false); Thread.sleep(50); sendSimKeyNative("11", false, true)
                     Thread.sleep(50); sendSimKeyNative("05", false, false); Thread.sleep(50); sendSimKeyNative("05", false, true)
                 }
-                "SEQ_MS" -> coreTasks.offer {
+                "SEQ_MS" -> offerCoreTask {
                     sendSimKeyNative("11", false, false); Thread.sleep(50); sendSimKeyNative("11", false, true)
                     Thread.sleep(50); sendSimKeyNative("02", false, false); Thread.sleep(50); sendSimKeyNative("02", false, true)
                 }
-                "SEQ_LASTX" -> coreTasks.offer {
+                "SEQ_LASTX" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true)
                     Thread.sleep(50); sendSimKeyNative("13", false, false); Thread.sleep(50); sendSimKeyNative("13", false, true)
                 }
-                "SEQ_ECONST" -> coreTasks.offer {
+                "SEQ_ECONST" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true); Thread.sleep(50)
                     sendSimKeyNative("36", false, false); Thread.sleep(50); sendSimKeyNative("36", false, true); Thread.sleep(100)
                     sendSimKeyNative("2", true, false); Thread.sleep(50); sendSimKeyNative("2", true, true); Thread.sleep(100)
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true); Thread.sleep(50)
                     sendSimKeyNative("2", true, false); Thread.sleep(50); sendSimKeyNative("2", true, true)
                 }
-                "SEQ_toREC" -> coreTasks.offer {
+                "SEQ_toREC" -> offerCoreTask {
                     sendSimKeyNative("11", false, false); Thread.sleep(50); sendSimKeyNative("11", false, true)
                     Thread.sleep(50); sendSimKeyNative("00", false, false); Thread.sleep(50); sendSimKeyNative("00", false, true)
                 }
-                "SEQ_TAN" -> coreTasks.offer {
+                "SEQ_TAN" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true)
                     Thread.sleep(50); sendSimKeyNative("20", false, false); Thread.sleep(50); sendSimKeyNative("20", false, true)
                 }
-                "SEQ_ATAN" -> coreTasks.offer {
+                "SEQ_ATAN" -> offerCoreTask {
                     sendSimKeyNative("11", false, false); Thread.sleep(50); sendSimKeyNative("11", false, true)
                     Thread.sleep(50); sendSimKeyNative("20", false, false); Thread.sleep(50); sendSimKeyNative("20", false, true)
                 }
-                "SEQ_XTHROOT" -> coreTasks.offer {
+                "SEQ_XTHROOT" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true)
                     Thread.sleep(50); sendSimKeyNative("03", false, false); Thread.sleep(50); sendSimKeyNative("03", false, true)
                 }
-                "SEQ_UNDO" -> coreTasks.offer {
+                "SEQ_UNDO" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true)
                     Thread.sleep(50); sendSimKeyNative("16", false, false); Thread.sleep(50); sendSimKeyNative("16", false, true)
                 }
-                "SEQ_USER" -> coreTasks.offer {
+                "SEQ_USER" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true)
                     Thread.sleep(50); sendSimKeyNative("09", false, false); Thread.sleep(50); sendSimKeyNative("09", false, true)
                 }
-                "SEQ_IMAG_J" -> coreTasks.offer {
+                "SEQ_IMAG_J" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true)
                     Thread.sleep(50); sendSimKeyNative("00", false, false); Thread.sleep(50); sendSimKeyNative("00", false, true)
                 }
-                "SEQ_DISP" -> coreTasks.offer {
+                "SEQ_DISP" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true)
                     Thread.sleep(50); sendSimKeyNative("14", false, false); Thread.sleep(50); sendSimKeyNative("14", false, true)
                 }
-                "SEQ_10X" -> coreTasks.offer {
+                "SEQ_10X" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true)
                     Thread.sleep(50); sendSimKeyNative("04", false, false); Thread.sleep(50); sendSimKeyNative("04", false, true)
                 }
-                "SEQ_PI" -> coreTasks.offer {
+                "SEQ_PI" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true)
                     Thread.sleep(50); sendSimKeyNative("08", false, false); Thread.sleep(50); sendSimKeyNative("08", false, true)
                 }
-                "SEQ_toI" -> coreTasks.offer {
+                "SEQ_toI" -> offerCoreTask {
                     sendSimKeyNative("11", false, false); Thread.sleep(50); sendSimKeyNative("11", false, true)
                     Thread.sleep(50); sendSimKeyNative("04", false, false); Thread.sleep(50); sendSimKeyNative("04", false, true)
                 }
-                "SEQ_HOME" -> coreTasks.offer { sendSimMenuNative(-1921) }
-                "SEQ_MYMENU" -> coreTasks.offer { sendSimMenuNative(-1349) }
-                "SEQ_toPOL" -> coreTasks.offer {
+                "SEQ_HOME" -> offerCoreTask { sendSimMenuNative(-1921) }
+                "SEQ_MYMENU" -> offerCoreTask { sendSimMenuNative(-1349) }
+                "SEQ_toPOL" -> offerCoreTask {
                     sendSimKeyNative("11", false, false); Thread.sleep(50); sendSimKeyNative("11", false, true)
                     Thread.sleep(50); sendSimKeyNative("01", false, false); Thread.sleep(50); sendSimKeyNative("01", false, true)
                 }
-                "SEQ_IMAG_POL" -> coreTasks.offer {
+                "SEQ_IMAG_POL" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true)
                     Thread.sleep(50); sendSimKeyNative("01", false, false); Thread.sleep(50); sendSimKeyNative("01", false, true)
                 }
-                "SEQ_ALPHA" -> coreTasks.offer {
+                "SEQ_ALPHA" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true)
                     Thread.sleep(50); sendSimKeyNative("17", false, false); Thread.sleep(50); sendSimKeyNative("17", false, true)
                 }
-                "SEQ_SIGMAP" -> coreTasks.offer {
+                "SEQ_SIGMAP" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true); Thread.sleep(50)
                     sendSimKeyNative("21", false, false); Thread.sleep(50); sendSimKeyNative("21", false, true); Thread.sleep(100)
                     sendSimKeyNative("1", true, false); Thread.sleep(50); sendSimKeyNative("1", true, true)
                 }
-                "SEQ_ANGLE" -> coreTasks.offer {
+                "SEQ_ANGLE" -> offerCoreTask {
                     sendSimKeyNative("11", false, false); Thread.sleep(50); sendSimKeyNative("11", false, true)
                     Thread.sleep(50); sendSimKeyNative("06", false, false); Thread.sleep(50); sendSimKeyNative("06", false, true)
                 }
-                "SEQ_SIN" -> coreTasks.offer {
+                "SEQ_SIN" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true)
                     Thread.sleep(50); sendSimKeyNative("18", false, false); Thread.sleep(50); sendSimKeyNative("18", false, true)
                 }
-                "SEQ_ASIN" -> coreTasks.offer {
+                "SEQ_ASIN" -> offerCoreTask {
                     sendSimKeyNative("11", false, false); Thread.sleep(50); sendSimKeyNative("11", false, true)
                     Thread.sleep(50); sendSimKeyNative("18", false, false); Thread.sleep(50); sendSimKeyNative("18", false, true)
                 }
-                "SEQ_RUP" -> coreTasks.offer {
+                "SEQ_RUP" -> offerCoreTask {
                     sendSimKeyNative("11", false, false); Thread.sleep(50); sendSimKeyNative("11", false, true)
                     Thread.sleep(50); sendSimKeyNative("08", false, false); Thread.sleep(50); sendSimKeyNative("08", false, true)
                 }
-                "SEQ_PREFIX" -> coreTasks.offer {
+                "SEQ_PREFIX" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true)
                     Thread.sleep(50); sendSimKeyNative("15", false, false); Thread.sleep(50); sendSimKeyNative("15", false, true)
                 }
-                "SEQ_GTO" -> coreTasks.offer {
+                "SEQ_GTO" -> offerCoreTask {
                     sendSimKeyNative("11", false, false); Thread.sleep(50); sendSimKeyNative("11", false, true)
                     Thread.sleep(50); sendSimKeyNative("17", false, false); Thread.sleep(50); sendSimKeyNative("17", false, true)
                 }
-                "SEQ_EXP" -> coreTasks.offer {
+                "SEQ_EXP" -> offerCoreTask {
                     sendSimKeyNative("11", false, false); Thread.sleep(50); sendSimKeyNative("11", false, true)
                     Thread.sleep(50); sendSimKeyNative("15", false, false); Thread.sleep(50); sendSimKeyNative("15", false, true)
                 }
-                "SEQ_COMPLEX" -> coreTasks.offer {
+                "SEQ_COMPLEX" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true)
                     Thread.sleep(50); sendSimKeyNative("12", false, false); Thread.sleep(50); sendSimKeyNative("12", false, true)
                 }
-                "SEQ_STK" -> coreTasks.offer {
+                "SEQ_STK" -> offerCoreTask {
                     sendSimKeyNative("11", false, false); Thread.sleep(50); sendSimKeyNative("11", false, true)
                     Thread.sleep(50); sendSimKeyNative("13", false, false); Thread.sleep(50); sendSimKeyNative("13", false, true)
                 }
-                "SEQ_EXP_E" -> coreTasks.offer {
+                "SEQ_EXP_E" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true)
                     Thread.sleep(50); sendSimKeyNative("05", false, false); Thread.sleep(50); sendSimKeyNative("05", false, true)
                 }
-                "SEQ_COS" -> coreTasks.offer {
+                "SEQ_COS" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true)
                     Thread.sleep(50); sendSimKeyNative("19", false, false); Thread.sleep(50); sendSimKeyNative("19", false, true)
                 }
-                "SEQ_ACOS" -> coreTasks.offer {
+                "SEQ_ACOS" -> offerCoreTask {
                     sendSimKeyNative("11", false, false); Thread.sleep(50); sendSimKeyNative("11", false, true)
                     Thread.sleep(50); sendSimKeyNative("19", false, false); Thread.sleep(50); sendSimKeyNative("19", false, true)
                 }
-                "SEQ_LBL" -> coreTasks.offer {
+                "SEQ_LBL" -> offerCoreTask {
                     sendSimKeyNative("11", false, false); Thread.sleep(50); sendSimKeyNative("11", false, true)
                     Thread.sleep(50); sendSimKeyNative("05", false, false); Thread.sleep(50); sendSimKeyNative("05", false, true)
                 }
-                "SEQ_PRGM" -> coreTasks.offer {
+                "SEQ_PRGM" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true)
                     Thread.sleep(50); sendSimKeyNative("35", false, false); Thread.sleep(50); sendSimKeyNative("35", false, true)
                 }
-                "SEQ_PREF" -> coreTasks.offer {
+                "SEQ_PREF" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true)
                     Thread.sleep(50); sendSimKeyNative("28", false, false); Thread.sleep(50); sendSimKeyNative("28", false, true)
                 }
-                "SEQ_RTN" -> coreTasks.offer {
+                "SEQ_RTN" -> offerCoreTask {
                     sendSimKeyNative("11", false, false); Thread.sleep(50); sendSimKeyNative("11", false, true)
                     Thread.sleep(50); sendSimKeyNative("35", false, false); Thread.sleep(50); sendSimKeyNative("35", false, true)
                 }
-                "SEQ_DRG" -> coreTasks.offer { sendSimKeyNative("09", false, false) }
-                "SEQ_SI_n" -> coreTasks.offer {
+                "SEQ_DRG" -> offerCoreTask { sendSimKeyNative("09", false, false) }
+                "SEQ_SI_n" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true); Thread.sleep(50)
                     sendSimKeyNative("15", false, false); Thread.sleep(50); sendSimKeyNative("15", false, true); Thread.sleep(100)
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true); Thread.sleep(50)
                     sendSimKeyNative("3", true, false); Thread.sleep(50); sendSimKeyNative("3", true, true)
                 }
-                "SEQ_SI_u" -> coreTasks.offer {
+                "SEQ_SI_u" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true); Thread.sleep(50)
                     sendSimKeyNative("15", false, false); Thread.sleep(50); sendSimKeyNative("15", false, true); Thread.sleep(100)
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true); Thread.sleep(50)
                     sendSimKeyNative("2", true, false); Thread.sleep(50); sendSimKeyNative("2", true, true)
                 }
-                "SEQ_SI_m" -> coreTasks.offer {
+                "SEQ_SI_m" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true); Thread.sleep(50)
                     sendSimKeyNative("15", false, false); Thread.sleep(50); sendSimKeyNative("15", false, true); Thread.sleep(100)
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true); Thread.sleep(50)
                     sendSimKeyNative("1", true, false); Thread.sleep(50); sendSimKeyNative("1", true, true)
                 }
-                "SEQ_SI_k" -> coreTasks.offer {
+                "SEQ_SI_k" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true); Thread.sleep(50)
                     sendSimKeyNative("15", false, false); Thread.sleep(50); sendSimKeyNative("15", false, true); Thread.sleep(100)
                     sendSimKeyNative("1", true, false); Thread.sleep(50); sendSimKeyNative("1", true, true)
                 }
-                "SEQ_SI_M" -> coreTasks.offer {
+                "SEQ_SI_M" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true); Thread.sleep(50)
                     sendSimKeyNative("15", false, false); Thread.sleep(50); sendSimKeyNative("15", false, true); Thread.sleep(100)
                     sendSimKeyNative("2", true, false); Thread.sleep(50); sendSimKeyNative("2", true, true)
                 }
-                "SEQ_TGLFRT" -> coreTasks.offer {
+                "SEQ_TGLFRT" -> offerCoreTask {
                     sendSimKeyNative("11", false, false); Thread.sleep(50); sendSimKeyNative("11", false, true)
                     Thread.sleep(50); sendSimKeyNative("34", false, false); Thread.sleep(50); sendSimKeyNative("34", false, true)
                 }
-                "SEQ_AIM" -> coreTasks.offer {
+                "SEQ_AIM" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true)
                     Thread.sleep(50); sendSimKeyNative("17", false, false); Thread.sleep(50); sendSimKeyNative("17", false, true)
                 }
-                "SEQ_ABS" -> coreTasks.offer {
+                "SEQ_ABS" -> offerCoreTask {
                     sendSimKeyNative("10", false, false); Thread.sleep(50); sendSimKeyNative("10", false, true)
                     Thread.sleep(50); sendSimKeyNative("06", false, false); Thread.sleep(50); sendSimKeyNative("06", false, true)
                 }
-                else -> coreTasks.offer { sendSimKeyNative(id, isFn, false) }
+                else -> offerCoreTask { sendSimKeyNative(id, isFn, false) }
             }
             return true
         }
@@ -641,11 +643,29 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             isPhysicalCtrlHeld = false; return true
         }
         activeKeyIdMap.remove(keyCode)?.let { (id, isFn) ->
-            if (!id.startsWith("SEQ_")) coreTasks.offer { sendSimKeyNative(id, isFn, true) }
+            if (!id.startsWith("SEQ_")) offerCoreTask { sendSimKeyNative(id, isFn, true) }
             return true
         }
         return super.onKeyUp(keyCode, event)
     }
+
+    private var lastLabelRefresh = 0L
+    private var lastKeyboardState = intArrayOf() // Empty so the first state check always triggers an update
+    
+    private fun updateDynamicKeys() {
+        if (currentSkin != "r47_background_v2") return
+        for (i in 0 until replicaOverlay.childCount) {
+            val child = replicaOverlay.getChildAt(i)
+            if (child is CalculatorKeyView) {
+                child.updateLabels(this)
+            }
+        }
+    }
+private fun offerCoreTask(task: Runnable) {
+    if (isNativeInitialized) {
+        coreTasks.offer(task)
+    }
+}
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -662,10 +682,8 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
 
         replicaOverlay = binding.replicaOverlay
         replicaOverlay.onPiPKeyEvent = { code ->
-            coreTasks.offer { sendKey(code) }
+            offerCoreTask { sendKey(code) }
         }
-        setupInteractiveZones()
-        loadSlots()
         
         isHapticEnabled = prefs.getBoolean("haptic_enabled", true)
         isHighFidelityHapticEnabled = prefs.getBoolean("haptic_hifi_enabled", true)
@@ -679,11 +697,17 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         showTouchZones = prefs.getBoolean("show_touch_zones", false)
         if (prefs.getBoolean("keep_screen_on", false)) window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         
+        setupInteractiveZones()
+        loadSlots()
+        
         replicaOverlay.post {
             replicaOverlay.setSkin(currentSkin)
             replicaOverlay.setShowTouchZones(showTouchZones)
             replicaOverlay.setScalingMode(scalingMode)
             applyLcdMode(lcdMode)
+            if (currentSkin == "r47_background_v2") {
+                updateDynamicKeys()
+            }
         }
 
         replicaOverlay.onLongPressListener = { x, y ->
@@ -765,6 +789,20 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
                         if (lcdPixels.isNotEmpty()) {
                             replicaOverlay.updateLcd(lcdPixels)
                         }
+                        
+                        val now = System.currentTimeMillis()
+                        // Periodic full label refresh (approx 2Hz is enough for general drift)
+                        if (now - lastLabelRefresh > 500) {
+                            updateDynamicKeys()
+                            lastLabelRefresh = now
+                        }
+                        
+                        // Check for keyboard state changes (Shift, Alpha, Mode) - this can be frequent
+                        val currentState = getKeyboardStateNative()
+                        if (currentState != null && !currentState.contentEquals(lastKeyboardState)) {
+                            lastKeyboardState = currentState
+                            updateDynamicKeys()
+                        }
                     }
                     Choreographer.getInstance().postFrameCallback(this)
                 }
@@ -786,13 +824,13 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     override fun onResume() {
         super.onResume()
         if (isNativeInitialized) {
-            coreTasks.offer {
+            offerCoreTask {
                 forceRefreshNative()
             }
         }
         
         val prefs = getSharedPreferences("R47Prefs", MODE_PRIVATE)
-        val isFirstRun = prefs.getBoolean("first_run_setup", true)
+        val isFirstRun = prefs.getBoolean("first_setup", true)
         val hasDir = prefs.getString("work_directory_uri", null) != null
 
         if (isFirstRun && !hasDir) {
@@ -807,13 +845,13 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             .setTitle("Welcome to R47")
             .setMessage("To get started, please select a 'Work Directory'.\n\nThis folder will be used to organize your Programs, State files, and Screenshots safely on your device storage.")
             .setPositiveButton("Select Folder") { _, _ ->
-                getSharedPreferences("R47Prefs", MODE_PRIVATE).edit().putBoolean("first_run_setup", false).apply()
+                getSharedPreferences("R47Prefs", MODE_PRIVATE).edit().putBoolean("first_setup", false).apply()
                 startActivity(Intent(this, SettingsActivity::class.java).apply {
                     putExtra("trigger_work_dir_picker", true)
                 })
             }
             .setNegativeButton("Later") { _, _ ->
-                getSharedPreferences("R47Prefs", MODE_PRIVATE).edit().putBoolean("first_run_setup", false).apply()
+                getSharedPreferences("R47Prefs", MODE_PRIVATE).edit().putBoolean("first_setup", false).apply()
                 validateWorkDirectory()
             }
             .setCancelable(false)
@@ -873,7 +911,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         if (!isEnteringPiP && getSharedPreferences("R47Prefs", MODE_PRIVATE).getBoolean("auto_save_minimize", true)) {
             Log.i(TAG, "Auto-saving state on pause (synchronous via core thread)...")
             val latch = CountDownLatch(1)
-            coreTasks.offer {
+            offerCoreTask {
                 try {
                     saveStateNative()
                 } finally {
@@ -928,7 +966,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
                 currentSlotId = id
                 setSlotNative(id)
                 getSharedPreferences("R47Prefs", MODE_PRIVATE).edit().putInt("current_slot_id", id).apply()
-                coreTasks.offer {
+                offerCoreTask {
                     saveStateNative()
                 }
                 android.widget.Toast.makeText(this, "Created ${slotsList[id].name}", android.widget.Toast.LENGTH_SHORT).show()
@@ -946,7 +984,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
                 currentSlotId = id
                 setSlotNative(id)
                 getSharedPreferences("R47Prefs", MODE_PRIVATE).edit().putInt("current_slot_id", id).apply()
-                coreTasks.offer {
+                offerCoreTask {
                     loadStateNative()
                 }
                 android.widget.Toast.makeText(this, "Loaded ${slotsList[id].name}", android.widget.Toast.LENGTH_SHORT).show()
@@ -958,7 +996,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         if (id !in slotsList.indices || id == currentSlotId) return
         
         val targetName = slotsList[id].name
-        coreTasks.offer {
+        offerCoreTask {
             try {
                 saveStateNative()
                 currentSlotId = id
@@ -1099,50 +1137,142 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     }
 
     private fun setupInteractiveZones() {
-        val X_LEFT = 22.5f; val Y_TOP = 339.5f; val DY = 82f; val TOTAL_GRID_W = 492f 
-        val rowSpecs = arrayOf(
-            intArrayOf(38, 6, 6),
-            intArrayOf(1,  6, 6),
-            intArrayOf(7,  6, 6),
-            intArrayOf(13, 5, 6),
-            intArrayOf(18, 5, 5),
-            intArrayOf(23, 5, 5),
-            intArrayOf(28, 5, 5),
-            intArrayOf(33, 5, 5)
-        )
-        for (r in 0 until 8) {
-            val spec = rowSpecs[r]; val codeStart = spec[0]; val count = spec[1]; val gridCols = spec[2]; val dx = TOTAL_GRID_W / gridCols
-            var y = Y_TOP + (r * DY); var kH = DY - 10
-            when(r) { 0 -> { y += 27f; kH += 5f }; 1 -> y += 22f; 2 -> y += 12f; 3 -> y += 10f; 4 -> { y += 10f; kH -= 10f }; 7 -> y -= 10f }
-            for (c in 0 until count) {
-                val code = codeStart + c; var actualX = X_LEFT + (c * dx); var actualW = dx * 0.90f
-                if (r < 3) {
-                    val shift = 8f
-                    when (c) { 0 -> actualW += shift; 1 -> { actualX += shift }; 2 -> { actualX += shift; actualW -= shift } }
-                }
-                if (r == 3) { if (c == 0) actualW = dx * 2 * 0.95f else actualX = X_LEFT + ((c + 1) * dx) }
-                if (r >= 4) {
-                    when (c) { 0 -> actualW = dx * 0.95f; 1 -> { actualX = X_LEFT + dx * 0.95f; actualW = dx * 1.05f }; 2, 3 -> actualW = dx }
-                }
-                val keyBtn = Button(this); keyBtn.background = null 
-                keyBtn.isFocusable = false; keyBtn.isFocusableInTouchMode = false
-                keyBtn.setOnTouchListener { btn, event ->
-                    Log.d(TAG, "Button $code touch: ${event.action}")
-                    lastTouchX = event.rawX; lastTouchY = event.rawY
-                    when (event.action) {
-                        MotionEvent.ACTION_DOWN -> { 
-                            btn.isPressed = true
-                            performHapticClick()
-                            coreTasks.offer { sendKey(code) } 
-                        }
-                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { 
-                            btn.isPressed = false
-                            coreTasks.offer { sendKey(0) } 
-                        }
+        replicaOverlay.removeAllViews()
+        val isDynamic = (currentSkin == "r47_background_v2")
+        
+        if (!isDynamic) {
+            // LEGACY STATIC TEXTURE MODE
+            val X_LEFT = 22.5f; val Y_TOP = 339.5f; val DY = 82f; val TOTAL_GRID_W = 492f 
+            val rowSpecs = arrayOf(
+                intArrayOf(38, 6, 6),
+                intArrayOf(1,  6, 6),
+                intArrayOf(7,  6, 6),
+                intArrayOf(13, 5, 6),
+                intArrayOf(18, 5, 5),
+                intArrayOf(23, 5, 5),
+                intArrayOf(28, 5, 5),
+                intArrayOf(33, 5, 5)
+            )
+            for (r in 0 until 8) {
+                val spec = rowSpecs[r]; val codeStart = spec[0]; val count = spec[1]; val gridCols = spec[2]; val dx = TOTAL_GRID_W / gridCols
+                var y = Y_TOP + (r * DY); var kH = DY - 10
+                when(r) { 0 -> { y += 27f; kH += 5f }; 1 -> y += 22f; 2 -> y += 12f; 3 -> y += 10f; 4 -> { y += 10f; kH -= 10f }; 7 -> y -= 10f }
+                for (c in 0 until count) {
+                    val code = codeStart + c; var actualX = X_LEFT + (c * dx); var actualW = dx * 0.90f
+                    if (r < 3) {
+                        val shift = 8f
+                        when (c) { 0 -> actualW += shift; 1 -> { actualX += shift }; 2 -> { actualX += shift; actualW -= shift } }
                     }
-                    true
+                    if (r == 3) { if (c == 0) actualW = dx * 2 * 0.95f else actualX = X_LEFT + ((c + 1) * dx) }
+                    if (r >= 4) {
+                        when (c) { 0 -> actualW = dx * 0.95f; 1 -> { actualX = X_LEFT + dx * 0.95f; actualW = dx * 1.05f }; 2, 3 -> actualW = dx }
+                    }
+                    val keyBtn = Button(this); keyBtn.background = null 
+                    keyBtn.isFocusable = false; keyBtn.isFocusableInTouchMode = false
+                    keyBtn.setOnTouchListener { btn, event ->
+                        lastTouchX = event.rawX; lastTouchY = event.rawY
+                        when (event.action) {
+                            MotionEvent.ACTION_DOWN -> { 
+                                btn.isPressed = true
+                                performHapticClick()
+                                offerCoreTask { sendKey(code) } 
+                            }
+                            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { 
+                                btn.isPressed = false
+                                offerCoreTask { sendKey(0) } 
+                            }
+                        }
+                        true
+                    }
+                    replicaOverlay.addReplicaView(keyBtn, actualX, y, actualW, kH)
                 }
-                replicaOverlay.addReplicaView(keyBtn, actualX, y, actualW, kH)
+            }
+        } else {
+            // DYNAMIC MODE (R47 Simulator style)
+            val font = try { Typeface.createFromAsset(assets, "fonts/C47__StandardFont.ttf") } catch (e: Exception) { null }
+            
+            // Revised coordinates to gain more space between rows
+            // Bottom row (r=7) remains at 861f. To gain 1mm (4px) per gap, DELTA_Y becomes 75f.
+            // Y_START = 861 - 7*75 = 336f
+            val X_LEFT = 32f
+            val Y_START = 336f 
+            val DELTA_X = 80f 
+            val DELTA_Y = 75f 
+            val KW1 = 66f 
+            val KW2 = 82f
+            val LS1 = 18f
+            val LS2 = 17f
+            val KH = 68f  // Total height per key container
+
+            val rowSpecs = arrayOf(
+                intArrayOf(38, 6), // Row 0: F1-F6
+                intArrayOf(1,  6), // Row 1: STO-ENTER
+                intArrayOf(7,  6),
+                intArrayOf(13, 5), // Row 3: Special layout (wide ENTER)
+                intArrayOf(18, 5), // Row 4: Numeric keypad starts
+                intArrayOf(23, 5),
+                intArrayOf(28, 5),
+                intArrayOf(33, 5)
+            )
+
+            for (r in 0 until 8) {
+                val codeStart = rowSpecs[r][0]
+                val count = rowSpecs[r][1]
+                
+                // Alignment logic to eliminate vertical gaps between top rows
+                // Row 3 (ENTER) is at Y_START + 3*DELTA_Y = 336 + 225 = 561
+                // We want Row 2 bottom to touch Row 3 top. Row 2 top = 561 - KH = 493
+                // We want Row 1 bottom to touch Row 2 top. Row 1 top = 493 - KH = 425
+                // We want Row 0 bottom to touch Row 1 top. Row 0 top = 425 - KH = 357
+                val y = when(r) {
+                    0 -> 357f
+                    1 -> 425f
+                    2 -> 493f
+                    3 -> 561f
+                    else -> Y_START + r * DELTA_Y
+                }
+                
+                var x = X_LEFT
+                for (c in 0 until count) {
+                    val code = codeStart + c
+                    val isFn = (r == 0)
+                    
+                    // Width logic
+                    val kW = if (r < 4) {
+                        if (r == 3 && c == 0) (DELTA_X * 2) - LS1 // Align with STO left and RCL right
+                        else KW1
+                    } else {
+                        if (c == 0) 74f else KW2 // Narrower first column to push others left
+                    }
+
+                    val keyView = CalculatorKeyView(this)
+                    keyView.setKey(code, isFn, font)
+                    keyView.updateLabels(this)
+                    
+                    keyView.setOnTouchListener { v, event ->
+                        when (event.action) {
+                            MotionEvent.ACTION_DOWN -> {
+                                v.isPressed = true
+                                performHapticClick()
+                                offerCoreTask { sendKey(code) }
+                            }
+                            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                                v.isPressed = false
+                                offerCoreTask { sendKey(0) }
+                            }
+                        }
+                        true
+                    }
+                    
+                    replicaOverlay.addReplicaView(keyView, x, y, kW, KH)
+                    
+                    // Advance X
+                    if (r < 4) {
+                        x += if (r == 3 && c == 0) 2 * DELTA_X else DELTA_X
+                    } else {
+                        x += if (c == 0) kW + LS1 else KW2 + LS2
+                    }
+                }
             }
         }
     }
@@ -1161,6 +1291,12 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     private external fun getXRegisterNative(): String
     private external fun getDisplayPixels(pixels: IntArray)
     private external fun setLcdColors(text: Int, bg: Int)
+    
+    // New dynamic label and state APIs
+    external fun getButtonLabelNative(keyCode: Int, type: Int): String
+    external fun getSoftkeyLabelNative(keyCode: Int): String
+    external fun getKeyboardStateNative(): IntArray // returns [shiftF, shiftG, calcMode, userMode, alphaFlag]
+
     @Keep fun onFileSelected(fd: Int) { onFileSelectedNative(fd) }
     @Keep fun onFileCancelled() { onFileCancelledNative() }
     private external fun onFileSelectedNative(fd: Int)

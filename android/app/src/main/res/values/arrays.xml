@@ -1,9 +1,11 @@
 <resources>
     <string-array name="skin_entries">
         <item>Classic (Standard)</item>
+        <item>Dynamic (Simulator Style)</item>
     </string-array>
     <string-array name="skin_values">
         <item>r47_texture</item>
+        <item>r47_background_v2</item>
     </string-array>
 
     <string-array name="lcd_entries">
