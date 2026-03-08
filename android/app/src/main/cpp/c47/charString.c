@@ -859,6 +859,17 @@ TO_QSPI const function_t2 indexOfStringsASCII[] = {
               {STD_LEFT_RIGHT_ARROWS  ,       "><"},
               {STD_SUP_pir            ,       "pi"},
 
+              {STD_M_ALPHA            ,       "ma"},
+              {STD_N_ASTERISK         ,       "*n"},
+              {STD_D_MINUS1           ,       "d^-1"},
+              {STD_1_ASTERISK         ,       "1*"},
+              {STD_K_ASTERISK         ,       "k*"},
+              {STD_EQUALS_SH          ,       "="},
+              {STD_TRI_LHB_2          ,       "^2_LHB"},
+              {STD_TRI_RHB_2          ,       "^2_RHB"},
+              {STD_P_2                ,       "^2p"},
+              {STD_TRI_LHB            ,       "GAUSS_LHB"},
+              {STD_TRI_RHB            ,       "GAUSS_RHB"},
 };
 
 

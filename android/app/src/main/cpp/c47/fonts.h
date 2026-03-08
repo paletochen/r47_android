@@ -409,6 +409,19 @@
 #define STD_z_CIRC                    "\x83\x8D"
 #define STD_u_CIRC2                   "\x83\xA2"
 
+#define STD_M_ALPHA                   "\x84\x50" //0450
+#define STD_N_ASTERISK                "\x84\x51" //0451
+#define STD_D_MINUS1                  "\x84\x52" //0452
+#define STD_K_ASTERISK                "\x84\x53" //0453
+#define STD_1_ASTERISK                "\x84\x54" //0454
+#define STD_EQUALS_SH                 "\x84\x55" //0455
+#define STD_P_2                       "\x84\x56" //0456
+#define STD_TRI_LHB_2                 "\x84\x57" //0457
+#define STD_TRI_RHB_2                 "\x84\x58" //0458
+
+#define STD_TRI_LHB                   "\xa5\xed" //25ED ◭ UP-POINTING TRIANGLE WITH LEFT HALF BLACK
+#define STD_TRI_RHB                   "\xa5\xee" //25EE ◮ UP-POINTING TRIANGLE WITH RIGHT HALF BLACK
+
 #define STD_SUP_BOLD_T                "\x9D\x40"
 #define STD_SUP_BOLD_f                "\x9D\xA0"
 #define STD_SUP_BOLD_g                "\x9D\x4D"
@@ -526,7 +539,7 @@
 #define STD_BST                       "\xa1\xc9"
 #define STD_SST                       "\xa1\xcb"
 #define STD_HAMBURGER                 "\xa1\xcc"
-#define STD_UNDO                      "\xa1\xcd"
+#define STD_UNDO                      "\xa3\x8c"
 #define STD_HOLLOW_UP_ARROW           "\xa1\xe7"
 #define STD_HOLLOW_DOWN_ARROW         "\xa1\xe9"
 #define STD_COMPLEMENT                "\xa2\x01"

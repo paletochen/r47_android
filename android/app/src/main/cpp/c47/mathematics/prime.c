@@ -1370,20 +1370,21 @@ static void fnEulPhi(uint16_t unusedButMandatoryParameter) {
               //printf("While: PollardIter %u : %s\n",PollardResult.status, pollard_status(PollardResult.status));
               if(Factors_3_Pollard && (instruction == FACTORS_ITERATE || instruction == FACTORS_SETUP)) {
                 PollardResult = pollard_step(&pollardData, pollardFactor, instruction, 10);
-                #if defined(MONITOR_FACTORS)
-                  printf("   Factor loops: %15d | Pollard steps: %10d | Attempts: %3d | Status: %4d     \r",loopp, PollardResult.total_iterations, PollardResult.attempts, PollardResult.status);
-                  fflush(stdout);
-                #endif //MONITOR_FACTORS
+                              #if defined(MONITOR_FACTORS)
+                                printf("   Factor loops: %15d | Pollard steps: %10d | Attempts: %3d | Status: %4d     \r",loopp, PollardResult.total_iterations, PollardResult.attempts, PollardResult.status);
+                                fflush(stdout);
+                              #endif //MONITOR_FACTORS
+                if(programRunStop == PGM_WAITING) goto Broken;
                 if (PollardResult.status == FACTORS_DONE) {
-                  #if defined(MONITOR_FACTORS)
-                    gmp_printf("   Pollard found factor: %Zd                    \n", pollardFactor);
-                  #endif //MONITOR_FACTORS
+                              #if defined(MONITOR_FACTORS)
+                                gmp_printf("   Pollard found factor: %Zd                    \n", pollardFactor);
+                              #endif //MONITOR_FACTORS
                   longIntegerCopy(pollardFactor, result);
                   goto cleanup;
                 } else if (PollardResult.status == FACTORS_FAIL) {
-                  #if defined(MONITOR_FACTORS)
-                    printf("   Pollard failed after %d attempts.                \n", PollardResult.attempts);
-                  #endif //MONITOR_FACTORS
+                              #if defined(MONITOR_FACTORS)
+                                printf("   Pollard failed after %d attempts.                \n", PollardResult.attempts);
+                              #endif //MONITOR_FACTORS
                 }
                 instruction = PollardResult.status;
               }
@@ -1485,6 +1486,7 @@ static void fnEulPhi(uint16_t unusedButMandatoryParameter) {
 
           } while (longIntegerCompare(P, Pprev) != 0);
 
+Broken:
           #if !defined(TESTSUITE_BUILD)
             if(exitKeyWaiting()  || programRunStop == PGM_WAITING) {
               progressHalfSecUpdate_Integer(force+1, "Interrupted: ",loopp, halfSec_clearZ, halfSec_clearT, halfSec_disp);
@@ -2335,6 +2337,12 @@ if (instruction == FACTORS_RESET || (instruction == FACTORS_SETUP && self->itera
   // Perform up to `steps` iterations
   if (instruction == FACTORS_ITERATE) {
     for (int i = 0; i < steps; ++i) {
+// Might be needed if an exit key is not caugt in the main iteration. I doubt though. If no complaints, this can be deleted. 2026-03-07
+//      if(exitKeyWaiting() || programRunStop == PGM_WAITING) {
+//        progressHalfSecUpdate_Integer(force+1, "Interrupted1: ",loopp, halfSec_clearZ, halfSec_clearT, halfSec_disp);
+//        programRunStop = PGM_WAITING;
+//        break;
+//      }
       if (++self->iteration >= maxIter) {
         result.status = FACTORS_SETUP; // Too long without result — reseed
         break;
