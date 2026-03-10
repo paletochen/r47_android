@@ -53,6 +53,22 @@ int currentBezel = 0;
 calcKeyboard_t calcKeyboard[43];
 gboolean ui_is_active = FALSE;
 
+static int16_t calculateKeyLogicalId(int16_t keyId) {
+  if (keyId < 30)
+    return keyId - 21;
+  if (keyId < 40)
+    return keyId - 25;
+  if (keyId < 50)
+    return keyId - 29;
+  if (keyId < 60)
+    return keyId - 34;
+  if (keyId < 70)
+    return keyId - 39;
+  if (keyId < 80)
+    return keyId - 44;
+  return keyId - 49;
+}
+
 uint32_t nextTimerRefresh = 0;
 uint32_t nextScreenRefresh = 0;
 
@@ -619,6 +635,20 @@ Java_com_example_r47_MainActivity_getButtonLabelNative(JNIEnv *env,
     pthread_mutex_unlock(&screenMutex);
     return (*env)->NewStringUTF(env, "");
   }
+
+  // Resolve dynamic labels (user-defined labels)
+  if ((userKeyLabelSize > 0) &&
+      (strcmp(name, "DYNMNU") == 0 || strcmp(name, "XEQ") == 0 ||
+       strcmp(name, "RCL") == 0)) {
+    int16_t keyLogicalId = calculateKeyLogicalId(key->keyId);
+    int16_t keyStateCode = type; // 0=primary, 1=f-shift, 2=g-shift, 3=aim
+    uint8_t *userLabel =
+        getNthString((uint8_t *)userKeyLabel, keyLogicalId * 6 + keyStateCode);
+    if (userLabel && userLabel[0] != 0) {
+      name = (char *)userLabel;
+    }
+  }
+
   uint8_t utf8[64];
   memset(utf8, 0, sizeof(utf8));
   stringToUtf8(name, utf8);

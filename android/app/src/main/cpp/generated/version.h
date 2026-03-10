@@ -14,11 +14,11 @@
   #define VERSION_H
 
   #ifdef CI_USE_TAG
-    #define VERSION_STRING "v" STD_SPACE_3_PER_EM "2026-03-08"
+    #define VERSION_STRING "v" STD_SPACE_3_PER_EM "2026-03-10"
     #define VERSION_SHORT  ""
   #else  // !CI_USE_TAG
     #include "vcs.h"
-    #define VERSION_STRING "custom" STD_SPACE_3_PER_EM "build" STD_SPACE_3_PER_EM VCS_COMMIT_ID STD_SPACE_3_PER_EM "2026-03-08"
+    #define VERSION_STRING "custom" STD_SPACE_3_PER_EM "build" STD_SPACE_3_PER_EM VCS_COMMIT_ID STD_SPACE_3_PER_EM "2026-03-10"
     #define VERSION_SHORT  VCS_COMMIT_ID
   #endif // CI_USE_TAG
   #define VERSION_WINRS    0,0,0,0
