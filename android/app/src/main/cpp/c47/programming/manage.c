@@ -447,9 +447,9 @@ void fnPem(uint16_t unusedButMandatoryParameter) {
     lastIntegerBase = 0;
 
     if(calcMode != CM_PEM) {
+      calcMode = CM_PEM;
       showSoftmenu(-MNU_PFN);
       screenUpdatingMode &= ~SCRUPD_MANUAL_MENU;
-      calcMode = CM_PEM;
       hourGlassIconEnabled = false;
       aimBuffer[0] = 0;
       currentInputVariable = INVALID_VARIABLE;
@@ -651,7 +651,6 @@ void fnPem(uint16_t unusedButMandatoryParameter) {
 
 static void _insertInProgram(const uint8_t *dat, uint16_t size) {
   //#define printarr(fmt, dat, len) for (uint16_t i = 0; i < len; i++) printf(fmt, dat[i])
-  //printf("**[DL]** _insertInProgram: ");
   //printarr("%d ", dat, size);
   //printf("\n");fflush(stdout);
   int16_t _dynamicMenuItem = dynamicMenuItem;
@@ -673,9 +672,23 @@ static void _insertInProgram(const uint8_t *dat, uint16_t size) {
     *pos = *(pos - size);
   }
 
-  #define tmpA (dat[1]+((dat[0] & 0x7F) << 8))    //convert codes for >RECT and >POLAR to the relevant ones, respecting RP_HP
-  if(size == 2 && (tmpA == ITM_toPOL2 || tmpA == ITM_toREC2)) {
-    uint16_t tmpB = ITM_toPOL_HP + (tmpA - ITM_toPOL2) + (getSystemFlag(FLAG_HPRP) ? 0 : 2);
+
+
+
+
+  #define tmpA (dat[1]+((dat[0] & 0x7F) << 8))    //convert codes for v3>xyz and xyz>v3 respecting 3D_PHYS
+  uint16_t tmpB = 0;
+  if(size == 2 && (tmpA == ITM_STKtoV3 || tmpA == ITM_V3toSTK)) {
+    switch(tmpA) {
+      case ITM_STKtoV3 : tmpB = getSystemFlag(FLAG_3DPHYS) == false ? ITM_STKtoV3_M : ITM_STKtoV3_P; break;
+      case ITM_V3toSTK : tmpB = getSystemFlag(FLAG_3DPHYS) == false ? ITM_V3toSTK_M : ITM_V3toSTK_P; break;
+      default:;
+    }
+    *(currentStep++) = (tmpB >> 8) | 0x80;
+    *(currentStep++) = tmpB & 0x00FF;
+  }
+  else if(size == 2 && (tmpA == ITM_toPOL2 || tmpA == ITM_toREC2)) {  // convert >RECT and >POLAR to the relevant ones, respecting RP_HP
+    tmpB = ITM_toPOL_HP + (tmpA - ITM_toPOL2) + (getSystemFlag(FLAG_HPRP) ? 0 : 2);
     *(currentStep++) = (tmpB >> 8) | 0x80;
     *(currentStep++) = tmpB & 0x00FF;
   }

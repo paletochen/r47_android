@@ -10,8 +10,9 @@
 static void arcsinCplx(void) {
   real_t xReal, xImag, rReal, rImag;
 
-  if(!getRegisterAsComplex(REGISTER_X, &xReal, &xImag))
+  if(!getRegisterAsComplex(REGISTER_X, &xReal, &xImag)) {
     return;
+  }
 
   ArcsinComplex(&xReal, &xImag, &rReal, &rImag, &ctxtReal39);
 
@@ -22,8 +23,9 @@ static void arcsinReal(void) {
   real_t x;
   const real_t *r = &x;
 
-  if(!getRegisterAsReal(REGISTER_X, &x))
+  if(!getRegisterAsReal(REGISTER_X, &x)) {
     return;
+  }
 
   if(realCompareAbsGreaterThan(&x, const_1)) {
     if(getFlag(FLAG_CPXRES)) {

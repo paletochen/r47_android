@@ -56,8 +56,9 @@ void realExpM1(const real_t *x, real_t *res, realContext_t *realContext)
 static void expM1Real(void) {
   real_t x;
 
-  if(!getRegisterAsReal(REGISTER_X, &x))
+  if(!getRegisterAsReal(REGISTER_X, &x)) {
     return;
+  }
 
   if(realIsInfinite(&x) && !getSystemFlag(FLAG_SPCRES)) {
     displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
@@ -76,8 +77,9 @@ static void expM1Real(void) {
 static void expM1Cplx(void) {
   real_t zReal, zImag;
 
-  if(!getRegisterAsComplex(REGISTER_X, &zReal, &zImag))
+  if(!getRegisterAsComplex(REGISTER_X, &zReal, &zImag)) {
     return;
+  }
 
   expM1Complex(&zReal, &zImag, &zReal, &zImag, &ctxtReal75);
   convertComplexToResultRegister(&zReal, &zImag, REGISTER_X);

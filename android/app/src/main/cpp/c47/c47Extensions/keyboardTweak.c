@@ -121,8 +121,6 @@ void resetShiftState(void) {
 
     refreshModeGui();
   }
-  lastshiftF = shiftF;
-  lastshiftG = shiftG;
 }
 
 
@@ -379,11 +377,10 @@ void resetKeytimers(void) {
     else if((calcMode == CM_AIM || calcMode == CM_EIM || (calcMode == CM_PEM && getSystemFlag(FLAG_ALPHA))) && tam.mode==0) {
       tmpp_ = getSystemFlag(FLAG_USER) ? kbd_usr[key_no].primaryAim  : kbd_std[key_no].primaryAim;
       tmpg_ = getSystemFlag(FLAG_USER) ? kbd_usr[key_no].gShiftedAim : kbd_std[key_no].gShiftedAim;
-      if(   ((key_no != 32 && tmpp_ != ITM_SHIFTf && tmpp_ != ITM_SHIFTg && tmpp_ != KEY_fg && tmpp_ != ITM_BACKSPACE) && (LongPressM == RBX_M1234 || LongPressM == RBX_M124))  //any mathkeys
-        ) {
+      if(((key_no != 32 && tmpp_ != ITM_SHIFTf && tmpp_ != ITM_SHIFTg && tmpp_ != KEY_fg && tmpp_ != ITM_BACKSPACE) && (LongPressM == RBX_M1234 || LongPressM == RBX_M124))) { //any mathkeys
         if(!shiftF && !shiftG) {
-            longpressDelayedkey1 = tmpg_;
-            tmpg = tmpg_;
+          longpressDelayedkey1 = tmpg_;
+          tmpg = tmpg_;
         }
       }
     }                                                                   //yellow and blue function keys ^^
@@ -675,7 +672,7 @@ void resetKeytimers(void) {
 
   Standard procedure LONGPRESS:
 
-    | 800 | 800 | 800 |    ms     Monitored while LONGPRESSED
+     | 800 | 800 | 800 |    ms     Monitored while LONGPRESSED
   ___+-----|-----|-----|--> NOP    Press and time out to NOP
   ___+---x_|_____|_____|___        Press and release within Fx time. Fx selected upon release
   ___+-----|--x__|_____|___        Press and hold, release within f(Fx) time. f(Fx) selected upon release
@@ -1366,13 +1363,11 @@ uint8_t outKeyBufferDoubleClick(void) {
       strcat(line2, "S");
       showString(line2, &standardFont, SCREEN_WIDTH-11, 0, vmNormal, true, true);
     }
-    else
-    if( outDoubleclick == 2) {
+    else if( outDoubleclick == 2) {
       strcat(line2, "D");
       showString(line2, &standardFont, SCREEN_WIDTH-11, 0, vmNormal, true, true);
     }
-    else
-    if( outDoubleclick == 3) {
+    else if( outDoubleclick == 3) {
       strcat(line2, "T");
       showString(line2, &standardFont, SCREEN_WIDTH-11, 0, vmNormal, true, true);
     }

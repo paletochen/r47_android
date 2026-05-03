@@ -42,8 +42,9 @@ void sqrt1Px2Complex(const real_t *real, const real_t *imag, real_t *resReal, re
 static void sqrt1Px2Real(void) {
   real_t x;
 
-  if(!getRegisterAsReal(REGISTER_X, &x))
+  if(!getRegisterAsReal(REGISTER_X, &x)) {
     return;
+  }
 
   if(realIsInfinite(&x) && !getSystemFlag(FLAG_SPCRES)) {
     displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
@@ -71,8 +72,9 @@ static void sqrt1Px2Real(void) {
 static void sqrt1Px2Cplx(void) {
   real_t zReal, zImag;
 
-  if(!getRegisterAsComplex(REGISTER_X, &zReal, &zImag))
+  if(!getRegisterAsComplex(REGISTER_X, &zReal, &zImag)) {
     return;
+  }
 
   sqrt1Px2Complex(&zReal, &zImag, &zReal, &zImag, &ctxtReal75);
 

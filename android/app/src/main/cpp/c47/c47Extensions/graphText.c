@@ -689,7 +689,9 @@ void preventFilenameTimeout(void){
       //print_linestr(line, false);
       printf("%s", line1);
       fflush(stdout);
-      if(outfile != NULL) fclose(outfile);
+      if(outfile != NULL) {
+        fclose(outfile);
+      }
       return frr;
     }
     else {
@@ -833,7 +835,9 @@ void preventFilenameTimeout(void){
       //print_linestr(line, false);
       printf("%s", line);
       fflush(stdout);
-      if(outfile != NULL) fclose(outfile);
+      if(outfile != NULL) {
+        fclose(outfile);
+      }
       return frr;
     }
     else {
@@ -878,7 +882,9 @@ void preventFilenameTimeout(void){
 uint32_t ttt = 0;
 void printStatus(uint8_t row, const char *line1, uint8_t forced) {
   #if defined(PC_BUILD)
-    if(ttt==0) ttt = (uint32_t)(g_get_monotonic_time());
+    if(ttt==0) {
+      ttt = (uint32_t)(g_get_monotonic_time());
+    }
     printf("Status: %10u, %s\n", (uint32_t)(g_get_monotonic_time())-ttt, line1);
     fflush(stdout);
   #endif //PC_BUILD

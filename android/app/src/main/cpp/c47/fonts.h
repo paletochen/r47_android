@@ -758,6 +758,7 @@
 #define STD_SUB_X                     "\xa4\xe7"
 #define STD_SUB_Y                     "\xa4\xe8"
 #define STD_SUB_Z                     "\xa4\xe9"
+#define STD_BLACK_RIGHT_TRIANGLE      "\xa5\xb6"
 #define STD_CHECK_MARK                "\xa7\x13"
 #define STD_YX                        "\xa9\xf0"
 #define STD_fg                        "\xa9\xf1"

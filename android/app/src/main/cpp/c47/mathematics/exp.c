@@ -23,14 +23,17 @@ inf:
     }
     return false;
   }
-  if(realCompareAbsGreaterThan(x, const_2e6))
+  if(realCompareAbsGreaterThan(x, const_2e6)) {
     goto inf;
+  }
+
   return true;
 }
 
 void realExp(const real_t *x, real_t *res, realContext_t *set) {
-  if(realExpLimitCheck(x, res, const_0))
+  if(realExpLimitCheck(x, res, const_0)) {
     decNumberExp(res, x, set);
+  }
 }
 
 void expComplex(const real_t *real, const real_t *imag, real_t *resReal, real_t *resImag, realContext_t *realContext) {
@@ -57,8 +60,9 @@ void expComplex(const real_t *real, const real_t *imag, real_t *resReal, real_t 
 static void expReal(void) {
   real_t x;
 
-  if(!getRegisterAsReal(REGISTER_X, &x))
+  if(!getRegisterAsReal(REGISTER_X, &x)) {
     return;
+  }
 
   if(realIsInfinite(&x) && !getSystemFlag(FLAG_SPCRES)) {
     displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);

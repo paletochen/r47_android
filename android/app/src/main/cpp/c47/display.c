@@ -266,8 +266,7 @@ void real34ToDisplayString(const real34_t *real34, uint32_t tag, char *displaySt
       }
       displayFormatDigits--;
     }
-  }
-  while(stringWidth(displayString, font, true, true) > maxWidth);
+  } while(stringWidth(displayString, font, true, true) > maxWidth);
 
   displayFormat       = savedDisplayFormat;
   displayFormatDigits = savedDisplayFormatDigits;
@@ -305,7 +304,7 @@ static void real34ToDisplayString2(const real34_t *real34, char *displayString, 
   int32_t exponentUNlimit = 0;
   bool_t flag2To10 = getSystemFlag(FLAG_2TO10);
   bool_t flag2To10_baseunit_integer = false;
-  real_t tmpIp, tmpFp;
+  real_t tmpIp;
   real34_t real34bak;
   real34Copy(real34, &real34bak);
   if(flag2To10 && displayFormat == DF_UN) {
@@ -313,7 +312,7 @@ static void real34ToDisplayString2(const real34_t *real34, char *displayString, 
     real34ToReal(real34, &x);
 
     if(!realCompareAbsLessThan(&x, const_1024)) {
-      //x = e^[ ln real34 / ln1024 ]
+      // rescale |x| from 1024^IP to 1000^IP so SI prefixes (k, M, G...) line up, via IP(log1024|x|)
       bool_t neg = realIsNegative(&x);
       if(neg) {
         realSetPositiveSign(&x);
@@ -325,49 +324,34 @@ static void real34ToDisplayString2(const real34_t *real34, char *displayString, 
       decContext c = ctxtReal39;
       int maxExponent = x.exponent + x.digits;
       c.digits = (SHOWMODE ? 39 : min(75, max(0, maxExponent) + NUMBER_OF_DISPLAY_REAL_CONTEXT_DIGITS));
-      WP34S_Ln(&x, &x, &c);                             //x = ln|real34|
+      WP34S_Ln(&x, &x, &c);                                //x = ln|real34|
       maxExponent = x.exponent + x.digits;
       c.digits = (SHOWMODE ? 39 : min(75, max(0, maxExponent) + NUMBER_OF_DISPLAY_REAL_CONTEXT_DIGITS));
-      realDivide(&x, const_ln2, &x, &c);                //ln(1024)=ln( 2^10 )=10ln(2)
-      x.exponent--; // x = x / 10
-      //printRealToConsole(&x, "log base 1024 of real34 = lnx / ln1024 ", "\n");             // x = ln|real34| / ln(1024) = log base 1024 of real34 = 1.00140
+      realDivide(&x, const39_ln2, &x, &c);                 //ln(1024) = ln(2^10) = 10 ln(2)
+      x.exponent--;                                        // x = x / 10, so x = log1024|real34|
 
-      //get IP and FP of this
-      realToIntegralValue(&x, &tmpIp, DEC_ROUND_DOWN, &c); // tmpIp = Integer Part log base1024 of Real34    = 1
+      //get IP of log1024|real34|
+      realToIntegralValue(&x, &tmpIp, DEC_ROUND_DOWN, &c); // tmpIp = Integer Part log base1024 of Real34, e.g. 1
       int tmpx = realToInt32C47(&tmpIp, NULL);
       if(tmpx > exponentUNlimit1024max) {
         goto overRange;
       }
-      exponentUNlimit = min(exponentUNlimit1024max, tmpx);
+      exponentUNlimit = tmpx;
       int32ToReal(exponentUNlimit, &tmpIp);
-      realSubtract(&x, &tmpIp, &tmpFp, &c);                // tmpFp = Fractional part log base1024 of Real34    = 0.00140
-      //printRealToConsole(&tmpIp, "tmpIp Ip ", "\n");
-      //printRealToConsole(&tmpFp, "Fp ", "\n");
 
-      //   = 1000 ^ IP(log base1024 of Real34)
-      //   = 1024 ^ IP(log base1024 of Real34)
-      // new Real34 = Real34 / 1024^IP * 1000^IP
-
-      // fact = IP§ / IP = (1000/1024)^IP(log base1024 of Real34)
-      // new Real34 = Real34 fact
-
-      realDivide(const_1000, const_1024, &x, &ctxtReal39); // X = 1000 / 1024
-      //printRealToConsole(&fact, "factor = ", "\n");
+      // new real34 = real34 / 1024^IP * 1000^IP = real34 * (1000/1024)^IP
+      realDivide(const_1000, const_1024, &x, &ctxtReal39); // x = 1000 / 1024
       realPower(&x, &tmpIp, &x, &ctxtReal39);              // x = (1000/1024) ^ tmpIp
-      //printRealToConsole(&x, "factor^IP = ", "\n");
-      //printRealToConsole(&xx, "xx = ", "\n");
-      realMultiply(&xx, &x, &x, &ctxtReal39);
-      //printRealToConsole(&x, "x * fact = ", "\n");
+      realMultiply(&xx, &x, &x, &ctxtReal39);              // x = real34 * (1000/1024)^IP
 
       if(neg) {
         realSetNegativeSign(&x);
       }
       realToReal34(&x, real34);
-      //printReal34ToConsole(real34, "---B", "\n");
-
     }
     else {
       flag2To10_baseunit_integer = true;
+
 overRange:
       flag2To10 = false;
     }
@@ -407,21 +391,21 @@ overRange:
         char terminator;            // 15 bytes
         const unsigned char option; // 16 bytes containts an irfracOption_t
       } replacements[] = {
-          { const_1,        "",                           0, NOIRFRAC },
-          { const_rt3,      STD_SQUARE_ROOT STD_SUB_3,    0, LIMITIRFRAC },
-          { const_root2,    STD_SQUARE_ROOT STD_SUB_2,    0, LIMITIRFRAC },
-          { const_pi,       STD_pi,                       0, LIMITIRFRAC },
-          { const_eE,       STD_EulerE,                   0, LIGHTIRFRAC },
-          { const_PHI,      STD_phi_m,                    0, LIGHTIRFRAC },
-          { const_rt5,      STD_SQUARE_ROOT STD_SUB_5,    0, LIGHTIRFRAC },
-          { const_rt7,      STD_SQUARE_ROOT STD_SUB_7,    0, LIGHTIRFRAC },
-          { const_rtpi,     STD_SQUARE_ROOT STD_pi,       0, LIGHTIRFRAC },
-          { const_1onpi,    oneOverPi,                    0, LIGHTIRFRAC },
-          { const_1oneE,    oneOverE,                     0, LIGHTIRFRAC },
-          { const_pisq,     "(" STD_pi STD_SUP_2 STD_SPACE_HAIR STD_SPACE_HAIR ")",     0, FULLIRFRAC },
-          { const_eEsq,     "(" STD_EulerE STD_SUP_2 STD_SPACE_HAIR STD_SPACE_HAIR ")", 0, FULLIRFRAC },
-          { const_1onpisq,  "(" STD_pi STD_SUP_MINUS STD_SUP_2 STD_SPACE_HAIR STD_SPACE_HAIR ")",     0, FULLIRFRAC },
-          { const_1oneEsq,  "(" STD_EulerE STD_SUP_MINUS STD_SUP_2 STD_SPACE_HAIR STD_SPACE_HAIR ")", 0, FULLIRFRAC },
+          { const_1,          "",                           0, NOIRFRAC },
+          { const39_rt3,      STD_SQUARE_ROOT STD_SUB_3,    0, LIMITIRFRAC },
+          { const39_root2,    STD_SQUARE_ROOT STD_SUB_2,    0, LIMITIRFRAC },
+          { const39_pi,       STD_pi,                       0, LIMITIRFRAC },
+          { const39_eE,       STD_EulerE,                   0, LIGHTIRFRAC },
+          { const39_PHI,      STD_phi_m,                    0, LIGHTIRFRAC },
+          { const39_rt5,      STD_SQUARE_ROOT STD_SUB_5,    0, LIGHTIRFRAC },
+          { const39_rt7,      STD_SQUARE_ROOT STD_SUB_7,    0, LIGHTIRFRAC },
+          { const39_rtpi,     STD_SQUARE_ROOT STD_pi,       0, LIGHTIRFRAC },
+          { const39_1onpi,    oneOverPi,                    0, LIGHTIRFRAC },
+          { const39_1oneE,    oneOverE,                     0, LIGHTIRFRAC },
+          { const39_pisq,     "(" STD_pi STD_SUP_2 STD_SPACE_HAIR STD_SPACE_HAIR ")",     0, FULLIRFRAC },
+          { const39_eEsq,     "(" STD_EulerE STD_SUP_2 STD_SPACE_HAIR STD_SPACE_HAIR ")", 0, FULLIRFRAC },
+          { const39_1onpisq,  "(" STD_pi STD_SUP_MINUS STD_SUP_2 STD_SPACE_HAIR STD_SPACE_HAIR ")",     0, FULLIRFRAC },
+          { const39_1oneEsq,  "(" STD_EulerE STD_SUP_MINUS STD_SUP_2 STD_SPACE_HAIR STD_SPACE_HAIR ")", 0, FULLIRFRAC },
       };
 
       real34ToReal(real34, &valueReal);
@@ -616,7 +600,7 @@ overRange:
       }
       return;
     }
-    else if(exponent < -exponentLimit || (exponentHideLimit != 0 && exponent < -exponentHideLimit)) {
+    else if(exponent < -exponentLimit || (exponentHideLimit != 0 && exponent < -exponentHideLimit && currentMenu() != -MNU_XXFCNS)) {
       if(real34IsPositive(&value34)) {
         strcpy(displayString, STD_ALMOST_EQUAL "0");
         if(updateDisplayValueX) {
@@ -1511,7 +1495,10 @@ static void complex34ToDisplayString2(const complex34_t *complex34, char *displa
       strcat(displayString, STD_SPACE_HAIR);
     }
 
-    if(real34IsZero(&real34)) {           // JM
+    if(real34IsZero(&real34) &&                                     // This section handles and shortend 0+i.n to i.n, if real part = 0
+       !(real34IsNegative(&real34)) &&                              //   except when any Re is -0, i.e. -0 + i
+       !(real34IsZero(&imag34))                                     //   except when Im = 0, i.e. for 0 + 0.i or 0 -0.i
+       ) {
       #if defined(PC_BUILD_TELLTALE)
         char tmp_a[100];
         char tmp_b[100];
@@ -1743,7 +1730,8 @@ void fractionToDisplayString(calcRegister_t regist, char *displayString) {
 }
 
 
-void angle34ToDisplayString2(const real34_t *angle34, uint8_t mode, char *displayString, int16_t displayHasNDigits, bool_t limitExponent, bool_t frontSpace, irfracOption_t limitIrfrac) {
+void angle34ToDisplayString2(const real34_t *angle34, uint8_t modeIn, char *displayString, int16_t displayHasNDigits, bool_t limitExponent, bool_t frontSpace, irfracOption_t limitIrfrac) {
+  const uint8_t mode = (modeIn & amAngleMask);
   if(mode == amDMS) {
     char degStr[100];
     uint32_t m, s, fs;
@@ -1802,6 +1790,9 @@ void angle34ToDisplayString2(const real34_t *angle34, uint8_t mode, char *displa
     displayFormatDigits = 0;
     displayFormat = DF_ALL;
     real34ToDisplayString2(&tmp, degStr, displayHasNDigits, limitExponent, false, frontSpace, true, limitIrfrac);
+    if(degStr[0] == ' ' && degStr[1] != 0) {       //degStr has a leading space as it is always positive, and the sign is separately handled.
+      memmove(degStr, degStr + 1, strlen(degStr));
+    }
     displayFormatDigits = savedDisplayFormatDigits;
     displayFormat       = savedDisplayFormat;
     //remove the '.' radix indicating it is a real
@@ -1830,7 +1821,7 @@ void angle34ToDisplayString2(const real34_t *angle34, uint8_t mode, char *displa
                                                                                     fs);
   }
   else if(mode == amMultPi) {
-    IrFractionsCurrentStatus = CF_OFF;        //JM
+//    IrFractionsCurrentStatus = CF_OFF;        //JM
     real34ToDisplayString2(angle34, displayString, displayHasNDigits, limitExponent, mode == amSecond, frontSpace, isReal, limitIrfrac);
     strcat(displayString, STD_SUP_pir);
   }
@@ -1921,11 +1912,7 @@ void longIntegerToHexDisplayString(calcRegister_t regist, char *displayString, b
     fontForShortInteger = &numericFont;
     addBaseNumber(displayString, dispBase);
   }
-  else
-  if( stringWidth(displayString, &standardFont, false, true) +
-      stringWidth(STD_SUB_0 STD_SUB_0, &standardFont, false, true) +
-      stringWidth("  X:" STD_INTEGER_Z_SMALL ": ", &standardFont, false, true)
-      <= width) {
+  else if( stringWidth(displayString, &standardFont, false, true) + stringWidth(STD_SUB_0 STD_SUB_0, &standardFont, false, true) + stringWidth("  X:" STD_INTEGER_Z_SMALL ": ", &standardFont, false, true) <= width) {
     fontForShortInteger = &standardFont;
     addBaseNumber(displayString, dispBase);
   }
@@ -2016,8 +2003,7 @@ void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, boo
         strcpy(displayString + i, "1001");
         strcpy(ss, STD_BASE_9);
       }
-      else
-      if(bcdDisplaySign == BCD10c) {
+      else if(bcdDisplaySign == BCD10c) {
         strcpy(displayString + i, "0000");
         strcpy(ss, STD_SUB_o);
       }
@@ -2080,13 +2066,11 @@ void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, boo
       if(bcdDisplaySign == BCD9c) {
         unit = 9 - unit;
       }
-      else
-      if(bcdDisplaySign == BCD10c) {           //see https://madformath.com/calculators/digital-systems/complement-calculators/10-s-complement-calculator-alternative/10-s-complement-calculator-alternative
+      else if(bcdDisplaySign == BCD10c) {           //see https://madformath.com/calculators/digital-systems/complement-calculators/10-s-complement-calculator-alternative/10-s-complement-calculator-alternative
         if(firstNonZero == 0) {
           unit = 0;
         }
-        else
-        if(firstNonZero == 1) {
+        else if(firstNonZero == 1) {
           unit = 9 - unit + 1;
           firstNonZero++;
         }
@@ -2901,8 +2885,19 @@ void timeToDisplayString(calcRegister_t regist, char *displayString, bool_t igno
 
 
 void real34MatrixToDisplayString(calcRegister_t regist, char *displayString) { // [n×n Matrix]
+  #if defined(OPTION_VECTOR)
+    if(isRegisterMatrix2dVector(regist)) {
+      sprintf(displayString, "[2D Vector]%s", getVectorRegisterPolarMode(regist) == amPolar ? STD_SPACE_HAIR STD_SUP_p : "");
+    }
+    else if(isRegisterMatrix3dVector(regist)) {
+      sprintf(displayString, "[3D Vector]%s", getVectorRegisterPolarMode(regist) == amPolarSPH ? STD_SPACE_HAIR STD_SUP_s : getVectorRegisterPolarMode(regist) == amPolarCYL ? STD_SPACE_HAIR STD_SUP_c : "");
+    }
+    else
+  #endif //OPTION_VECTOR
+  {
   matrixHeader_t *matrixHeader = REGISTER_MATRIX_HEADER(regist);
   sprintf(displayString, "[%" PRIu16 STD_CROSS "%" PRIu16" Matrix]", matrixHeader->matrixRows, matrixHeader->matrixColumns);
+  }
 }
 
 
@@ -2917,9 +2912,8 @@ bool_t vectorToDisplayString(calcRegister_t regist, char *displayString) {
     matrixHeader_t *matrixHeader = REGISTER_MATRIX_HEADER(regist);
     if(isMatrixVector(matrixHeader->matrixRows, matrixHeader->matrixColumns)) {
       real34Matrix_t matrix;
-      int16_t prefixWidth = 0;
       linkToRealMatrixRegister(regist, &matrix);
-      showRealMatrix(&matrix, prefixWidth, !toDisplayVectorMatrix);
+      showRealMatrix(&matrix, 0, !toDisplayVectorMatrix, regXp);
       sprintf(displayString, "%s", errorMessage);
       //if(stringWidth(tmpString, &numericFont, true, true) + 1 > SCREEN_WIDTH) {
       //  return false;     //this is to revert to [4x4 Matrix] if the digits in the default standard font is too wide. Not needed as it is managed by reducing the font
@@ -3083,8 +3077,8 @@ static void dispM(uint16_t regist, char * prefix) {
   if(getRegisterDataType(regist) == dtReal34Matrix) {
     real34Matrix_t matrix;
     linkToRealMatrixRegister(regist, &matrix);
-    showRealMatrix(&matrix, prefixWidth, toDisplayVectorMatrix);
-    //printf("#### tmpString=%s prefix=%s prefixWidth=%u lastErrorCode=%u temporaryInformation=%u\n", tmpString, prefix, prefixWidth, lastErrorCode, temporaryInformation);
+    showRealMatrix(&matrix, prefixWidth, toDisplayVectorMatrix, !regXp);
+    //printf("#### tmpString=%s prefix=%s prefixWidth=%u lastErrorCode=%u temporaryInformation=%u\n",tmpString, prefix, prefixWidth, lastErrorCode, temporaryInformation);
     if(lastErrorCode != 0) {
       refreshRegisterLine(errorMessageRegisterLine);
     }
@@ -3098,7 +3092,7 @@ static void dispM(uint16_t regist, char * prefix) {
   else if(getRegisterDataType(regist) == dtComplex34Matrix) {
     complex34Matrix_t matrix;
     linkToComplexMatrixRegister(regist, &matrix);
-    showComplexMatrix(&matrix, prefixWidth, getComplexRegisterAngularMode(regist), getComplexRegisterPolarMode(regist) == amPolar);
+    showComplexMatrix(&matrix, prefixWidth, getComplexRegisterAngularMode(regist), getComplexRegisterPolarMode(regist) == amPolar, !regXp);
     //printf("#### tmpString=%s prefix=%s prefixWidth=%u lastErrorCode=%u temporaryInformation=%u\n", tmpString, prefix, prefixWidth, lastErrorCode, temporaryInformation);
     if(lastErrorCode != 0) {
       refreshRegisterLine(errorMessageRegisterLine);
@@ -3361,8 +3355,7 @@ void fnC47Show(uint16_t fnShow_param) {
                    source = 0;
                    IntShowMode = SHOWAUTO;
                  }
-                 else
-                 if(IntShowMode != SHOWSML) {
+                 else if(IntShowMode != SHOWSML) {
                    startingLine = 0;
                    source = 0;
                    IntShowMode = SHOWSML;
@@ -3759,14 +3752,13 @@ goBreak1:
               source++;
               tmpString[dest++]=49;
             }
-            else
-              if((uint8_t)(tmpString[source]) == 162 && (uint8_t)(tmpString[source+1]) == 14) {
-                source++;
-                tmpString[dest++]=48;
-              }
-              else {
-                tmpString[dest++] = tmpString[source];
-              }
+            else if((uint8_t)(tmpString[source]) == 162 && (uint8_t)(tmpString[source+1]) == 14) {
+              source++;
+              tmpString[dest++]=48;
+            }
+            else {
+              tmpString[dest++] = tmpString[source];
+            }
             source++;
           }
           tmpString[dest]=0;
@@ -4050,13 +4042,22 @@ void _view(uint16_t regist) {
 
 void fnView(uint16_t regist) {
   _view(regist);
+  #if defined(IR_PRINTING)
+    printViewAview(ITM_VIEW, regist);
+  #endif //IR_PRINTING
 }
 
 void fnAview(uint16_t regist) {
   _view(regist);
+  #if defined(IR_PRINTING)
+    printViewAview(ITM_AVIEW, regist);
+  #endif //IR_PRINTING
 }
 
 void fnPrompt(uint16_t regist) {
   _view(regist);
+  #if defined(IR_PRINTING)
+    printPrompt(regist);
+  #endif //IR_PRINTING
   fnStopProgram(NOPARAM);
 }

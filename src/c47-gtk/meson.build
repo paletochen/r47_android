@@ -4,7 +4,8 @@ c47_gtk_src = files(
   'hal/audio.c',
   'hal/gui.c',
   'hal/lcd.c',
-  'hal/io.c')
+  'hal/io.c',
+  'hal/print_ir.c')
 
 override_opts = ['b_coverage=false']
 cflags        = []

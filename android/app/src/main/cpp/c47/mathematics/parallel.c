@@ -21,9 +21,9 @@
 static void doParallelReal(void) {
   real_t y, x, product;
 
-  if(!getRegisterAsReal(REGISTER_X, &x)
-          || !getRegisterAsReal(REGISTER_Y, &y))
+  if(!getRegisterAsReal(REGISTER_X, &x) || !getRegisterAsReal(REGISTER_Y, &y)) {
     return;
+  }
 
   // y || x = xy / (x+y)
   if(!realIsZero(&x)) {
@@ -51,9 +51,9 @@ static void doParallelComplex(void) {
   real_t yImag, xImag, productImag, sumImag;
 
   // y || x = xy / (x + y)
-  if(!getRegisterAsComplex(REGISTER_X, &xReal, &xImag)
-          || !getRegisterAsComplex(REGISTER_Y, &yReal, &yImag))
-      return;
+  if(!getRegisterAsComplex(REGISTER_X, &xReal, &xImag) || !getRegisterAsComplex(REGISTER_Y, &yReal, &yImag)) {
+    return;
+  }
 
   if(!realIsZero(&xReal) || !realIsZero(&xImag)) {
     mulComplexComplex(&yReal, &yImag, &xReal, &xImag, &productReal, &productImag, &ctxtReal75);

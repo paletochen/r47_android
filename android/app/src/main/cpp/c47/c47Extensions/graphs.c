@@ -1298,8 +1298,8 @@ void graph_plotmem(void) {
           }
 
           //exceeding the positive y-axis part or the top of the screen, use proportional triangle to determine the part of the line to be plotted to the edge of the plotting area
-          else if((yN1 < yN0 && xN1 > xo && yN1 < minN_y && !bothOutOfScreen01 && outOfScreen1 && !outOfScreen0) ||
-                  (yN1 > yN0 && xN1 > xo && yN0 < minN_y && !bothOutOfScreen01 && !outOfScreen1 && outOfScreen0)) {
+          else if((yN1 < yN0 && xN1 > xo && yN1 < minN_y && !bothOutOfScreen01 &&  outOfScreen1 && !outOfScreen0) ||
+                  (yN1 > yN0 && xN1 > xo && yN0 < minN_y && !bothOutOfScreen01 && !outOfScreen1 &&  outOfScreen0)) {
             //printf("EXIT CLIP TOP: yN0=%d yN1=%d\n", yN0, yN1);
             int16_t dY = abs(yN0 - minN_y);
             if(yN1 == yN0) {

@@ -301,15 +301,15 @@ void saveForUndo(void) {
 
   lrSelectionUndo = lrSelection;
   if(statisticalSumsPointer == NULL) { // There are no statistical sums to save for undo
-    freeC47Blocks(savedStatisticalSumsPointer, NUMBER_OF_STATISTICAL_SUMS * REAL_SIZE_IN_BLOCKS);
+    freeC47Blocks(savedStatisticalSumsPointer, NUMBER_OF_STATISTICAL_SUMS * REAL_SIZE_IN_BLOCKS(75));
     savedStatisticalSumsPointer = NULL;
   }
   else { // There are statistical sums to save for undo
     lrChosenUndo = lrChosen;
     if(savedStatisticalSumsPointer == NULL) {
-      savedStatisticalSumsPointer = allocC47Blocks(NUMBER_OF_STATISTICAL_SUMS * REAL_SIZE_IN_BLOCKS);
+      savedStatisticalSumsPointer = allocC47Blocks(NUMBER_OF_STATISTICAL_SUMS * REAL_SIZE_IN_BLOCKS(75));
     }
-    xcopy(savedStatisticalSumsPointer, statisticalSumsPointer, NUMBER_OF_STATISTICAL_SUMS * REAL_SIZE_IN_BYTES);
+    xcopy(savedStatisticalSumsPointer, statisticalSumsPointer, NUMBER_OF_STATISTICAL_SUMS * REAL_SIZE_IN_BYTES(75));
   }
 
   thereIsSomethingToUndo = true;
@@ -394,16 +394,16 @@ void undo(void) {
 
   lrSelection = lrSelectionUndo;
   if(savedStatisticalSumsPointer == NULL) { // There are no statistical sums to restore
-    freeC47Blocks(statisticalSumsPointer, NUMBER_OF_STATISTICAL_SUMS * REAL_SIZE_IN_BLOCKS);
+    freeC47Blocks(statisticalSumsPointer, NUMBER_OF_STATISTICAL_SUMS * REAL_SIZE_IN_BLOCKS(75));
     statisticalSumsPointer = NULL;
     lrChosen = 0;
   }
   else { // There are statistical sums to restore
     lrChosen = lrChosenUndo;
     if(statisticalSumsPointer == NULL) {
-      statisticalSumsPointer = allocC47Blocks(NUMBER_OF_STATISTICAL_SUMS * REAL_SIZE_IN_BLOCKS);
+      statisticalSumsPointer = allocC47Blocks(NUMBER_OF_STATISTICAL_SUMS * REAL_SIZE_IN_BLOCKS(75));
     }
-    xcopy(statisticalSumsPointer, savedStatisticalSumsPointer, NUMBER_OF_STATISTICAL_SUMS * REAL_SIZE_IN_BYTES);
+    xcopy(statisticalSumsPointer, savedStatisticalSumsPointer, NUMBER_OF_STATISTICAL_SUMS * REAL_SIZE_IN_BYTES(75));
   }
 
   SAVED_SIGMA_lastAddRem = SIGMA_NONE;

@@ -1048,10 +1048,8 @@ void stringToASCII(const char *str, char *ascii) {
         }
         ascii--;
       }
-
-      else
       //RANGE SUP/SUB/BASE
-           if((a1==(uint8_t)(STD_SUP_0            [0]) && (a2>=(uint8_t)(STD_SUP_0            [1]) && a2<=(uint8_t)(STD_SUP_9  [1]))) ) {*ascii = ('0'+a2)-(uint8_t)(STD_SUP_0 [1]);}
+      else if((a1==(uint8_t)(STD_SUP_0            [0]) && (a2>=(uint8_t)(STD_SUP_0            [1]) && a2<=(uint8_t)(STD_SUP_9  [1]))) ) {*ascii = ('0'+a2)-(uint8_t)(STD_SUP_0 [1]);}
       else if((a1==(uint8_t)(STD_SUP_a            [0]) && (a2>=(uint8_t)(STD_SUP_a            [1]) && a2<=(uint8_t)(STD_SUP_z  [1]))) ) {*ascii = ('a'+a2)-(uint8_t)(STD_SUP_a [1]);}
       else if((a1==(uint8_t)(STD_SUP_A            [0]) && (a2>=(uint8_t)(STD_SUP_A            [1]) && a2<=(uint8_t)(STD_SUP_Z  [1]))) ) {*ascii = ('A'+a2)-(uint8_t)(STD_SUP_A [1]);}
       else if((a1==(uint8_t)(STD_SUB_0            [0]) && (a2>=(uint8_t)(STD_SUB_0            [1]) && a2<=(uint8_t)(STD_SUB_9  [1]))) ) {*ascii = ('0'+a2)-(uint8_t)(STD_SUB_0 [1]);}
@@ -1060,9 +1058,9 @@ void stringToASCII(const char *str, char *ascii) {
       else if((a1==(uint8_t)(STD_BASE_1           [0]) && (a2>=(uint8_t)(STD_BASE_1           [1]) && a2<=(uint8_t)(STD_BASE_9 [1]))) ) {*ascii = '#';  ascii++; *ascii = ('1'+a2)-(uint8_t)(STD_BASE_1[1]);}
       else if((a1==(uint8_t)(STD_BASE_10          [0]) && (a2>=(uint8_t)(STD_BASE_10          [1]) && a2<=(uint8_t)(STD_BASE_16[1]))) ) {*ascii = '#';  ascii++; *ascii =  '1'; ascii++; *ascii = ('0'+a2)-(uint8_t)(STD_BASE_10[1]);}
       //RANGE INTERNATIONAL AND EXTENDED ASCII
-      else if(a1>=0x81 && a1<=0x83) *ascii = '_'; else //All international characters use 0x00 which is not otherwise used in C47
+      else if(a1>=0x81 && a1<=0x83) *ascii = '_'; //All international characters use 0x00 which is not otherwise used in C47
       //RANGE QUOTES
-           if(a1==(uint8_t)(STD_LEFT_SINGLE_QUOTE[0]) && (a2>=(uint8_t)(STD_LEFT_SINGLE_QUOTE[1]) && a2<=(uint8_t)(STD_SINGLE_HIGH_QUOTE[1])) ) *ascii = '\'';
+      else if(a1==(uint8_t)(STD_LEFT_SINGLE_QUOTE[0]) && (a2>=(uint8_t)(STD_LEFT_SINGLE_QUOTE[1]) && a2<=(uint8_t)(STD_SINGLE_HIGH_QUOTE[1])) ) *ascii = '\'';
       else if(a1==(uint8_t)(STD_LEFT_DOUBLE_QUOTE[0]) && (a2>=(uint8_t)(STD_LEFT_DOUBLE_QUOTE[1]) && a2<=(uint8_t)(STD_DOUBLE_HIGH_QUOTE[1])) ) *ascii = '"';
       else {
         #if defined(PC_BUILD)

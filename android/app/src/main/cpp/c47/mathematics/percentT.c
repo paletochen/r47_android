@@ -64,11 +64,13 @@ void fnPercentT(uint16_t unusedButMandatoryParameter) {
   real_t xReal, yReal;
   real_t rReal;
 
-  if(!getRegisterAsReal(REGISTER_X, &xReal) || !getRegisterAsReal(REGISTER_Y, &yReal))
+  if(!getRegisterAsReal(REGISTER_X, &xReal) || !getRegisterAsReal(REGISTER_Y, &yReal)) {
     return;
+  }
 
-  if(!saveLastX())
+  if(!saveLastX()) {
     return;
+  }
 
   if(percentTReal(&xReal, &yReal, &rReal, &ctxtReal39)) {
     reallocateRegister(REGISTER_X, dtReal34, 0, amNone);

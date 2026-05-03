@@ -81,7 +81,7 @@ static void lnGammaReal(void) {
         realSetPositiveSign(&xReal);
         WP34S_Ln(&xReal, &xReal, &ctxtReal39);
         realToIntegralValue(&xImag, &xImag, DEC_ROUND_FLOOR, &ctxtReal39);
-        realMultiply(&xImag, const_pi, &xImag, &ctxtReal39);
+        realMultiply(&xImag, const39_pi, &xImag, &ctxtReal39);
         convertComplexToResultRegister(&xReal, &xImag, REGISTER_X);
       }
       else { // Domain error
@@ -127,7 +127,7 @@ static void complexLnGamma_Stirling(const real_t *xReal, const real_t *xImag, re
   realSubtract(rReal, &zReal, rReal, realContext);
   realSubtract(rImag, &zImag, rImag, realContext);
 
-  realAdd(rReal, const_ln2piOn2, rReal, realContext);
+  realAdd(rReal, const39_ln2piOn2, rReal, realContext);
 
   realMultiply(const_12, &zReal, &tReal, realContext);
   realMultiply(const_12, &zImag, &tImag, realContext);
@@ -172,9 +172,9 @@ void complexLnGamma(const real_t *xReal, const real_t *xImag, real_t *rReal, rea
     complexLnGamma_Stirling(&zReal, &zImag, rReal, &tImag, &ctxtReal39);
     WP34S_ComplexLnGamma(&zReal, &zImag, rReal, rImag, &ctxtReal39);
     realSubtract(&tImag, rImag, &tImag, &ctxtReal39);
-    realDivide(&tImag, const_2pi, &tImag, &ctxtReal39);
+    realDivide(&tImag, const39_2pi, &tImag, &ctxtReal39);
     realToIntegralValue(&tImag, &tImag, DEC_ROUND_HALF_EVEN, &ctxtReal39);
-    realFMA(const_2pi, &tImag, rImag, rImag, &ctxtReal39);
+    realFMA(const39_2pi, &tImag, rImag, rImag, &ctxtReal39);
   }
 }
 

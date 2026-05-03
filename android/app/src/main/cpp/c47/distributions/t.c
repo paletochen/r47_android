@@ -7,7 +7,7 @@
 
 #include "c47.h"
 
-#if defined(SAVE_SPACE_DM42_15)
+#if defined(SAVE_SPACE_DM42_17B)
   void fnT_P   (uint16_t unusedButMandatoryParameter){}
   void fnT_L   (uint16_t unusedButMandatoryParameter){}
   void fnT_R   (uint16_t unusedButMandatoryParameter){}
@@ -19,12 +19,13 @@
 
 #else
   static bool_t checkParamT(real_t *x, real_t *i) {
-    if(!saveLastX())
+    if(!saveLastX()) {
       return false;
+    }
 
-    if(!getRegisterAsReal(REGISTER_X, x)
-        || !getRegisterAsReal(REGISTER_M, i))
-        goto err;
+    if(!getRegisterAsReal(REGISTER_X, x) || !getRegisterAsReal(REGISTER_M, i)) {
+      goto err;
+    }
 
     if(realIsZero(i) || realIsNegative(i)) {
       displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE, REGISTER_X);
@@ -124,7 +125,7 @@
     realMultiply(&p, &i, &p, realContext);
     realSubtract(&q, &p, &p, realContext);
     realExp(&p, &p, realContext);
-    realMultiply(const_pi, nu, &q, realContext);
+    realMultiply(const39_pi, nu, &q, realContext);
     realSquareRoot(&q, &q, realContext);
     realDivide(&p, &q, res, realContext);
   }
@@ -205,7 +206,7 @@
       realMultiply(&reg0, &p, &q, realContext);
       realSubtract(const_1on4, const_1, &r, realContext);
       realAdd(&p, &r, &p, realContext);
-      realDivide(const_pi, &p, &p, realContext);
+      realDivide(const39_pi, &p, &p, realContext);
       realSquareRoot(&p, &p, realContext);
       realMultiply(&p, &q, &q, realContext);
       realDivide(const_1, nu, &r, realContext);
@@ -216,7 +217,7 @@
     else { // qf_t_tail
       WP34S_qf_q_est(&reg0, &p, NULL, realContext);
       realMultiply(&p, &p, &p, realContext);
-      realMultiply(const_eE, nu, &r, realContext);
+      realMultiply(const39_eE, nu, &r, realContext);
       realDivide(const_1, &r, &r, realContext);
       realAdd(&r, const_1, &r, realContext);
       realMultiply(&p, &r, &p, realContext);
@@ -274,5 +275,5 @@
     }
   }
 
-#endif //SAVE_SPACE_DM42_15
+#endif //SAVE_SPACE_DM42_17B
 

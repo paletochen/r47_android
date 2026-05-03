@@ -17,7 +17,7 @@ static void zeta_calc_complex(real_t *reg4, real_t *reg5, real_t *reg6, real_t *
   real_t s, p, q, r, reg0, reg1, reg2, reg3, reg8, reg9;
 
   realCopyAbs(reg7, &p);
-  realMultiply(const_piOn2, &p, &q, realContext);
+  realMultiply(const39_piOn2, &p, &q, realContext);
   realMultiply(&p, const_2, &p, realContext);
   WP34S_Ln1P(&p, &p, realContext);
   realAdd(&q, &p, &p, realContext);
@@ -75,10 +75,10 @@ static void zeta_calc_complex(real_t *reg4, real_t *reg5, real_t *reg6, real_t *
   realDivide(&reg8, reg4, &reg8, realContext);
   realDivide(&reg9, reg4, &reg9, realContext);
   realSubtract(const_1, reg6, &p, realContext);
-  realMultiply(const_ln2, &p, &p, realContext);
+  realMultiply(const39_ln2, &p, &p, realContext);
   WP34S_ExpM1(&p, &reg1, realContext);
   realMinus(reg7, &p, realContext);
-  realMultiply(&p, const_ln2, &p, realContext);
+  realMultiply(&p, const39_ln2, &p, realContext);
   realPolarToRectangular(const_1, &p, &q, &p, realContext);
   realSubtract(&q, const_1, &r, realContext);
   realMultiply(&q, &reg1, &q, realContext);
@@ -125,7 +125,7 @@ void ComplexZeta(const real_t *xReal, const real_t *xImag, real_t *resReal, real
     realMultiply(&q, const_1on2, &reg10, realContext);
     realMultiply(&p, const_1on2, &reg11, realContext);
     realSubtract(&q, const_1on2, &q, realContext);
-    PowerComplex(const_pi, const_0, &q, &p, &s, &r, realContext);
+    PowerComplex(const39_pi, const_0, &q, &p, &s, &r, realContext);
     mulComplexComplex(&s, &r, &reg4, &reg5, &reg4, &reg5, realContext);
     WP34S_ComplexGamma(&reg10, &reg11, &q, &p, realContext);
 
@@ -137,8 +137,10 @@ void ComplexZeta(const real_t *xReal, const real_t *xImag, real_t *resReal, real
 static void doRealZeta(void) {
   real_t x, r;
 
-  if(!getRegisterAsReal(REGISTER_X, &x))
+  if(!getRegisterAsReal(REGISTER_X, &x)) {
     return;
+  }
+
   WP34S_Zeta(&x, &r, &ctxtReal39);
   convertRealToResultRegister(&r, REGISTER_X, amNone);
 }
@@ -146,11 +148,13 @@ static void doRealZeta(void) {
 static void doComplexZeta(void) {
   real_t xr, xi, rr, ri;
 
-  if(!getRegisterAsComplex(REGISTER_X, &xr, &xi))
+  if(!getRegisterAsComplex(REGISTER_X, &xr, &xi)) {
     return;
+  }
 
-  if(!saveLastX())
+  if(!saveLastX()) {
     return;
+  }
 
   ComplexZeta(&xr, &xi, &rr, &ri, &ctxtReal39);
   convertComplexToResultRegister(&rr, &ri, REGISTER_X);

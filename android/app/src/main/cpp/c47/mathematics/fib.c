@@ -15,8 +15,9 @@ static void fibLonI(void) {
   }
 
   bool_t neg = longIntegerIsNegative(x);
-  if(neg)
+  if(neg) {
     longIntegerChangeSign(x);
+  }
 
   /*if(shortIntegerMode == SIM_UNSIGN && longIntegerCompareUInt(x, 93) > 0) {
     displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
@@ -43,8 +44,9 @@ static void fibLonI(void) {
   longIntegerInit(result);           // Initialize fib variable
   longIntegerFibonacci(n, result);   // result = FIB(n)
 
-  if(neg && longIntegerIsEven(x))
+  if(neg && longIntegerIsEven(x)) {
     longIntegerChangeSign(result);
+  }
 
   convertLongIntegerToLongIntegerRegister(result, REGISTER_X);
 
@@ -59,14 +61,14 @@ static uint8_t FibonacciReal(const real_t *n, real_t *res, realContext_t *realCo
 
   real_t a, b;
 
-  realPower(const_PHI, n, &a, realContext);                             // a   = PHI^(n)
-  realDivide(const_1, &a, &b, realContext);                             // b   = PHI^(-n) = = 1/PHI^(n)
-  realMultiply(const_pi, n, res, realContext);                          // res = PI * n
-  C47_WP34S_Cvt2RadSinCosTan(res, amRadian, NULL, res, NULL, realContext);  // res = COS(PI * n)
-  realMultiply(&b, res, &b, realContext);                               // b   = PHI^(-n) * COS(PI * n)
-  realSquareRoot(const_5, res, realContext);                            // res = SQRT(5)
-  realSubtract(&a, &b, &a, realContext);                                // a   = PHI^(n) - PHI^(-n) * COS(PI * n)
-  realDivide(&a, res, res, realContext);                                // res = [ PHI^n - PHI^(-n) * COS(PI * n) ] / SQRT(5)
+  realPower(const39_PHI, n, &a, realContext);                              // a   = PHI^(n)
+  realDivide(const_1, &a, &b, realContext);                                // b   = PHI^(-n) = = 1/PHI^(n)
+  realMultiply(const39_pi, n, res, realContext);                           // res = PI * n
+  C47_WP34S_Cvt2RadSinCosTan(res, amRadian, NULL, res, NULL, realContext); // res = COS(PI * n)
+  realMultiply(&b, res, &b, realContext);                                  // b   = PHI^(-n) * COS(PI * n)
+  realSquareRoot(const_5, res, realContext);                               // res = SQRT(5)
+  realSubtract(&a, &b, &a, realContext);                                   // a   = PHI^(n) - PHI^(-n) * COS(PI * n)
+  realDivide(&a, res, res, realContext);                                   // res = [ PHI^n - PHI^(-n) * COS(PI * n) ] / SQRT(5)
 
   return ERROR_NONE;
 }
@@ -78,16 +80,16 @@ static uint8_t FibonacciComplex(const real_t *nReal, const real_t *nImag, real_t
   real_t aReal, aImag;
   real_t bReal, bImag;
 
-  PowerComplex(const_PHI, const_0, nReal, nImag, &aReal, &aImag, realContext);       // a   = PHI^(n)
-  divRealComplex(const_1, &aReal, &aImag, &bReal, &bImag, realContext);              // b   = PHI^(-n) = 1/PHI^(n)
-  mulComplexComplex(const_pi, const_0, nReal, nImag, resReal, resImag, realContext); // res = PI * n
-  cosComplex(resReal, resImag, resReal, resImag, realContext);                       // res = COS(PI * n)
-  mulComplexComplex(&bReal, &bImag, resReal, resImag, &bReal, &bImag, realContext);  // b   = PHI^(-n) * COS(PI * n)
-  realSquareRoot(const_5, resReal, realContext);                                     // res = SQRT(5)
+  PowerComplex(const39_PHI, const_0, nReal, nImag, &aReal, &aImag, realContext);       // a   = PHI^(n)
+  divRealComplex(const_1, &aReal, &aImag, &bReal, &bImag, realContext);                // b   = PHI^(-n) = 1/PHI^(n)
+  mulComplexComplex(const39_pi, const_0, nReal, nImag, resReal, resImag, realContext); // res = PI * n
+  cosComplex(resReal, resImag, resReal, resImag, realContext);                         // res = COS(PI * n)
+  mulComplexComplex(&bReal, &bImag, resReal, resImag, &bReal, &bImag, realContext);    // b   = PHI^(-n) * COS(PI * n)
+  realSquareRoot(const_5, resReal, realContext);                                       // res = SQRT(5)
   realSetZero(resImag);
-  realSubtract(&aReal, &bReal, &aReal, realContext);                                 // a   = PHI^(n) - PHI^(-n) * COS(PI * n)
+  realSubtract(&aReal, &bReal, &aReal, realContext);                                   // a   = PHI^(n) - PHI^(-n) * COS(PI * n)
   realSubtract(&aImag, &bImag, &aImag, realContext);
-  divComplexComplex(&aReal, &aImag, resReal, resImag, resReal, resImag, realContext);// res = [ PHI^(n) - PHI^(-n) * COS(PI * n) ] / SQRT(5)
+  divComplexComplex(&aReal, &aImag, resReal, resImag, resReal, resImag, realContext);  // res = [ PHI^(n) - PHI^(-n) * COS(PI * n) ] / SQRT(5)
 
   return ERROR_NONE;
 }
@@ -96,7 +98,7 @@ static void fibReal(void) {
   // FIB(x) = [ PHI^(x) - PHI^(-x)*COS(PI * x) ] / SQRT(5)
   real_t x;
 
-  if(getRegisterAsReal(REGISTER_X, &x)) {;
+  if(getRegisterAsReal(REGISTER_X, &x)) {
     FibonacciReal(&x, &x, &ctxtReal39);
     convertRealToResultRegister(&x, REGISTER_X, amNone);
   }
@@ -105,8 +107,9 @@ static void fibReal(void) {
 static void fibCplx(void) {
   real_t xReal, xImag;
 
-  if(!getRegisterAsComplex(REGISTER_X,  &xReal, &xImag))
+  if(!getRegisterAsComplex(REGISTER_X,  &xReal, &xImag)) {
     return;
+  }
 
   if(realIsZero(&xImag)) {
     FibonacciReal(&xReal, &xReal, &ctxtReal39);

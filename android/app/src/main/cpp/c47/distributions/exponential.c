@@ -7,7 +7,7 @@
 
 #include "c47.h"
 
-#if defined(SAVE_SPACE_DM42_15)
+#if defined(SAVE_SPACE_DM42_17B)
   void fnExponentialP  (uint16_t unusedButMandatoryParameter){}
   void fnExponentialL  (uint16_t unusedButMandatoryParameter){}
   void fnExponentialR  (uint16_t unusedButMandatoryParameter){}
@@ -19,12 +19,13 @@
 
 #else
   static bool_t checkParamExponential(real_t *x, real_t *i) {
-    if(!saveLastX())
+    if(!saveLastX()) {
       return false;
+    }
 
-    if(!getRegisterAsReal(REGISTER_X, x)
-        || !getRegisterAsReal(REGISTER_R, i))
+    if(!getRegisterAsReal(REGISTER_X, x) || !getRegisterAsReal(REGISTER_R, i)) {
       goto err;
+    }
 
     if(realIsNegative(x)) {
       displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
@@ -179,4 +180,4 @@
     realChangeSign(res);
   }
 
-#endif //SAVE_SPACE_DM42_15
+#endif //SAVE_SPACE_DM42_17B

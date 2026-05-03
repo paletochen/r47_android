@@ -436,39 +436,51 @@ void fnRecallStack(uint16_t regist) {
 static void _fnRecallElement(bool_t stepForward);
 
 void fnRecallVElement(uint16_t ix) {
+  uint16_t matrixIndexBak = matrixIndex;
   const int16_t iBak = getIRegisterAsInt(true);
   const int16_t jBak = getJRegisterAsInt(true);
-
-  if((getRegisterDataType(REGISTER_X) == dtReal34Matrix) || (getRegisterDataType(REGISTER_X) == dtComplex34Matrix)) {
-    if(getRegisterDataType(REGISTER_X) == dtReal34Matrix) {
-      real34Matrix_t x;
-      linkToRealMatrixRegister(REGISTER_X, &x);
-      //printf("ix:%u Rows:%u Cols:%u \n", ix, x.header.matrixRows, x.header.matrixColumns);
-      setIRegisterAsInt(false, (ix-1) / x.header.matrixColumns+1);
-      setJRegisterAsInt(false, (ix-1) % x.header.matrixColumns+1);
-    }
-    else { //Complex Matrix
-      complex34Matrix_t x;
-      linkToComplexMatrixRegister(REGISTER_X, &x);
-      setIRegisterAsInt(false, (ix-1) / x.header.matrixColumns+1);
-      setJRegisterAsInt(false, (ix-1) % x.header.matrixColumns+1);
-    }
-    uint16_t matrixIndexBak = matrixIndex;
+  uint16_t rows, cols;
+  if(getMatrixDims(REGISTER_X, "In function fnRecallVElement:", &rows, &cols)) {
+    setIRegisterAsInt(false, (ix-1) / cols + 1);
+    setJRegisterAsInt(false, (ix-1) % cols + 1);
     matrixIndex = REGISTER_X;
     _fnRecallElement(false);
     setIRegisterAsInt(false, iBak);
     setJRegisterAsInt(false, jBak);
     matrixIndex = matrixIndexBak;
   }
-  else {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
-    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      sprintf(errorMessage, "DataType %" PRIu32, getRegisterDataType(REGISTER_X));
-      moreInfoOnError("In function fnRecallVElement:", errorMessage, "is not a matrix.", "");
-    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-  }
 }
 
+void fnRecallVector(uint16_t   regist) {
+  uint16_t matrixIndexBak = matrixIndex;
+  const int16_t iBak = getIRegisterAsInt(true);
+  const int16_t jBak = getJRegisterAsInt(true);
+  uint16_t rows, cols;
+  if(!getMatrixDims(REGISTER_X, "In function fnRecallVector:", &rows, &cols)) {
+    return;
+  }
+  matrixIndex = REGISTER_X;
+  for(uint16_t ix = 1; ix <= rows * cols && lastErrorCode == 0; ix++) {  //for 5x5, from 1 to 25
+    setIRegisterAsInt(false, (ix-1) / cols + 1);
+    setJRegisterAsInt(false, (ix-1) % cols + 1);
+    _fnRecallElement(false);
+    if(lastErrorCode != 0) {
+      return;
+    }
+    if(regist > REGISTER_X && regist < getStackTop()) {
+      fnStore(1 + regist++);
+    } else {
+      fnStore(regist++);
+    }
+    if(lastErrorCode != 0) {
+      return;
+    }
+    fnDrop(NOPARAM);
+  }
+  setIRegisterAsInt(false, iBak);
+  setJRegisterAsInt(false, jBak);
+  matrixIndex = matrixIndexBak;
+}
 
 void fnRecallElementPlus(uint16_t unusedButMandatoryParameter) {
   _fnRecallElement(true);

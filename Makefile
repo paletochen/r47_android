@@ -83,6 +83,7 @@ sim: $(BUILD_PC)
 	install -C $(BUILD_PC)/src/generateCatalogs/softmenuCatalogs.h src/generated/
 	install -C $(BUILD_PC)/src/generateConstants/constantPointers.h src/generated/
 	install -C $(BUILD_PC)/src/generateConstants/constantPointers.c src/generated/
+	install -C $(BUILD_PC)/src/generateConstants/constantPointers2.c src/generated/
 	install -C $(BUILD_PC)/src/ttf2RasterFonts/rasterFontsData.c src/generated/
 
 simr47: $(BUILD_PC)
@@ -91,6 +92,7 @@ simr47: $(BUILD_PC)
 	install -C $(BUILD_PC)/src/generateCatalogs/softmenuCatalogs.h src/generated/
 	install -C $(BUILD_PC)/src/generateConstants/constantPointers.h src/generated/
 	install -C $(BUILD_PC)/src/generateConstants/constantPointers.c src/generated/
+	install -C $(BUILD_PC)/src/generateConstants/constantPointers2.c src/generated/
 	install -C $(BUILD_PC)/src/ttf2RasterFonts/rasterFontsData.c src/generated/
 
 dmcp: build.dmcp

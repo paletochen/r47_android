@@ -12,7 +12,7 @@ static void twoPowReal(void);
 
 
 void realPower2(const real_t *x, real_t *res, realContext_t *realContext) {
-  realMultiply(x, const_ln2, res, realContext);
+  realMultiply(x, const39_ln2, res, realContext);
   realExp(res, res, realContext);
 }
 
@@ -82,7 +82,7 @@ static void twoPowReal(void) {
 
 
 static void twoPowCplx(void) {
-  intPowCplx(const_ln2);
+  intPowCplx(const39_ln2);
 }
 
 

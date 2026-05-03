@@ -41,6 +41,16 @@ void fnToRect2(uint16_t unusedButMandatoryParameter) {
     setComplexRegisterAngularMode(REGISTER_X, amNone);
     return;
   }
+#if defined(OPTION_VECTOR)
+   else if(getRegisterDataType(REGISTER_X) == dtReal34Matrix){
+    if(isRegisterMatrixVector(REGISTER_X)) {
+      setVectorRegisterPolarMode(REGISTER_X, 0);
+      setVectorRegisterAngularMode(REGISTER_X, amNone);
+        temporaryInformation = TI_VECTOR;
+      return;
+    }
+  }
+#endif //OPTION_VECTOR
 
   dataTypeX = getRegisterDataType(REGISTER_X);
   dataAtagX = getRegisterAngularMode(REGISTER_X);
@@ -270,7 +280,7 @@ void realPolarToRectangular(const real_t *mag, const real_t *the, real_t *real, 
       realSetZero(imag);
     }
     else {
-      realSubtract(&theta, const_piOn2, real, &ctxtReal39);
+      realSubtract(&theta, const39_piOn2, real, &ctxtReal39);
       if(realIsZero(real)) { // theta = pi/2
         //  +----+----+-------------+------+------+
         //  | ρ  | θ  | Condition   | Re   | Im   |
@@ -280,7 +290,7 @@ void realPolarToRectangular(const real_t *mag, const real_t *the, real_t *real, 
         realSetPlusInfinity(imag);
       }
       else {
-        realSubtract(&theta, const_3piOn2, real, &ctxtReal39);
+        realSubtract(&theta, const39_3piOn2, real, &ctxtReal39);
         if(realIsZero(real)) { // theta = -pi/2
           //  +----+----+-------------+------+------+
           //  | ρ  | θ  | Condition   | Re   | Im   |
@@ -290,7 +300,7 @@ void realPolarToRectangular(const real_t *mag, const real_t *the, real_t *real, 
           realSetMinusInfinity(imag);
         }
         else {
-          realSubtract(&theta, const_pi, real, &ctxtReal39);
+          realSubtract(&theta, const39_pi, real, &ctxtReal39);
           if(realIsZero(real)) { // theta = pi
             //  +----+----+-------------+------+------+
             //  | ρ  | θ  | Condition   | Re   | Im   |
@@ -301,7 +311,7 @@ void realPolarToRectangular(const real_t *mag, const real_t *the, real_t *real, 
             realSetZero(imag);
           }
           else {
-            realSubtract(&theta, const_piOn2, &theta, &ctxtReal39);
+            realSubtract(&theta, const39_piOn2, &theta, &ctxtReal39);
             if(realIsNegative(&theta)) { //  0 < theta < pi/2
               //  +----+----+-------------+------+------+
               //  | ρ  | θ  | Condition   | Re   | Im   |
@@ -311,7 +321,7 @@ void realPolarToRectangular(const real_t *mag, const real_t *the, real_t *real, 
               realSetPlusInfinity(imag);
             }
             else {
-              realSubtract(&theta, const_piOn2, &theta, &ctxtReal39);
+              realSubtract(&theta, const39_piOn2, &theta, &ctxtReal39);
               if(realIsNegative(&theta)) { //  pi/2 < theta < pi
                 //  +----+----+-------------+------+------+
                 //  | ρ  | θ  | Condition   | Re   | Im   |
@@ -321,7 +331,7 @@ void realPolarToRectangular(const real_t *mag, const real_t *the, real_t *real, 
                 realSetPlusInfinity(imag);
               }
               else {
-                realSubtract(&theta, const_piOn2, &theta, &ctxtReal39);
+                realSubtract(&theta, const39_piOn2, &theta, &ctxtReal39);
                 if(realIsNegative(&theta)) { //  pi < theta < 3pi/2
                   //  +----+----+-------------+------+------+
                   //  | ρ  | θ  | Condition   | Re   | Im   |

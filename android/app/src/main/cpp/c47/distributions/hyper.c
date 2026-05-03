@@ -22,13 +22,11 @@
   static bool_t checkParamHyper(real_t *x, real_t *k, real_t *j, real_t *i) {
     real_t xmin, xmax;
 
-    if(!saveLastX())
+    if(!saveLastX()) {
       return false;
+    }
 
-    if(!getRegisterAsReal(REGISTER_X, x)
-        || !getRegisterAsReal(REGISTER_M, i)
-        || !getRegisterAsReal(REGISTER_N, j)
-        || !getRegisterAsReal(REGISTER_Q, k)) {
+    if(!getRegisterAsReal(REGISTER_X, x) || !getRegisterAsReal(REGISTER_M, i) || !getRegisterAsReal(REGISTER_N, j) || !getRegisterAsReal(REGISTER_Q, k)) {
       displayDomainErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "Values in register X, I, J and K must be of the real or long integer type");

@@ -7,7 +7,7 @@
 
 #include "c47.h"
 
-#if defined(SAVE_SPACE_DM42_15)
+#if defined(SAVE_SPACE_DM42_17B)
   void fnLogisticP     (uint16_t unusedButMandatoryParameter){}
   void fnLogisticL     (uint16_t unusedButMandatoryParameter){}
   void fnLogisticR     (uint16_t unusedButMandatoryParameter){}
@@ -19,13 +19,13 @@
 
 #else
   static bool_t checkParamLogistic(real_t *x, real_t *i, real_t *j) {
-    if(!saveLastX())
+    if(!saveLastX()) {
       return false;
+    }
 
-    if(!getRegisterAsReal(REGISTER_X, x)
-        || !getRegisterAsReal(REGISTER_M, i)
-        || !getRegisterAsReal(REGISTER_S, j))
+    if(!getRegisterAsReal(REGISTER_X, x) || !getRegisterAsReal(REGISTER_M, i) || !getRegisterAsReal(REGISTER_S, j)) {
       goto err;
+    }
 
     if(realIsZero(j) || realIsNegative(j)) {
       displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE, REGISTER_X);
@@ -173,4 +173,4 @@
     realAdd(&p, mu, res, realContext);
   }
 
-#endif //SAVE_SPACE_DM42_15
+#endif //SAVE_SPACE_DM42_17B

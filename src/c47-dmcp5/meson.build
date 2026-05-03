@@ -38,7 +38,8 @@ arm_gmp_dep = declare_dependency(
 
 c47_dmcp_src = files(
   'hal/audio.c',
-  'hal/io.c'
+  'hal/io.c',
+  'hal/print_ir.c'
 )
 
 c47_lib = static_library('libc47',
@@ -156,7 +157,8 @@ alias_target('dmcp5', c47_pg5, c47_qspi, c47_sizes)
 
 r47_dmcp_src = files(
   'hal/audio.c',
-  'hal/io.c'
+  'hal/io.c',
+  'hal/print_ir.c'
 )
 
 r47_lib = static_library('libr47',

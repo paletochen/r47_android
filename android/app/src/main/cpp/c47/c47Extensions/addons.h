@@ -19,22 +19,12 @@ void fn_cnst_op_a   (uint16_t unusedButMandatoryParameter);
 void fn_cnst_0_cpx  (uint16_t unusedButMandatoryParameter);
 void fn_cnst_1_cpx  (uint16_t unusedButMandatoryParameter);
 void fnJM_2SI       (uint16_t unusedButMandatoryParameter);
+void _fnAngularMode (calcRegister_t regist, uint16_t AMODE);
 void fnAngularModeJM(uint16_t unusedButMandatoryParameter);
 void fnDRG          (uint16_t unusedButMandatoryParameter);
 void fnChangeBaseJM (uint16_t unusedButMandatoryParameter);
 void fnChangeBaseMNU(uint16_t unusedButMandatoryParameter);
 void fnInDefault    (uint16_t inputDefault);
-#define PRN_ALL     0
-#define PRN_STK     1
-#define PRN_GLOBALr 2
-#define PRN_LOCALr  3
-#define PRN_NAMEDr  4
-#define PRN_Xr      5
-#define PRN_XYr     6
-#define PRN_TMP     7
-void fnP_All_Regs   (uint16_t option);
-void fnP_Regs       (uint16_t registerNo);
-void fnP_Alpha      (void);
 void fnMinute       (uint16_t unusedButMandatoryParameter);
 void fnSecond       (uint16_t unusedButMandatoryParameter);
 void fnHrDeg        (uint16_t unusedButMandatoryParameter);
@@ -46,6 +36,8 @@ void fnFrom_ymd     (uint16_t unusedButMandatoryParameter);
 void fn_cnst_op_A    (uint16_t unusedButMandatoryParameter);
 void fnConvertStkToMx(uint16_t unusedButMandatoryParameter);
 void fnConvertMxToStk(uint16_t unusedButMandatoryParameter);
+void fnExchangeStkToMx(uint16_t opType);
+
 
 
 void fnRESET_MyM(uint16_t param);

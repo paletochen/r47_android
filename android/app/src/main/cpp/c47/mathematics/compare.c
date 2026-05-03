@@ -237,15 +237,15 @@ static inline bool is_reserved_variable(uint16_t r) {
   return in_range_inclusive(r, FIRST_RESERVED_VARIABLE, LAST_RESERVED_VARIABLE);
 }
 
-static inline bool is_lettered_register(uint16_t r) {
-  return in_range_inclusive(r, FIRST_LETTERED_REGISTER , LAST_LETTERED_REGISTER);
+static inline bool is_global_register(uint16_t r) {
+  return in_range_inclusive(r, FIRST_GLOBAL_REGISTER, LAST_SPARE_REGISTER);
 }
 
 static inline bool is_comparable_register(uint16_t r) {
   return is_local_register(r) ||
+         is_global_register(r) ||
          is_named_variable(r) ||
          is_reserved_variable(r) ||
-         is_lettered_register(r) ||
          (r == TEMP_REGISTER_1);
 }
 
@@ -364,18 +364,23 @@ static void compareRegisters(uint16_t regist, uint8_t mode) {
       longInteger_t rInt;
 
       if(!getRegisterAsLongInt(REGISTER_X, xInt, NULL)) {
-        compareTypeError(REGISTER_X);
-      }
-      else if(!getRegisterAsLongInt(regist, rInt, NULL)) {
-        compareTypeError(regist);
-      }
-      else {
-        cmpToResult(longIntegerCompare(xInt, rInt), mode);
+        goto end;
       }
 
-      longIntegerFree(xInt);
+      if(!getRegisterAsLongInt(regist, rInt, NULL)) {
+        compareTypeError(regist);
+        longIntegerFree(rInt);
+end:
+        longIntegerFree(xInt);
+        compareTypeError(REGISTER_X);
+        break;
+      }
+
+      cmpToResult(longIntegerCompare(xInt, rInt), mode);
       longIntegerFree(rInt);
-    } break;
+      longIntegerFree(xInt);
+    }
+    break;
 
     /* ------------------------------------------------------------------------
      * (complex, real) x (complex, real, shortI, longI)
@@ -670,44 +675,43 @@ void fnXAlmostEqual(uint16_t regist) {
   const uint8_t xType = (uint8_t)getRegisterDataType(REGISTER_X);
   const uint8_t rType = (uint8_t)getRegisterDataType(regist);
   const uint16_t test = type_pair_u8(xType, rType);
-  switch(test)
-  {
-  case type_pair_u8(dtReal34Matrix, dtReal34Matrix):
-  case type_pair_u8(dtReal34Matrix, dtComplex34Matrix):
-  case type_pair_u8(dtComplex34Matrix, dtReal34Matrix):
-  case type_pair_u8(dtComplex34Matrix, dtComplex34Matrix):
-    almostEqualMatrix(regist);
-    break;
+  switch(test) {
+    case type_pair_u8(dtReal34Matrix, dtReal34Matrix):
+    case type_pair_u8(dtReal34Matrix, dtComplex34Matrix):
+    case type_pair_u8(dtComplex34Matrix, dtReal34Matrix):
+    case type_pair_u8(dtComplex34Matrix, dtComplex34Matrix):
+      almostEqualMatrix(regist);
+      break;
 
-  case type_pair_u8(dtComplex34, dtComplex34):
-  case type_pair_u8(dtComplex34, dtReal34):
-  case type_pair_u8(dtComplex34, dtShortInteger):
-  case type_pair_u8(dtComplex34, dtLongInteger):
+    case type_pair_u8(dtComplex34, dtComplex34):
+    case type_pair_u8(dtComplex34, dtReal34):
+    case type_pair_u8(dtComplex34, dtShortInteger):
+    case type_pair_u8(dtComplex34, dtLongInteger):
 
-  case type_pair_u8(dtReal34, dtComplex34):
-  case type_pair_u8(dtReal34, dtReal34):
-  case type_pair_u8(dtReal34, dtShortInteger):
-  case type_pair_u8(dtReal34, dtLongInteger):
+    case type_pair_u8(dtReal34, dtComplex34):
+    case type_pair_u8(dtReal34, dtReal34):
+    case type_pair_u8(dtReal34, dtShortInteger):
+    case type_pair_u8(dtReal34, dtLongInteger):
 
-  case type_pair_u8(dtShortInteger, dtComplex34):
-  case type_pair_u8(dtShortInteger, dtReal34):
-  case type_pair_u8(dtLongInteger, dtComplex34):
-  case type_pair_u8(dtLongInteger, dtReal34):
-  case type_pair_u8(dtTime, dtTime):
-    almostEqualScalar(regist, test);
-    break;
+    case type_pair_u8(dtShortInteger, dtComplex34):
+    case type_pair_u8(dtShortInteger, dtReal34):
+    case type_pair_u8(dtLongInteger, dtComplex34):
+    case type_pair_u8(dtLongInteger, dtReal34):
+    case type_pair_u8(dtTime, dtTime):
+      almostEqualScalar(regist, test);
+      break;
 
-  case type_pair_u8(dtShortInteger, dtShortInteger):
-  case type_pair_u8(dtShortInteger, dtLongInteger):
-  case type_pair_u8(dtLongInteger, dtShortInteger):
-  case type_pair_u8(dtLongInteger, dtLongInteger):
-    // No need to round
-    compareRegisters(regist, COMPARE_MODE_EQUAL);
-    break;
+    case type_pair_u8(dtShortInteger, dtShortInteger):
+    case type_pair_u8(dtShortInteger, dtLongInteger):
+    case type_pair_u8(dtLongInteger, dtShortInteger):
+    case type_pair_u8(dtLongInteger, dtLongInteger):
+      // No need to round
+      compareRegisters(regist, COMPARE_MODE_EQUAL);
+      break;
 
-  default:
-    compareTypeError(regist);
-    break;
+    default:
+      compareTypeError(regist);
+      break;
   }
 }
 

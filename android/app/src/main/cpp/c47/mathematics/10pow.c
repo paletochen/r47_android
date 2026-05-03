@@ -11,7 +11,7 @@ static void tenPowReal(void);
 
 
 void realPower10(const real_t *x, real_t *res, realContext_t *realContext) {
-  realMultiply(x, const_ln10, res, realContext);
+  realMultiply(x, const39_ln10, res, realContext);
   realExp(res, res, realContext);
 }
 
@@ -77,8 +77,9 @@ static void tenPowShoI(void) {
 void intPowReal(void (*powf)(const real_t *x, real_t *res, realContext_t *realContext)) {
   real_t x;
 
-  if(!getRegisterAsReal(REGISTER_X, &x))
+  if(!getRegisterAsReal(REGISTER_X, &x)) {
     return;
+  }
 
   if(realIsSpecial(&x) && !getSystemFlag(FLAG_SPCRES)) {
     displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
@@ -100,8 +101,9 @@ static void tenPowReal(void) {
 void intPowCplx(const real_t *lnBase) {
   real_t a, b, factor;
 
-  if(!getRegisterAsComplex(REGISTER_X, &a, &b))
+  if(!getRegisterAsComplex(REGISTER_X, &a, &b)) {
     return;
+  }
 
   // ln(10) * (a + bi) --> (a + bi)
   realMultiply(lnBase, &a, &a, &ctxtReal39);
@@ -117,7 +119,7 @@ void intPowCplx(const real_t *lnBase) {
 }
 
 static void tenPowCplx(void) {
-  intPowCplx(const_ln10);
+  intPowCplx(const39_ln10);
 }
 
 

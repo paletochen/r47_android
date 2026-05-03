@@ -26,7 +26,7 @@ void copyRegisterToClipboardString2(calcRegister_t regist, char *clipboardString
       case dtDate:
       case dtString:
       case dtShortInteger:
-        copyRegisterToClipboardString(regist, clipboardString);
+        copyRegisterToClipboardString(regist, clipboardString, false);
         addChrBothSides(34, clipboardString);   //JMCSV
         break;
 
@@ -36,7 +36,7 @@ void copyRegisterToClipboardString2(calcRegister_t regist, char *clipboardString
         rows = matrixHeader->matrixRows;
         columns = matrixHeader->matrixColumns;
         if(rows*columns*46 < TMP_STR_LENGTH) {
-          copyRegisterToClipboardString(regist, clipboardString);
+          copyRegisterToClipboardString(regist, clipboardString, false);
           //printf(">>>:: %u ?? %u\n", rows*columns*46, stringByteLength(clipboardString));
         }
         else {
@@ -51,7 +51,7 @@ void copyRegisterToClipboardString2(calcRegister_t regist, char *clipboardString
         rows = matrixHeader->matrixRows;
         columns = matrixHeader->matrixColumns;
         if(rows*columns*92 < TMP_STR_LENGTH) {
-          copyRegisterToClipboardString(regist, clipboardString);
+          copyRegisterToClipboardString(regist, clipboardString, false);
           //printf(">>>:: %u ?? %u\n", rows*columns*92, stringByteLength(clipboardString));
         }
         else {
@@ -61,7 +61,7 @@ void copyRegisterToClipboardString2(calcRegister_t regist, char *clipboardString
       }
 
       default:
-        copyRegisterToClipboardString(regist, clipboardString);
+        copyRegisterToClipboardString(regist, clipboardString, false);
         break;
     }
 }

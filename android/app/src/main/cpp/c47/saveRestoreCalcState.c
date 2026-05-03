@@ -295,7 +295,7 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
         }
       }
       else {
-        realToString(buffer, value + strlen(value));
+        realToString((real_t *)buffer, value + strlen(value));
       }
       strcat(value, LINEBREAK);
       changeCommaToPeriod(value);
@@ -313,7 +313,7 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
         }
       }
       else {
-        real34ToString(buffer, value + strlen(value));
+        real34ToString((real34_t *)buffer, value + strlen(value));
       }
       strcat(value, LINEBREAK);
       changeCommaToPeriod(value);
@@ -568,6 +568,8 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     saveStateValue(&numberOfTamMenusToPop,          sizeof(numberOfTamMenusToPop),                               "numberOfTamMenusToPop",          "int16");
     saveStateValue(&lrSelection,                    sizeof(lrSelection),                                         "lrSelection",                    "uint16");
     saveStateValue(&lrSelectionUndo,                sizeof(lrSelectionUndo),                                     "lrSelectionUndo",                "uint16");
+    saveStateValue(&amortP1,                        sizeof(amortP1),                                             "amortP1",                        "uint16");
+    saveStateValue(&amortP2,                        sizeof(amortP2),                                             "amortP2",                        "uint16");
     saveStateValue(&lrChosen,                       sizeof(lrChosen),                                            "lrChosen",                       "uint16");
     saveStateValue(&lrChosenUndo,                   sizeof(lrChosenUndo),                                        "lrChosenUndo",                   "uint16");
     saveStateValue(&lastPlotMode,                   sizeof(lastPlotMode),                                        "lastPlotMode",                   "uint16");
@@ -657,7 +659,10 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     saveStateValue(&firstDayOfWeek,                 sizeof(firstDayOfWeek),                                      "firstDayOfWeek",                 "uint8");
     saveStateValue(&firstWeekOfYearDay,             sizeof(firstWeekOfYearDay),                                  "firstWeekOfYearDay",             "uint8");
     saveStateValue(&dispBase,                       sizeof(dispBase),                                            "dispBase",                       "uint8");   //JM
-    saveStateValue(&calcModel,                      sizeof(calcModel),                                           "calcModel",                       "uint8");   //JM
+    saveStateValue(&calcModel,                      sizeof(calcModel),                                           "calcModel",                      "uint8");   //JM
+    saveStateValue(&printerState.print_on,          sizeof(printerState.print_on),                               "printerState.print_on",          "bool");    //DL
+    saveStateValue(&printerState.printer_model,     sizeof(printerState.printer_model),                          "printerState.printer_model",     "uint8");   //DL
+    saveStateValue(&printerState.delay,             sizeof(printerState.delay),                                  "printerState.delay",             "uint16");  //DL
 
     ramPtr = TO_C47MEMPTR(allNamedVariables);
     saveStateValue(&ramPtr,                         sizeof(ramPtr),                                              "allNamedVariables",              "c47Ptr");
@@ -1144,6 +1149,8 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     restoreStateValue(&numberOfTamMenusToPop,          sizeof(numberOfTamMenusToPop),                               "numberOfTamMenusToPop",          "int16");
     restoreStateValue(&lrSelection,                    sizeof(lrSelection),                                         "lrSelection",                    "uint16");
     restoreStateValue(&lrSelectionUndo,                sizeof(lrSelectionUndo),                                     "lrSelectionUndo",                "uint16");
+    restoreStateValue(&amortP1,                        sizeof(amortP1),                                             "amortP1",                        "uint16");
+    restoreStateValue(&amortP2,                        sizeof(amortP2),                                             "amortP2",                        "uint16");
     restoreStateValue(&lrChosen,                       sizeof(lrChosen),                                            "lrChosen",                       "uint16");
     restoreStateValue(&lrChosenUndo,                   sizeof(lrChosenUndo),                                        "lrChosenUndo",                   "uint16");
     restoreStateValue(&lastPlotMode,                   sizeof(lastPlotMode),                                        "lastPlotMode",                   "uint16");
@@ -1281,6 +1288,15 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     restoreStateValue(&dispBase,                       sizeof(dispBase),                                            "dispBase",                       "uint8");   //JM
     calcModel = USER_C47;
     restoreStateValue(&calcModel,                      sizeof(calcModel),                                           "calcModel",                      "uint8");   //JM
+    printerState.print_on = false;
+    restoreStateValue(&printerState.print_on,          sizeof(printerState.print_on),                               "printerState.print_on",          "bool");    //DL
+    printerState.trace_done = false;
+    printerState.print_blank_line = 0;
+    printerState.print_mode = PMODE_DEFAULT;
+    printerState.printer_model = PRINTER_HP;
+    restoreStateValue(&printerState.printer_model,     sizeof(printerState.printer_model),                          "printerState.printer_model",     "uint8");   //DL
+    printerState.delay = getLineDelay();
+    restoreStateValue(&printerState.delay,             sizeof(printerState.delay),                                  "printerState.delay",             "uint16");  //DL
 
     if(backupVersion < 1014) {
       setLongPressFg(calcModel, -MNU_HOME);
@@ -1996,6 +2012,8 @@ void doSave(uint16_t saveType) {
         sprintf(tmpString, "LongPressM\n%"                 PRIu8  "\n",     (uint8_t)LongPressM);          save(tmpString, strlen(tmpString));
         sprintf(tmpString, "LongPressF\n%"                 PRIu8  "\n",     (uint8_t)LongPressF);          save(tmpString, strlen(tmpString));
         sprintf(tmpString, "lastIntegerBase\n%"            PRIu8  "\n",     (uint8_t)lastIntegerBase);     save(tmpString, strlen(tmpString));
+        sprintf(tmpString, "amortP1\n%"                    PRIu16 "\n",     amortP1);                      save(tmpString, strlen(tmpString));
+        sprintf(tmpString, "amortP2\n%"                    PRIu16 "\n",     amortP2);                      save(tmpString, strlen(tmpString));
         sprintf(tmpString, "lrChosen\n%"                   PRIu16 "\n",     lrChosen);                     save(tmpString, strlen(tmpString));
         sprintf(tmpString, "graph_dx\n"                    "%f"   "\n",     graph_dx);                     save(tmpString, strlen(tmpString));
         sprintf(tmpString, "graph_dy\n"                    "%f"   "\n",     graph_dy);                     save(tmpString, strlen(tmpString));
@@ -2008,6 +2026,9 @@ void doSave(uint16_t saveType) {
         sprintf(tmpString, "PLOT_ZMY\n%"                   PRIu8  "\n",     PLOT_ZMY);                     save(tmpString, strlen(tmpString));
         sprintf(tmpString, "firstDayOfWeek\n%"             PRIu8  "\n",     firstDayOfWeek);               save(tmpString, strlen(tmpString));
         sprintf(tmpString, "firstWeekOfYearDay\n%"         PRIu8  "\n",     firstWeekOfYearDay);           save(tmpString, strlen(tmpString));
+        sprintf(tmpString, "printerOn\n%"                  PRIu8  "\n",     printerState.print_on);        save(tmpString, strlen(tmpString));
+        sprintf(tmpString, "printerModel\n%"               PRIu8  "\n",     printerState.printer_model);   save(tmpString, strlen(tmpString));
+        sprintf(tmpString, "printerLineDelay\n%"           PRIu16 "\n",     printerState.delay);           save(tmpString, strlen(tmpString));
         sprintf(tmpString, "END_OTHER_PARAM\n");                                                           save(tmpString, strlen(tmpString));
 
   ioFileClose();
@@ -3110,6 +3131,8 @@ int64_t stringToInt64(const char *str) {
           else if(strcmp(aimBuffer, "LongPressM"                  ) == 0) { LongPressM            = convert001090400T001090500(toUint8(tmpString), RBX_M14); } //10000003
           else if(strcmp(aimBuffer, "LongPressF"                  ) == 0) { LongPressF            = convert001090400T001090500(toUint8(tmpString), RBX_F14); } //10000003
           else if(strcmp(aimBuffer, "lastIntegerBase"             ) == 0) { lastIntegerBase       = toUint8(tmpString); }                                      //10000004
+          else if(strcmp(aimBuffer, "amortP1"                     ) == 0) { amortP1               = toUint16(tmpString);}
+          else if(strcmp(aimBuffer, "amortP2"                     ) == 0) { amortP2               = toUint16(tmpString);}
           else if(strcmp(aimBuffer, "lrChosen"                    ) == 0) { lrChosen              = toUint16(tmpString);}
           else if(strcmp(aimBuffer, "graph_dx"                    ) == 0) { graph_dx              = stringToFloat(tmpString); }
           else if(strcmp(aimBuffer, "graph_dy"                    ) == 0) { graph_dy              = stringToFloat(tmpString); }
@@ -3122,6 +3145,11 @@ int64_t stringToInt64(const char *str) {
           else if(strcmp(aimBuffer, "PLOT_ZMY"                    ) == 0) { PLOT_ZMY              = toUint8(tmpString); }
           else if(strcmp(aimBuffer, "firstDayOfWeek"              ) == 0) { firstDayOfWeek        = toUint8(tmpString); }
           else if(strcmp(aimBuffer, "firstWeekOfYearDay"          ) == 0) { firstWeekOfYearDay    = toUint8(tmpString); }
+        #if defined(IR_PRINTING)
+          else if(strcmp(aimBuffer, "printerOn"                   ) == 0) { printerState.print_on = toUint8(tmpString); }
+          else if(strcmp(aimBuffer, "printerModel"                ) == 0) { printerState.printer_model    = toUint8(tmpString); }
+          else if(strcmp(aimBuffer, "printerLineDelay"            ) == 0) { printerState.delay    = toUint16(tmpString); setLineDelay(printerState.delay);}
+        #endif //IR_PRINTING
           else if(strcmp(aimBuffer, "jm_LARGELI"                  ) == 0) {
             if(loadedVersion < 10000012) {
               forceSystemFlag(FLAG_LARGELI, toUint8(tmpString) != 0);

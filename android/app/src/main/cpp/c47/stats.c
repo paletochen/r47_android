@@ -53,122 +53,146 @@ bool_t isStatsMatrix(uint16_t *rows, char *mx) {
     (*accum->minimum)(x, y);
 
     // n
-    if(!(*acc)(SIGMA_N, const_1))
+    if(!(*acc)(SIGMA_N, const_1)) {
       goto toReturn;
+    }
 
     // sigma x
-    if(!(*acc)(SIGMA_X, x))
+    if(!(*acc)(SIGMA_X, x)) {
       goto toReturn;
+    }
 
     // sigma y
-    if(!(*acc)(SIGMA_Y, y))
+    if(!(*acc)(SIGMA_Y, y)) {
       goto toReturn;
+    }
 
     // sigma x²
     realMultiply(x, x, &tmpReal1, realContext);
-    if(!(*acc)(SIGMA_X2, &tmpReal1))
+    if(!(*acc)(SIGMA_X2, &tmpReal1)) {
       goto toReturn;
+    }
 
     // sigma x³
     realMultiply(&tmpReal1, x, &tmpReal2, realContext);
-    if(!(*acc)(SIGMA_X3, &tmpReal2))
+    if(!(*acc)(SIGMA_X3, &tmpReal2)) {
       goto toReturn;
+    }
 
     // sigma x⁴
     realMultiply(&tmpReal2, x, &tmpReal2, realContext);
-    if(!(*acc)(SIGMA_X4, &tmpReal2))
+    if(!(*acc)(SIGMA_X4, &tmpReal2)) {
       goto toReturn;
+    }
 
     // sigma x²y
     realMultiply(&tmpReal1, y, &tmpReal2, realContext);
-    if(!(*acc)(SIGMA_X2Y, &tmpReal2))
+    if(!(*acc)(SIGMA_X2Y, &tmpReal2)) {
       goto toReturn;
+    }
 
     // sigma x²/y
     realDivide(&tmpReal1, y, &tmpReal2, realContext);
-    if(!(*acc)(SIGMA_X2onY, &tmpReal2))
+    if(!(*acc)(SIGMA_X2onY, &tmpReal2)) {
       goto toReturn;
+    }
 
     // sigma 1/x²
     realDivide(const_1, &tmpReal1, &tmpReal2, realContext);
-    if(!(*acc)(SIGMA_1onX2, &tmpReal2))
+    if(!(*acc)(SIGMA_1onX2, &tmpReal2)) {
       goto toReturn;
+    }
 
     // sigma y²
     realMultiply(y, y, &tmpReal1, realContext);
-    if(!(*acc)(SIGMA_Y2, &tmpReal1))
+    if(!(*acc)(SIGMA_Y2, &tmpReal1)) {
       goto toReturn;
+    }
 
     // sigma 1/y²
     realDivide(const_1, &tmpReal1, &tmpReal2, realContext);
-    if(!(*acc)(SIGMA_1onY2, &tmpReal2))
+    if(!(*acc)(SIGMA_1onY2, &tmpReal2)) {
       goto toReturn;
+    }
 
     // sigma xy
     realMultiply(x, y, &tmpReal1, realContext);
-    if(!(*acc)(SIGMA_XY, &tmpReal1))
+    if(!(*acc)(SIGMA_XY, &tmpReal1)) {
       goto toReturn;
+    }
 
     // sigma ln(x)
     WP34S_Ln(x, &tmpReal1, realContext);
     realCopy(&tmpReal1, &tmpReal3);
-    if(!(*acc)(SIGMA_lnX, &tmpReal1))
+    if(!(*acc)(SIGMA_lnX, &tmpReal1)) {
       goto toReturn;
+    }
 
     // sigma ln²(x)
     realMultiply(&tmpReal1, &tmpReal1, &tmpReal2, realContext);
-    if(!(*acc)(SIGMA_ln2X, &tmpReal2))
+    if(!(*acc)(SIGMA_ln2X, &tmpReal2)) {
       goto toReturn;
+    }
 
     // sigma yln(x)
     realMultiply(&tmpReal1, y, &tmpReal1, realContext);
-    if(!(*acc)(SIGMA_YlnX, &tmpReal1))
+    if(!(*acc)(SIGMA_YlnX, &tmpReal1)) {
       goto toReturn;
+    }
 
     // sigma ln(y)
     WP34S_Ln(y, &tmpReal1, realContext);
-    if(!(*acc)(SIGMA_lnY, &tmpReal1))
+    if(!(*acc)(SIGMA_lnY, &tmpReal1)) {
       goto toReturn;
+    }
 
     // sigma ln(x)×ln(y)
     realMultiply(&tmpReal3, &tmpReal1, &tmpReal3, realContext);
-    if(!(*acc)(SIGMA_lnXlnY, &tmpReal3))
+    if(!(*acc)(SIGMA_lnXlnY, &tmpReal3)) {
       goto toReturn;
+    }
 
     // sigma ln(y)/x
     realDivide(&tmpReal1, x, &tmpReal2, realContext);
-    if(!(*acc)(SIGMA_lnYonX, &tmpReal2))
+    if(!(*acc)(SIGMA_lnYonX, &tmpReal2)) {
       goto toReturn;
+    }
 
     // sigma ln²(y)
     realMultiply(&tmpReal1, &tmpReal1, &tmpReal2, realContext);
-    if(!(*acc)(SIGMA_ln2Y, &tmpReal2))
+    if(!(*acc)(SIGMA_ln2Y, &tmpReal2)) {
       goto toReturn;
+    }
 
     // sigma xln(y)
     realMultiply(&tmpReal1, x, &tmpReal1, realContext);
-    if(!(*acc)(SIGMA_XlnY, &tmpReal1))
+    if(!(*acc)(SIGMA_XlnY, &tmpReal1)) {
       goto toReturn;
+    }
 
     // sigma x²ln(y)
     realMultiply(&tmpReal1, x, &tmpReal1, realContext);
-    if(!(*acc)(SIGMA_X2lnY, &tmpReal1))
+    if(!(*acc)(SIGMA_X2lnY, &tmpReal1)) {
       goto toReturn;
+    }
 
     // sigma 1/x
     realDivide(const_1, x, &tmpReal1, realContext);
-    if(!(*acc)(SIGMA_1onX, &tmpReal1))
+    if(!(*acc)(SIGMA_1onX, &tmpReal1)) {
       goto toReturn;
+    }
 
     // sigma x/y
     realDivide(x, y, &tmpReal1, realContext);
-    if(!(*acc)(SIGMA_XonY, &tmpReal1))
+    if(!(*acc)(SIGMA_XonY, &tmpReal1)) {
       goto toReturn;
+    }
 
     // sigma 1/y
     realDivide(const_1, y, &tmpReal1, realContext);
-    if(!(*acc)(SIGMA_1onY, &tmpReal1))
+    if(!(*acc)(SIGMA_1onY, &tmpReal1)) {
       goto toReturn;
+    }
 
     toReturn:
 
@@ -176,18 +200,26 @@ bool_t isStatsMatrix(uint16_t *rows, char *mx) {
   }
 
   static bool_t addMax(const real_t *x, const real_t *y) {
-    if(realCompareGreaterThan(x, SIGMA_XMAX))
+    if(realCompareGreaterThan(x, SIGMA_XMAX)) {
       realCopy(x, SIGMA_XMAX);
-    if(realCompareGreaterThan(y, SIGMA_YMAX))
+    }
+
+    if(realCompareGreaterThan(y, SIGMA_YMAX)) {
       realCopy(y, SIGMA_YMAX);
+    }
+
     return true;
   }
 
   static bool_t addMin(const real_t *x, const real_t *y) {
-    if(realCompareLessThan(x, SIGMA_XMIN))
+    if(realCompareLessThan(x, SIGMA_XMIN)) {
       realCopy(x, SIGMA_XMIN);
-    if(realCompareLessThan(y, SIGMA_YMIN))
+    }
+
+    if(realCompareLessThan(y, SIGMA_YMIN)) {
       realCopy(y, SIGMA_YMIN);
+    }
+
     return true;
   }
 
@@ -292,7 +324,7 @@ void clearStatisticalSums(void) {
 void initStatisticalSums(void) {
   if(statisticalSumsUpdate) {
     if(statisticalSumsPointer == NULL) {
-      statisticalSumsPointer = allocC47Blocks(NUMBER_OF_STATISTICAL_SUMS * REAL_SIZE_IN_BLOCKS);
+      statisticalSumsPointer = allocC47Blocks(NUMBER_OF_STATISTICAL_SUMS * REAL_SIZE_IN_BLOCKS(75));
       clearStatisticalSums();
       strcpy(statMx, "STATS");                     //any stats operation restores the stats matrix. The purpose of the changed names are just to be able to exchange the matrixes for reading and graphing
     }
@@ -487,7 +519,7 @@ static calcRegister_t fnClHisto(bool_t deleteVariable) {
 void setStatisticalSumsUpdate(bool_t para) {
   //if going off auto, or confirming it is still on auto off, clear sums
   if(!para) {
-    freeC47Blocks(statisticalSumsPointer, NUMBER_OF_STATISTICAL_SUMS * REAL_SIZE_IN_BLOCKS);
+    freeC47Blocks(statisticalSumsPointer, NUMBER_OF_STATISTICAL_SUMS * REAL_SIZE_IN_BLOCKS(75));
     statisticalSumsPointer = NULL;
     if(lastErrorCode != ERROR_NONE) {
       return;
@@ -535,7 +567,7 @@ void fnClSigma(uint16_t unusedButMandatoryParameter) {
   histElementXorY = 0;
 
 
-  freeC47Blocks(statisticalSumsPointer, NUMBER_OF_STATISTICAL_SUMS * REAL_SIZE_IN_BLOCKS);
+  freeC47Blocks(statisticalSumsPointer, NUMBER_OF_STATISTICAL_SUMS * REAL_SIZE_IN_BLOCKS(75));
   statisticalSumsPointer = NULL;
 }
 
@@ -740,9 +772,9 @@ void fnRangeXY(uint16_t unusedButMandatoryParameter) {
     }
     else {
       if(getRegisterDataType(regHisto) != dtReal34Matrix) {
-        return false;}
-      else
-      {
+        return false;
+      }
+      else {
         real34Matrix_t histo;
         linkToRealMatrixRegister(regHisto, &histo);
         *rows = histo.header.matrixRows;
@@ -801,8 +833,11 @@ void fnSetLoBin(uint16_t unusedButMandatoryParameter) {
     if(histElementXorY == -1) {
       return;
     }
-    if(!getRegisterAsReal(REGISTER_X, &x))
+
+    if(!getRegisterAsReal(REGISTER_X, &x)) {
       return;
+    }
+
     realToReal34(&x, &loBinR);
     convertStatsMatrixToHistoMatrix(histElementXorY == 1 ? ITM_Y : histElementXorY == 0 ? ITM_X : -1);
 }
@@ -813,8 +848,11 @@ void fnSetHiBin(uint16_t unusedButMandatoryParameter) {
     if(histElementXorY == -1) {
       return;
     }
-    if(!getRegisterAsReal(REGISTER_X, &x))
+
+    if(!getRegisterAsReal(REGISTER_X, &x)) {
       return;
+    }
+
     realToReal34(&x, &hiBinR);
     convertStatsMatrixToHistoMatrix(histElementXorY == 1 ? ITM_Y : histElementXorY == 0 ? ITM_X : -1);
 }
@@ -826,8 +864,11 @@ void fnSetNBins(uint16_t unusedButMandatoryParameter) {
     if(histElementXorY == -1) {
       return;
     }
-    if(!getRegisterAsReal(REGISTER_X, &x))
+
+    if(!getRegisterAsReal(REGISTER_X, &x)) {
       return;
+    }
+
     realToReal34(&x, &nBins);
     convertStatsMatrixToHistoMatrix(histElementXorY == 1 ? ITM_Y : histElementXorY == 0 ? ITM_X : -1);
 }

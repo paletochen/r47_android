@@ -303,8 +303,9 @@ static void doXthRootShoI(void) {
 static void doXthRootReal(void) {
   real_t x, y;
 
-  if(!getRegisterAsReal(REGISTER_X, &x) || !getRegisterAsReal(REGISTER_Y, &y))
+  if(!getRegisterAsReal(REGISTER_X, &x) || !getRegisterAsReal(REGISTER_Y, &y)) {
     return;
+  }
 
   if((realIsInfinite(&x) || realIsInfinite(&y)) && !getSystemFlag(FLAG_SPCRES)) {
     displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
@@ -326,9 +327,9 @@ static void doXthRootReal(void) {
 static void doXthRootCplx(void) {                       //checked
   real_t a, b, c, d;
 
-  if(!getRegisterAsComplex(REGISTER_Y, &a, &b)
-      || !getRegisterAsComplex(REGISTER_X, &c, &d))
+  if(!getRegisterAsComplex(REGISTER_Y, &a, &b) || !getRegisterAsComplex(REGISTER_X, &c, &d)) {
     return;
+  }
 
   if(realIsInfinite(&a) || realIsInfinite(&b)) {
     if(realIsZero(&c) && realIsZero(&d)) {

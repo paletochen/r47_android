@@ -8,6 +8,8 @@
 
 #include "c47.h"
 
+extern const real_t *realtConstants[NOUC];
+
 /********************************************//**
  * \brief Replaces the X content with the selected
  * constant. Enables \b stack \b lift and refreshes the stack
@@ -16,38 +18,20 @@
  * \return void
  ***********************************************/
 void fnConstant(const uint16_t constant) {
+  #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+    if(constant >= NOUC) {
+      sprintf(errorMessage, "parameter constant (%" PRIu16 ") is out of bounds, constant must be less or equal to %" PRId32, constant, NOUC - 1);
+      moreInfoOnError("In function fnConstant:", errorMessage, NULL, NULL);
+      return;
+    }
+  #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+
   liftStack();
   currentSolverStatus &= ~SOLVER_STATUS_READY_TO_EXECUTE;
 
   reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
 
-  if(constant < NUMBER_OF_CONSTANTS_39) { // 39 digit constants
-    realToReal34((real_t *)(constants + constant * REAL39_SIZE_IN_BYTES), REGISTER_REAL34_DATA(REGISTER_X));
-
-  }
-  else if(constant < NUMBER_OF_CONSTANTS_39 + NUMBER_OF_CONSTANTS_51) { // 51 digit constants (gamma coefficients)
-    realToReal34((real_t *)(constants + NUMBER_OF_CONSTANTS_39 * REAL39_SIZE_IN_BYTES
-                                      + (constant - NUMBER_OF_CONSTANTS_39) * REAL51_SIZE_IN_BYTES), REGISTER_REAL34_DATA(REGISTER_X));
-  }
-  else if(constant < NUMBER_OF_CONSTANTS_39 + NUMBER_OF_CONSTANTS_51 + NUMBER_OF_CONSTANTS_6147) { // 6147 digit constant
-    realToReal34((real_t *)(constants + NUMBER_OF_CONSTANTS_39 * REAL39_SIZE_IN_BYTES
-                                      + NUMBER_OF_CONSTANTS_51 * REAL51_SIZE_IN_BYTES
-                                      + (constant - NUMBER_OF_CONSTANTS_39 - NUMBER_OF_CONSTANTS_51) * REAL6147_SIZE_IN_BYTES), REGISTER_REAL34_DATA(REGISTER_X));
-  }
-  else if(constant < NUMBER_OF_CONSTANTS_39 + NUMBER_OF_CONSTANTS_51 + NUMBER_OF_CONSTANTS_1071 + NUMBER_OF_CONSTANTS_2139) { // 1071 digit constant
-    realToReal34((real_t *)(constants + NUMBER_OF_CONSTANTS_39 * REAL39_SIZE_IN_BYTES
-                                      + NUMBER_OF_CONSTANTS_51 * REAL51_SIZE_IN_BYTES
-                                      + NUMBER_OF_CONSTANTS_1071 * REAL1071_SIZE_IN_BYTES
-                                      + (constant - NUMBER_OF_CONSTANTS_39 - NUMBER_OF_CONSTANTS_51 - NUMBER_OF_CONSTANTS_1071) * REAL1071_SIZE_IN_BYTES), REGISTER_REAL34_DATA(REGISTER_X));
-  }
-  else { // 34 digit constants
-    real34Copy((real34_t *)(constants + NUMBER_OF_CONSTANTS_39 * REAL39_SIZE_IN_BYTES
-                                      + NUMBER_OF_CONSTANTS_51 * REAL51_SIZE_IN_BYTES
-                                      + NUMBER_OF_CONSTANTS_1071 * REAL1071_SIZE_IN_BYTES
-                                      + NUMBER_OF_CONSTANTS_2139 * REAL2139_SIZE_IN_BYTES
-                                      + NUMBER_OF_CONSTANTS_6147 * REAL6147_SIZE_IN_BYTES
-                                      + (constant - NUMBER_OF_CONSTANTS_39 - NUMBER_OF_CONSTANTS_51 - NUMBER_OF_CONSTANTS_1071 - NUMBER_OF_CONSTANTS_2139 - NUMBER_OF_CONSTANTS_6147) * REAL34_SIZE_IN_BYTES), REGISTER_REAL34_DATA(REGISTER_X));
-  }
+  realToReal34(realtConstants[constant], REGISTER_REAL34_DATA(REGISTER_X));
 
   adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
 
@@ -68,7 +52,7 @@ void fnPi(uint16_t unusedButMandatoryParameter) {
   liftStack();
   currentSolverStatus &= ~SOLVER_STATUS_READY_TO_EXECUTE;
 
-  convertRealToResultRegister(const_pi, REGISTER_X, amNone);
+  convertRealToResultRegister(const39_pi, REGISTER_X, amNone);
   adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
 
   setLastintegerBasetoZero();

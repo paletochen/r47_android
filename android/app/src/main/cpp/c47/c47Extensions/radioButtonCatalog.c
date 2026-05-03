@@ -102,6 +102,8 @@ TO_QSPI const radiocb_t indexOfRadioCbEepromItems[] = {
   {ITM_USER_R47fg_bk,    USER_R47fg_bk,          CB_JC},  //SetSetting
   {ITM_USER_R47fg_g,     USER_R47fg_g,           CB_JC},  //SetSetting
 
+  {ITM_3DPHYS,           FLAG_3DPHYS,            CB_JC},  //SetSetting
+  {ITM_3DXYZ,            FLAG_3DXYZ,             CB_JC},  //SetSetting
   {ITM_G_DOUBLETAP,      FLAG_G_DOUBLETAP,       CB_JC},  //SetSetting
   {ITM_SHTIM,            FLAG_SHFT_4s,           CB_JC},  //SetSetting
 
@@ -117,12 +119,14 @@ TO_QSPI const radiocb_t indexOfRadioCbEepromItems[] = {
   {ITM_HPRP,             FLAG_HPRP   ,           CB_JC},
   {ITM_MNUp1 ,           FLAG_MNUp1  ,           CB_JC},
   {ITM_HPBASE,           FLAG_HPBASE ,           CB_JC},
+  {ITM_AMORT_HP12C,      FLAG_AMORT_HP12C,       CB_JC},
   {ITM_2TO10,            FLAG_2TO10  ,           CB_JC},
   {ITM_DENANY,           FLAG_DENANY ,           CB_JC},
   {ITM_DENFIX,           FLAG_DENFIX ,           CB_JC},
   {ITM_PROPFR,           FLAG_PROPFR ,           CB_JC},
   {ITM_FRACT,            FLAG_FRACT  ,           CB_JC},
   {ITM_PRTACT,           FLAG_PRTACT ,           CB_JC},  // SFL_PRTACT
+//  {ITM_TRACE,            FLAG_TRACE ,            CB_JC},  // SFL_TRACE
   {ITM_ERPN,             FLAG_ERPN   ,           CB_JC},  //SetSetting
   {ITM_CARRY,            FLAG_CARRY  ,           CB_JC},  //SetSetting
   {ITM_OVERFLOW,         FLAG_OVERFLOW,          CB_JC},  //SetSetting
@@ -216,7 +220,16 @@ TO_QSPI const radiocb_t indexOfRadioCbEepromItems[] = {
   {ITM_SETJPN,           ITM_SETJPN,             MB_MAC},
   {ITM_SETUK,            ITM_SETUK,              MB_MAC},
   {ITM_SETUSA,           ITM_SETUSA,             MB_MAC},
-  {ITM_SETDFLT,          ITM_SETDFLT,            MB_MAC}
+  {ITM_SETDFLT,          ITM_SETDFLT,            MB_MAC},
+
+  {ITM_PRINTERHP,        PRINTER_HP,             RB_PRM},
+  {ITM_PRINTERMARTEL,    PRINTER_MARTEL,         RB_PRM},
+  {ITM_PRINTERON,        true,                   RB_PRON},
+  {ITM_PRINTEROFF,       false,                  RB_PRON},
+  {ITM_MAN,              MAN,                    RB_PM},
+  {ITM_NORM,             NORM,                   RB_PM},
+  {ITM_TRACE,            TRACE,                  RB_PM},
+  {ITM_STRACE,           STRACE,                 RB_PM},
 
 };
 
@@ -243,6 +256,7 @@ TO_QSPI const uint16_t systemFlagParams[] = {  // CB_JC CHECK BOX System flags c
   FLAG_HPRP,
   FLAG_MNUp1,
   FLAG_HPBASE,
+  FLAG_AMORT_HP12C,
   FLAG_2TO10,
   FLAG_DENANY,
   FLAG_DENFIX,
@@ -275,7 +289,10 @@ TO_QSPI const uint16_t systemFlagParams[] = {  // CB_JC CHECK BOX System flags c
   FLAG_BCD,
   FLAG_G_DOUBLETAP,
   FLAG_SHFT_4s,
-  FLAG_FGGR
+  FLAG_FGGR,
+  FLAG_3DPHYS,
+  FLAG_3DXYZ,
+  FLAG_TRACE
 };
 
 
@@ -414,6 +431,15 @@ int8_t fnCbIsSet(int16_t item) {
                      }
                      break;
 
+        case RB_PRM: rb_param = printerState.printer_model;
+                     break;
+
+        case RB_PRON: rb_param = printerState.print_on;
+                     break;
+
+        case RB_PM:  rb_param = (getSystemFlag(FLAG_TRACE) ? getSystemFlag(FLAG_NORM) ? STRACE : TRACE : getSystemFlag(FLAG_NORM) ? NORM : MAN);
+                     break;
+
         case CB_JC:  is_cb = true;
 
 
@@ -541,7 +567,10 @@ int16_t fnItemShowValue(int16_t item) {
     case ITM_HIDE:      result = exponentHideLimit;                                 break;
     case ITM_BESTF:     result = (lrSelection) & 0x1FF;                             break;
     case ITM_RMODE:     result = roundingMode;                                      break;
-    case ITM_HASH_JM:   if(lastIntegerBase != 0) result = (int16_t)lastIntegerBase; break;
+    case ITM_HASH_JM:   if(lastIntegerBase != 0) {
+                          result = (int16_t)lastIntegerBase;
+                        }
+                        break;
     case ITM_TIMER_SIGMA_L:
     case ITM_TIMER_SIGMA_T: result = statisticalSumsPointer == NULL ? 0 : realToUint32C47(SIGMA_N, NULL); break;
     case ITM_TIMER_R_L:
@@ -549,6 +578,7 @@ int16_t fnItemShowValue(int16_t item) {
     case ITM_VOL:
     case ITM_VOLPLUS:
     case ITM_VOLMINUS:  result = getBeepVolume();                                   break; // DL
+    case ITM_PRINTERDLAY: result = printerState.delay;                              break; // DLr
     default:            if(indexOfItems[itemNr].func == itemToBeCoded) {
                          result = ITEM_NOT_CODED;
                         }
@@ -574,16 +604,16 @@ void use_base_glyphs(char* tmp1, int16_t xx) {              // Needs non-local v
   tmp1[0] = 0;
 
   if(xx <= 16) {
-    add_digitglyph_to_tmp2(tmp2, xx); stringCopy(tmp1, tmp2);
+    add_digitglyph_to_tmp2(tmp2, xx);                         stringCopy(tmp1, tmp2);
   }
   else if(xx <= 99) {
-    add_digitglyph_to_tmp2(tmp2, xx / 10); stringCopy(tmp1,                          tmp2);
-    add_digitglyph_to_tmp2(tmp2, xx % 10); stringCopy(tmp1 + stringByteLength(tmp1), tmp2);
+    add_digitglyph_to_tmp2(tmp2, xx / 10);                    stringCopy(tmp1,                          tmp2);
+    add_digitglyph_to_tmp2(tmp2, xx % 10);                    stringCopy(tmp1 + stringByteLength(tmp1), tmp2);
   }
   else if(xx <= 999) {
-    add_digitglyph_to_tmp2(tmp2,  xx / 100);         stringCopy(tmp1,                          tmp2);
-    add_digitglyph_to_tmp2(tmp2, (xx % 100) / 10);   stringCopy(tmp1 + stringByteLength(tmp1), tmp2);
-    add_digitglyph_to_tmp2(tmp2, (xx % 100) % 10);   stringCopy(tmp1 + stringByteLength(tmp1), tmp2);
+    add_digitglyph_to_tmp2(tmp2,  xx / 100);                  stringCopy(tmp1,                          tmp2);
+    add_digitglyph_to_tmp2(tmp2, (xx % 100) / 10);            stringCopy(tmp1 + stringByteLength(tmp1), tmp2);
+    add_digitglyph_to_tmp2(tmp2, (xx % 100) % 10);            stringCopy(tmp1 + stringByteLength(tmp1), tmp2);
   }
   else if(xx <= 9999) {
     add_digitglyph_to_tmp2(tmp2,   xx / 1000);                stringCopy(tmp1,                          tmp2);     //9876 > 9
@@ -596,6 +626,33 @@ void use_base_glyphs(char* tmp1, int16_t xx) {              // Needs non-local v
   }
 }
 
+
+char *stringToSub(const char *showText) {
+  static char buf[64];
+  buf[0] = 0;
+  while(*showText != 0 && stringByteLength(buf) + 2 < (int)sizeof(buf)) {
+    if(*showText>='A' && *showText<='Z') {
+      stringCopy(buf + stringByteLength(buf), STD_SUB_A);
+      buf[stringByteLength(buf)-1] += *showText-'A';
+    }
+    else if(*showText>='a' && *showText<='z') {
+      stringCopy(buf + stringByteLength(buf), STD_SUB_a);
+      buf[stringByteLength(buf)-1] += *showText-'a';
+    }
+    else if(*showText>='0' && *showText<='9') {
+      stringCopy(buf + stringByteLength(buf), STD_SUB_0);
+      buf[stringByteLength(buf)-1] += *showText-'0';
+    }
+    else {
+      char tt[2];
+      tt[0] = *showText;
+      tt[1] = 0;
+      stringCopy(buf + stringByteLength(buf), tt);
+    }
+    showText++;
+  }
+  return buf;
+}
 
 char *figlabel(const char *label, const char* showText, int16_t showValue) {      //JM
   //uint16_t ii=0;
@@ -627,68 +684,58 @@ char *figlabel(const char *label, const char* showText, int16_t showValue) {    
     //stringCopy(tmp + stringByteLength(tmp), showText);
     uint16_t ii = 0;
     while(showText[ii] != 0) {
-      if(showText[ii]>='A' && showText[ii]<='Z') {
-        stringCopy(tmp + stringByteLength(tmp), STD_SUB_A);
-        tmp[stringByteLength(tmp)-1] += showText[ii]-'A';
-      }
-      else if(showText[ii]>='0' && showText[ii]<='9') {
-        stringCopy(tmp + stringByteLength(tmp), STD_SUB_0);
-        tmp[stringByteLength(tmp)-1] += showText[ii]-'0';
-      }
-      else {
-        switch(showText[ii]) {
-          case '+':  stringCopy(tmp + stringByteLength(tmp), STD_SUB_PLUS);   break;
-          case ',':  stringCopy(tmp + stringByteLength(tmp), STD_COMMA);      break;
-          case '-':  stringCopy(tmp + stringByteLength(tmp), STD_SUB_MINUS);  break;
-          case '.':  stringCopy(tmp + stringByteLength(tmp), STD_PERIOD);     break;
-          case '_':  stringCopy(tmp + stringByteLength(tmp), STD_UNDERSCORE); break;
-          case ' ':  stringCopy(tmp + stringByteLength(tmp), STD_OPEN_BOX);   break;
-          case '\'': stringCopy(tmp + stringByteLength(tmp), STD_QUOTE);      break;
-          default: {
-            uint16_t tmpi = (uint16_t)((((uint8_t)(showText[ii]) & 0x00FF)) << 8) + (uint16_t)((uint8_t)(showText[ii+1]));
-            if(0x0101 == tmpi) {
-              stringCopy(tmp + stringByteLength(tmp), STD_o_STROKE);
+      switch(showText[ii]) {
+        case '+':  stringCopy(tmp + stringByteLength(tmp), STD_SUB_PLUS);   break;
+        case ',':  stringCopy(tmp + stringByteLength(tmp), STD_COMMA);      break;
+        case '-':  stringCopy(tmp + stringByteLength(tmp), STD_SUB_MINUS);  break;
+        case '.':  stringCopy(tmp + stringByteLength(tmp), STD_PERIOD);     break;
+        case '_':  stringCopy(tmp + stringByteLength(tmp), STD_UNDERSCORE); break;
+        case ' ':  stringCopy(tmp + stringByteLength(tmp), STD_OPEN_BOX);   break;
+        case '\'': stringCopy(tmp + stringByteLength(tmp), STD_QUOTE);      break;
+        default: {
+          uint16_t tmpi = (uint16_t)((((uint8_t)(showText[ii]) & 0x00FF)) << 8) + (uint16_t)((uint8_t)(showText[ii+1]));
+          if(0x0101 == tmpi) {
+            stringCopy(tmp + stringByteLength(tmp), STD_o_STROKE);
+            ii++;
+          }
+
+          //any other characters won't have actual subscript conversions and are returned translated, or as is
+          //printf(">>>> %u %u\n", (uint8_t)showText[ii], (uint8_t)showText[ii+1]);
+          else if((showText[ii] & 0x80) && (showText[ii+1] != 0)) {
+            char tt[3];
+            tt[0] = 0;
+            tt[1] = 0;
+            tt[2] = 0;
+
+            if(((uint16_t)(STD_SPACE_PUNCTUATION[0] & 0x00FF) << 8) + (STD_SPACE_PUNCTUATION[1] & 0x00FF) == tmpi) {
+              stringCopy(tmp + stringByteLength(tmp), STD_OPEN_BOX);
               ii++;
             }
 
-            //any other characters won't have actual subscript conversions and are returned translated, or as is
-            //printf(">>>> %u %u\n", (uint8_t)showText[ii], (uint8_t)showText[ii+1]);
-            else if((showText[ii] & 0x80) && (showText[ii+1] != 0)) {
-              char tt[3];
-              tt[0] = 0;
-              tt[1] = 0;
-              tt[2] = 0;
-
-              if(((uint16_t)(STD_SPACE_PUNCTUATION[0] & 0x00FF) << 8) + (STD_SPACE_PUNCTUATION[1] & 0x00FF) == tmpi) {
-                stringCopy(tmp + stringByteLength(tmp), STD_OPEN_BOX);
-                ii++;
-              }
-
-              else if(((uint16_t)(STD_SPACE_4_PER_EM[0] & 0x00FF) << 8) + (STD_SPACE_4_PER_EM[1] & 0x00FF) == tmpi) {
-                stringCopy(tmp + stringByteLength(tmp), STD_INV_BRIDGE);
-                ii++;
-              }
-
-              else if(((uint16_t)(STD_SPACE_EM[0] & 0x00FF) << 8) + (STD_SPACE_EM[1] & 0x00FF) == tmpi) {
-                stringCopy(tmp + stringByteLength(tmp), STD_OPEN_BOX STD_OPEN_BOX);
-                ii++;
-              }
-
-              else { //double byte
-                //printf(">>>> Double byte in RB\n");
-                tt[0] = showText[ii++];
-                tt[1] = showText[ii];
-                stringCopy(tmp + stringByteLength(tmp), tt);
-              }
+            else if(((uint16_t)(STD_SPACE_4_PER_EM[0] & 0x00FF) << 8) + (STD_SPACE_4_PER_EM[1] & 0x00FF) == tmpi) {
+              stringCopy(tmp + stringByteLength(tmp), STD_INV_BRIDGE);
+              ii++;
             }
 
-            else { //single byte
-              //printf(">>>> Single byte in RB\n");
-              char tt[2];
-              tt[0] = showText[ii];
-              tt[1] = 0;
+            else if(((uint16_t)(STD_SPACE_EM[0] & 0x00FF) << 8) + (STD_SPACE_EM[1] & 0x00FF) == tmpi) {
+              stringCopy(tmp + stringByteLength(tmp), STD_OPEN_BOX STD_OPEN_BOX);
+              ii++;
+            }
+
+            else { //double byte
+              //printf(">>>> Double byte in RB\n");
+              tt[0] = showText[ii++];
+              tt[1] = showText[ii];
               stringCopy(tmp + stringByteLength(tmp), tt);
             }
+          }
+
+          else { //single byte
+            //printf(">>>> Single byte in RB\n");
+            char tt[2];
+            tt[0] = showText[ii];
+            tt[1] = 0;
+            stringCopy(tmp + stringByteLength(tmp), stringToSub(tt));
           }
         }
       }

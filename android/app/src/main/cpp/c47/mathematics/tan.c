@@ -12,11 +12,13 @@ static void tanReal(void) {
   const real_t *r = &tan;
   angularMode_t xAngularMode;
 
-  if(!getRegisterAsRealAngle(REGISTER_X, &tan, &xAngularMode))
+  if(!getRegisterAsRealAngle(REGISTER_X, &tan, &xAngularMode, ifLongIntegerDoAngleReduction)) {
     return;
+  }
 
-  if(realIsSpecial(&tan))
+  if(realIsSpecial(&tan)) {
     r = const_NaN;
+  }
   else {
     C47_WP34S_Cvt2RadSinCosTan(&tan, xAngularMode, &sin, &cos, &tan, &ctxtReal75);
     if(realIsZero(&sin)) {
@@ -31,8 +33,9 @@ static void tanReal(void) {
       return;
     }
     else {
-      if(realIsZero(&cos))
+      if(realIsZero(&cos)) {
         r = const_NaN;
+      }
     }
   }
   convertRealToResultRegister(r, REGISTER_X, amNone);
@@ -47,8 +50,9 @@ static void tanCplx(void) {
 
   real_t xReal, xImag;
 
-  if(!getRegisterAsComplex(REGISTER_X, &xReal, &xImag))
+  if(!getRegisterAsComplex(REGISTER_X, &xReal, &xImag)) {
     return;
+  }
 
   TanComplex(&xReal, &xImag, &xReal, &xImag, &ctxtReal51);
 

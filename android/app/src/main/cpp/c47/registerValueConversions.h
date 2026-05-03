@@ -107,7 +107,8 @@
   bool_t getRegisterAsReal(calcRegister_t reg, real_t *val);
   bool_t getRegisterAsAnyReal(calcRegister_t reg, real_t *val);
   bool_t getRegisterAsReal34Quiet(calcRegister_t reg, real34_t *val);
-  bool_t getRegisterAsRealAngle(calcRegister_t reg, real_t *val, angularMode_t *xAngularMode);
+  #define ifLongIntegerDoAngleReduction true
+  bool_t getRegisterAsRealAngle(calcRegister_t reg, real_t *val, angularMode_t *xAngularMode, bool_t reduceLongintegerAngle);
   bool_t getRegisterAsLongInt(calcRegister_t reg, longInteger_t val, bool_t *fractional);
   bool_t getRegisterAsShortInt(calcRegister_t reg, bool_t *sign, uint64_t *val, bool_t *overflow, bool_t *fractional);
   bool_t getRegisterAsRawShortInt(calcRegister_t reg, uint64_t *val, uint32_t *base);

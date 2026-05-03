@@ -787,8 +787,7 @@ char * radixProcess(char *output, const char * ss) {  //  .  HIERDIE WERK GLAD N
     if(ss[ix]==',' || ss[ix]=='.') {
       output[iy++] = RADIX34_MARK_CHAR;
     }
-    else
-    if(ss[ix]=='#') {
+    else if(ss[ix]=='#') {
       output[iy++] = ';';
     }
     else {

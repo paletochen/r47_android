@@ -96,5 +96,6 @@
 
   void         fn2Sto(uint16_t regist);
   void         fn3Sto(uint16_t regist);
+  void         fnStoreVector(uint16_t regist);
 
 #endif // !STORE_H

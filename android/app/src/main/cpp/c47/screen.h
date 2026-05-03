@@ -49,10 +49,11 @@ char       letteredRegisterName(calcRegister_t regist);
    */
   gboolean drawScreen                         (GtkWidget *widget, cairo_t *cr, gpointer data);
   void     copyScreenToClipboard              (void);
+  void     copyMenuToClipboard                (void);
   void     copyRegisterXToClipboard           (void);
   void     copyStackRegistersToClipboard      (void);
   void     copyAllRegistersToClipboard        (void);
-  void     copyRegisterToClipboardString      (calcRegister_t regist, char *clipboardString);
+  void     copyRegisterToClipboardString      (calcRegister_t regist, char *clipboardString, bool_t forPrinter);
 
   /**
    * Refreshes calc's screen.
@@ -70,7 +71,7 @@ char       letteredRegisterName(calcRegister_t regist);
   #endif // PC_BUILD
 
   #if defined(DMCP_BUILD)
-    void     copyRegisterToClipboardString      (calcRegister_t regist, char *clipboardString);                   //JMCSV Added for textfiles
+    void     copyRegisterToClipboardString      (calcRegister_t regist, char *clipboardString, bool_t forPrinter);                   //JMCSV Added for textfiles
     void     refreshLcd                         (void);
   #endif // DMCP_BUILD
 

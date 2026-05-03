@@ -10,10 +10,11 @@
 static void wPosReal(void) {
   real_t x, res, resi;
 
-  if(!getRegisterAsReal(REGISTER_X, &x))
+  if(!getRegisterAsReal(REGISTER_X, &x)) {
     return;
+  }
 
-  realCopy(const_1oneE, &res);
+  realCopy(const39_1oneE, &res);
   realSetNegativeSign(&res);
   if(realCompareGreaterEqual(&x, &res)) {
     WP34S_LambertW(&x, &res, false, &ctxtReal39);
@@ -34,8 +35,10 @@ static void wPosReal(void) {
 static void wPosCplx(void) {
   real_t xr, xi, resr, resi;
 
-  if(!getRegisterAsComplex(REGISTER_X, &xr, &xi))
+  if(!getRegisterAsComplex(REGISTER_X, &xr, &xi)) {
     return;
+  }
+
   WP34S_ComplexLambertW(&xr, &xi, &resr, &resi, &ctxtReal39);
   convertComplexToResultRegister(&resr, &resi, REGISTER_X);
 }

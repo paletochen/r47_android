@@ -15,13 +15,13 @@ fi
 
 
 filesize() {
-	$STAT -Lc%s "$1"
+  $STAT -Lc%s "$1"
 }
 
 
 if [ ! -f "$input" ];then
-	echo "ERROR: Missing qspi file '$input'"
-	exit 1
+  echo "ERROR: Missing qspi file '$input'"
+  exit 1
 fi
 
 sz=`filesize $input`

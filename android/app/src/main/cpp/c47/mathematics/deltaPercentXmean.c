@@ -77,8 +77,9 @@ void fnDeltaPercentXmean(uint16_t unusedButMandatoryParameter) {
     return;
   }
 
-  if(!getRegisterAsReal(REGISTER_X, &xReal))
+  if(!getRegisterAsReal(REGISTER_X, &xReal)) {
     return;
+  }
 
   if(!saveLastX()) {
     return;

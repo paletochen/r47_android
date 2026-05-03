@@ -7,7 +7,7 @@
 
 #include "c47.h"
 
-#if defined(SAVE_SPACE_DM42_15)
+#if defined(SAVE_SPACE_DM42_17B)
   void fnWeibullP     (uint16_t unusedButMandatoryParameter){}
   void fnWeibullL     (uint16_t unusedButMandatoryParameter){}
   void fnWeibullR     (uint16_t unusedButMandatoryParameter){}
@@ -19,13 +19,13 @@
 
 #else
   static bool_t checkParamWeibull(real_t *x, real_t *shape, real_t *scale) {
-    if(!saveLastX())
+    if(!saveLastX()) {
       return false;
+    }
 
-    if(!getRegisterAsReal(REGISTER_X, x)
-        || !getRegisterAsReal(REGISTER_Q, shape)
-        || !getRegisterAsReal(REGISTER_S, scale))
+    if(!getRegisterAsReal(REGISTER_X, x) || !getRegisterAsReal(REGISTER_Q, shape) || !getRegisterAsReal(REGISTER_S, scale)) {
       goto err;
+    }
 
     if(realIsNegative(x)) {
       displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
@@ -34,8 +34,7 @@
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
       goto err;
     }
-    else if(realIsZero(shape) || realIsNegative(shape)
-            || realIsZero(scale) || realIsNegative(scale)) {
+    else if(realIsZero(shape) || realIsNegative(shape) || realIsZero(scale) || realIsNegative(scale)) {
       displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function checkParamWeibull:", "cannot calculate for b " STD_LESS_EQUAL " 0 or t " STD_LESS_EQUAL " 0", NULL, NULL);
@@ -172,4 +171,4 @@
     realMultiply(&p, b, res, realContext);
   }
 
-#endif //SAVE_SPACE_DM42_15
+#endif //SAVE_SPACE_DM42_17B

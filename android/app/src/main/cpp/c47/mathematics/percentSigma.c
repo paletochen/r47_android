@@ -72,8 +72,9 @@ void fnPercentSigma(uint16_t unusedButMandatoryParameter) {
     return;
   }
 
-  if(!saveLastX())
+  if(!saveLastX()) {
     return;
+  }
 
   if(getRegisterDataType(REGISTER_X) == dtReal34Matrix) {
     elementwiseRema(percentSigmaReal);

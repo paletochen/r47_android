@@ -378,25 +378,48 @@ void convertAngle34FromTo(real34_t *angle34, angularMode_t fromAngularMode, angu
 
 
 void convertAngleFromTo(real_t *angle, angularMode_t fromAngularMode, angularMode_t toAngularMode, realContext_t *realContext) {
-  if(fromAngularMode == amNone)
+  if(fromAngularMode == amNone) {
     fromAngularMode = currentAngularMode;
-  if(toAngularMode == amNone)
+  }
+  if(toAngularMode == amNone) {
     toAngularMode = currentAngularMode;
-
+  }
+  bool_t lp  = (realContext->digits > 39);
+  bool_t vlp = (realContext->digits > 75);
   switch(fromAngularMode) {
     case amRadian: {
       switch(toAngularMode) {
         case amMultPi: {
-          realDivide(angle, const_pi, angle, realContext);
+          realDivide(angle, vlp ? const1071_pi : (lp ? const75_pi : const39_pi), angle, realContext);
           break;
         }
         case amGrad: {
-          realMultiply(angle, const_200onPi, angle, realContext);
+          if(vlp) {
+            realMultiply(angle, const_100, angle, realContext);
+            realDivide(  angle, const1071_piOn2, angle, realContext);
+          }
+          else if(lp) {
+            realMultiply(angle, const_100, angle, realContext);
+            realDivide(  angle, const75_piOn2, angle, realContext);
+          }
+          else {
+            realMultiply(angle, const39_200onPi, angle, realContext);
+          }
           break;
         }
         case amDegree:
         case amDMS: {
-          realMultiply(angle, const_180onPi, angle, realContext);
+          if(vlp) {
+            realMultiply(angle, const_90, angle, realContext);
+            realDivide(  angle, const1071_piOn2, angle, realContext);
+          }
+          else if(lp) {
+            realMultiply(angle, const_90, angle, realContext);
+            realDivide(  angle, const75_piOn2, angle, realContext);
+          }
+          else {
+            realMultiply(angle, const39_180onPi, angle, realContext);
+          }
           break;
         }
         default: ;
@@ -407,7 +430,7 @@ void convertAngleFromTo(real_t *angle, angularMode_t fromAngularMode, angularMod
     case amMultPi: {
       switch(toAngularMode) {
         case amRadian: {
-          realMultiply(angle, const_pi, angle, realContext);
+          realMultiply(angle, vlp ? const1071_pi : (lp ? const75_pi : const39_pi), angle, realContext);
           break;
         }
         case amGrad: {
@@ -427,11 +450,21 @@ void convertAngleFromTo(real_t *angle, angularMode_t fromAngularMode, angularMod
     case amGrad: {
       switch(toAngularMode) {
         case amRadian: {
-          realDivide(  angle, const_200onPi, angle, realContext);
+          if(vlp) {
+            realMultiply(angle, const1071_piOn2, angle, realContext);
+            realDivide(  angle, const_100, angle, realContext);
+          }
+          else if(lp) {
+            realMultiply(angle, const75_piOn2, angle, realContext);
+            realDivide(  angle, const_100, angle, realContext);
+          }
+          else {
+            realDivide(angle, const39_200onPi, angle, realContext);
+          }
           break;
         }
         case amMultPi: {
-          realDivide(  angle, const_200, angle, realContext);
+          realDivide(angle, const_200, angle, realContext);
           break;
         }
         case amDegree:
@@ -448,15 +481,25 @@ void convertAngleFromTo(real_t *angle, angularMode_t fromAngularMode, angularMod
     case amDMS: {
       switch(toAngularMode) {
         case amRadian: {
-          realDivide(  angle, const_180onPi, angle, realContext);
+          if(vlp) {
+            realMultiply(angle, const1071_piOn2, angle, realContext);
+            realDivide(  angle, const_90, angle, realContext);
+          }
+          else if(lp) {
+            realMultiply(angle, const75_piOn2, angle, realContext);
+            realDivide(  angle, const_90, angle, realContext);
+          }
+          else {
+            realDivide(angle, const39_180onPi, angle, realContext);
+          }
           break;
         }
         case amMultPi: {
-          realDivide(  angle, const_180, angle, realContext);
+          realDivide(angle, const_180, angle, realContext);
           break;
         }
         case amGrad: {
-          realDivide(  angle, const_9on10,   angle, realContext);
+          realDivide(angle, const_9on10, angle, realContext);
           break;
         }
         default: ;

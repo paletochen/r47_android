@@ -103,5 +103,8 @@
 
   void         fn2Rcl(uint16_t regist);
   void         fn3Rcl(uint16_t regist);
+  void         fnRecallVector(uint16_t regist);
+
+
 
 #endif // !RECALL_H

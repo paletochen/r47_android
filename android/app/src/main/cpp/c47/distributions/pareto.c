@@ -7,15 +7,26 @@
 
 #include "c47.h"
 
-bool_t checkParamGPD(real_t *x, real_t *mu, real_t *sigma, real_t *alpha, bool_t qf) {
-  if(!saveLastX())
-    return false;
+ #if defined(SAVE_SPACE_DM42_17C)
+  void fnParetoP   (uint16_t unusedButMandatoryParameter){}
+  void fnParetoL   (uint16_t unusedButMandatoryParameter){}
+  void fnParetoU   (uint16_t unusedButMandatoryParameter){}
+  void fnParetoI   (uint16_t unusedButMandatoryParameter){}
+  void fnPareto2P  (uint16_t unusedButMandatoryParameter){}
+  void fnPareto2L  (uint16_t unusedButMandatoryParameter){}
+  void fnPareto2U  (uint16_t unusedButMandatoryParameter){}
+  void fnPareto2I  (uint16_t unusedButMandatoryParameter){}
+#else
 
-  if(!getRegisterAsReal(REGISTER_X, x)
-      || (mu != NULL && !getRegisterAsReal(REGISTER_M, mu))
-      || !getRegisterAsReal(REGISTER_S, sigma)
-      || !getRegisterAsReal(REGISTER_Q, alpha))
+
+bool_t checkParamGPD(real_t *x, real_t *mu, real_t *sigma, real_t *alpha, bool_t qf) {
+  if(!saveLastX()) {
+    return false;
+  }
+
+  if(!getRegisterAsReal(REGISTER_X, x) || (mu != NULL && !getRegisterAsReal(REGISTER_M, mu)) || !getRegisterAsReal(REGISTER_S, sigma) || !getRegisterAsReal(REGISTER_Q, alpha)) {
     goto err;
+  }
 
   if(realIsZero(sigma) || realIsNegative(sigma)) {
     displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE, REGISTER_X);
@@ -168,3 +179,4 @@ void fnPareto2I(uint16_t unusedButMandatoryParameter) {
   }
 }
 
+#endif // SAVE_SPACE_DM42_17C

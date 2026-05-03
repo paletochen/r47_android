@@ -27,7 +27,7 @@ static bool_t _checkLnGammaArgs(int8_t *resultType, real_t *xReal, realContext_t
       EXTRA_INFO_MESSAGE("_checkLnGammaArgs", "cannot use " STD_PLUS_MINUS STD_INFINITY " as X input of lnbeta when flag D is not set");
     }
     else {
-      realToReal34((real34IsPositive(xReal) ? const_plusInfinity : const_NaN), REGISTER_REAL34_DATA(REGISTER_X));
+      realToReal34((realIsPositive(xReal) ? const_plusInfinity : const_NaN), REGISTER_REAL34_DATA(REGISTER_X));
     }
 
     result = false;
@@ -88,7 +88,7 @@ static void _lnGammaComplex(real_t *xReal, real_t *rReal, real_t *rImag, realCon
   WP34S_Ln(xReal, xReal, realContext);
   realCopy(xReal, rReal);
   realToIntegralValue(rImag, rImag, DEC_ROUND_FLOOR, realContext);
-  realMultiply(rImag, const_pi, rImag, realContext);
+  realMultiply(rImag, const39_pi, rImag, realContext);
 }
 
 
@@ -119,9 +119,7 @@ static bool_t _lnBetaReal(real_t *xReal, real_t *yReal, real_t *rReal, real_t *r
 
   realAdd(xReal, yReal, rReal, realContext);  // r = x+y
 
-  if(_checkLnGammaArgs(&xflag, xReal, realContext)
-      && _checkLnGammaArgs(&yflag, yReal, realContext)
-      && _checkLnGammaArgs(&sflag, rReal, realContext)) {
+  if(_checkLnGammaArgs(&xflag, xReal, realContext) && _checkLnGammaArgs(&yflag, yReal, realContext) && _checkLnGammaArgs(&sflag, rReal, realContext)) {
     real_t gxReal, gxImag;  // LnGamma(x)
     real_t gyReal, gyImag;  // LnGamma(y)
     real_t gsReal, gsImag;  // LnGamma(x+y)

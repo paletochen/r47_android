@@ -7,17 +7,24 @@
 
 #include "c47.h"
 
+#if defined(SAVE_SPACE_DM42_17C)
+  void fnGEVP                      (uint16_t unusedButMandatoryParameter){}
+  void fnGEVL                      (uint16_t unusedButMandatoryParameter){}
+  void fnGEVR                      (uint16_t unusedButMandatoryParameter){}
+  void fnGEVI                      (uint16_t unusedButMandatoryParameter){}
+#else
+
+
 static bool_t checkParamGEV(real_t *x, real_t *mu, real_t *sigma, real_t *xi, bool_t qf) {
   real_t t;
 
-  if(!saveLastX())
+  if(!saveLastX()) {
     return false;
+  }
 
-  if(!getRegisterAsReal(REGISTER_X, x)
-      || !getRegisterAsReal(REGISTER_M, mu)
-      || !getRegisterAsReal(REGISTER_S, sigma)
-      || !getRegisterAsReal(REGISTER_Q, xi))
+  if(!getRegisterAsReal(REGISTER_X, x) || !getRegisterAsReal(REGISTER_M, mu) || !getRegisterAsReal(REGISTER_S, sigma) || !getRegisterAsReal(REGISTER_Q, xi)) {
     goto err;
+  }
 
   if(realIsNegative(x)) {
     displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
@@ -35,12 +42,15 @@ static bool_t checkParamGEV(real_t *x, real_t *mu, real_t *sigma, real_t *xi, bo
   }
 
   // Check support range
-  if(qf || realIsZero(xi))
+  if(qf || realIsZero(xi)) {
     return true;                                // xi = 0, full line
+  }
   realSubtract(mu, sigma, &t, &ctxtReal39);
   realDivide(&t, xi, &t, &ctxtReal39);
-  if(realIsNegative(xi))
+  if(realIsNegative(xi)) {
     return realCompareLessEqual(x, &t);         // xi < 0, (-inf, (mu-sigma)/xi]
+  }
+
   return realCompareGreaterEqual(x, &t);        // xi > 0, [(mu-sigma)/xi, +inf)
 
   err:
@@ -68,8 +78,9 @@ static void tGEV(const real_t *x, const real_t *mu, const real_t *sigma, const r
 void fnGEVP(uint16_t unusedButMandatoryParameter) {
   real_t x, mu, sigma, xi, t, u, v;
 
-  if(!checkParamGEV(&x, &mu, &sigma, &xi, false))
+  if(!checkParamGEV(&x, &mu, &sigma, &xi, false)) {
     return;
+  }
   tGEV(&x, &mu, &sigma, &xi, &t);
   realAdd(&t, const_1, &u, &ctxtReal39);
   realPower(&t, &u, &v, &ctxtReal39);       // v= t^(xi+1)
@@ -89,8 +100,9 @@ static void lowerLnGEV(const real_t *x, const real_t *mu, const real_t *sigma, c
 void fnGEVL(uint16_t unusedButMandatoryParameter) {
   real_t x, mu, sigma, xi;
 
-  if(!checkParamGEV(&x, &mu, &sigma, &xi, false))
+  if(!checkParamGEV(&x, &mu, &sigma, &xi, false)) {
     return;
+  }
   lowerLnGEV(&x, &mu, &sigma, &xi, &x);
   realExp(&x, &x, &ctxtReal39);
   convertRealToResultRegister(&x, REGISTER_X, amNone);
@@ -100,8 +112,9 @@ void fnGEVL(uint16_t unusedButMandatoryParameter) {
 void fnGEVR(uint16_t unusedButMandatoryParameter) {
   real_t x, mu, sigma, xi;
 
-  if(!checkParamGEV(&x, &mu, &sigma, &xi, false))
+  if(!checkParamGEV(&x, &mu, &sigma, &xi, false)) {
     return;
+  }
   lowerLnGEV(&x, &mu, &sigma, &xi, &x);
   realExpM1(&x, &x, &ctxtReal39);
   realChangeSign(&x);
@@ -113,8 +126,9 @@ void fnGEVI(uint16_t unusedButMandatoryParameter) {
   real_t p, mu, sigma, xi, x, lnp;
   bool_t domainOkay;
 
-  if(!checkParamGEV(&p, &mu, &sigma, &xi, true))
+  if(!checkParamGEV(&p, &mu, &sigma, &xi, true)) {
     return;
+  }
 
   domainOkay = realCompareGreaterThan(&p, const_0) || realCompareLessThan(&p, const_1);
   if(!domainOkay && !realIsZero(&xi)) {
@@ -156,3 +170,4 @@ void fnGEVI(uint16_t unusedButMandatoryParameter) {
   adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
 }
 
+#endif //SAVE_SPACE_DM42_17C

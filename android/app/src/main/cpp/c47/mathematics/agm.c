@@ -10,13 +10,12 @@
 typedef enum {
     AGM_MODE_NORMAL,
     AGM_MODE_E,
-    AGM_MODE_STEP,
-    AGM_MODE_F
+    AGM_MODE_STEP
 } AGM_MODE;
 
 static int _realAgm(AGM_MODE mode, const real_t *a, const real_t *b, real_t *c, real_t *res, real_t *_a, real_t *_b, size_t _sz, realContext_t *realContext) {
   real_t aReal, bReal, cReal;
-  real_t cCoeff, prevDelta, z;
+  real_t cCoeff;
   int n = 0;
 
   realCopy(a, &aReal);
@@ -28,13 +27,7 @@ static int _realAgm(AGM_MODE mode, const real_t *a, const real_t *b, real_t *c, 
     realCopy(&aReal, _a);
     realCopy(&bReal, _b);
   }
-  if(mode==AGM_MODE_F) {
-    realSetPlusInfinity(&prevDelta);
-    realSetZero(&z);
-    realDivide(c, const_pi, &cCoeff, realContext);
-    realToIntegralValue(&cCoeff, &cCoeff, DEC_ROUND_DOWN, realContext);
-    realDivideRemainder(c, const_pi, c, realContext);
-  }
+
 
   while(!WP34S_RelativeError(&aReal, &bReal, const_1e_37, realContext)) {
     if(mode==AGM_MODE_E) {
@@ -43,22 +36,6 @@ static int _realAgm(AGM_MODE mode, const real_t *a, const real_t *b, real_t *c, 
       realMultiply(&cReal, const_1on2, &cReal, realContext); // c = (a - b) / 2
       realMultiply(&cReal, &cReal, &cReal, realContext);     // c^2
       realFMA(&cReal, &cCoeff, c, c, realContext);
-    }
-    if(mode==AGM_MODE_F) {
-      real_t d, e, tanphi, ba;
-      C47_WP34S_Cvt2RadSinCosTan(c, amRadian, &d, &e, &tanphi, realContext);
-      realDivide(&bReal, &aReal, &ba, realContext);
-      realDivide(const_1, &tanphi, &d, realContext);
-      realFMA(&ba, &tanphi, &d, &d, realContext);
-      realSubtract(&ba, const_1, &e, realContext);
-      C47_WP34S_Atan2(&e, &d, &d, realContext);
-      realAdd(&cCoeff, &cCoeff, &cCoeff, realContext);
-      if(realCompareAbsLessThan(&prevDelta, &d)) {
-        realAdd(&cCoeff, const_1, &cCoeff, realContext);
-      }
-      realCopy(&d, &prevDelta);
-      realAdd(&d, c, &d, realContext);
-      realAdd(&d, c, c, realContext);
     }
     realAdd(&aReal, &bReal, &cReal, realContext);          // c = a + b
     realMultiply(&aReal, &bReal, &bReal, realContext);     // b = a * b
@@ -76,9 +53,6 @@ static int _realAgm(AGM_MODE mode, const real_t *a, const real_t *b, real_t *c, 
 
   if(mode==AGM_MODE_E) {
     realMultiply(c, const_1on2, c, realContext);
-  }
-  if(mode==AGM_MODE_F) {
-    realFMA(&cCoeff, const_pi, c, c, realContext);
   }
 
   realCopy(&aReal, res);
@@ -140,7 +114,7 @@ static int _complexAgm(AGM_MODE mode, const real_t *ar, const real_t *ai, const 
     realSubtract(&cArg, &bArg, &cArg, realContext);
     realSetPositiveSign(&cArg);
     realAdd(&aArg, &cArg, &bArg, realContext);
-    if(realCompareGreaterThan(&bArg, const_pi)) {
+    if(realCompareGreaterThan(&bArg, const39_pi)) {
       realChangeSign(&bReal);
       realChangeSign(&bImag);
     }
@@ -182,10 +156,6 @@ size_t complexAgmForE(const real_t *ar, const real_t *ai, const real_t *br, cons
   return _complexAgm(AGM_MODE_E, ar, ai, br, bi, cr, ci, resr, resi, NULL, NULL, NULL, NULL, 0, realContext);
 }
 
-size_t realAgmForF(const real_t *a, const real_t *b, real_t *c, real_t *res, realContext_t *realContext) {
-  return _realAgm(AGM_MODE_F, a, b, c, res, NULL, NULL, 0, realContext);
-}
-
 size_t realAgmStep(const real_t *a, const real_t *b, real_t *res, real_t *aStep, real_t *bStep, size_t bufSize, realContext_t *realContext) {
   return _realAgm(AGM_MODE_STEP, a, b, NULL, res, aStep, bStep, bufSize, realContext);
 }
@@ -198,9 +168,9 @@ static void doComplexAGM(void) {
   real_t aReal, bReal, rReal;
   real_t aImag, bImag, rImag;
 
-  if(!getRegisterAsComplex(REGISTER_X, &aReal, &aImag)
-      || !getRegisterAsComplex(REGISTER_Y, &bReal, &bImag))
+  if(!getRegisterAsComplex(REGISTER_X, &aReal, &aImag) || !getRegisterAsComplex(REGISTER_Y, &bReal, &bImag)) {
     return;
+  }
 
   complexAgm(&aReal, &aImag, &bReal, &bImag, &rReal, &rImag, &ctxtReal75);
   convertComplexToResultRegister(&rReal, &rImag, REGISTER_X);
@@ -210,8 +180,9 @@ static void doComplexAGM(void) {
 static void doRealAGM(void) {
   real_t a, b, r;
 
-  if(!getRegisterAsReal(REGISTER_X, &a) || !getRegisterAsReal(REGISTER_Y, &b))
+  if(!getRegisterAsReal(REGISTER_X, &a) || !getRegisterAsReal(REGISTER_Y, &b)) {
     return;
+  }
 
   // Quick check for zero results
   realAdd(&a, &b, &r, &ctxtReal39);
@@ -221,8 +192,9 @@ static void doRealAGM(void) {
   }
 
   if(realIsNegative(&a) || realIsNegative(&b)) {
-    if(getFlag(FLAG_CPXRES))
+    if(getFlag(FLAG_CPXRES)) {
       doComplexAGM();
+    }
     else {
       displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
