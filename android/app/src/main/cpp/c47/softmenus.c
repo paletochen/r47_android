@@ -2954,6 +2954,16 @@ void showSoftmenuCurrentPart(void) {
       yDotted = 217 - SOFTMENU_HEIGHT * yDotted;
 
       if(dottedTopLine && (!GRAPHMODE || softmenu[m].menuItem == -MNU_PLOT_FUNC)) {
+        for(x=0; x < (GRAPHMODE ? SCREEN_WIDTH / 3 : SCREEN_WIDTH); x++) {
+          if(x%8 < 4) {
+            setBlackPixel(x, yDotted);
+          }
+          else {
+            setWhitePixel(x, yDotted);
+          }
+        }
+
+
                                          //JMvv    //triangle centre point  // Triangles indicating more menus
         #define t 5
         #define t_o (1.6*t)                                                        //offset

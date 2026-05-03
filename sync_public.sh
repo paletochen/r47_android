@@ -17,24 +17,21 @@ echo "--- Overlaying Math Core ---"
 git checkout upstream/master -- . 2>/dev/null || true
 
 # 2. SURGICAL RESTORE ANDROID PORT (The Winner)
-# We restore only repo-owned Android and build files from HEAD
+# We restore only specific files from HEAD (our public shell)
 # to avoid 'git checkout dir' deleting files in that directory.
-echo "--- Re-applying Repo-Owned Android and Build Files ---"
+echo "--- Re-applying Android Port Patches ---"
 
 # Root Infrastructure
-git checkout HEAD -- .gitignore README.md Makefile build_android.sh sync_public.sh dist.sh meson.build meson_options.txt 2>/dev/null || true
+git checkout HEAD -- .gitignore README.md Makefile build_android.sh sync_public.sh dist.sh 2>/dev/null || true
 
-# Local workflow tree
-git checkout HEAD -- .github/ 2>/dev/null || true
-
-# Leave the upstream core authoritative; restore only repo-owned scaffolding.
+# Source Patches
+git checkout HEAD -- src/c47/programming/input.c src/c47/programming/lblGtoXeq.c src/c47/screen.c 2>/dev/null || true
 
 # Blueprint Preservation
-while IFS= read -r meson_file; do
-    git checkout HEAD -- "$meson_file"
-done < <(git ls-files | grep -E '(^|/)meson\.build$' | grep -Ev '^src/')
+find src -name "meson.build" -exec git checkout HEAD -- {} + 2>/dev/null || true
+find dep -name "meson.build" -exec git checkout HEAD -- {} + 2>/dev/null || true
 
 # Android Project Folder (This one we can restore safely as it's not in upstream)
 git checkout HEAD -- android/ 2>/dev/null || true
 
-echo "--- ✅ SYNC COMPLETE: Core updated, repo-owned files restored. ---"
+echo "--- ✅ SYNC COMPLETE: Core updated, Patches restored surgically. ---"

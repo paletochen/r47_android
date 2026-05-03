@@ -99,8 +99,12 @@ Thumbs.db
 !.gitlab-ci.yml
 
 # --- 7. Upstream Whitelist (Delta Mode) ---
-# Ignore synced upstream core sources; keep only repo-owned build scaffolding.
-/src/
+# We ignore src/c47/ but keep our patches
+/src/c47/
+!/src/c47/programming/input.c
+!/src/c47/programming/lblGtoXeq.c
+!/src/c47/screen.c
+!/src/c47/meson.build
 
 # --- 8. Android Core Copies (Ignore copies of the core) ---
 /android/app/src/main/cpp/c47/

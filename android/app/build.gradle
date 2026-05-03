@@ -1,6 +1,9 @@
 plugins {
     id 'com.android.application'
-    id 'kotlin-android'
+}
+
+base {
+    archivesName = "R47calculator"
 }
 
 def readGitOutput(List<String> args) {
@@ -51,7 +54,7 @@ def generatedComplianceAssetsDir = "$buildDir/generated/assets/compliance"
 
 android {
     namespace 'com.example.r47'
-    compileSdk project.findProperty('r47.compileSdk')?.toInteger() ?: 35
+    compileSdk project.findProperty('r47.compileSdk')?.toInteger() ?: 36
     def coreVersion = (project.findProperty('r47.coreVersion') ?: "unknown").toString()
     def normalizedCoreVersion = coreVersion.replaceAll(/[^0-9A-Za-z._-]/, "_")
     def releaseVersionCode = Integer.parseInt((project.findProperty('r47.versionCode') ?: "1").toString())
@@ -60,7 +63,7 @@ android {
     defaultConfig {
         applicationId "com.example.r47"
         minSdk project.findProperty('r47.minSdk')?.toInteger() ?: 24
-        targetSdk project.findProperty('r47.targetSdk')?.toInteger() ?: 35
+        targetSdk project.findProperty('r47.targetSdk')?.toInteger() ?: 36
         versionCode releaseVersionCode
         versionName releaseVersionName
         resValue "string", "about_version_summary", "R47 Android ${releaseVersionName} (Core: ${coreVersion})"
@@ -97,6 +100,7 @@ android {
 
     buildFeatures {
         viewBinding true
+        resValues true
     }
     
     externalNativeBuild {
@@ -111,9 +115,6 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
     
-    kotlinOptions {
-        jvmTarget = '17'
-    }
 
     sourceSets {
         main {
@@ -121,11 +122,7 @@ android {
         }
     }
 
-    applicationVariants.all { variant ->
-        variant.outputs.all {
-            outputFileName = "R47calculator-${variant.name}.apk"
-        }
-    }
+
 }
 
 dependencies {
