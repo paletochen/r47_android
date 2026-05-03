@@ -1,0 +1,779 @@
+name: Android CI
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '14 3 * * *'
+  push:
+    branches:
+      - github_ci
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  UPSTREAM_URL: https://gitlab.com/rpncalculators/c43.git
+  XLSXIO_URL: https://github.com/brechtsanders/xlsxio.git
+  XLSXIO_COMMIT: a9016eb2eb46dcd613a68fcfcd1002b5adf64ae9
+
+jobs:
+  resolve-upstream-core:
+    name: Resolve authoritative upstream core revision
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      upstream_url: ${{ steps.resolve.outputs.upstream_url }}
+      upstream_commit: ${{ steps.resolve.outputs.upstream_commit }}
+    steps:
+      - name: Resolve authoritative upstream core
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          upstream_commit=$(git ls-remote --exit-code "$UPSTREAM_URL" refs/heads/master | awk 'NR == 1 { print $1 }')
+          if [[ -z "$upstream_commit" ]]; then
+            echo "Failed to resolve upstream master." >&2
+            exit 1
+          fi
+
+          echo "upstream_url=$UPSTREAM_URL" >> "$GITHUB_OUTPUT"
+          echo "upstream_commit=$upstream_commit" >> "$GITHUB_OUTPUT"
+
+  upstream-release-gate:
+    name: Decide whether the release lane should run
+    needs:
+      - resolve-upstream-core
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_run: ${{ steps.decide.outputs.should_run }}
+      release_tag: ${{ steps.decide.outputs.release_tag }}
+    steps:
+      - name: Decide whether to build and publish
+        id: decide
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          UPSTREAM_COMMIT: ${{ needs.resolve-upstream-core.outputs.upstream_commit }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "$UPSTREAM_COMMIT" ]]; then
+            echo "Missing resolved upstream commit." >&2
+            exit 1
+          fi
+
+          release_tag="${UPSTREAM_COMMIT:0:8}"
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+
+          if [[ "$GITHUB_EVENT_NAME" != "schedule" ]]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          api_url="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/git/ref/tags/${release_tag}"
+          status_code=$(curl -sS \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -o /dev/null \
+            -w '%{http_code}' \
+            "$api_url")
+
+          case "$status_code" in
+            200)
+              echo "Upstream ${UPSTREAM_COMMIT} already has release tag ${release_tag}; skipping scheduled run."
+              echo "should_run=false" >> "$GITHUB_OUTPUT"
+              ;;
+            404)
+              echo "Upstream ${UPSTREAM_COMMIT} is new to this repository; running scheduled release lane."
+              echo "should_run=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unexpected GitHub API status while checking tag ${release_tag}: ${status_code}" >&2
+              exit 1
+              ;;
+          esac
+
+  simulator-tests:
+    name: Run simulator tests
+    if: needs.upstream-release-gate.outputs.should_run == 'true'
+    needs:
+      - resolve-upstream-core
+      - upstream-release-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Configure Git init defaults
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config --global init.defaultBranch main
+          git config --global advice.defaultBranchName false
+
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Detect runner build concurrency
+        id: jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          jobs=$(nproc)
+          echo "jobs=$jobs" >> "$GITHUB_OUTPUT"
+
+      - name: Install Linux build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential \
+            cmake \
+            libexpat1-dev \
+            libgmp-dev \
+            libgtk-3-dev \
+            libminizip-dev \
+            libpulse-dev \
+            meson \
+            ninja-build \
+            pkg-config \
+            unzip \
+            zip
+
+      - name: Set pinned xlsxio revision
+        id: xlsxio
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "xlsxio_url=$XLSXIO_URL" >> "$GITHUB_OUTPUT"
+          echo "xlsxio_commit=$XLSXIO_COMMIT" >> "$GITHUB_OUTPUT"
+          echo "xlsxio_prefix=$HOME/.cache/r47/xlsxio/$XLSXIO_COMMIT" >> "$GITHUB_OUTPUT"
+
+      - name: Restore xlsxio toolchain cache
+        id: xlsxio-cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+        with:
+          path: ${{ steps.xlsxio.outputs.xlsxio_prefix }}
+          key: ${{ runner.os }}-xlsxio-${{ steps.xlsxio.outputs.xlsxio_commit }}-static-tools-v1
+
+      - name: Build upstream xlsxio toolchain
+        if: steps.xlsxio-cache.outputs.cache-hit != 'true'
+        shell: bash
+        env:
+          XLSXIO_URL: ${{ steps.xlsxio.outputs.xlsxio_url }}
+          XLSXIO_COMMIT: ${{ steps.xlsxio.outputs.xlsxio_commit }}
+          XLSXIO_PREFIX: ${{ steps.xlsxio.outputs.xlsxio_prefix }}
+        run: |
+          set -euo pipefail
+
+          xlsxio_dir="${RUNNER_TEMP}/xlsxio"
+          rm -rf "$xlsxio_dir"
+          git init "$xlsxio_dir"
+          git -C "$xlsxio_dir" remote add origin "$XLSXIO_URL"
+          git -C "$xlsxio_dir" fetch --depth 1 origin "$XLSXIO_COMMIT"
+          git -C "$xlsxio_dir" checkout --detach FETCH_HEAD
+
+          mkdir -p "$XLSXIO_PREFIX"
+
+          cmake -S "$xlsxio_dir" -B "$xlsxio_dir/build" \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            -DBUILD_STATIC=ON \
+            -DBUILD_SHARED=OFF \
+            -DBUILD_DOCUMENTATION=FALSE \
+            -DBUILD_EXAMPLES=FALSE \
+            -DBUILD_TOOLS=ON \
+            -DWITH_LIBZIP=OFF
+
+          cmake --build "$xlsxio_dir/build" --parallel "${{ steps.jobs.outputs.jobs }}"
+          cmake --install "$xlsxio_dir/build" --prefix "$XLSXIO_PREFIX"
+
+      - name: Expose xlsxio toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "${{ steps.xlsxio.outputs.xlsxio_prefix }}/bin" >> "$GITHUB_PATH"
+          export PATH="${{ steps.xlsxio.outputs.xlsxio_prefix }}/bin:$PATH"
+          xlsxio_xlsx2csv -h > /dev/null
+
+      - name: Sync authoritative upstream core
+        shell: bash
+        env:
+          UPSTREAM_URL: ${{ needs.resolve-upstream-core.outputs.upstream_url }}
+          UPSTREAM_COMMIT: ${{ needs.resolve-upstream-core.outputs.upstream_commit }}
+        run: |
+          set -euo pipefail
+
+          upstream_url="$UPSTREAM_URL"
+          upstream_commit="$UPSTREAM_COMMIT"
+
+          if [[ -z "$upstream_commit" ]]; then
+            echo "Missing resolved upstream commit." >&2
+            exit 1
+          fi
+
+          if git remote | grep -qx upstream; then
+            git remote set-url upstream "$upstream_url"
+          else
+            git remote add upstream "$upstream_url"
+          fi
+
+          git fetch --depth 1 upstream "$upstream_commit"
+          git cat-file -e "$upstream_commit^{commit}"
+          git archive --format=tar "$upstream_commit" | tar -xf -
+
+          git checkout -- \
+            .gitignore \
+            README.md \
+            Makefile \
+            build_android.sh \
+            sync_public.sh \
+            dist.sh \
+            meson.build \
+            meson_options.txt \
+            android/
+
+          while IFS= read -r meson_file; do
+            git checkout -- "$meson_file"
+            done < <(git ls-files | grep -E '(^|/)meson\.build$' | grep -Ev '^src/')
+
+      - name: Run simulator tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          make -j "${{ steps.jobs.outputs.jobs }}" \
+            NINJAFLAGS="-j ${{ steps.jobs.outputs.jobs }}" \
+            test
+
+  android-debug:
+    name: Build and package Android debug APK
+    if: needs.upstream-release-gate.outputs.should_run == 'true'
+    needs:
+      - resolve-upstream-core
+      - upstream-release-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    outputs:
+      artifact_name: ${{ steps.meta.outputs.artifact_name }}
+      release_tag: ${{ steps.meta.outputs.release_tag }}
+      release_title: ${{ steps.meta.outputs.release_title }}
+    steps:
+      - name: Configure Git init defaults
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config --global init.defaultBranch main
+          git config --global advice.defaultBranchName false
+
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Read Android tool versions
+        id: versions
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ndk_version=$(sed -n "s/.*ndkVersion project.findProperty('r47.ndkVersion') ?: \"\\([^\"]*\\)\".*/\\1/p" android/app/build.gradle)
+          cmake_version=$(sed -n "s/.*version project.findProperty('r47.cmakeVersion') ?: \"\\([^\"]*\\)\".*/\\1/p" android/app/build.gradle)
+          compile_sdk=$(sed -n "s/.*compileSdk .*?: \\([0-9][0-9]*\\).*/\\1/p" android/app/build.gradle)
+
+          if [[ -z "$ndk_version" || -z "$cmake_version" || -z "$compile_sdk" ]]; then
+            echo "Failed to extract Android tool versions from android/app/build.gradle" >&2
+            exit 1
+          fi
+
+          build_tools_version="${compile_sdk}.0.0"
+
+          echo "ndk_version=$ndk_version" >> "$GITHUB_OUTPUT"
+          echo "cmake_version=$cmake_version" >> "$GITHUB_OUTPUT"
+          echo "compile_sdk=$compile_sdk" >> "$GITHUB_OUTPUT"
+          echo "build_tools_version=$build_tools_version" >> "$GITHUB_OUTPUT"
+
+      - name: Detect runner build concurrency
+        id: jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          jobs=$(nproc)
+          echo "jobs=$jobs" >> "$GITHUB_OUTPUT"
+
+      - name: Install Linux build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential \
+            cmake \
+            libexpat1-dev \
+            libgmp-dev \
+            libgtk-3-dev \
+            libminizip-dev \
+            libpulse-dev \
+            meson \
+            ninja-build \
+            pkg-config \
+            unzip \
+            zip
+
+      - name: Set up Java 17
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
+        with:
+          cache-provider: basic
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+      - name: Select writable Android SDK root
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sdk_root="$HOME/.android/sdk"
+          mkdir -p "$sdk_root"
+          echo "ANDROID_HOME=$sdk_root" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$sdk_root" >> "$GITHUB_ENV"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+
+      - name: Resolve Android SDK cache paths
+        id: android-sdk
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/.android/sdk}}"
+          if [[ -z "$sdk_root" ]]; then
+            echo "Failed to resolve Android SDK root." >&2
+            exit 1
+          fi
+
+          echo "sdk_root=$sdk_root" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Android SDK packages cache
+        id: android-sdk-cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+        with:
+          path: |
+            ${{ steps.android-sdk.outputs.sdk_root }}/licenses
+            ${{ steps.android-sdk.outputs.sdk_root }}/platform-tools
+            ${{ steps.android-sdk.outputs.sdk_root }}/platforms/android-${{ steps.versions.outputs.compile_sdk }}
+            ${{ steps.android-sdk.outputs.sdk_root }}/build-tools/${{ steps.versions.outputs.build_tools_version }}
+            ${{ steps.android-sdk.outputs.sdk_root }}/cmake/${{ steps.versions.outputs.cmake_version }}
+            ${{ steps.android-sdk.outputs.sdk_root }}/ndk/${{ steps.versions.outputs.ndk_version }}
+          key: ${{ runner.os }}-android-sdk-${{ steps.versions.outputs.compile_sdk }}-${{ steps.versions.outputs.build_tools_version }}-${{ steps.versions.outputs.cmake_version }}-${{ steps.versions.outputs.ndk_version }}-v1
+
+      - name: Install Android SDK packages
+        if: steps.android-sdk-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sdkmanager \
+            "platforms;android-${{ steps.versions.outputs.compile_sdk }}" \
+            "build-tools;${{ steps.versions.outputs.build_tools_version }}" \
+            "cmake;${{ steps.versions.outputs.cmake_version }}" \
+            "ndk;${{ steps.versions.outputs.ndk_version }}"
+
+      - name: Make scripts executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x build_android.sh
+          chmod +x android/gradlew
+
+      - name: Set pinned xlsxio revision
+        id: xlsxio
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "xlsxio_url=$XLSXIO_URL" >> "$GITHUB_OUTPUT"
+          echo "xlsxio_commit=$XLSXIO_COMMIT" >> "$GITHUB_OUTPUT"
+          echo "xlsxio_prefix=$HOME/.cache/r47/xlsxio/$XLSXIO_COMMIT" >> "$GITHUB_OUTPUT"
+
+      - name: Restore xlsxio toolchain cache
+        id: xlsxio-cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+        with:
+          path: ${{ steps.xlsxio.outputs.xlsxio_prefix }}
+          key: ${{ runner.os }}-xlsxio-${{ steps.xlsxio.outputs.xlsxio_commit }}-static-tools-v1
+
+      - name: Build upstream xlsxio toolchain
+        if: steps.xlsxio-cache.outputs.cache-hit != 'true'
+        shell: bash
+        env:
+          XLSXIO_URL: ${{ steps.xlsxio.outputs.xlsxio_url }}
+          XLSXIO_COMMIT: ${{ steps.xlsxio.outputs.xlsxio_commit }}
+          XLSXIO_PREFIX: ${{ steps.xlsxio.outputs.xlsxio_prefix }}
+        run: |
+          set -euo pipefail
+
+          xlsxio_dir="${RUNNER_TEMP}/xlsxio"
+          rm -rf "$xlsxio_dir"
+          git init "$xlsxio_dir"
+          git -C "$xlsxio_dir" remote add origin "$XLSXIO_URL"
+          git -C "$xlsxio_dir" fetch --depth 1 origin "$XLSXIO_COMMIT"
+          git -C "$xlsxio_dir" checkout --detach FETCH_HEAD
+
+          mkdir -p "$XLSXIO_PREFIX"
+
+          cmake -S "$xlsxio_dir" -B "$xlsxio_dir/build" \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            -DBUILD_STATIC=ON \
+            -DBUILD_SHARED=OFF \
+            -DBUILD_DOCUMENTATION=FALSE \
+            -DBUILD_EXAMPLES=FALSE \
+            -DBUILD_TOOLS=ON \
+            -DWITH_LIBZIP=OFF
+
+          cmake --build "$xlsxio_dir/build" --parallel "${{ steps.jobs.outputs.jobs }}"
+          cmake --install "$xlsxio_dir/build" --prefix "$XLSXIO_PREFIX"
+
+      - name: Expose xlsxio toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "${{ steps.xlsxio.outputs.xlsxio_prefix }}/bin" >> "$GITHUB_PATH"
+          export PATH="${{ steps.xlsxio.outputs.xlsxio_prefix }}/bin:$PATH"
+          xlsxio_xlsx2csv -h > /dev/null
+
+      - name: Sync authoritative upstream core
+        id: upstream
+        shell: bash
+        env:
+          UPSTREAM_URL: ${{ needs.resolve-upstream-core.outputs.upstream_url }}
+          UPSTREAM_COMMIT: ${{ needs.resolve-upstream-core.outputs.upstream_commit }}
+        run: |
+          set -euo pipefail
+
+          upstream_url="$UPSTREAM_URL"
+          upstream_commit="$UPSTREAM_COMMIT"
+
+          if [[ -z "$upstream_commit" ]]; then
+            echo "Missing resolved upstream commit." >&2
+            exit 1
+          fi
+
+          if git remote | grep -qx upstream; then
+            git remote set-url upstream "$upstream_url"
+          else
+            git remote add upstream "$upstream_url"
+          fi
+
+          git fetch --depth 1 upstream "$upstream_commit"
+          git cat-file -e "$upstream_commit^{commit}"
+          echo "upstream_url=$upstream_url" >> "$GITHUB_OUTPUT"
+          echo "upstream_commit=$upstream_commit" >> "$GITHUB_OUTPUT"
+
+          git archive --format=tar "$upstream_commit" | tar -xf -
+
+          git checkout -- \
+            .gitignore \
+            README.md \
+            Makefile \
+            build_android.sh \
+            sync_public.sh \
+            dist.sh \
+            meson.build \
+            meson_options.txt \
+            android/
+
+          while IFS= read -r meson_file; do
+            git checkout -- "$meson_file"
+          done < <(git ls-files | grep -E '(^|/)meson\.build$' | grep -Ev '^src/')
+
+      - name: Set build metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          upstream_commit="${{ steps.upstream.outputs.upstream_commit }}"
+          if [[ -z "$upstream_commit" ]]; then
+            echo "Missing synchronized upstream commit metadata." >&2
+            exit 1
+          fi
+
+          upstream_short_commit="${upstream_commit:0:8}"
+          artifact_name="r47-android-${upstream_short_commit}"
+
+          echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
+
+          if [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
+            echo "release_tag=$upstream_short_commit" >> "$GITHUB_OUTPUT"
+            echo "release_title=R47 Android (Core: ${upstream_short_commit})" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build Android debug APK
+        shell: bash
+        env:
+          R47_NDK_VERSION: ${{ steps.versions.outputs.ndk_version }}
+          R47_BUILD_JOBS: ${{ steps.jobs.outputs.jobs }}
+          CMAKE_BUILD_PARALLEL_LEVEL: ${{ steps.jobs.outputs.jobs }}
+          R47_GRADLE_ARGS: '--no-daemon --stacktrace --console=plain'
+          R47_SOURCE_REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+          R47_SOURCE_COMMIT: ${{ github.sha }}
+          R47_UPSTREAM_SOURCE_REPOSITORY_URL: ${{ steps.upstream.outputs.upstream_url }}
+          R47_UPSTREAM_SOURCE_COMMIT: ${{ steps.upstream.outputs.upstream_commit }}
+          R47_XLSXIO_URL: ${{ steps.xlsxio.outputs.xlsxio_url }}
+          R47_XLSXIO_COMMIT: ${{ steps.xlsxio.outputs.xlsxio_commit }}
+          GRADLE_OPTS: '-Dorg.gradle.parallel=true -Dorg.gradle.workers.max=${{ steps.jobs.outputs.jobs }}'
+        run: |
+          set -euo pipefail
+          mkdir -p ci-artifacts/logs
+          ./build_android.sh 2>&1 | tee ci-artifacts/logs/build-android.log
+
+      - name: Upload Android build log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ steps.meta.outputs.artifact_name }}-build-log
+          path: ci-artifacts/logs/build-android.log
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Collect packaging evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          artifact_dir="$PWD/ci-artifacts"
+          unpack_dir="$artifact_dir/apk-unpacked"
+          release_dir="$artifact_dir/release"
+          apk_name="R47calculator-debug.apk"
+
+          mkdir -p "$unpack_dir" "$release_dir"
+          printf '%s\n' arm64-v8a > "$artifact_dir/expected-abis.txt"
+
+          original_apk="android/app/build/outputs/apk/debug/R47calculator-debug.apk"
+          apk="$original_apk"
+          release_apk="$release_dir/$apk_name"
+          zipalign_bin=$(find "${ANDROID_SDK_ROOT:?}/build-tools" -type f -name zipalign | sort -V | tail -n 1)
+          llvm_objdump="${ANDROID_SDK_ROOT}/ndk/${{ steps.versions.outputs.ndk_version }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-objdump"
+          elf_report="$release_dir/elf-load-segments.txt"
+          below_16k_report="$release_dir/elf-load-segments-below-16k.txt"
+
+          cp "$apk" "$release_apk"
+          unzip -q "$apk" -d "$unpack_dir"
+
+          find "$unpack_dir/lib" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort | tee "$release_dir/abis.txt"
+          diff -u "$artifact_dir/expected-abis.txt" "$release_dir/abis.txt"
+
+          "$zipalign_bin" -c -P 16 -v 4 "$apk" | tee "$release_dir/zipalign.txt"
+
+          : > "$elf_report"
+          while IFS= read -r -d '' so_file; do
+            {
+              echo "== ${so_file#$unpack_dir/} =="
+              "$llvm_objdump" -p "$so_file" | grep 'LOAD'
+              echo
+            } >> "$elf_report"
+          done < <(find "$unpack_dir/lib" -type f -name '*.so' -print0)
+
+          awk '
+            /^== / {
+              current = $0
+              next
+            }
+
+            /align 2\*\*[0-9]+/ {
+              if (match($0, /align 2\*\*[0-9]+/)) {
+                exponent_text = $0
+                sub(/.*align 2\*\*/, "", exponent_text)
+                sub(/[^0-9].*$/, "", exponent_text)
+                exponent = exponent_text + 0
+                if (exponent < 14) {
+                  if (current != "" && current != last_header) {
+                    print current
+                    last_header = current
+                  }
+                  print $0
+                }
+              }
+            }
+          ' "$elf_report" > "$below_16k_report"
+
+          if [[ -s "$below_16k_report" ]]; then
+            cat "$below_16k_report" >&2
+            echo "Detected a native library LOAD segment aligned below 16 KB." >&2
+            exit 1
+          fi
+
+          rm -f "$below_16k_report"
+          sha256sum "$release_apk" > "$release_dir/SHA256SUMS.txt"
+
+          cat > "$release_dir/BUILD-METADATA.txt" <<EOF
+          ref=${GITHUB_REF}
+          sha=${GITHUB_SHA}
+          run_id=${GITHUB_RUN_ID}
+          run_attempt=${GITHUB_RUN_ATTEMPT}
+          upstream_url=${{ steps.upstream.outputs.upstream_url }}
+          upstream_commit=${{ steps.upstream.outputs.upstream_commit }}
+          upstream_license_file=COPYING
+          android_source_repository_url=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}
+          android_source_commit=${GITHUB_SHA}
+          source_manifest_file=SOURCE
+          xlsxio_url=${{ steps.xlsxio.outputs.xlsxio_url }}
+          xlsxio_commit=${{ steps.xlsxio.outputs.xlsxio_commit }}
+          xlsxio_license_file=LICENSE.txt
+          compile_sdk=${{ steps.versions.outputs.compile_sdk }}
+          cmake_version=${{ steps.versions.outputs.cmake_version }}
+          ndk_version=${{ steps.versions.outputs.ndk_version }}
+          android_variant=debug
+          debug_apk_name=${apk_name}
+          debug_apk_signed=debug
+          EOF
+
+          cat > "$release_dir/SOURCE" <<EOF
+          upstream_url=${{ steps.upstream.outputs.upstream_url }}
+          upstream_commit=${{ steps.upstream.outputs.upstream_commit }}
+          android_source_repository_url=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}
+          android_source_commit=${GITHUB_SHA}
+          xlsxio_url=${{ steps.xlsxio.outputs.xlsxio_url }}
+          xlsxio_commit=${{ steps.xlsxio.outputs.xlsxio_commit }}
+          EOF
+
+          cp COPYING "$release_dir/COPYING"
+
+          cat > "$release_dir/LICENSE.txt" <<'EOF'
+          Copyright (C) 2016 Brecht Sanders All Rights Reserved
+
+          Permission is hereby granted, free of charge, to any person obtaining
+          a copy of this software and associated documentation files (the
+          "Software"), to deal in the Software without restriction, including
+          without limitation the rights to use, copy, modify, merge, publish,
+          distribute, sublicense, and/or sell copies of the Software, and to
+          permit persons to whom the Software is furnished to do so, subject to
+          the following conditions:
+
+          The above copyright notice and this permission notice shall be
+          included in all copies or substantial portions of the Software.
+
+          THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+          EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+          MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+          IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+          CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+          TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+          SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+          EOF
+
+      - name: Upload Android build artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ steps.meta.outputs.artifact_name }}
+          path: ci-artifacts/release/
+          if-no-files-found: error
+          retention-days: 14
+
+  publish-main-snapshot:
+    name: Publish main snapshot prerelease
+    if: |
+      needs.upstream-release-gate.outputs.should_run == 'true' &&
+      github.ref == 'refs/heads/main' &&
+      (
+        github.event_name == 'push' ||
+        github.event_name == 'workflow_dispatch' ||
+        github.event_name == 'schedule'
+      )
+    needs:
+      - upstream-release-gate
+      - simulator-tests
+      - android-debug
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Download Android build artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: ${{ needs.android-debug.outputs.artifact_name }}
+          path: release-assets
+
+      - name: Write release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          upstream_commit=$(sed -n 's/^upstream_commit=//p' release-assets/BUILD-METADATA.txt)
+          upstream_url=$(sed -n 's/^upstream_url=//p' release-assets/BUILD-METADATA.txt)
+          xlsxio_commit=$(sed -n 's/^xlsxio_commit=//p' release-assets/BUILD-METADATA.txt)
+          xlsxio_url=$(sed -n 's/^xlsxio_url=//p' release-assets/BUILD-METADATA.txt)
+          debug_apk_name=$(sed -n 's/^debug_apk_name=//p' release-assets/BUILD-METADATA.txt)
+          upstream_short_commit="${upstream_commit:0:8}"
+
+          cat > RELEASE_NOTES.md <<EOF
+          - Sync to commit [${upstream_short_commit}](${upstream_url}/-/commit/${upstream_commit})
+
+          This prerelease contains the debug-signed debug APK ${debug_apk_name}
+          built by ./build_android.sh from GitHub commit ${GITHUB_SHA}.
+
+          The calculator core was synchronized from ${upstream_url} at commit
+          ${upstream_commit} before the simulator and Android build steps ran.
+
+          The Linux host toolchain built xlsxio_xlsx2csv from ${xlsxio_url} at
+          commit ${xlsxio_commit} to satisfy the upstream font-generation
+          contract.
+
+          Included assets:
+          - ${debug_apk_name}
+          - SHA256SUMS.txt
+          - abis.txt
+          - zipalign.txt
+          - elf-load-segments.txt
+          - BUILD-METADATA.txt
+          - SOURCE
+          - COPYING
+          - LICENSE.txt
+
+          Notes:
+          - This is a main-branch snapshot prerelease, not a signed store release.
+          - The included APK is signed with the default debug signing config.
+          - The workflow ran the root simulator test suite with parallel make test.
+          - The workflow verified packaged ABIs and ran the Android 16 KB zip
+            alignment check described in the Android docs.
+          - COPYING is the GNU GPL text for the packaged calculator core.
+          - LICENSE.txt is the MIT license shipped by the pinned xlsxio project.
+
+          Workflow run:
+          https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          EOF
+
+      - name: Create and publish prerelease
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        with:
+          tag_name: ${{ needs.android-debug.outputs.release_tag }}
+          name: ${{ needs.android-debug.outputs.release_title }}
+          target_commitish: ${{ github.sha }}
+          body_path: RELEASE_NOTES.md
+          files: release-assets/*
+          fail_on_unmatched_files: true
+          overwrite_files: true
+          prerelease: true
+          draft: false
+          make_latest: false
