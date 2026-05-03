@@ -265,9 +265,9 @@ static void cpyxCplx(uint16_t combOrPerm) {
   real_t xReal, xImag, yReal, yImag;
   real_t tReal, tImag;
 
-  if(!getRegisterAsComplex(REGISTER_X, &xReal, &xImag)
-      || !getRegisterAsComplex(REGISTER_Y, &yReal, &yImag))
+  if(!getRegisterAsComplex(REGISTER_X, &xReal, &xImag) || !getRegisterAsComplex(REGISTER_Y, &yReal, &yImag)) {
     return;
+  }
 
   (combOrPerm == CP_COMBINATION) ? cyxCplx(&yReal, &yImag, &xReal, &xImag, &tReal, &tImag, &ctxtReal39)
                                  : pyxCplx(&yReal, &yImag, &xReal, &xImag, &tReal, &tImag, &ctxtReal39);

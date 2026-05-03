@@ -505,8 +505,8 @@
 #define SFL_ALPHA                    477 // The SFL item names are not used
 #define SFL_alphaCAP                 478 // The SFL item names are not used
 #define SFL_RUNTIM                   479 // The SFL item names are not used
-#define SFL_RUNIO                    480 // The SFL item names are not used
-#define SFL_PRINTS                   481 // The SFL item names are not used
+#define SFL_AMORT_HP12C              480 // The SFL item names are not used
+#define SFL_spare                    481 // The SFL item names are not used
 #define SFL_TRACE                    482 // The SFL item names are not used
 #define SFL_USER                     483 // The SFL item names are not used
 #define SFL_LOWBAT                   484 // The SFL item names are not used
@@ -1754,7 +1754,7 @@
 #define ITM_ARG                     1706
 #define ITM_PRINTERXY               1707
 #define ITM_PRINTERADV              1708
-#define ITM_PRINTERCHAR             1709
+#define ITM_PRINTERCHAR_OLD         1709
 #define ITM_PRINTERDLAY             1710
 #define ITM_PRINTERLCD              1711
 #define ITM_PRINTERMODE             1712
@@ -1762,11 +1762,11 @@
 #define ITM_PRINTERR                1714
 #define ITM_PRINTERREGS             1715
 #define ITM_PRINTERSTK              1716
-#define ITM_PRINTERTAB              1717
+#define ITM_PRINTERTAB_OLD          1717
 #define ITM_PRINTERUSER             1718
 #define ITM_PRINTERWIDTH            1719
 #define ITM_PRINTERSIGMA            1720
-#define ITM_PRINTERHASH             1721
+#define ITM_PRINTERHASH_OLD         1721
 
 #define ITM_FBR                     1722
 
@@ -2103,7 +2103,7 @@
 #define ITM_2049                    2049  //blank
 #define ITM_2050                    2050  //blank
 #define ITM_2051                    2051  //blank
-#define ITM_2052                    2052  //blank
+#define ITM_AMORT_HP12C             2052
 #define ITM_2TO10                   2053
 #define ITM_USER_HRESET             2054
 #define ITM_USER_PRESET             2055
@@ -2155,8 +2155,8 @@
 #define ITM_RADtoGRAD               2101
 #define MNU_TRG_C47                 2102
 #define MNU_TRG_C47_MORE            2103
-#define ITM_2104                    2104
-#define ITM_2105                    2105
+#define ITM_KtoM                    2104
+#define ITM_MtoK                    2105
 #define MNU_VECT                    2106
 #define MNU_PLOTTING                2107
 #define MNU_TAMINDIRECT             2108
@@ -2298,8 +2298,8 @@
 #define MNU_YESNO                   2244
 #define ITM_YES                     2245
 #define ITM_NO                      2246
-#define ITM_RCLVEL                  2247
-#define ITM_STOVEL                  2248
+#define ITM_RCLVEL_OLD              2247
+#define ITM_STOVEL_OLD              2248
 #define ITM_RCLELPLUS               2249
 #define ITM_STOELPLUS               2250
 
@@ -2341,10 +2341,10 @@
 #define SFL_FGLNLIM                 2285 // The SFL item names are not used
 #define SFL_FGLNFUL                 2286 // The SFL item names are not used
 #define SFL_FGGR                    2287 // The SFL item names are not used
-#define SFL_2288                    2288 // The SFL item names are not used
-#define SFL_2289                    2289 // The SFL item names are not used
-#define SFL_2290                    2290 // The SFL item names are not used
-#define SFL_2291                    2291 // The SFL item names are not used
+#define SFL_3DPHYS                  2288 // The SFL item names are not used
+#define SFL_3DXYZ                   2289 // The SFL item names are not used
+#define SFL_PRTEN                   2290 // The SFL item names are not used
+#define SFL_NORM                    2291 // The SFL item names are not used
 #define SFL_2292                    2292 // The SFL item names are not used
 #define SFL_2293                    2293 // The SFL item names are not used
 #define SFL_2294                    2294 // The SFL item names are not used
@@ -2455,7 +2455,7 @@
 #define ITM_USER_R47bk_fg           2392
 #define ITM_USER_R47fg_bk           2393
 #define ITM_USER_R47fg_g            2394
-#define ITM_2395                    2395
+#define ITM_ELLIPSE                 2395
 
 #define ITM_ANGLEQ                  2396
 #define ITM_DATEQ                   2397
@@ -2540,13 +2540,13 @@
 #define ITM_V3toCYL                 2470
 #define ITM_V3toSPH                 2471
 #define ITM_VVDIST                  2472
-#define ITM_CONCAT                  2473
+#define ITM_M_CONCAT                2473
 
-#define ITM_STKtoV3                 2474
+#define ITM_STKtoV3_M               2474
 #define ITM_STKtoV2                 2475
-#define ITM_V3toSTK                 2476
+#define ITM_V3toSTK_M               2476
 #define ITM_V2toSTK                 2477
-#define ITM_VECtoSTK                2478
+#define ITM_2478                    2478
 #define ITM_V100                    2479
 #define ITM_V010                    2480
 #define ITM_V001                    2481
@@ -2557,8 +2557,8 @@
 #define ITM_STOVEL1                 2485
 #define ITM_STOVEL2                 2486
 #define ITM_STOVEL3                 2487
-#define ITM_2488                    2488
-#define ITM_2489                    2489
+#define ITM_STKtoV3_P               2488
+#define ITM_V3toSTK_P               2489
 #define ITM_V10                     2490
 #define ITM_V01                     2491
 #define ITM_CPXexV                  2492
@@ -2679,8 +2679,8 @@
 
 #define MNU_XXFCNS                  2596
 #define MNU_MULTSTK                 2597
-#define ITM_2598                    2598
-#define ITM_2599                    2599
+#define ITM_MtoTH                   2598
+#define ITM_THtoM                   2599
 
 #define MNU_UNIFORM                 2600    // Uniform distributions
 #define ITM_UNIFORMP                2601
@@ -2787,19 +2787,19 @@
 #define ITM_MAN                     2689
 #define ITM_NORM                    2690
 #define ITM_TRACE                   2691
-#define ITM_PRINTERLIST             2692
-#define ITM_2693                    2693
-#define ITM_2694                    2694
-#define ITM_2695                    2695
-#define ITM_2696                    2696
-#define ITM_2697                    2697
+#define ITM_STRACE                  2692
+#define ITM_PRINTERLIST             2693
+#define ITM_PRINTERXFN              2694
+#define ITM_PRINTERCHAR             2695
+#define ITM_PRINTERTAB              2696
+#define ITM_PRINTERHASH             2697
 #define ITM_2698                    2698
-#define ITM_2699                    2699 //spares for the print menu
+#define ITM_PRINT_ALL_ITEMS         2699 //spares for the print menu
 
 #define ITM_3DPHYS                  2700
 #define ITM_3DXYZ                   2701
-#define ITM_2702                    2702
-#define ITM_2703                    2703
+#define ITM_STKtoV3                 2702
+#define ITM_V3toSTK                 2703
 
 #define ITM_PNORM                   2704
 #define ITM_NNZ                     2705
@@ -2810,11 +2810,29 @@
 #define ITM_CSUM                    2710
 #define MNU_TAMNORM                 2711
 #define ITM_M_CC                    2712
-#define ITM_2713                    2713
-#define ITM_2714                    2714
-#define ITM_2715                    2715 //spares for the matrix and vectors
+#define ITM_M_CMAX                  2713
+#define ITM_M_CMIN                  2714
+#define ITM_M_FIND                  2715
 
-#define LAST_ITEM                   2716
+#define ITM_AMORT_P1                2716
+#define ITM_AMORT_P2                2717
+#define ITM_AMORT_INT               2718
+#define ITM_AMORT_PRN               2719
+#define ITM_AMORT_BAL               2720
+#define ITM_AMORT_NXT               2721
+#define ITM_2722                    2722
+#define ITM_2723                    2723
+#define ITM_2724                    2724
+#define ITM_2725                    2725 //spares for TVM/AMORT
+
+#define ITM_MIDENT                  2726
+#define ITM_M_SQRT                  2727
+#define ITM_RCLVEL                  2728
+#define ITM_STOVEL                  2729
+#define ITM_2730                    2730
+#define ITM_2731                    2731 //spares for Matrix/Vector
+
+#define LAST_ITEM                   2732
 
 #define SCREENDUMP                    9875 // Used to signal screen dump operated (not to be confused with SNAP)
 #define NOPARAM                       9876 // Item for function who don't need an item

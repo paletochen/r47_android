@@ -191,8 +191,7 @@
           // register name or number
           registerNameWidth = showString(tmpString, &standardFont, 1, 219 - 22 * row, vmNormal, false, true);
 
-          if(   (regist <  REGISTER_X && regist % 5 == 4)
-            || (regist >= REGISTER_X && regist % 4 == 3)) {
+          if((regist <  REGISTER_X && regist % 5 == 4) || (regist >= REGISTER_X && regist % 4 == 3)) {
             drawSinglePixelFullWidthLine(218 - 22 * row);
           }
 

@@ -363,7 +363,7 @@ void subDateReal(void) {
   real34_t val;
 
   if(xAngularMode == amNone) {
-    real34ToIntegralValue(REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X), roundingMode);
+    real34ToIntegralValue(REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X), roundingModeTable[roundingMode]);
     real34Multiply(REGISTER_REAL34_DATA(REGISTER_X), const34_86400, &val);
     reallocateRegister(REGISTER_X, dtDate, 0, amNone);
     real34Subtract(REGISTER_REAL34_DATA(REGISTER_Y), &val, REGISTER_REAL34_DATA(REGISTER_X));

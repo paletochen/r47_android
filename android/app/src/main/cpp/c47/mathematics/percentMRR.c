@@ -13,20 +13,23 @@ static void percentMRR() {
   /*
    * Convert register X.
    */
-  if(!getRegisterAsReal(REGISTER_X, &xReal))
+  if(!getRegisterAsReal(REGISTER_X, &xReal)) {
     return;
+  }
 
   /*
    * Convert register Y.
    */
-  if(!getRegisterAsReal(REGISTER_Y, &yReal))
+  if(!getRegisterAsReal(REGISTER_Y, &yReal)) {
     return;
+  }
 
   /*
    * Convert register Z
    */
-  if(!getRegisterAsReal(REGISTER_Z, &zReal))
+  if(!getRegisterAsReal(REGISTER_Z, &zReal)) {
     return;
+  }
 
   /*
    * Calculate %MRR

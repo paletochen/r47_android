@@ -52,7 +52,6 @@ void fnRound(uint16_t unusedButMandatoryParameter) {
 
 void roundTime(void) {
   real34_t real34;
-  uint32_t digits;
 
   real34Copy(REGISTER_REAL34_DATA(REGISTER_X), &real34);
 
@@ -68,13 +67,14 @@ void roundTime(void) {
       break;
     }
     default: { // round to seconds, milliseconds, microseconds, ...
-      for(digits = 4; digits <= timeDisplayFormatDigits; ++digits) {
-        real34Multiply(&real34, const34_10, &real34);
-      }
-      real34ToIntegralValue(&real34, &real34, roundingMode);
-      for(digits = 4; digits <= timeDisplayFormatDigits; ++digits) {
-        real34Divide(&real34, const34_10, &real34);
-      }
+      // round to timeDisplayFormatDigits decimal places via scaleB (exponent shift)
+      int32_t n = timeDisplayFormatDigits - 3;
+      real34_t shift;
+      int32ToReal34(n, &shift);
+      real34ScaleB(&real34, &shift, &real34);
+      real34ToIntegralValue(&real34, &real34, roundingModeTable[roundingMode]);
+      int32ToReal34(-n, &shift);
+      real34ScaleB(&real34, &shift, &real34);
     }
   }
 
@@ -92,7 +92,7 @@ void roundDate(void) {
   real34Subtract(&real34, const34_43200, &real34);
   real34Divide(&real34, const34_86400, &real34);
 
-  real34ToIntegralValue(&real34, &real34, roundingMode);
+  real34ToIntegralValue(&real34, &real34, roundingModeTable[roundingMode]);
 
   real34Multiply(&real34, const34_86400, &real34);
   real34Add(&real34, const34_43200, &real34);

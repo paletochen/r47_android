@@ -112,28 +112,33 @@ void divComplexComplex75(const real_t *numerReal, const real_t *numerImag, const
 
 #if defined(OPTION_CUBIC_159) || defined(OPTION_SQUARE_159) || defined(OPTION_EIGEN_159)
 void divComplexComplex159(const real_t *numerReal, const real_t *numerImag, const real_t *denomReal, const real_t *denomImag, real_t *quotientReal, real_t *quotientImag, realContext_t *realContext) {
-  real159_t realNumer, realDenom, a, b, c, d;
+  REAL_T_PTR(realNumer, 159);
+  REAL_T_PTR(realDenom, 159);
+  REAL_T_PTR(a, 159);
+  REAL_T_PTR(b, 159);
+  REAL_T_PTR(c, 159);
+  REAL_T_PTR(d, 159);
 
-  realSetZero((real_t *)&realNumer);
-  realSetZero((real_t *)&realDenom);
-  realSetZero((real_t *)&a);
-  realSetZero((real_t *)&b);
-  realSetZero((real_t *)&c);
-  realSetZero((real_t *)&d);
+  realSetZero(realNumer);
+  realSetZero(realDenom);
+  realSetZero(a);
+  realSetZero(b);
+  realSetZero(c);
+  realSetZero(d);
 
-  realCopy(numerReal, (real_t *)&a);
-  realCopy(numerImag, (real_t *)&b);
-  realCopy(denomReal, (real_t *)&c);
-  realCopy(denomImag, (real_t *)&d);
+  realCopy(numerReal, a);
+  realCopy(numerImag, b);
+  realCopy(denomReal, c);
+  realCopy(denomImag, d);
 
-  if(realIsNaN((real_t *)&a) || realIsNaN((real_t *)&b) || realIsNaN((real_t *)&c) || realIsNaN((real_t *)&d)) {
+  if(realIsNaN(a) || realIsNaN(b) || realIsNaN(c) || realIsNaN(d)) {
     realSetNaN(quotientReal);
     realSetNaN(quotientImag);
     return;
   }
 
-  if(realIsInfinite((real_t *)&c) || realIsInfinite((real_t *)&d)) {
-    if(realIsInfinite((real_t *)&a) || realIsInfinite((real_t *)&b)) {
+  if(realIsInfinite(c) || realIsInfinite(d)) {
+    if(realIsInfinite(a) || realIsInfinite(b)) {
       realSetNaN(quotientReal);
       realSetNaN(quotientImag);
     }
@@ -144,27 +149,27 @@ void divComplexComplex159(const real_t *numerReal, const real_t *numerImag, cons
     return;
   }
 
-  if(realIsInfinite((real_t *)&a) && !realIsInfinite((real_t *)&b)) {
-    realSetZero((real_t *)&b);
+  if(realIsInfinite(a) && !realIsInfinite(b)) {
+    realSetZero(b);
   }
-  if(realIsInfinite((real_t *)&b) && !realIsInfinite((real_t *)&a)) {
-    realSetZero((real_t *)&a);
+  if(realIsInfinite(b) && !realIsInfinite(a)) {
+    realSetZero(a);
   }
 
   // Denominator: c² + d²
-  realMultiply((real_t *)&c, (real_t *)&c, (real_t *)&realDenom, realContext);
-  realFMA((real_t *)&d, (real_t *)&d, (real_t *)&realDenom, (real_t *)&realDenom, realContext);
+  realMultiply(c, c, realDenom, realContext);
+  realFMA(d, d, realDenom, realDenom, realContext);
 
   // Real part: (a*c + b*d) / (c² + d²)
-  realMultiply((real_t *)&a, (real_t *)&c, (real_t *)&realNumer, realContext);
-  realFMA((real_t *)&b, (real_t *)&d, (real_t *)&realNumer, (real_t *)&realNumer, realContext);
-  realDivide((real_t *)&realNumer, (real_t *)&realDenom, quotientReal, realContext);
+  realMultiply(a, c, realNumer, realContext);
+  realFMA(b, d, realNumer, realNumer, realContext);
+  realDivide(realNumer, realDenom, quotientReal, realContext);
 
   // Imaginary part: (b*c - a*d) / (c² + d²)
-  realMultiply((real_t *)&b, (real_t *)&c, (real_t *)&realNumer, realContext);
-  realChangeSign((real_t *)&a);
-  realFMA((real_t *)&a, (real_t *)&d, (real_t *)&realNumer, (real_t *)&realNumer, realContext);
-  realDivide((real_t *)&realNumer, (real_t *)&realDenom, quotientImag, realContext);
+  realMultiply(b, c, realNumer, realContext);
+  realChangeSign(a);
+  realFMA(a, d, realNumer, realNumer, realContext);
+  realDivide(realNumer, realDenom, quotientImag, realContext);
 }
 #endif //OPTION_CUBIC_159 || OPTION_SQUARE_159 || OPTION_EIGEN_159
 
@@ -174,8 +179,7 @@ void divComplexComplex(const real_t *numerReal, const real_t *numerImag, const r
     divComplexComplex75(numerReal, numerImag, denomReal, denomImag, quotientReal, quotientImag, realContext);
   #if defined(OPTION_CUBIC_159) || defined(OPTION_SQUARE_159) || defined(OPTION_EIGEN_159)
   }
-  else
-  if(realContext->digits <= 159) {
+  else if(realContext->digits <= 159) {
     divComplexComplex159(numerReal, numerImag, denomReal, denomImag, quotientReal, quotientImag, realContext);
   #endif //OPTION_CUBIC_159 || OPTION_SQUARE_159 || OPTION_EIGEN_159
   }

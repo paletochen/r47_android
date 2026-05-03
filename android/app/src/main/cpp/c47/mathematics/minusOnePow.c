@@ -51,8 +51,10 @@ static void m1PowShoI(void) {
 static void m1PowReal(void) {
   real_t x, y;
 
-  if(!getRegisterAsReal(REGISTER_X, &x))
+  if(!getRegisterAsReal(REGISTER_X, &x)) {
     return;
+  }
+
   if(realIsInfinite(&x) || realIsNaN(&x)) {
     convertRealToResultRegister(const_NaN, REGISTER_X, amNone);
     return;
@@ -74,7 +76,7 @@ static void m1PowReal(void) {
     const angularMode_t savedAngularMode = currentAngularMode;
     currentAngularMode = amRadian;
 
-    realMultiply(&x, const_pi, &x, &ctxtReal75);
+    realMultiply(&x, const39_pi, &x, &ctxtReal75);
     eulersFormula(&x, const_0, &x, &y, &ctxtReal39);
 
     convertComplexToResultRegister(&x, &y, REGISTER_X);
@@ -109,7 +111,7 @@ static void m1PowCplx(void) {
   angularMode_t savedAngularMode = currentAngularMode;
   currentAngularMode = amRadian;
 
-  mulComplexReal(&zReal, &zImag, const_pi, &zReal, &zImag, &ctxtReal75);
+  mulComplexReal(&zReal, &zImag, const39_pi, &zReal, &zImag, &ctxtReal75);
   eulersFormula(&zReal, &zImag, &zReal, &zImag, &ctxtReal75);
 
   convertComplexToResultRegister(&zReal, &zImag, REGISTER_X);

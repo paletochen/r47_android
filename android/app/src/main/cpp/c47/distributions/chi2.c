@@ -7,7 +7,7 @@
 
 #include "c47.h"
 
-#if defined(SAVE_SPACE_DM42_15)
+#if defined(SAVE_SPACE_DM42_17B)
   bool_t checkRegisterNoFP(const real_t *reg){return false;}
   void fnChi2P(uint16_t unusedButMandatoryParameter){}
   void fnChi2L(uint16_t unusedButMandatoryParameter){}
@@ -152,7 +152,7 @@
     realAdd(&r, &q, &q, realContext);
     WP34S_LnGamma(&p, &r, realContext);
     realSubtract(&q, &r, &q, realContext);
-    realMultiply(&p, const_ln2, &r, realContext);
+    realMultiply(&p, const39_ln2, &r, realContext);
     realSubtract(&q, &r, &q, realContext);
     realExp(&q, res, realContext);
   }
@@ -206,7 +206,7 @@
     realCopy(realCompareEqual(k, const_1) ? const_0 : k, &q);
     realChangeSign(&q);
     realPower(&p, &q, &p, realContext);
-    realDivide(&p, const_pi, &p, realContext);
+    realDivide(&p, const39_pi, &p, realContext);
     if(realCompareGreaterEqual(&reg0, &p)) {
       WP34S_qf_q_est(&reg0, &q, NULL, realContext);
       int32ToReal(222, &s);
@@ -219,7 +219,7 @@
       realMultiply(&q, &q, &r, realContext);
       realMultiply(&r, &q, &q, realContext);
       realMultiply(&q, k, &q, realContext);
-      realMultiply(const_eE, k, &r, realContext);
+      realMultiply(const39_eE, k, &r, realContext);
       realAdd(&r, const_8, &r, realContext);
       if(realCompareGreaterEqual(&q, &r)) {
         realMultiply(&q, const_1on2, &q, realContext);
@@ -294,4 +294,4 @@
     realSetNaN(res); // ERR 20
   }
 
-#endif //SAVE_SPACE_DM42_15
+#endif //SAVE_SPACE_DM42_17B

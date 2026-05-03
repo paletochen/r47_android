@@ -85,8 +85,7 @@ hash (register const char *str, register size_t len)
     };
   register unsigned int hval = 0;
 
-  switch(len)
-    {
+  switch(len) {
       default:
         hval += asso_values[(unsigned char)str[2]];
 #if (defined __cplusplus && (__cplusplus >= 201703L || (__cplusplus >= 201103L && defined __clang__ && __clang_major__ + (__clang_minor__ >= 9) > 3))) || (defined __STDC_VERSION__ && __STDC_VERSION__ >= 202000L && ((defined __GNUC__ && __GNUC__ >= 10) || (defined __clang__ && __clang_major__ >= 9)))

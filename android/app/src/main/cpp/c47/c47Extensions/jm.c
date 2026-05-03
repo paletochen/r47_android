@@ -150,7 +150,7 @@ void fnJM(uint16_t JM_OPCODE) {
   #define JM_TEMP_J REGISTER_J // 96
   #define JM_TEMP_K REGISTER_K // 95
 
-  #if !defined(SAVE_SPACE_DM42_6)
+  #if defined(OPTION_ELEC)
     if(JM_OPCODE == 6) {                                         // Delta to Star   ZYX to ZYX; destroys IJKL & JMTEMP
       saveForUndo();
       setSystemFlag(FLAG_ASLIFT);
@@ -407,7 +407,7 @@ void fnJM(uint16_t JM_OPCODE) {
     }
 
 
-  #endif // !SAVE_SPACE_DM42_6
+  #endif // OPTION_ELEC
   // Item 255 is NOP
 }
 

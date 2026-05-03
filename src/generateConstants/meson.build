@@ -9,6 +9,6 @@ generateConstants = executable('generateConstants',
 
 constantPointers_ch = custom_target('constantPointers.ch',
   build_by_default : false,
-  output           : ['constantPointers.c', 'constantPointers.h'],
+  output           : ['constantPointers.c', 'constantPointers.h', 'constantPointers2.c'],
   command          : [generateConstants, '@OUTPUT@']
 )

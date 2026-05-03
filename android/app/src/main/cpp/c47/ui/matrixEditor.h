@@ -85,4 +85,8 @@
 
   bool_t   wrapIJ                         (uint16_t rows, uint16_t cols);
 
+//  void displayVectorAngle(const real34Matrix_t *matrix, int j, int rows, int cols, uint8_t *toBeAngle);
+//  void displayVectorElement(const real34Matrix_t *matrix, int j, int ii, int rows, int cols, real34_t *element, uint8_t *toBeAngle);
+
+
 #endif // !MATRIXEDITOR_H

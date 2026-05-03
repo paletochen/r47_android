@@ -28,8 +28,8 @@ void sincpiComplex(const real_t *real, const real_t *imag, real_t *resReal, real
   else {
     real_t sina, cosa, sinhb, coshb, sinR, sinImag;
 
-    realMultiply(&rr, const_pi, &rr, realContext);
-    realMultiply(&ii, const_pi, &ii, realContext);
+    realMultiply(&rr, const39_pi, &rr, realContext);
+    realMultiply(&ii, const39_pi, &ii, realContext);
 
     C47_WP34S_Cvt2RadSinCosTan(&rr, amRadian, &sina, &cosa, NULL, realContext);
     WP34S_SinhCosh(&ii, &sinhb, &coshb, realContext);
@@ -50,8 +50,9 @@ static void sincpiReal(void) {
   angularMode_t xAngularMode;
   const uint32_t type = getRegisterDataType(REGISTER_X);
 
-  if(!getRegisterAsReal(REGISTER_X, &x))
+  if(!getRegisterAsReal(REGISTER_X, &x)) {
     return;
+  }
 
   if(realIsInfinite(&x)) {
     if(getSystemFlag(FLAG_SPCRES)) {
@@ -74,9 +75,10 @@ static void sincpiReal(void) {
     }
     else {
       xAngularMode = getRegisterAngularMode(REGISTER_X);
-      if(xAngularMode != amNone)
+      if(xAngularMode != amNone) {
         convertAngleFromTo(&x, xAngularMode, amRadian, &ctxtReal75);
-      realMultiply(&x, const_pi, &x, &ctxtReal75);   //This pi is to convert sincpi to sinc for all input, regardless
+      }
+      realMultiply(&x, const39_pi, &x, &ctxtReal75);   //This pi is to convert sincpi to sinc for all input, regardless
       C47_WP34S_Cvt2RadSinCosTan(&x, amRadian, &sine, NULL, NULL, &ctxtReal75);
       realDivide(&sine, &x, &x, &ctxtReal75);
     }
@@ -88,8 +90,9 @@ static void sincpiReal(void) {
 static void sincpiCplx(void) {
   real_t zReal, zImag;
 
-  if(!getRegisterAsComplex(REGISTER_X, &zReal, &zImag))
+  if(!getRegisterAsComplex(REGISTER_X, &zReal, &zImag)) {
     return;
+  }
 
   sincpiComplex(&zReal, &zImag, &zReal, &zImag, &ctxtReal39);
 

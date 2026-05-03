@@ -23,6 +23,7 @@
 int8_t   fnCbIsSet             (int16_t item);
 void     fnRefreshState        (void);
 int16_t  fnItemShowValue       (int16_t item);
+char*    stringToSub           (const char *showText);
 char*    figlabel              (const char* label, const char* showText, int16_t showValue);
 
 
@@ -62,6 +63,9 @@ char*    figlabel              (const char* label, const char* showText, int16_t
 #define RB_BA                  155 // BASE SCREEN/MENU
 #define RB_GW                  156 // GROW/WRAP
 #define RB_KY                  157 // KEYS LAYOUT
+#define RB_PRM                 158 // PRINTER MODEL
+#define RB_PRON                159 // PRINTER ON/OFF
+#define RB_PM                  160 // PRINTER MODE (MAN/NORM/TRACE)
 
 //Not strictly needed to follow on numerically from RB/CB types above, but why not
 #define JC_PROPER              165    // CB FractionType
@@ -70,6 +74,7 @@ char*    figlabel              (const char* label, const char* showText, int16_t
 #define PRTACT0                174    // PRTACT checkbox
 #define PRTACT1                175    // PRTACT checkbox
 #define JC_ITM_TST             180    //dr
+
 #define JC_INTG                191    // graph setup
 #define JC_DIFF                192    // graph setup
 #define JC_RMS                 193    // graph setup

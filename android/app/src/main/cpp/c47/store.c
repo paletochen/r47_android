@@ -563,47 +563,65 @@ void fnStoreStack(uint16_t regist) {
 
 static void _fnStoreElement(bool_t stepForward);
 
-
 void fnStoreVElement(uint16_t ix) {
+  uint16_t matrixIndexBak = matrixIndex;
   const int16_t iBak = getIRegisterAsInt(true);
   const int16_t jBak = getJRegisterAsInt(true);
   real_t rx;
-
-  if((getRegisterDataType(REGISTER_Y) == dtReal34Matrix) || (getRegisterDataType(REGISTER_Y) == dtComplex34Matrix)) {
-    if(!getRegisterAsComplex(REGISTER_X, &rx, &rx) && !getRegisterAsReal(REGISTER_X, &rx)) {
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
-      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-        sprintf(errorMessage, "DataType %" PRIu32, getRegisterDataType(REGISTER_X));
-        moreInfoOnError("In function fnStoreVElement:", errorMessage, "is not a Real/Integer/Complex.", "");
-      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      return;
-    }
-    if(getRegisterDataType(REGISTER_Y) == dtReal34Matrix) {
-      real34Matrix_t x;
-      linkToRealMatrixRegister(REGISTER_Y, &x);
-      setIRegisterAsInt(false, (ix-1) / x.header.matrixColumns+1);
-      setJRegisterAsInt(false, (ix-1) % x.header.matrixColumns+1);
-    }
-    else { //Complex Matrix
-      complex34Matrix_t x;
-      linkToComplexMatrixRegister(REGISTER_Y, &x);
-      setIRegisterAsInt(false, (ix-1) / x.header.matrixColumns+1);
-      setJRegisterAsInt(false, (ix-1) % x.header.matrixColumns+1);
-    }
-    uint16_t matrixIndexBak = matrixIndex;
-    matrixIndex = REGISTER_Y;
-    _fnStoreElement(false);
-    setIRegisterAsInt(false, iBak);
-    setJRegisterAsInt(false, jBak);
-    matrixIndex = matrixIndexBak;
+  uint16_t rows, cols;
+  if(!getMatrixDims(REGISTER_Y, "In function fnStoreVElement:", &rows, &cols)) {
+    return;
   }
-  else {
+  if(!getRegisterAsComplex(REGISTER_X, &rx, &rx) && !getRegisterAsReal(REGISTER_X, &rx)) {
     displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      sprintf(errorMessage, "DataType %" PRIu32, getRegisterDataType(REGISTER_Y));
-      moreInfoOnError("In function fnStoreVElement:", errorMessage, "is not a matrix.", "");
+      sprintf(errorMessage, "DataType %" PRIu32, getRegisterDataType(REGISTER_X));
+      moreInfoOnError("In function fnStoreVElement:", errorMessage, "is not a Real/Integer/Complex.", "");
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+    return;
   }
+  setIRegisterAsInt(false, (ix-1) / cols+1);
+  setJRegisterAsInt(false, (ix-1) % cols+1);
+  matrixIndex = REGISTER_Y;
+  _fnStoreElement(false);
+  setIRegisterAsInt(false, iBak);
+  setJRegisterAsInt(false, jBak);
+  matrixIndex = matrixIndexBak;
+}
+
+void fnStoreVector(uint16_t regist) {
+  uint16_t matrixIndexBak = matrixIndex;
+  const int16_t iBak = getIRegisterAsInt(true);
+  const int16_t jBak = getJRegisterAsInt(true);
+  uint16_t rows, cols;
+  if(!getMatrixDims(REGISTER_X, "In function fnStoreVector:", &rows, &cols)) {
+    return;
+  }
+  copySourceRegisterToDestRegister(getStackTop(), TEMP_REGISTER_1);
+  setSystemFlag(FLAG_ASLIFT);
+  liftStack();
+  matrixIndex = REGISTER_Y;
+  for(uint16_t ix = 1; ix <= rows * cols && lastErrorCode == 0; ix++) {  //for 5x5, from 1 to 25
+    setIRegisterAsInt(false, (ix-1) / cols + 1);
+    setJRegisterAsInt(false, (ix-1) % cols + 1);
+    fnDrop(NOPARAM);
+    fnRecall(regist++);
+    if(getRegisterDataType(REGISTER_X) != dtComplex34) {
+      fnToReal(NOPARAM);
+    }
+    if(lastErrorCode != 0) {
+      return;
+    }
+    _fnStoreElement(false);
+    if(lastErrorCode != 0) {
+      return;
+    }
+  }
+  setIRegisterAsInt(false, iBak);
+  setJRegisterAsInt(false, jBak);
+  matrixIndex = matrixIndexBak;
+  fnDrop(NOPARAM);
+  copySourceRegisterToDestRegister(TEMP_REGISTER_1, getStackTop());
 }
 
 void fnStoreElementPlus(uint16_t unusedButMandatoryParameter) {

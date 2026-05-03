@@ -117,36 +117,39 @@ bool_t realCompareAbsGreaterThan(const real_t *number1, const real_t *number2) {
   realContext_t c = ctxtReal75;
   c.digits = max(max(75, number1->digits), number2->digits);
   #if defined(ALLOW_159)
-    real159_t num1, num2;
+    REAL_T_PTR(num1, 159);
+    REAL_T_PTR(num2, 159);
     const int32_t k = 159;
   #else
-    real_t num1, num2;
+    REAL_T_PTR(num1, 75);
+    REAL_T_PTR(num2, 75);
     const int32_t k = 75;
   #endif //ALLOW_159
   if(c.digits > k) {
-    sprintf(errorMessage, "Exceed %d digits :realCompareAbsGreaterThan", (int)k);
+    sprintf(errorMessage, "Exceed %" PRId32 " digits :realCompareAbsGreaterThan", k);
     displayBugScreen(errorMessage);
   }
-  realCopyAbs(number1, (real_t*)&num1);
-  realCopyAbs(number2, (real_t*)&num2);
-  realCompare((real_t*)&num1, (real_t*)&num2, (real_t*)&num2, &c);
-  return realIsPositive((real_t*)&num2) && !realIsZero((real_t*)&num2);
+  realCopyAbs(number1, num1);
+  realCopyAbs(number2, num2);
+  realCompare(num1, num2, num2, &c);
+  return realIsPositive(num2) && !realIsZero(num2);
 }
 
 
 /*
 bool_t realCompareAbsGreaterEqual(const real_t *number1, const real_t *number2) {
-  real159_t num1, num2;
+  REAL_T_PTR(num1, 159);
+  REAL_T_PTR(num2, 159);
   realContext_t c = ctxtReal75;
   c.digits = max(max(75, number1->digits), number2->digits);
   if(c.digits > 159) {
     sprintf(errorMessage, "Exceed 159 digits in comparisonReals.c");
     displayBugScreen(errorMessage);
   }
-  realCopyAbs(number1, (real_t*)&num1);
-  realCopyAbs(number2, (real_t*)&num2);
-  realCompare((real_t*)&num1, (real_t*)&num2, (real_t*)&num2, &c);
-  return realIsPositive((real_t*)&num2) || realIsZero((real_t*)&num2);
+  realCopyAbs(number1, num1);
+  realCopyAbs(number2, num2);
+  realCompare(num1, num2, num2, &c);
+  return realIsPositive(num2) || realIsZero(num2);
 }
 */
 
@@ -155,20 +158,22 @@ bool_t realCompareAbsLessThan(const real_t *number1, const real_t *number2) {
   realContext_t c = ctxtReal75;
   c.digits = max(max(75, number1->digits), number2->digits);
   #if defined(ALLOW_159)
-    real159_t num1, num2;
+    REAL_T_PTR(num1, 159);
+    REAL_T_PTR(num2, 159);
     const int32_t k = 159;
   #else
-    real_t num1, num2;
+    REAL_T_PTR(num1, 75);
+    REAL_T_PTR(num2, 75);
     const int32_t k = 75;
   #endif //OPTION_CUBIC_159 || OPTION_EIGEN_159
   if(c.digits > k) {
-    sprintf(errorMessage, "Exceed %d digits :realCompareAbsLessThan", (int)k);
+    sprintf(errorMessage, "Exceed %" PRId32 " digits :realCompareAbsLessThan", k);
     displayBugScreen(errorMessage);
   }
-  realCopyAbs(number1, (real_t*)&num1);
-  realCopyAbs(number2, (real_t*)&num2);
-  realCompare((real_t*)&num1, (real_t*)&num2, (real_t*)&num2, &c);
-  return realIsNegative((real_t*)&num2) && !realIsZero((real_t*)&num2);
+  realCopyAbs(number1, num1);
+  realCopyAbs(number2, num2);
+  realCompare(num1, num2, num2, &c);
+  return realIsNegative(num2) && !realIsZero(num2);
 }
 
 
@@ -187,20 +192,22 @@ bool_t realCompareAbsEqual(const real_t *number1, const real_t *number2) {
   realContext_t c = ctxtReal75;
   c.digits = max(max(75, number1->digits), number2->digits);
   #if defined(ALLOW_159)
-    real159_t num1, num2;
+    REAL_T_PTR(num1, 159);
+    REAL_T_PTR(num2, 159);
     const int32_t k = 159;
   #else
-    real_t num1, num2;
+    REAL_T_PTR(num1, 75);
+    REAL_T_PTR(num2, 75);
     const int32_t k = 75;
   #endif //ALLOW_159
   if(c.digits > k) {
-    sprintf(errorMessage, "Exceed %d digits :realCompareAbsEqual", (int)k);
+    sprintf(errorMessage, "Exceed %" PRId32 " digits :realCompareAbsEqual", k);
     displayBugScreen(errorMessage);
   }
-  realCopyAbs(number1, (real_t*)&num1);
-  realCopyAbs(number2, (real_t*)&num2);
-  realCompare((real_t*)&num1, (real_t*)&num2, (real_t*)&num2, &c);
-  return realIsZero((real_t*)&num2);
+  realCopyAbs(number1, num1);
+  realCopyAbs(number2, num2);
+  realCompare(num1, num2, num2, &c);
+  return realIsZero(num2);
 }
 
 
@@ -264,14 +271,14 @@ bool_t realIsAnInteger(const real_t *x) {
   realContext_t c = ctxtReal75;
   c.digits = max(75, x->digits);
   #if defined(ALLOW_159)
-    real159_t y;
+    REAL_T_PTR(y, 159);
     const int32_t k = 159;
   #else
-    real_t y;
+    REAL_T_PTR(y, 75);
     const int32_t k = 75;
   #endif //ALLOW_159
   if(c.digits > k) {
-    sprintf(errorMessage, "Exceed %d digits :realIsAnInteger", (int)k);
+    sprintf(errorMessage, "Exceed %" PRId32 " digits :realIsAnInteger", k);
     displayBugScreen(errorMessage);
   }
   if(realIsNaN(x)) {
@@ -282,10 +289,10 @@ bool_t realIsAnInteger(const real_t *x) {
     return true;
   }
 
-  realToIntegralValue((real_t*)x, (real_t*)&y, DEC_ROUND_DOWN, &c);
-  realSubtract((real_t*)x, (real_t*)&y, (real_t*)&y, &c);
+  realToIntegralValue(x, y, DEC_ROUND_DOWN, &c);
+  realSubtract(x, y, y, &c);
 
-  return realCompareEqual((real_t*)&y, const_0);
+  return realCompareEqual(y, const_0);
 }
 
 
@@ -361,14 +368,15 @@ int16_t realIdenticalDigits(real_t *a, real_t *b) {
 //       return false;
 //     }
 //
-//     real1071_t pii, n1;
+//     REAL_T_PTR(pii, 1071);
+//     REAL_T_PTR(n1, 1071);
 //     realContext_t c = ctxtReal75;
 //
 //     // Extract constant at appropriate precision
 //     int32_t piPrecision = (number->digits == checkDigits && checkDigits <= 1071) ? checkDigits : 1071;
 //     c.digits = piPrecision;
-//     realPlus(constant, (real_t *)&pii, &c);
-//     realGetCoefficient((real_t *)&pii, tmpString);
+//     realPlus(constant, pii, &c);
+//     realGetCoefficient(pii, tmpString);
 //
 //     // Check trailing zeros if needed
 //     if(number->digits < checkDigits) {
@@ -391,8 +399,8 @@ int16_t realIdenticalDigits(real_t *a, real_t *b) {
 //     else {
 //       int32_t minDigits = min(number->digits, 1071);
 //       c.digits = minDigits > 1 ? minDigits - 1 : 1;
-//       realPlus(number, (real_t *)&n1, &c);
-//       realGetCoefficient((real_t *)&n1, tmpString + TMP_STR_LENGTH/2);
+//       realPlus(number, n1, &c);
+//       realGetCoefficient(n1, tmpString + TMP_STR_LENGTH/2);
 //     }
 //
 //     // Compare strings

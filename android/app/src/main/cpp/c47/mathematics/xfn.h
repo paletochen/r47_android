@@ -9,8 +9,8 @@ bool_t  exitKeyWaiting(void);
 int     C47PopKeyNoBuffer(bool_t displayWaitForRelease);
 
 
-void C47Cvt2RadSinCosTan2(real1071_t *an, angularMode_t angularMode, real1071_t *sinOut, real1071_t *cosOut, real1071_t *tanOut, realContext_t *realContext, int acc);
-void C47radSinCosTanTaylor(real1071_t *an, bool_t swapTemp, real1071_t *sinOut, real1071_t *cosOut, real1071_t *tanOut, realContext_t *realContext, int accNumberDigits);
+void C47Cvt2RadSinCosTan2(real_t *an, angularMode_t angularMode, real_t *sinOut, real_t *cosOut, real_t *tanOut, realContext_t *realContext, int acc);
+void C47radSinCosTanTaylor(real_t *an, bool_t swapTemp, real_t *sinOut, real_t *cosOut, real_t *tanOut, realContext_t *realContext, int accNumberDigits);
 
 bool_t registerFMAOutputString(calcRegister_t regist, char* prefix, char *displayString);
 void fnXXfn         (uint16_t function);

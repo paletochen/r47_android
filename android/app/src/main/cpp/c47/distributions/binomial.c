@@ -20,13 +20,13 @@
 
 #else
   static bool_t checkParamBinomial(real_t *x, real_t *i, real_t *j) {
-    if(!saveLastX())
+    if(!saveLastX()) {
       return false;
+    }
 
-    if( !getRegisterAsReal(REGISTER_X, x)
-        || !getRegisterAsReal(REGISTER_P, i)
-        || !getRegisterAsReal(REGISTER_N, j))
+    if( !getRegisterAsReal(REGISTER_X, x) || !getRegisterAsReal(REGISTER_P, i) || !getRegisterAsReal(REGISTER_N, j)) {
       goto err;
+    }
 
     if(!checkRegisterNoFP(j)) {
       displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE, REGISTER_X);

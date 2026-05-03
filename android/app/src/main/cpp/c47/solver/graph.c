@@ -396,9 +396,7 @@ void resetHighResTracking(int *highResCount, bool_t *inHighResMode, double *cumu
 
 
 bool_t detectTrueDiscontinuity(double y0, double y1, double y2, double grad0, double grad1, double grad2, double yAvg, int count) {  // Distinguish between genuine discontinuities and normal peaks
-  if(real34IsSpecial(REGISTER_REAL34_DATA(REGISTER_X)) ||
-     ((getRegisterDataType(REGISTER_X) == dtComplex34) &&
-      (real34IsSpecial(REGISTER_IMAG34_DATA(REGISTER_X))))) {
+  if(real34IsSpecial(REGISTER_REAL34_DATA(REGISTER_X)) || ((getRegisterDataType(REGISTER_X) == dtComplex34) && (real34IsSpecial(REGISTER_IMAG34_DATA(REGISTER_X))))) {
     return true;
   }
   if(count < 4) {
@@ -1496,7 +1494,7 @@ static inline void powCplxNat(const cplx_t *base, const uint8_t *exp, cplx_t *re
       if(realIsZero(&X2.Imag)) {
         // realCopy(&temp0.Real, &X2.Imag);
         // X2.Imag.exponent -= 1;
-        realMultiply(&X2.Real, const_1on3, &X2.Imag, ctxtSolver2);
+        realMultiply(&X2.Real, const39_1on3, &X2.Imag, ctxtSolver2);
       }
     }
 

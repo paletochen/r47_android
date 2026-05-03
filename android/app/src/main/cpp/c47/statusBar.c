@@ -91,7 +91,7 @@ void drawBattery(uint16_t voltage);
       getDateString(dateTimeString);
     }
 
-    if((dateTimeString[0] >= '0' || dateTimeString[0] <= '9')) {                      // not yet initialized, senseless to continue
+    if((dateTimeString[0] >= '0' && dateTimeString[0] <= '9')) {                      // not yet initialized, senseless to continue
       if(SBARUPD_Date) {
         x = showString(dateTimeString, &standardFont, x, 0, vmNormal, true, true);
       }
@@ -371,7 +371,7 @@ void drawBattery(uint16_t voltage);
     if(!(SBARUPD_TVMMode)) {
       return false;
     }
-    bool_t enable = softmenu[softmenuStack[0].softmenuId].menuItem == -MNU_TVM || softmenu[softmenuStack[0].softmenuId].menuItem == -MNU_FIN;
+    bool_t enable = softmenu[softmenuStack[0].softmenuId].menuItem == -MNU_TVM || softmenu[softmenuStack[0].softmenuId].menuItem == -MNU_FIN || softmenu[softmenuStack[0].softmenuId].menuItem == -MNU_AMORT;
     if(enable) {
       reInstateOCModeDisplay = true;
       reInstateIntegerModeDisplay = true;
@@ -670,7 +670,6 @@ void drawBattery(uint16_t voltage);
   }
 
 
-//NOTE for FUTURE: WHEN printerIconEnabled changed, do setSystemFlagChanged(SETTING_SIOICON) otherwise it will not display the icon. Search for the example of SETTING_WATCHICON & watchIconEnabled
   static void showHideSerialIO(void) {
     if(!(SBARUPD_SerialIO)) {
       return;
@@ -683,6 +682,7 @@ void drawBattery(uint16_t voltage);
 
 //NOTE for FUTURE: WHEN printerIconEnabled changed, do setSystemFlagChanged(SETTING_PRINTERICON) otherwise it will not display the icon. Search for the example of SETTING_WATCHICON & watchIconEnabled
   static void showHidePrinter(void) {
+    if(!(SBARUPD_Printer)) return;
     if(didSystemFlagChange(SETTING_PRINTERICON)) {
       showStringAndClear(printerIconEnabled ? STD_PRINTER : "", &standardFont, X_PRINTER, 0, X_USER_MODE - X_PRINTER, 20, vmNormal, true, false );
     }

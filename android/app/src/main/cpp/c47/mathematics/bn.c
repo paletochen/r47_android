@@ -10,8 +10,10 @@
 static void bn_common(bool_t bnstar) {
   real_t x, res;
 
-  if(!getRegisterAsReal(REGISTER_X, &x))
+  if(!getRegisterAsReal(REGISTER_X, &x)) {
     return;
+  }
+
   if(!saveLastX()) {
     return;
   }

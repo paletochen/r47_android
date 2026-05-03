@@ -142,7 +142,7 @@ saveForUndo();
     uint8_t significantDigitsMem = significantDigits;
     int32_t digitsN = 0;
     WP34S_Ln(&acc, &digits, &ctxtReal39);
-    realDivide(&digits, const_ln10, &digits, &ctxtReal39);
+    realDivide(&digits, const39_ln10, &digits, &ctxtReal39);
     digitsN = max(min(-realToInt32C47(&digits, NULL), 34-3), 1);
     #if defined(PC_BUILD)
       printRealToConsole(&digits, "digits: ", "\n");
@@ -164,7 +164,7 @@ saveForUndo();
       ctxtReal75.digits = digitsN+13;
       integrate(regist, &llim, &ulim, &acc, &res, &ctxtReal4);
         //WP34S_Ln(&acc, &digits, &ctxtReal39);
-        //realDivide(&digits, const_ln10, &digits, &ctxtReal39);
+        //realDivide(&digits, const39_ln10, &digits, &ctxtReal39);
         //digitsN = max(min(-realToInt32C47(&digits, NULL), 34-3), 1);
         //#ifdef PC_BUILD
         //  printf("nnn=%i\n", digitsN);
@@ -191,7 +191,7 @@ saveForUndo();
       ctxtReal75.digits = digitsN+13;
       integrate(regist, &llim, &ulim, &acc, &res, &ctxtReal39);
         //WP34S_Ln(&acc, &digits, &ctxtReal39);
-        //realDivide(&digits, const_ln10, &digits, &ctxtReal39);
+        //realDivide(&digits, const39_ln10, &digits, &ctxtReal39);
         //digitsN = max(min(-realToInt32C47(&digits, NULL), 34-3), 1);
         //#ifdef PC_BUILD
         //  printf("nnn=%i\n", digitsN);
@@ -592,7 +592,7 @@ static void _integrate(calcRegister_t regist, const real_t *a, const real_t *b, 
     realAdd(&x, &x, &x, realContext); // 2*ln(...) for all cases except TS
   }
   realAdd(&x, &x, &x, realContext); // 4*ln(...) for all cases except TS (2*LN(...))
-  realDivide(&x, const_pi, &x, realContext);
+  realDivide(&x, const39_pi, &x, realContext);
   WP34S_Ln(&x, &tm, realContext); // tm done
   if(realIsNaN(&tm)) {
     realSetMinusInfinity(&tm);
@@ -623,7 +623,7 @@ static void _integrate(calcRegister_t regist, const real_t *a, const real_t *b, 
             #endif //PC_BUILD
             #if ENABLE_SOLVER_PROGRESS == 1
               //Error indication: incomplete, set to 0-0
-              _showProgress(&ss, &bma2, &h, const_0, const_0, const_pi, realContext);
+              _showProgress(&ss, &bma2, &h, const_0, const_0, const39_pi, realContext);
             #endif //ENABLE_SOLVER_PROGRESS
             if(!interruptedLoop && exitSignalled) {  //First EXIT press
               #if !defined(INTEGRATION_TWO_STAGE_EXIT)
@@ -656,7 +656,7 @@ static void _integrate(calcRegister_t regist, const real_t *a, const real_t *b, 
       //realSubtract(&x, const_1, &x, realContext);
       realFMA(&x, &x, const__1, &x, realContext);
       realSquareRoot(&x, &x, realContext);
-      realMultiply(&x, const_piOn2, &x, realContext); // pi/2*sqrt(cosh(t)^2 - 1) = pi/2*sinh(t)
+      realMultiply(&x, const39_piOn2, &x, realContext); // pi/2*sqrt(cosh(t)^2 - 1) = pi/2*sinh(t)
       if(ES) { // ES mode?
         realExp(&x, &x, realContext); // yes, want EXP
       }
@@ -761,7 +761,7 @@ static void _integrate(calcRegister_t regist, const real_t *a, const real_t *b, 
     // DEI_chk_conv::
     realMultiply(&ss, &bma2, &x, realContext); // ss*bma2
     realMultiply(&x, &h, &x, realContext); // ss*bma2*h
-    realMultiply(&x, const_piOn2, &x, realContext); // ss*bma2*h*pi/2
+    realMultiply(&x, const39_piOn2, &x, realContext); // ss*bma2*h*pi/2
     if(rev) { // reverse?
       realChangeSign(&x); // yes, so change sign
     }

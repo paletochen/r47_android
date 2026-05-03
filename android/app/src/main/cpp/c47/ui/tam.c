@@ -268,6 +268,18 @@
         return;
       }
     }
+
+    else if(tam.mode == TM_VALUE && currentMenu() == -MNU_TAMNORM && (item == ITM_NNZ || item == ITM_CNORM || item == ITM_RNORM || item == ITM_ENORM || item == ITM_INFINITY)) {
+      switch(item) {
+        case ITM_NNZ:      tam.value = pNorm_0_NNZ     ; forceTry = true; break;
+        case ITM_CNORM:    tam.value = pNorm_1_CNORM   ; forceTry = true; break;
+        case ITM_ENORM:    tam.value = pNorm_2_ENORM   ; forceTry = true; break;
+        case ITM_RNORM:    tam.value = pNorm_inf_RNORM ; forceTry = true; break;
+        case ITM_INFINITY: tam.value = pNorm_inf_RNORM ; forceTry = true; break;
+        default:;
+      }
+    }
+
     else if(item == ITM_BACKSPACE) {
       if(tam.alpha) {
         if(stringByteLength(aimBuffer) != 0) {
@@ -325,6 +337,9 @@
           if(tam.function == ITM_DENMAX2) {
             showSoftmenu(-MNU_TAMNONREGMAX);
           }
+          else if(tam.function == ITM_PNORM) {
+            showSoftmenu(-MNU_TAMNORM);
+          }
           else {
             showSoftmenu(-MNU_TAMNONREG);
           }
@@ -339,7 +354,7 @@
           showSoftmenu(-MNU_TAMFLAG);
         }
         else if(tam.mode == TM_STORCL) {
-          showSoftmenu(item == ITM_STO ? (currentMenu() == -MNU_TVM ? -MNU_TAMSTO_TVM : -MNU_TAMSTO) : (currentMenu() == -MNU_TVM ? -MNU_TAMRCL_TVM : -MNU_TAMRCL)); // -MNU_TAMSTORCL);
+          showSoftmenu(item == ITM_STO ? (currentMenu() == -MNU_TVM ? -MNU_TAMSTO_TVM : -MNU_TAMSTO) : ((currentMenu() == -MNU_TVM || currentMenu() == -MNU_AMORT) ? -MNU_TAMRCL_TVM : -MNU_TAMRCL)); // -MNU_TAMSTORCL);
         }
         else if(tam.mode == TM_LABEL || (tam.mode == TM_KEY && tam.keyInputFinished)) {
           showSoftmenu(-MNU_TAMLABEL);
@@ -616,9 +631,9 @@
       tryOoR = true;
     }
 
-    else if( ((REGISTER_X <= indexOfItems[item].param && indexOfItems[item].param <= REGISTER_W) ||
-              (FIRST_NAMED_RESERVED_VARIABLE <= indexOfItems[item].param && indexOfItems[item].param <= LAST_RESERVED_VARIABLE)) &&
-              !tam.dot) {
+    else if(((REGISTER_X <= indexOfItems[item].param && indexOfItems[item].param <= REGISTER_W) ||
+             (FIRST_NAMED_RESERVED_VARIABLE <= indexOfItems[item].param && indexOfItems[item].param <= LAST_RESERVED_VARIABLE)) &&
+             !tam.dot) {
       if(!tam.digitsSoFar && !isFunctionOldParam16(tam.function) && (tam.indirect || (tam.mode != TM_VALUE && tam.mode != TM_VALUE_CHB))) {
         if((tam.mode == TM_LABEL || tam.mode == TM_LBLONLY || tam.mode == TM_SOLVE || (tam.mode == TM_KEY && tam.keyInputFinished)) && !tam.indirect) {
           #define LOCAL_LABEL 0            // Local label from A to J
@@ -670,8 +685,7 @@
             tam.alpha = true;
             strcpy(aimBuffer, (char *)(allReservedVariables[indexOfItems[item].param - FIRST_RESERVED_VARIABLE].reservedVariableName + 1));
             forceTry = true;
-          }
-          else {
+          } else {
             tam.value = indexOfItems[item].param;
             tam.value += 99*(!tam.dot && (tam.mode == TM_FLAGR || tam.mode == TM_FLAGW) && FLAG_M-99 <= tam.value && tam.value <= FLAG_W-99);
 #if defined(PC_BUILD)
@@ -808,6 +822,12 @@ printf("tam.value: %d\n", tam.value);
       }
     }
     else if(!tam.alpha && !forcedVar) {
+
+      // Allow the exceptional large value through if pressed by a button
+      if(forceTry && tam.mode == TM_VALUE && currentMenu() == -MNU_TAMNORM && (item == ITM_RNORM || item == ITM_INFINITY)) {
+        max2 = pNorm_inf_RNORM + 1;
+      }
+
       // Check whether it is possible to add any more digits: if not, execute the function
       if((tryOoR || (min2 <= tam.value && tam.value <= max2)) && (forceTry || tam.value*10 > max2) && ((tam.mode != TM_MENU) || tam.indirect)) {
         int16_t value = tam.value;
@@ -817,6 +837,7 @@ printf("tam.value: %d\n", tam.value);
           value += ((tam.mode == TM_FLAGR || tam.mode == TM_FLAGW) ? FIRST_LOCAL_FLAG : FIRST_LOCAL_REGISTER);
         }
         if(tam.indirect && calcMode != CM_PEM) {
+          tam.value0 = value;
           value = indirectAddressing(value, indirectionType(tam.function), min, max, tryAllocate);
           run = (lastErrorCode == 0);
         }
@@ -884,6 +905,7 @@ printf("tam.value: %d\n", tam.value);
         }
         else {
           value = findNamedVariable(buffer);
+          tam.value0 = value;
           if(calcMode != CM_PEM) {
             if(value != INVALID_VARIABLE) {
               value2 = indirectAddressing(value, indirectionType(tam.function), min, max, tryAllocate);
@@ -892,6 +914,11 @@ printf("tam.value: %d\n", tam.value);
               value = (value2 != FAILED_INDIRECTION ? value2 : INVALID_VARIABLE);
             }
             else {
+              #if defined(IR_PRINTING)
+                sprintf(errorMessage, "'%s'", buffer);
+                printTraceErrorFunction(tam.function, errorMessage);
+              #endif //IR_PRINTING
+
               displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE, REGISTER_X);
               #if (EXTRA_INFO_ON_CALC_ERROR == 1)
                 sprintf(errorMessage, "string '%s' is not a named variable", buffer);
@@ -919,6 +946,11 @@ printf("tam.value: %d\n", tam.value);
           if(calcMode != CM_PEM) {
             leaveTamModeIfEnabled();
             if(!tam.indirect) {
+              #if defined(IR_PRINTING)
+                sprintf(errorMessage, "'%s'", buffer);
+                printTraceErrorFunction(tam.function, errorMessage);
+              #endif //IR_PRINTING
+
               displayCalcErrorMessage(ERROR_FUNCTION_NOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
               #if (EXTRA_INFO_ON_CALC_ERROR == 1)
                 sprintf(errorMessage, "string '%s' is neither a named label nor a function name", buffer);
@@ -936,7 +968,11 @@ printf("tam.value: %d\n", tam.value);
               moreInfoOnError("In function _tamProcessInput:", errorMessage, "ignored since IGN1ER was set", NULL);
             #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
           }
-          else if(calcMode != CM_PEM){
+          else if((calcMode != CM_PEM || tam.function != ITM_GTO)){
+            #if defined(IR_PRINTING)
+              sprintf(errorMessage, "'%s'", buffer);
+              printTraceErrorFunction(tam.function, errorMessage);
+            #endif //IR_PRINTING
             displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
             #if (EXTRA_INFO_ON_CALC_ERROR == 1)
               sprintf(errorMessage, "string '%s' is not a named label", buffer);
@@ -969,6 +1005,11 @@ printf("tam.value: %d\n", tam.value);
             #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
           }
           else {
+            #if defined(IR_PRINTING)
+              sprintf(errorMessage, "'%s'", buffer);
+              printTraceErrorFunction(tam.function, errorMessage);
+            #endif //IR_PRINTING
+
             displayCalcErrorMessage(ERROR_UNDEF_MENU, ERR_REGISTER_LINE, REGISTER_X);
             #if (EXTRA_INFO_ON_CALC_ERROR == 1)
               sprintf(errorMessage, "string '%s' is not a menu name", buffer);
@@ -989,6 +1030,11 @@ printf("tam.value: %d\n", tam.value);
             #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
           }
           else {
+            #if defined(IR_PRINTING)
+              sprintf(errorMessage, "'%s'", buffer);
+              printTraceErrorFunction(tam.function, errorMessage);
+            #endif //IR_PRINTING
+
             displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE, REGISTER_X);
             #if (EXTRA_INFO_ON_CALC_ERROR == 1)
               sprintf(errorMessage, "string '%s' is not a named variable", buffer);
@@ -1004,6 +1050,7 @@ printf("tam.value: %d\n", tam.value);
         aimBuffer[0] = 0;
       }
       if(tam.indirect && value != INVALID_VARIABLE && calcMode != CM_PEM) {
+        tam.value0 = value;
         value = indirectAddressing(value, indirectionType(tam.function), min, max, tryAllocate);
         if(lastErrorCode != 0) {
           value = INVALID_VARIABLE;
@@ -1057,10 +1104,6 @@ printf("tam.value: %d\n", tam.value);
       tam.max = 32766;
     }
 
-    if(func == ITM_CNST) {
-      tam.max = LAST_CONSTANT-FIRST_CONSTANT - 1;
-    }
-
     if(calcMode == CM_NIM) {
       if(func == ITM_toINT || func == ITM_HASH_JM) {
         lastIntegerBase = 0;
@@ -1112,6 +1155,12 @@ printf("tam.value: %d\n", tam.value);
     tam.keyInputFinished = false;
 
     switch(tam.mode) {
+      case TM_VALUE_NORM:                                                //Changing over to TM_VALUE, used to add the menu buttons for inf, CNORM, RNORM, ENORM
+        if((func != ITM_VIEW && func != ITM_AVIEW) || !catalog || catalog != CATALOG_MVAR) {
+          showSoftmenu(-MNU_TAMNORM);
+        }
+        tam.mode = TM_VALUE;
+        break;
       case TM_VALUE_MAX:                                                 //Changing over to TM_VALUE, only used to add the max button for 0
         if((func != ITM_VIEW && func != ITM_AVIEW) || !catalog || catalog != CATALOG_MVAR) {
           showSoftmenu(-MNU_TAMNONREGMAX);
@@ -1156,7 +1205,7 @@ printf("tam.value: %d\n", tam.value);
 
       case TM_STORCL: {
         if(!catalog || catalog != CATALOG_MVAR) {
-          showSoftmenu(func == ITM_STO ? (currentMenu() == -MNU_TVM ? -MNU_TAMSTO_TVM : -MNU_TAMSTO) : (currentMenu() == -MNU_TVM ? -MNU_TAMRCL_TVM : -MNU_TAMRCL)); // -MNU_TAMSTORCL);
+          showSoftmenu(func == ITM_STO ? (currentMenu() == -MNU_TVM ? -MNU_TAMSTO_TVM : -MNU_TAMSTO) : ((currentMenu() == -MNU_TVM || currentMenu() == -MNU_AMORT) ? -MNU_TAMRCL_TVM : -MNU_TAMRCL)); // -MNU_TAMSTORCL);
         }
         break;
       }
@@ -1248,9 +1297,15 @@ printf("tam.value: %d\n", tam.value);
       clearTamBuffer();
     }
 
+    if(((tam.mode == TM_STORCL) || (tam.function == ITM_VIEW) || (tam.function == ITM_AVIEW)) && (currentMenu() == -MNU_MVAR)) {
+      numberOfTamMenusToPop = 0;  // Don't pop the variable menu and keep the catalog value
+    }
+    else {
+      catalog = CATALOG_NONE;
+    }
+
     tam.alpha = false;
     tam.mode = 0;
-    catalog = CATALOG_NONE;
     clearSystemFlag(FLAG_ALPHA);
 
     if(numberOfTamMenusToPop > 0) {

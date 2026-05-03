@@ -254,7 +254,7 @@
   void           printRegisterDescriptorToConsole(calcRegister_t regist);
 
 
-  #define getRegisterAngularMode(reg)            getRegisterTag(reg)
+  #define getRegisterAngularMode(reg)            (getRegisterTag(reg) & amAngleMask)
   #define setRegisterAngularMode(reg, am)        setRegisterTag(reg, am)
   #define getRegisterShortIntegerBase(reg)       getRegisterTag(reg)
   #define setRegisterShortIntegerBase(reg, base) setRegisterTag(reg, base)
@@ -264,8 +264,8 @@
   #define getComplexRegisterAngularMode(reg)     (getRegisterTag(reg) & amAngleMask)
   #define setComplexRegisterAngularMode(reg, am) setRegisterTag(reg, (am & amAngleMask) | (getRegisterTag(reg) & amPolar))    // ok. amAngleMask = 15; amPolar = 16
   #define getComplexRegisterPolarMode(reg)       (getRegisterTag(reg) & amPolar)
-  #define setComplexRegisterPolarMode(reg, pm)   setRegisterTag(reg, (getRegisterTag(reg) & amAngleMask) | (pm & amPolar))    // Intended to maintain bits 0-3 for amAngle (amAngleMask), clear the polar bit 4, and then OR only the polar bit.
-
+  //#define setComplexRegisterPolarMode(reg, pm) setRegisterTag(reg, (getRegisterTag(reg) & amAngleMask) | (pm & amPolar))    // Intended to maintain bits 0-3 for amAngle (amAngleMask), clear the polar bit 4, and then OR only the polar bit.
+  #define setComplexRegisterPolarMode(reg, pm)   setRegisterTag(reg, (((pm & amPolar) != 0) ? (getRegisterTag(reg) & amAngleMask) : amNone) | (pm & amPolar))   // if polar bit clear, force angle to amNone; if set, preserve angle bits
   #define isXYRegisterMatrix                      ((getRegisterDataType(REGISTER_X) == dtReal34Matrix) || (getRegisterDataType(REGISTER_X) == dtComplex34Matrix) || (getRegisterDataType(REGISTER_Y) == dtReal34Matrix) || (getRegisterDataType(REGISTER_X) == dtComplex34Matrix) )
 
 
@@ -302,4 +302,5 @@
   void           fnRegSort                       (uint16_t unusedButMandatoryParameter);
   void           fnRegSwap                       (uint16_t unusedButMandatoryParameter);
   bool_t         isFunctionAllowingNewVariable   (uint16_t op);
+  uint8_t        getRegParam                     (bool_t *f, uint16_t *s, uint16_t *n, uint16_t *d);
 #endif // !REGISTERS_H

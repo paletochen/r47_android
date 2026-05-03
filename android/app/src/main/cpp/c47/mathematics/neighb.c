@@ -12,19 +12,25 @@ static void neighbShoI(void) {
   uint64_t x, y;
 
   if(getRegisterAsShortInt(REGISTER_X, &negx, &x, NULL, NULL) && getRegisterAsShortInt(REGISTER_Y, &negy, &y, NULL, NULL)) {
-    if(negx != negy)
+    if(negx != negy) {
       subtract = negy;
-    else if(x == y)
+    }
+    else if(x == y) {
       return;
-    else if(negx)
+    }
+    else if(negx) {
       subtract = y > x;
-    else
+    }
+    else {
       subtract = y < x;
+    }
 
-    if(subtract)
+    if(subtract) {
       *(REGISTER_SHORT_INTEGER_DATA(REGISTER_X)) = WP34S_intSubtract(*(REGISTER_SHORT_INTEGER_DATA(REGISTER_X)), 1);
-    else
+    }
+    else {
       *(REGISTER_SHORT_INTEGER_DATA(REGISTER_X)) = WP34S_intAdd(*(REGISTER_SHORT_INTEGER_DATA(REGISTER_X)), 1);
+    }
   }
 }
 
@@ -56,10 +62,14 @@ static void neighbReal(void) {
   real_t x, y;
   angularMode_t xAngularMode = amNone;
 
-  if(!getRegisterAsReal(REGISTER_X, &x) || !getRegisterAsReal(REGISTER_Y, &y))
+  if(!getRegisterAsReal(REGISTER_X, &x) || !getRegisterAsReal(REGISTER_Y, &y)) {
     return;
-  if(getRegisterDataType(REGISTER_X) == dtReal34)
+  }
+
+  if(getRegisterDataType(REGISTER_X) == dtReal34) {
     xAngularMode = getRegisterAngularMode(REGISTER_X);
+  }
+
   realNextToward(&x, &y, &x, &ctxtReal34);
   convertRealToResultRegister(&x, REGISTER_X, xAngularMode);
 }

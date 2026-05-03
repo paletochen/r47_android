@@ -85,7 +85,7 @@ TO_QSPI const char errorMessages[NUMBER_OF_ERROR_CODES][SIZE_OF_EACH_ERROR_MESSA
 /* 60 */  "Operation aborted",
 /* 61 */  "Reserved variable name",
 /* 62 */  "Invalid register type/angle",
-/* 63 */  "",
+/* 63 */  "Printing Is Disabled",
 /* 64 */  "",
 /* 65 */  "",
 /* 66 */  "",
@@ -278,6 +278,19 @@ void displayCalcErrorMessage(uint8_t errorCode, calcRegister_t errMessageRegiste
     lastErrorCode            = errorCode;
     errorMessageRegisterLine = errMessageRegisterLine;
     screenUpdatingMode = SCRUPD_AUTO;
+
+    #if defined(IR_PRINTING)
+       if((tam.mode != 0) && (errorCode != ERROR_LABEL_NOT_FOUND) &&   !printerState.trace_done) {
+         printTrace(tam.function, tam.value);
+       }
+       if(lastErrorCode == ERROR_RESERVED_VARIABLE_NAME) {
+         sprintf(tmpString, "%s: %s", errorMessages[lastErrorCode], errorMessage);
+       }
+       else {
+         sprintf(tmpString, "%s", errorMessages[lastErrorCode]);
+       }
+       printTraceError(tmpString);
+    #endif //IR_PRINTING
   }
 }
 

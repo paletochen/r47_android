@@ -60,7 +60,7 @@ void lnReal(void) {
       realSetPlusInfinity(&x);
     }
     else if(getFlag(FLAG_CPXRES)) {
-      convertComplexToResultRegister(const_plusInfinity, const_pi, REGISTER_X);
+      convertComplexToResultRegister(const_plusInfinity, const39_pi, REGISTER_X);
       return;
     }
     else {
@@ -74,7 +74,7 @@ void lnReal(void) {
     else if(getFlag(FLAG_CPXRES)) {
       realSetPositiveSign(&x);
       WP34S_Ln(&x, &x, &ctxtReal39);
-      convertComplexToResultRegister(&x, const_pi, REGISTER_X);
+      convertComplexToResultRegister(&x, const39_pi, REGISTER_X);
       return;
     }
     else if(getSystemFlag(FLAG_SPCRES)) {

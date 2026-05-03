@@ -720,8 +720,8 @@ static void _doFnEvPFacts     (uint16_t param) {
         uint8_t sumType = sumTypeInteger;
         for(uint16_t j=0;  j<cols; ++j) {
           if(real34IsAnInteger(&matrix.matrixElements[j]) && real34IsAnInteger(&matrix.matrixElements[cols+j]) && sumType == sumTypeInteger) {
-            convertReal34ToLongInteger(&matrix.matrixElements[j], p_li, RM_HALF_UP);
-            convertReal34ToLongInteger(&matrix.matrixElements[cols+j], k_li, RM_HALF_UP);
+            convertReal34ToLongInteger(&matrix.matrixElements[j], p_li, roundingModeTable[roundingMode]);
+            convertReal34ToLongInteger(&matrix.matrixElements[cols+j], k_li, roundingModeTable[roundingMode]);
             //printLongIntegerToConsole(p_li, "base:", "  ");
             //printLongIntegerToConsole(k_li, "exp:", "\n");
             switch(param){
@@ -1167,7 +1167,7 @@ static void fnEulPhi(uint16_t unusedButMandatoryParameter) {
           longIntegerCopy(x, phi_x);
           for(uint16_t j = 0; j < cols; ++j) {
             real34_t p = matrix.matrixElements[j];
-            convertReal34ToLongInteger(&p, p_li, RM_HALF_UP);
+            convertReal34ToLongInteger(&p, p_li, roundingModeTable[roundingMode]);
             longIntegerInit(p_li_less_1);
             longIntegerSubtractUInt(p_li, 1, p_li_less_1);
             if(j == 0 && !longIntegerIsPositive(p_li_less_1)) {   //ensure 0 is returned is the first factor <= 1. This is achieved above, see (*), (**), (***)
@@ -1908,8 +1908,9 @@ static bool_t performPrimeFactorization(bool_t doSaveLastX) {
     goto abort;
   }
 
-  if(doSaveLastX && !saveLastX())
+  if(doSaveLastX && !saveLastX()) {
     goto abort;
+  }
 
   real34SetZero(&lastAdded);
   FactorAdder_t faddr;

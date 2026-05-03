@@ -7,6 +7,12 @@
 #if !defined(ELLIPTIC_H)
   #define ELLIPTIC_H
 
+  void fnEllipse        (uint16_t unusedButMandatoryParameter);
+  void fnKtoM           (uint16_t unusedButMandatoryParameter);
+  void fnMtoK           (uint16_t unusedButMandatoryParameter);
+  void fnMtoTheta       (uint16_t unusedButMandatoryParameter);
+  void fnThetatoM       (uint16_t unusedButMandatoryParameter);
+
   void fnJacobiSn       (uint16_t unusedButMandatoryParameter);
   void fnJacobiCn       (uint16_t unusedButMandatoryParameter);
   void fnJacobiDn       (uint16_t unusedButMandatoryParameter);

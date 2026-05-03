@@ -99,19 +99,22 @@ static bool_t realBeta(real_t *x, real_t *y, real_t *r, realContext_t *realConte
 static void betaComplex(void) {
   real_t xReal, xImag, yReal, yImag, rReal, rImag;
 
-  if(!getRegisterAsComplex(REGISTER_X, &xReal, &xImag) || !getRegisterAsComplex(REGISTER_Y, &yReal, &yImag))
+  if(!getRegisterAsComplex(REGISTER_X, &xReal, &xImag) || !getRegisterAsComplex(REGISTER_Y, &yReal, &yImag)) {
     return;
+  }
 
-  if(complexBeta(&xReal, &xImag, &yReal, &yImag, &rReal, &rImag, &ctxtReal75))
+  if(complexBeta(&xReal, &xImag, &yReal, &yImag, &rReal, &rImag, &ctxtReal75)) {
     convertComplexToResultRegister(&rReal, &rImag, REGISTER_X);
+  }
 }
 
 
 static void betaReal(void) {
   real_t r, x, y;
 
-  if(!getRegisterAsReal(REGISTER_X, &x) || !getRegisterAsReal(REGISTER_Y, &y))
+  if(!getRegisterAsReal(REGISTER_X, &x) || !getRegisterAsReal(REGISTER_Y, &y)) {
     return;
+  }
 
   if(realBeta(&x, &y, &r, &ctxtReal39)) {
     convertRealToResultRegister(&r, REGISTER_X, amNone);

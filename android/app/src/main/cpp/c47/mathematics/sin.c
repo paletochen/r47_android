@@ -24,7 +24,7 @@ void sinCosReal(trigType_t trigType) {
   const real_t *r = &x;
   angularMode_t xAngularMode;
 
-  if(!getRegisterAsRealAngle(REGISTER_X, &x, &xAngularMode)) {
+  if(!getRegisterAsRealAngle(REGISTER_X, &x, &xAngularMode, ifLongIntegerDoAngleReduction)) {
     return;
   }
 

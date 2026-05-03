@@ -7,6 +7,13 @@
 
 #include "c47.h"
 
+#if defined(SAVE_SPACE_DM42_17C)
+  void fnUniformP           (uint16_t discrete){}
+  void fnUniformL           (uint16_t discrete){}
+  void fnUniformU           (uint16_t discrete){}
+  void fnUniformI           (uint16_t discrete){}
+#else
+
 static bool_t checkParamUniform(real_t *x, real_t *low, real_t *high, real_t *range, int *cmp, uint16_t discrete) {
   if(!saveLastX()) {
     return false;
@@ -161,3 +168,5 @@ void fnUniformI(uint16_t discrete) {
     adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
   }
 }
+
+#endif // SAVE_SPACE_DM42_17C

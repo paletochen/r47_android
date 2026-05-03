@@ -6,7 +6,7 @@
 
 void realLog10(const real_t *x, real_t *res, realContext_t *realContext) {
   WP34S_Ln(x, res, realContext);
-  realDivide(res, const_ln10, res, realContext);
+  realDivide(res, const39_ln10, res, realContext);
 }
 
 
@@ -44,7 +44,7 @@ void logxyReal(const real_t *denom) {
       }
       else {
         reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
-        realDivide(const_pi, denom, &a, &ctxtReal39);
+        realDivide(const39_pi, denom, &a, &ctxtReal39);
         convertComplexToResultRegister(const_plusInfinity, &a, REGISTER_X);
         return;
       }
@@ -63,7 +63,7 @@ void logxyReal(const real_t *denom) {
       realSetPositiveSign(&a);
       WP34S_Ln(&a, &a, &ctxtReal39);
       realDivide(&a, denom, &a, &ctxtReal39);
-      realDivide(const_pi, denom, &b, &ctxtReal39);
+      realDivide(const39_pi, denom, &b, &ctxtReal39);
       convertComplexToResultRegister(&a, &b, REGISTER_X);
       return;
     }
@@ -142,7 +142,7 @@ void logxyLonI(const real_t *denom) {
  ***********************************************************************/
 
 static void log10LonI(void) {
-  logxyLonI(const_ln10);
+  logxyLonI(const39_ln10);
 }
 
 static void log10ShoI(void) {
@@ -150,11 +150,11 @@ static void log10ShoI(void) {
 }
 
 static void log10Real(void) {
-  logxyReal(const_ln10);
+  logxyReal(const39_ln10);
 }
 
 static void log10Cplx(void) {
-  logxyCplx(const_ln10);
+  logxyCplx(const39_ln10);
 }
 
 

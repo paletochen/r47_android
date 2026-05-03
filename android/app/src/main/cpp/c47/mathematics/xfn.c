@@ -94,25 +94,25 @@
   #define debugLongNumberLimit       100
   #define modulus(a)                 (a == amRadian ? const2139_2pi : a == amDegree ? const_360 : a == amGrad ? const_400 : a == amMultPi ? const_2 : const_1)
 
-  static void C47Cvt2RadSinCosTan1071(real1071_t *an, angularMode_t angularMode, real1071_t *sinOut, real1071_t *cosOut, real1071_t *tanOut, realContext_t *realContext) {
+  static void C47Cvt2RadSinCosTan1071(real_t *an, angularMode_t angularMode, real_t *sinOut, real_t *cosOut, real_t *tanOut, realContext_t *realContext) {
     explicitTaylorIterVisibilitySelection = true;
-    C47_WP34S_Cvt2RadSinCosTan((real_t*)an, angularMode, (real_t*)sinOut, (real_t*)cosOut, (real_t*)tanOut, realContext);
+    C47_WP34S_Cvt2RadSinCosTan(an, angularMode, sinOut, cosOut, tanOut, realContext);
   }
-  static void C47_WP34S_Asin1071(real1071_t *x, real1071_t *angle, realContext_t *realContext) {
+  static void C47_WP34S_Asin1071(real_t *x, real_t *angle, realContext_t *realContext) {
     explicitTaylorIterVisibilitySelection = true;
-    C47_WP34S_Asin((real_t*)x, (real_t*)angle, realContext);
+    C47_WP34S_Asin(x, angle, realContext);
   }
-  static void C47_WP34S_Acos1071(real1071_t *x, real1071_t *angle, realContext_t *realContext) {
+  static void C47_WP34S_Acos1071(real_t *x, real_t *angle, realContext_t *realContext) {
     explicitTaylorIterVisibilitySelection = true;
-    C47_WP34S_Acos((real_t*)x, (real_t*)angle, realContext);
+    C47_WP34S_Acos(x, angle, realContext);
   }
-  static void C47_WP34S_Atan1071(real1071_t *x, real1071_t *angle, realContext_t *realContext) {
+  static void C47_WP34S_Atan1071(real_t *x, real_t *angle, realContext_t *realContext) {
     explicitTaylorIterVisibilitySelection = true;
-    C47_WP34S_Atan((real_t*)x, (real_t*)angle, realContext);
+    C47_WP34S_Atan(x, angle, realContext);
   }
-  static void C47_WP34S_Atan2_1071(real1071_t *y, real1071_t *x, real1071_t *atan, realContext_t *realContext) {
+  static void C47_WP34S_Atan2_1071(real_t *y, real_t *x, real_t *atan, realContext_t *realContext) {
     explicitTaylorIterVisibilitySelection = true;
-    C47_WP34S_Atan2((real_t*)y, (real_t*)x, (real_t*)atan, realContext);
+    C47_WP34S_Atan2(y, x, atan, realContext);
   }
 
 
@@ -210,14 +210,14 @@
 
 
 
-int32_t realGetDigits(const real1071_t* x) {
-  return ((decNumber*)x)->digits;
+int32_t realGetDigits(const real_t *x) {
+  return x->digits;
 }
 
-void decomposeReal(const real1071_t* x, longInteger_t integerPart, real1071_t* fractionalPart, realContext_t* c) {
+void decomposeReal(const real_t *x, longInteger_t integerPart, real_t *fractionalPart, realContext_t *c) {
     // integer part has at most maxAllowedDigits (1000) digits
     #if defined(DEBUG_XFN)
-      realToString((real_t *)x, tmpString);
+      realToString(x, tmpString);
       tmpString[debugLongNumberLimit] = 0;
       printf("decomposeReal 000: input: %s\n", tmpString);
     #endif //DEBUG_XFN
@@ -229,25 +229,25 @@ void decomposeReal(const real1071_t* x, longInteger_t integerPart, real1071_t* f
     }
 
 //--------//--------//--------//--------//-------- normalize using realPlus() and re-check if it fits
-    real1071_t mantissa;
-    realPlus((real_t*)x, (real_t*)&mantissa, c);          // Normalize to remove trailing zeros with full precision
-    int32_t actualDigits = realGetDigits(&mantissa);      // Get actual significant digits after normalization
-    if(actualDigits <= 34) {                              // Fits in real34: integer = 1, fractional = original
+    REAL_T_PTR(mantissa, 1071);
+    realPlus(x, mantissa, c);                           // Normalize to remove trailing zeros with full precision
+    int32_t actualDigits = realGetDigits(mantissa);      // Get actual significant digits after normalization
+    if(actualDigits <= 34) {                             // Fits in real34: integer = 1, fractional = original
       goto returnUnity;
     }
 
 //--------//--------//--------//--------//-------- adjust mantissa to form integer 'mantissa'
-    int32_t actualExponent = realGetExponent(&mantissa);  // For numbers with >34 digits: extract all significant digits as integer, up to 1000
+    int32_t actualExponent = realGetExponent(mantissa);  // For numbers with >34 digits: extract all significant digits as integer, up to 1000
     if(actualDigits > maxAllowedDigits) {
       actualDigits = maxAllowedDigits;
     }
     int32_t scaleAmount = actualDigits - 1 - actualExponent;  // Scale to make all digits into integer
-    mantissa.exponent += scaleAmount;
-    realContext_t cc = *c;                                // convert scaled mantissa to integral part, and condition the string
+    mantissa->exponent += scaleAmount;
+    realContext_t cc = *c;                                    // convert scaled mantissa to integral part, and condition the string
     cc.round = DEC_ROUND_HALF_UP;
-    decNumberToIntegralExact((real_t*)&mantissa, (real_t*)&mantissa, &cc);
-    realSetPositiveSign((real_t*)&mantissa);
-    realToString((real_t*)&mantissa, tmpString);          // Convert real to string and load string into integerPart
+    decNumberToIntegralExact(mantissa, mantissa, &cc);
+    realSetPositiveSign(mantissa);
+    realToString(mantissa, tmpString);                    // Convert real to string and load string into integerPart
 
     int32_t len = strlen(tmpString);                      // Trim all zeroes from the right side, regarless if there is a decimal point or not. No zeroas are needed in the longinteger as they will sit in the compensated Real exponent.
     for(int32_t i = len - 1; i >= 0 && tmpString[i] == '0'; i--) {
@@ -268,16 +268,16 @@ void decomposeReal(const real1071_t* x, longInteger_t integerPart, real1071_t* f
     if(longIntegerIsZero(integerPart)) {                  // failed string manipulation
       goto returnUnity;
     }
-    real1071_t integerAsReal;
-    convertLongIntegerToReal(integerPart, (real_t*)&integerAsReal, c);             // use the actual integer (from the text) that will be output
-    realDivide((real_t*)x, (real_t*)&integerAsReal, (real_t*)fractionalPart, c);   // to calculate the real multiplier, normally the exponent
+    REAL_T_PTR(integerAsReal, 1071);
+    convertLongIntegerToReal(integerPart, integerAsReal, c); // use the actual integer (from the text) that will be output
+    realDivide(x, integerAsReal, fractionalPart, c);         // to calculate the real multiplier, normally the exponent
     return;
 
 returnUnity:
     uInt32ToLongInteger(1, integerPart);
-    realCopy((real_t*)x, (real_t*)fractionalPart);
+    realCopy(x, fractionalPart);
     #if defined(DEBUG_XFN)
-      realToString((real_t *)fractionalPart, tmpString);
+      realToString(fractionalPart, tmpString);
       tmpString[debugLongNumberLimit] = 0;
       printf("decomposeReal 003: fractionalPart: %s\n", tmpString);
     #endif //DEBUG_XFN
@@ -358,20 +358,20 @@ typedef struct {
   }
 
 
-  static bool_t getLongintegerRegisterAsReal1071(int registerNo, real1071_t* result, realContext_t* c) {
+  static bool_t getLongintegerRegisterAsReal1071(int registerNo, real_t *result, realContext_t *c) {
     if(getRegisterDataType(registerNo) == dtLongInteger) {
       longInteger_t lint;
       bool_t frac = false;
       if(getRegisterAsLongInt(registerNo, lint, &frac)) { // frac cannot be set; due to longint type check in the first line
         longIntegerToString(lint, 10, tmpString);
         longIntegerFree(lint);
-        stringToReal(tmpString, (real_t *)result, c);
+        stringToReal(tmpString, result, c);
         return true;
       }
       longIntegerFree(lint);
     }
     else if(getRegisterDataType(registerNo) == dtReal34) {
-      if(getRegisterAsReal(registerNo, (real_t *)result)) {
+      if(getRegisterAsReal(registerNo, result)) {
         return true;
       }
     }
@@ -430,7 +430,7 @@ typedef struct {
 
 
 
-  static bool_t validateExponent(const real1071_t* x) {
+  static bool_t validateExponent(const real_t* x) {
     if(realGetExponent(x) > maxAllowedDigits) {
       return false;
     }
@@ -438,25 +438,25 @@ typedef struct {
   }
 
 
-  static bool_t readThreeRegisters(int registerNo, real1071_t* result, real1071_t* temporary, realContext_t* c) {
+  static bool_t readThreeRegisters(int registerNo, real_t *result, real_t *temporary, realContext_t *c) {
     if(!getLongintegerRegisterAsReal1071(registerNo+0, temporary, c)) {                        //ignore anglemode, it is handled elsewhere
       return false;
     }
     if(!getLongintegerRegisterAsReal1071(registerNo+1, result, c)) {    // check for long integer first, to first have that error message if invalid number
       return false;
     }
-    realMultiply((real_t *)result, (real_t *)temporary, (real_t *)result, c);
+    realMultiply(result, temporary, result, c);
 
     if(!getLongintegerRegisterAsReal1071(registerNo+2, temporary, c)) {                        //ignore anglemode, it is handled elsewhere
       return false;
     }
-    realAdd((real_t *)result, (real_t*)temporary, (real_t *)result, c);
-    realSetZero((real_t*)temporary);
+    realAdd(result, temporary, result, c);
+    realSetZero(temporary);
     return true;
   }
 
 
-  static bool getCombinedParameter (int param, int registerNo, real1071_t* combined, real1071_t* temporary, angularMode_t* angleMode, realContext_t* c) {
+  static bool getCombinedParameter (int param, int registerNo, real_t *combined, real_t *temporary, angularMode_t *angleMode, realContext_t *c) {
     if(!getAngleModeForRegister3r(registerNo, angleMode) && getRegisterDataType(registerNo) != dtLongInteger) {
       displayCalcErrorMessage(ERROR_INPUT_DATA_TYPE_NOT_MATCHING, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -474,7 +474,7 @@ typedef struct {
       return false;
     }
     #if defined(DEBUG_XFN)
-      realToString((real_t *)combined, tmpString);
+      realToString(combined, tmpString);
       printf("VAR%d: x * y + z: %s; anglemode = %d\n", param, tmpString, *angleMode);
     #endif //DEBUG_XFN
     if(!validateExponent(combined)) {
@@ -488,7 +488,7 @@ typedef struct {
     return true;
   }
 
-  static bool getSingleParameter (int registerNo, real1071_t* combined, angularMode_t* angleMode, realContext_t* c) {
+  static bool getSingleParameter (int registerNo, real_t *combined, angularMode_t *angleMode, realContext_t *c) {
 printf("Dddd %d\n", registerNo);
     *angleMode = registerIsNoAngle(registerNo) ? amNone : getRegisterAngularMode(registerNo);
 
@@ -501,7 +501,7 @@ printf("Dddd %d\n", registerNo);
       return false;
     }
     #if defined(DEBUG_XFN)
-      realToString((real_t *)combined, tmpString);
+      realToString(combined, tmpString);
       printf("VAR: x * y + z: %s\n", tmpString);
     #endif //DEBUG_XFN
     if(!validateExponent(combined)) {
@@ -518,14 +518,15 @@ printf("Dddd %d\n", registerNo);
 
   bool_t registerFMAOutputString(calcRegister_t regist, char* prefix, char *displayString) {
     angularMode_t angle;
-    real1071_t tmp1, tmp2;
+    REAL_T_PTR(tmp1, 1071);
+    REAL_T_PTR(tmp2, 1071);
     realContext_t c = ctxtReal75;
     c.digits = 1000;
     c.round = DEC_ROUND_HALF_UP;
-    if(getCombinedParameter(1, regist, &tmp1, &tmp2, &angle, &c)) {   //use the angle of the 1st param only, if set
-      // realPlus((real_t *)&tmp1, (real_t *)&tmp1, &c);
+    if(getCombinedParameter(1, regist, tmp1, tmp2, &angle, &c)) {   //use the angle of the 1st param only, if set
+      // realPlus(tmp1, tmp1, &c);
       strcpy(displayString, prefix);
-      realToSci((real_t *)&tmp1, displayString + stringByteLength(displayString));
+      realToSci(tmp1, displayString + stringByteLength(displayString));
       return true;
     }
     return false;
@@ -696,8 +697,10 @@ printf("Dddd %d\n", registerNo);
       return;
     }
 
-    real1071_t paramX, paramY, paramTemp;
-    realSetZero((real_t*)&paramX);
+    REAL_T_PTR(paramX, 1071);
+    REAL_T_PTR(paramY, 1071);
+    REAL_T_PTR(paramTemp, 1071);
+    realSetZero(paramX);
     real_t tmpR;
 
     realContext_t c = ctxtReal75;
@@ -710,16 +713,16 @@ printf("Dddd %d\n", registerNo);
       ; //no input needed, continue
     }
     else if(functionType == FT_SINGLEX) {
-      if(!getSingleParameter(registerNo, &paramX, &angleMode, &c)) {
+      if(!getSingleParameter(registerNo, paramX, &angleMode, &c)) {
         return;
       }
     }
     else if(functionType == FT_MONADIC || functionType == FT_DYADIC) {
-      if(!getCombinedParameter(1, registerNo, &paramX, &paramTemp, &angleMode, &c)) {   //use the angle of the 1st param only, if set
+      if(!getCombinedParameter(1, registerNo, paramX, paramTemp, &angleMode, &c)) {   //use the angle of the 1st param only, if set
         return;
       }
       if(functionType == FT_DYADIC) {
-        if(!getCombinedParameter(2, registerNo + 3, &paramY, &paramTemp, &tmpAngle, &c)) { // ignore angle
+        if(!getCombinedParameter(2, registerNo + 3, paramY, paramTemp, &tmpAngle, &c)) { // ignore angle
           return;
         }
       }
@@ -739,14 +742,14 @@ printf("Dddd %d\n", registerNo);
     #endif //DEBUG_XFN
 
 
-    if(realIsSpecial((real_t *)&paramX)) {
+    if(realIsSpecial(paramX)) {
       #if defined(DEBUG_XFN)
         printf("Real is Special, forcing NaN output, bypassing calculations\n");
-        realToString((real_t*)&paramX, tmpString);
+        realToString(paramX, tmpString);
         tmpString[debugLongNumberLimit] = 0;
         printf("ParamX is Special = %s\n", tmpString);
       #endif //DEBUG_XFN
-      realSetNaN((real_t *)&paramX);
+      realSetNaN(paramX);
     }
     else {
       switch(function) {
@@ -754,8 +757,8 @@ printf("Dddd %d\n", registerNo);
 
   //--------//NILADIC FUNCTIONS
         case ITM_pi_XFN: {
-          realCopy(const1071_pi, (real_t *)&paramX);
-//          realMultiply(const2139_2pi, const_1on2, (real_t*)&paramX, &c);
+          realCopy(const1071_pi, paramX);
+//          realMultiply(const2139_2pi, const_1on2, paramX, &c);
           break;
         }
   //--------//MONADIC FUNCTIONS
@@ -765,8 +768,8 @@ printf("Dddd %d\n", registerNo);
             break;
           }
           else if(!inputAngleError3r(registerNo) && angleMode != amRadian) {                                                                       // if either or both is/are set to am
-            realDivide((real_t*)&paramX, modulus(angleMode), (real_t*)&paramX, &c);
-            realMultiply((real_t*)&paramX, modulus(amRadian), (real_t*)&paramX, &c);
+            realDivide(paramX, modulus(angleMode), paramX, &c);
+            realMultiply(paramX, modulus(amRadian), paramX, &c);
           }
           angleMode = amRadian;
           break;
@@ -778,8 +781,8 @@ printf("Dddd %d\n", registerNo);
             break;
           }
           else if(!inputAngleError3r(registerNo) && angleMode != amDegree) {                                                                       // if either or both is/are set to am
-            realDivide((real_t*)&paramX, modulus(angleMode), (real_t*)&paramX, &c);
-            realMultiply((real_t*)&paramX, modulus(amDegree), (real_t*)&paramX, &c);
+            realDivide(paramX, modulus(angleMode), paramX, &c);
+            realMultiply(paramX, modulus(amDegree), paramX, &c);
           }
           angleMode = amDegree;
           break;
@@ -793,8 +796,8 @@ printf("Dddd %d\n", registerNo);
           }
           else {
             if(!inputAngleError3r(registerNo) && angleMode != nextAngleMode) {                                                                       // if either or both is/are set to am
-              realDivide((real_t*)&paramX, modulus(angleMode), (real_t*)&paramX, &c);
-              realMultiply((real_t*)&paramX, modulus(nextAngleMode), (real_t*)&paramX, &c);
+              realDivide(paramX, modulus(angleMode), paramX, &c);
+              realMultiply(paramX, modulus(nextAngleMode), paramX, &c);
             }
           }
           angleMode = nextAngleMode;
@@ -806,7 +809,7 @@ printf("Dddd %d\n", registerNo);
         case ITM_cos_XFN:
         case ITM_tan_XFN: {
             #if defined(DEBUG_XFN)
-              realToString((real_t*)&paramX, tmpString);
+              realToString(paramX, tmpString);
               tmpString[debugLongNumberLimit]=0;
               printf("ParamX = %s\n", tmpString);
               realToString(modulus(angleMode), tmpString);
@@ -815,89 +818,90 @@ printf("Dddd %d\n", registerNo);
               printf("angleMode %d\n", angleMode);
             #endif //DEBUG_XFN
 
-            //WP34S_BigMod((real_t *)&paramX, modulus(angleMode), (real_t *)&paramX, &c);
+            //WP34S_BigMod(paramX, modulus(angleMode), paramX, &c);
 
             #if defined(DEBUG_XFN)
-              realToString((real_t *)&paramX, tmpString);
+              realToString(paramX, tmpString);
               //tmpString[debugLongNumberLimit]=0;
               printf(" ParamX reduced angle: %s\n", tmpString);
             #endif //DEBUG_XFN
 
-            real1071_t aa, bb;
-            realSetZero((real_t*)&aa);
-            realSetZero((real_t*)&bb);
-                 if(function == ITM_sin_XFN) { C47Cvt2RadSinCosTan1071(&paramX, angleMode, &paramX, NULL,    NULL,    &c); }
-            else if(function == ITM_cos_XFN) { C47Cvt2RadSinCosTan1071(&paramX, angleMode, NULL,    &paramX, NULL,    &c); }
-            else if(function == ITM_tan_XFN) { C47Cvt2RadSinCosTan1071(&paramX, angleMode, &aa,     &bb,     &paramX, &c); }
+            REAL_T_PTR(aa, 1071);
+            REAL_T_PTR(bb, 1071);
+            realSetZero(aa);
+            realSetZero(bb);
+                 if(function == ITM_sin_XFN) { C47Cvt2RadSinCosTan1071(paramX, angleMode, paramX, NULL,   NULL,   &c); }
+            else if(function == ITM_cos_XFN) { C47Cvt2RadSinCosTan1071(paramX, angleMode, NULL,   paramX, NULL,   &c); }
+            else if(function == ITM_tan_XFN) { C47Cvt2RadSinCosTan1071(paramX, angleMode, aa,     bb,     paramX, &c); }
             }
             break;
 
         case ITM_arcsin_XFN: {
-          C47_WP34S_Asin1071(&paramX, &paramX, &c);
-          convertAngleFromTo((real_t *)&paramX, amRadian, currentAngularMode, &c);
+          C47_WP34S_Asin1071(paramX, paramX, &c);
+          convertAngleFromTo(paramX, amRadian, currentAngularMode, &c);
           break;
         }
         case ITM_arccos_XFN: {
-          C47_WP34S_Acos1071(&paramX, &paramX, &c);
-          convertAngleFromTo((real_t *)&paramX, amRadian, currentAngularMode, &c);
+          C47_WP34S_Acos1071(paramX, paramX, &c);
+          convertAngleFromTo(paramX, amRadian, currentAngularMode, &c);
           break;
         }
         case ITM_arctan_XFN: {
-          C47_WP34S_Atan1071(&paramX, &paramX, &c);
-          convertAngleFromTo((real_t *)&paramX, amRadian, currentAngularMode, &c);
+          C47_WP34S_Atan1071(paramX, paramX, &c);
+          convertAngleFromTo(paramX, amRadian, currentAngularMode, &c);
           break;
         }
 
         case ITM_LN_XFN: {
-          decNumberLn((real_t *)&paramX, (real_t *)&paramX, &c);
+          decNumberLn(paramX, paramX, &c);
           break;
         }
         case ITM_LOG_XFN: {
-          decNumberLn((real_t *)&paramX, (real_t *)&paramX, &c);
-          decNumberLn((real_t *)&paramTemp, const_10, &c);
-          realDivide((real_t *)&paramX, (real_t *)&paramTemp, (real_t *)&paramX, &c);
+          decNumberLn(paramX, paramX, &c);
+          decNumberLn(paramTemp, const_10, &c);
+          realDivide(paramX, paramTemp, paramX, &c);
           break;
         }
         case ITM_EXP_XFN: {
-          decNumberExp((real_t *)&paramX, (real_t *)&paramX, &c);
+          decNumberExp(paramX, paramX, &c);
           break;
         }
         case ITM_10X_XFN: {
-          realPower(const_10, (real_t *)&paramX, (real_t *)&paramX, &c);
+          realPower(const_10, paramX, paramX, &c);
           break;
         }
         case ITM_SQRT_XFN: {
-          realPower((real_t *)&paramX, const_1on2, (real_t *)&paramX, &c);
+          realPower(paramX, const_1on2, paramX, &c);
           break;
         }
         case ITM_SQR_XFN : {
-          realPower((real_t *)&paramX, const_2, (real_t *)&paramX, &c);
+          realPower(paramX, const_2, paramX, &c);
           break;
         }
         case ITM_1ONX_XFN: {
-          realDivide(const_1, (real_t *)&paramX, (real_t *)&paramX, &c);
+          realDivide(const_1, paramX, paramX, &c);
           break;
         }
         case ITM_MODANG_XFN: {
           if(angleMode == amRadian) {
-//            WP34S_BigMod((real_t *)&paramX, modulus(angleMode), (real_t *)&paramX, &c);
-            mod2Pi((real_t *)&paramX, (real_t *)&paramX, &c);
+//            WP34S_BigMod(paramX, modulus(angleMode), paramX, &c);
+            mod2Pi(paramX, paramX, &c);
           }
           else {
-            WP34S_Mod((real_t *)&paramX, modulus(angleMode), (real_t *)&paramX, &c);
+            WP34S_Mod(paramX, modulus(angleMode), paramX, &c);
           }
           break;
         }
         case ITM_RDP_XFN: {
-          roundToDecimalPlace((real_t *)&paramX, (real_t *)&paramX, functionParam, &c);
+          roundToDecimalPlace(paramX, paramX, functionParam, &c);
           break;
         }
         case ITM_RSD_XFN: {
-          roundToSignificantDigits((real_t *)&paramX, (real_t *)&paramX, functionParam, &c);
+          roundToSignificantDigits(paramX, paramX, functionParam, &c);
           break;
         }
         case ITM_CHS_XFN: {
-          realMultiply(const__1, (real_t *)&paramX, (real_t *)&paramX, &c);
+          realMultiply(const__1, paramX, paramX, &c);
           break;
         }
   //--------//SINGLE REG FUNCTIONS
@@ -907,38 +911,38 @@ printf("Dddd %d\n", registerNo);
         }
   //--------//DYADIC FUNCTIONS
         case ITM_ADD_XFN: {
-          realAdd       ((real_t*)&paramY, (real_t*)&paramX, (real_t*)&paramX, &c);
+          realAdd       (paramY, paramX, paramX, &c);
           break;
         }
         case ITM_SUB_XFN: {
-          realSubtract  ((real_t*)&paramY, (real_t*)&paramX, (real_t*)&paramX, &c);
+          realSubtract  (paramY, paramX, paramX, &c);
           break;
         }
         case ITM_POWER_XFN: {
-          realPower     ((real_t*)&paramY, (real_t*)&paramX, (real_t*)&paramX, &c);
+          realPower     (paramY, paramX, paramX, &c);
           break;
         }
         case ITM_XTHROOT_XFN: {
-          realDivide    (const_1, (real_t *)&paramX, (real_t *)&paramX, &c);
+          realDivide    (const_1, paramX, paramX, &c);
 //ADD ERROR FOR 0
-          realPower     ((real_t*)&paramY, (real_t*)&paramX, (real_t*)&paramX, &c);
+          realPower     (paramY, paramX, paramX, &c);
           break;
         }
         case ITM_MULT_XFN: {
-          realMultiply  ((real_t*)&paramY, (real_t*)&paramX, (real_t*)&paramX, &c);
+          realMultiply  (paramY, paramX, paramX, &c);
           break;
         }
         case ITM_DIV_XFN: {
-          realDivide    ((real_t*)&paramY, (real_t*)&paramX, (real_t*)&paramX, &c);
+          realDivide    (paramY, paramX, paramX, &c);
           break;
         }
         case ITM_MOD_XFN: {
-          WP34S_BigMod  ((real_t*)&paramY, (real_t*)&paramX, (real_t*)&paramX, &c);
+          WP34S_BigMod  (paramY, paramX, paramX, &c);
           break;
         }
         case ITM_atan2_XFN: {
-          C47_WP34S_Atan2_1071(&paramY, &paramX, &paramX, &c);
-          convertAngleFromTo((real_t *)&paramX, amRadian, currentAngularMode, &c);
+          C47_WP34S_Atan2_1071(paramY, paramX, paramX, &c);
+          convertAngleFromTo(paramX, amRadian, currentAngularMode, &c);
           break;
         }
 
@@ -955,10 +959,10 @@ printf("Dddd %d\n", registerNo);
     //Test code to force a specific output to check
     // real_t aaaa;
     // stringToReal("1E-1200", &aaaa, &c);
-    // stringToReal("1E-1000", (real_t *)&paramX, &c);
-    // realAdd  ((real_t *)&paramX, &aaaa, (real_t *)&paramX, &c);
+    // stringToReal("1E-1000", paramX, &c);
+    // realAdd  (paramX, &aaaa, paramX, &c);
     // stringToReal("1E-2030", &aaaa, &c);
-    // realAdd  ((real_t *)&paramX, &aaaa, (real_t *)&paramX, &c);
+    // realAdd  (paramX, &aaaa, paramX, &c);
     //****************
 
 //--------//--------//-- Clip to 1034 digits                               --//--------//--------//--------
@@ -966,11 +970,11 @@ printf("Dddd %d\n", registerNo);
     realContext_t cc = ctxtReal75;
     cc.digits = maxAllowedDigits + 34;
     cc.round = DEC_ROUND_HALF_UP;
-    realPlus((real_t *)&paramX, (real_t *)&paramX, &cc);
+    realPlus(paramX, paramX, &cc);
 
     #if defined(DEBUG_XFN)
       printRegisterToConsole(REGISTER_X, "\nX:", "\n");
-      realToString((real_t *)&paramX, tmpString);
+      realToString(paramX, tmpString);
       tmpString[debugLongNumberLimit]=0;
       printf("Output: %s\n", tmpString);
     #endif //DEBUG_XFN
@@ -1035,7 +1039,7 @@ printf("Dddd %d\n", registerNo);
     liftStack();
     longInteger_t integerOutput;
     longIntegerInit(integerOutput);
-    decomposeReal(&paramX, integerOutput, &paramY, &c);
+    decomposeReal(paramX, integerOutput, paramY, &c);
     convertLongIntegerToLongIntegerRegister(integerOutput, REGISTER_X);
     longIntegerFree(integerOutput);
 
@@ -1043,19 +1047,19 @@ printf("Dddd %d\n", registerNo);
     //Step 3: Send real multiplier to the stack output
     setSystemFlag(FLAG_ASLIFT);
     liftStack();
-    realPlus((real_t *)&paramY, &tmpR, &ctxtReal75);
+    realPlus(paramY, &tmpR, &ctxtReal75);
     convertRealToResultRegister(&tmpR, REGISTER_X, angleMode);
     adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
 
 
     //Step 4: update difference term;         re-using paramY
     if(functionType == FT_NILADIC || functionType == FT_MONADIC || functionType == FT_DYADIC) {
-      if(!getCombinedParameter(1, REGISTER_X, &paramY, &paramTemp, &tmpAngle, &c)) {   //ignore angle
+      if(!getCombinedParameter(1, REGISTER_X, paramY, paramTemp, &tmpAngle, &c)) {   //ignore angle
         ; //should be errored already in getCombinedParameter
         return;
       }
-      realSubtract((real_t *)&paramX, (real_t *)&paramY, (real_t *)&paramY, &c);
-      realPlus((real_t *)&paramY, &tmpR, &ctxtReal75);
+      realSubtract(paramX, paramY, paramY, &c);
+      realPlus(paramY, &tmpR, &ctxtReal75);
       convertRealToResultRegister(&tmpR, REGISTER_Z, amNone);
     }
 
@@ -1069,10 +1073,11 @@ printf("Dddd %d\n", registerNo);
 
 
     #if defined(DEBUG_XFN) || defined(DEBUGRESULT_ONLY_XFN)
-      real1071_t aa, tt;
-      readThreeRegisters(registerNo, &aa, &tt, &c);
-      realToString((real_t*)&aa, tmpString);
-      printf("\nAfter Step4, combined register: =%s|...%d\n", tmpString, (&aa)->digits);
+      REAL_T_PTR(aa, 1071);
+      REAL_T_PTR(tt, 1071);
+      readThreeRegisters(registerNo, aa, tt, &c);
+      realToString(aa, tmpString);
+      printf("\nAfter Step4, combined register: =%s|...%d\n", tmpString, aa->digits);
     #endif //DEBUG_XFN
 
 

@@ -101,8 +101,10 @@ void convertLongIntegerToShortIntegerRegister(longInteger_t lgInt, uint32_t base
       clearSystemFlag(FLAG_OVERFLOW);
       *(REGISTER_SHORT_INTEGER_DATA(destination)) = WP34S_intChs(*(REGISTER_SHORT_INTEGER_DATA(destination)));
     }
-    if(overflow && !getSystemFlag(FLAG_OVERFLOW))
+
+    if(overflow && !getSystemFlag(FLAG_OVERFLOW)) {
       setSystemFlag(FLAG_OVERFLOW);
+    }
   }
 }
 
@@ -461,8 +463,8 @@ void convertReal34RegisterToDateRegister(calcRegister_t source, calcRegister_t d
         lastCenturyHighUsedtmp = 100*(int16_t)(real34ToInt32(&part1) / 100) + 99;
       }
     }
-    else //FLAG_MDY //FLAG_DMY
-    if(real34CompareGreaterEqual(&part3, const34_100)) {
+    //FLAG_MDY //FLAG_DMY
+    else if(real34CompareGreaterEqual(&part3, const34_100)) {
       lastCenturyHighUsedtmp = 100*(int16_t)(real34ToInt32(&part3) / 100) + 99;
     }
 
@@ -845,24 +847,24 @@ infinite:
   return (float)s * exps[e + 45];
 }
 
-//#define realToReal39(source, destination) decQuadFromNumber ((real39_t *)(destination), source, &ctxtReal39)
-
 void realToFloat(const real_t *vv, float *v) {
   *v = fnRealToFloat(vv);
 }
 
 
 static double fnRealToDouble(const real_t *r) {
-    char buffer[100];
-        if(realIsSpecial(r)) {
-        if(realIsNaN(r)) return 0.0 / 0.0;
-        return realIsPositive(r) ? 1.0 / 0.0 : -1.0 / 0.0;
+  char buffer[100];
+  if(realIsSpecial(r)) {
+    if(realIsNaN(r)) {
+      return 0.0 / 0.0;
     }
-    if(realIsZero(r)) {
-        return realIsPositive(r) ? 0.0 : -0.0;
-    }
-    decNumberToString((decNumber*)r, buffer);
-    return strtod(buffer, NULL);
+    return realIsPositive(r) ? 1.0 / 0.0 : -1.0 / 0.0;
+  }
+  if(realIsZero(r)) {
+    return realIsPositive(r) ? 0.0 : -0.0;
+  }
+  decNumberToString((decNumber*)r, buffer);
+  return strtod(buffer, NULL);
 }
 
 
@@ -874,15 +876,17 @@ void realToDouble(const real_t *vv, double *v) {
 static bool_t typeIsNumber(uint32_t type, bool_t *cmplx) {
   switch(type) {
     case dtComplex34:
-      if(cmplx != NULL)
-          *cmplx = true;
+      if(cmplx != NULL) {
+        *cmplx = true;
+      }
       return true;
 
     case dtLongInteger:
     case dtShortInteger:
     case dtReal34:
-      if(cmplx != NULL)
-          *cmplx = false;
+      if(cmplx != NULL) {
+        *cmplx = false;
+      }
       return true;
   }
   return false;
@@ -959,8 +963,9 @@ bool_t getRegisterAsComplexOrAnyRealQuiet(calcRegister_t reg, real_t *r, real_t 
     case dtComplex34:
       real34ToReal(REGISTER_REAL34_DATA(reg), r);
       real34ToReal(REGISTER_IMAG34_DATA(reg), i);
-      if(cmplx != NULL)
+      if(cmplx != NULL) {
         *cmplx = true;
+      }
       return true;
 
     default:
@@ -973,24 +978,30 @@ bool_t getRegisterAsComplexOrAnyRealQuiet(calcRegister_t reg, real_t *r, real_t 
 bool_t getRegisterAsComplexOrAnyReal(calcRegister_t reg, real_t *r, real_t *i, bool_t *cmplx) {
   const bool_t ret = getRegisterAsComplexOrAnyRealQuiet(reg, r, i, cmplx);
 
-  if(!ret)
+  if(!ret) {
     badTypeError(reg);
+  }
+
   return ret;
 }
 
 bool_t getRegisterAsComplexOrRealQuiet(calcRegister_t reg, real_t *r, real_t *i, bool_t *cmplx) {
   const uint32_t t = getRegisterDataType(reg);
 
-  if(t == dtTime || t == dtDate)
+  if(t == dtTime || t == dtDate) {
     return false;
+  }
+
   return getRegisterAsComplexOrAnyRealQuiet(reg, r, i, cmplx);
 }
 
 bool_t getRegisterAsComplexOrReal(calcRegister_t reg, real_t *r, real_t *i, bool_t *cmplx) {
   const bool_t ret = getRegisterAsComplexOrRealQuiet(reg, r, i, cmplx);
 
-  if(!ret)
+  if(!ret) {
     badTypeError(reg);
+  }
+
   return ret;
 }
 
@@ -1026,24 +1037,30 @@ bool_t getRegisterAsAnyRealQuiet(calcRegister_t reg, real_t *val) {
 bool_t getRegisterAsRealQuiet(calcRegister_t reg, real_t *val) {
   uint32_t t = getRegisterDataType(reg);
 
-  if(t == dtDate || t ==dtTime)
+  if(t == dtDate || t ==dtTime) {
     return false;
+  }
+
   return getRegisterAsAnyRealQuiet(reg, val);
 }
 
 bool_t getRegisterAsReal(calcRegister_t reg, real_t *val) {
   bool_t res = getRegisterAsRealQuiet(reg, val);
 
-  if(!res)
+  if(!res) {
     badTypeError(reg);
+  }
+
   return res;
 }
 
 bool_t getRegisterAsAnyReal(calcRegister_t reg, real_t *val) {
   bool_t res = getRegisterAsAnyRealQuiet(reg, val);
 
-  if(!res)
+  if(!res) {
     badTypeError(reg);
+  }
+
   return res;
 }
 
@@ -1106,14 +1123,15 @@ bool_t getRegisterAsShortInt(calcRegister_t reg, bool_t *sign, uint64_t *val, bo
 
 
         of = (u64 & shortIntegerMask) != u64;
-        if(!of)
+        if(!of) {
           switch(shortIntegerMode) {
             case SIM_UNSIGN:
               of = realCompareGreaterEqual(&rval, const_2p64);
               break;
             case SIM_2COMPL:
-              if(*sign)
+              if(*sign) {
                 of = realCompareGreaterThan(&rval, const_2p63);
+              }
               else
                 /* fall through */
             case SIM_1COMPL:
@@ -1121,6 +1139,7 @@ bool_t getRegisterAsShortInt(calcRegister_t reg, bool_t *sign, uint64_t *val, bo
               of = realCompareGreaterEqual(&rval, const_2p63);
               break;
           }
+        }
         *val = u64;
         break;
       }
@@ -1131,10 +1150,14 @@ bool_t getRegisterAsShortInt(calcRegister_t reg, bool_t *sign, uint64_t *val, bo
       return false;
   }
 
-  if(overflow != NULL)
+  if(overflow != NULL) {
     *overflow = of;
-  if(fractional != NULL)
+  }
+
+  if(fractional != NULL) {
     *fractional = frac;
+  }
+
   return true;
 }
 
@@ -1148,8 +1171,9 @@ bool_t getRegisterAsRawShortInt(calcRegister_t reg, uint64_t *val, uint32_t *bas
     b = getRegisterShortIntegerBase(reg);
     goto finish;
   }
-  if(!getRegisterAsShortInt(reg, &sign, &v, &overflow, &fractional))
+  if(!getRegisterAsShortInt(reg, &sign, &v, &overflow, &fractional)) {
     return false;
+  }
   if(overflow || fractional) {
     badDomainError(reg);
     return false;
@@ -1157,8 +1181,9 @@ bool_t getRegisterAsRawShortInt(calcRegister_t reg, uint64_t *val, uint32_t *bas
   v = (uint64_t)WP34S_build_value(v, sign);
   b = lastIntegerBase != 0 ? lastIntegerBase : 10;
 finish:
-  if(base != NULL)
+  if(base != NULL) {
     *base = b;
+  }
   *val = v;
   return true;
 }
@@ -1180,8 +1205,9 @@ int getRegisterAsLongIntQuiet(calcRegister_t reg, longInteger_t val, bool_t *fra
     case dtComplex34:
     case dtReal34:
       if(getRegisterAsReal(reg, &rval)) {
-        if(realIsSpecial(&rval))
+        if(realIsSpecial(&rval)) {
           return ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN;
+        }
         if(!realIsAnInteger(&rval)) {
           realToIntegralValue(&rval, &rval, DEC_ROUND_DOWN, &ctxtReal39);
           frac = true;
@@ -1194,78 +1220,89 @@ int getRegisterAsLongIntQuiet(calcRegister_t reg, longInteger_t val, bool_t *fra
     default:
       return ERROR_INVALID_DATA_TYPE_FOR_OP;
   }
-  if(fractional != NULL)
+  if(fractional != NULL) {
     *fractional = frac;
+  }
+
   return ERROR_NONE;
 }
 
 bool_t getRegisterAsLongInt(calcRegister_t reg, longInteger_t val, bool_t *fractional) {
   const int err = getRegisterAsLongIntQuiet(reg, val, fractional);
 
-  if(err != ERROR_NONE)
+  if(err != ERROR_NONE) {
     displayCalcErrorMessage(err, ERR_REGISTER_LINE, REGISTER_T);
+  }
+
   return err == ERROR_NONE;
 }
 
-static void longIntegerAngleReduction(calcRegister_t regist, angularMode_t angularMode, real_t *reducedAngle) {
+static void longIntegerAngleReduction(calcRegister_t regist, angularMode_t angularMode, real_t *reducedAngle, bool_t reduceLongintegerAngle) {
   uint32_t oneTurn;
   longInteger_t angle;
 
-  switch(angularMode) {
-    case amMultPi: {
-      oneTurn = 2;
-      break;
-    }
-    case amGrad: {
-      oneTurn = 400;
-      break;
-    }
-    case amDegree:
-    case amDMS: {
-      oneTurn = 360;
-      break;
-    }
-    case amRadian: {
-      //incoming longInteger, converted via tempString to real6147, modulus 2pi into real6147, convert to real75
-      real2139_t reducedAngleTmp, reducedAngleTmp2;  // This cannot be increased to 6147 further. 6147 overruns the stack even if we just have the type in here also when using 2139 digits below.
-      realContext_t c = ctxtReal75;
-      c.digits = 2139;                               // Cannot be increased further. It works well on 1071, worked for a few tests already on 2139 but crashes if this goes to 6147 (together with the real_xxx above)
-                                                     // The minimum required for 1000 digits input reduction is slightly less than double, so 1071 is maybe ok for 99.99% cases, but 2139 is preferred as theoretically you will not have a case where 2139 will not work.
-      convertLongIntegerRegisterToLongInteger(regist, angle);
+  if(reduceLongintegerAngle) {
+    switch(angularMode) {
+      case amMultPi: {
+        oneTurn = 2;
+        break;
+      }
+      case amGrad: {
+        oneTurn = 400;
+        break;
+      }
+      case amDegree:
+      case amDMS: {
+        oneTurn = 360;
+        break;
+      }
+      case amRadian: {
+        //incoming longInteger, converted via tempString to real6147, modulus 2pi into real6147, convert to real75
+        REAL_T_PTR(reducedAngleTmp, 2139); // This cannot be increased to 6147 further. 6147 overruns the stack even if we just have the type in here also when using 2139 digits below.
+        REAL_T_PTR(reducedAngleTmp2, 2139);
+        realContext_t c = ctxtReal75;
+        c.digits = 2139;                               // Cannot be increased further. It works well on 1071, worked for a few tests already on 2139 but crashes if this goes to 6147 (together with the real_xxx above)
+                                                       // The minimum required for 1000 digits input reduction is slightly less than double, so 1071 is maybe ok for 99.99% cases, but 2139 is preferred as theoretically you will not have a case where 2139 will not work.
+        convertLongIntegerRegisterToLongInteger(regist, angle);
 
-      if(longIntegerBase10Digits(angle) > 1000) {
-        displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
-        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-          moreInfoOnError("In function longIntegerAngleReduction:", "Invalid integer size for angle reduction in radians: exponent too large.", NULL, NULL);
-        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+        if(longIntegerBase10Digits(angle) > 1000) {
+          displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+          #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+            moreInfoOnError("In function longIntegerAngleReduction:", "Invalid integer size for angle reduction in radians: exponent too large.", NULL, NULL);
+          #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+          longIntegerFree(angle);
+          return;
+        }
+
+        longIntegerToString(angle, 10, tmpString);
+        decNumberFromString(reducedAngleTmp, tmpString, &c);
+        WP34S_Mod(reducedAngleTmp, const6147_2pi, reducedAngleTmp2, &c);
+        realPlus(reducedAngleTmp2, reducedAngle, &ctxtReal75);
         longIntegerFree(angle);
         return;
       }
-
-      longIntegerToString(angle, 10, tmpString);   //replaced mpz_get_str(tmpString, 10, angle);
-      decNumberFromString((real_t *)&reducedAngleTmp, tmpString, &c);
-      WP34S_Mod((real_t *)&reducedAngleTmp, (real_t *)const6147_2pi, (real_t *)&reducedAngleTmp2, &c);
-      realPlus((real_t *)&reducedAngleTmp2, reducedAngle, &ctxtReal75);
-      longIntegerFree(angle);
-      return;
-    }
-    default: { //amNone
-      convertLongIntegerRegisterToReal(regist, reducedAngle, &ctxtReal75);
-      return;
+      default: { //amNone
+        convertLongIntegerRegisterToReal(regist, reducedAngle, &ctxtReal75);
+        return;
+      }
     }
   }
 
-  convertLongIntegerRegisterToLongInteger(regist, angle);
-  uInt32ToReal(longIntegerModuloUInt(angle, oneTurn), reducedAngle);
-  longIntegerFree(angle);
+  if(reduceLongintegerAngle) {
+    convertLongIntegerRegisterToLongInteger(regist, angle);
+    uInt32ToReal(longIntegerModuloUInt(angle, oneTurn), reducedAngle);   // Reduction for DEG, GRAD, MULPI branch
+    longIntegerFree(angle);
+  } else {
+    convertLongIntegerRegisterToReal(regist, reducedAngle, &ctxtReal39);  // No reduction for DEG, GRAD, MULPI branch
+  }
 }
 
 
 
-bool_t getRegisterAsRealAngle(calcRegister_t reg, real_t *val, angularMode_t *xAngularMode) {
+bool_t getRegisterAsRealAngle(calcRegister_t reg, real_t *val, angularMode_t *xAngularMode, bool_t reduceLongintegerAngle) {
   switch(getRegisterDataType(reg)) {
     case dtLongInteger:
-      longIntegerAngleReduction(reg, currentAngularMode, val);
+      longIntegerAngleReduction(reg, currentAngularMode, val, reduceLongintegerAngle);
       // out of range error rolled into longIntegerAngleReduction as the longintegr is not accessible here except for converting again
       *xAngularMode = currentAngularMode;
       break;
@@ -1278,8 +1315,9 @@ bool_t getRegisterAsRealAngle(calcRegister_t reg, real_t *val, angularMode_t *xA
     case dtReal34:
       real34ToReal(REGISTER_REAL34_DATA(reg), val);
       *xAngularMode = getRegisterAngularMode(reg);
-      if(*xAngularMode == amNone)
+      if(*xAngularMode == amNone) {
         *xAngularMode = currentAngularMode;
+      }
       if(*xAngularMode == amRadian && realGetExponent(val) > 999) {
         displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -1313,8 +1351,9 @@ void processIntRealComplexMonadicFunction(void (*realf)(void), void (*complexf)(
   bool_t cmplxRes = false;
   const uint32_t type = getRegisterDataType(REGISTER_X);
 
-  if(lastFunc != ITM_CHS && !saveLastX())                 // Compiler witll short circuit and not run saveLastX if the related function is CHS
+  if(lastFunc != ITM_CHS && !saveLastX()) {              // Compiler witll short circuit and not run saveLastX if the related function is CHS
     return;
+  }
 
   if(type == dtShortInteger) {
     if(shortintf != NULL) {
@@ -1327,19 +1366,25 @@ void processIntRealComplexMonadicFunction(void (*realf)(void), void (*complexf)(
     }
   }
 
-  if(type == dtLongInteger && longintf != NULL)
+  if(type == dtLongInteger && longintf != NULL) {
     longintf();
-  else if(type == dtReal34Matrix && realf != NULL)
+  }
+  else if(type == dtReal34Matrix && realf != NULL) {
     elementwiseRema(realf);
-  else if(type == dtComplex34Matrix && complexf != NULL)
+  }
+  else if(type == dtComplex34Matrix && complexf != NULL) {
     elementwiseCxma(complexf);
+  }
   else if(getRegisterAsComplexOrReal(REGISTER_X, &aReal, &aImag, &cmplxRes)) {
-    if(!cmplxRes && realf != NULL)
+    if(!cmplxRes && realf != NULL) {
       realf();
-    else if(complexf != NULL)
+    }
+    else if(complexf != NULL) {
       complexf();
-    else
+    }
+    else {
       badTypeErrorX();
+    }
   }
 
 done:
@@ -1354,8 +1399,9 @@ void processRealComplexDyadicFunction(void (*realf)(void), void (*complexf)(void
   const bool_t xNumber = typeIsNumber(typeX, &xCmplx);
   const bool_t yNumber = typeIsNumber(typeY, &yCmplx);
 
-  if(!saveLastX())
+  if(!saveLastX()) {
     return;
+  }
 
   if(typeX == dtReal34Matrix && realf != NULL) {
     if(typeY == dtReal34Matrix) {
@@ -1363,18 +1409,22 @@ void processRealComplexDyadicFunction(void (*realf)(void), void (*complexf)(void
       goto fin;
     }
     else if(typeY == dtComplex34Matrix) {
-      if(complexf != NULL)
+      if(complexf != NULL) {
         elementwiseCxmaRema(complexf);
-      else
+      }
+      else {
         badTypeError(REGISTER_Y);
+      }
       goto fin;
     }
     else if(yNumber) {
       if(yCmplx) {
-        if(complexf != NULL)
+        if(complexf != NULL) {
           elementwiseCplxRema(complexf);
-        else
+        }
+        else {
           badTypeError(REGISTER_Y);
+        }
       }
       else {
         elementwiseRealRema(realf);
@@ -1397,12 +1447,15 @@ void processRealComplexDyadicFunction(void (*realf)(void), void (*complexf)(void
     }
   }
   else if(typeY == dtReal34Matrix && xNumber) {
-    if(!xCmplx && realf != NULL)
+    if(!xCmplx && realf != NULL) {
       elementwiseRemaReal(realf);
-    else if(complexf != NULL)
+    }
+    else if(complexf != NULL) {
       elementwiseRemaCplx(complexf);
-    else
+    }
+    else {
       badTypeErrorX();
+    }
     goto fin;
   }
   else if(typeY == dtComplex34Matrix && xNumber) {
@@ -1411,16 +1464,19 @@ void processRealComplexDyadicFunction(void (*realf)(void), void (*complexf)(void
   }
 
   /* Fall through to numeric/numeric or error if not */
-  if(!getRegisterAsComplexOrReal(REGISTER_X, &xReal, &xImag, &cmplxRes)
-      || !getRegisterAsComplexOrReal(REGISTER_Y, &yReal, &yImag, &cmplxRes))
+  if(!getRegisterAsComplexOrReal(REGISTER_X, &xReal, &xImag, &cmplxRes) || !getRegisterAsComplexOrReal(REGISTER_Y, &yReal, &yImag, &cmplxRes)) {
     return;
+  }
 
-  if(!cmplxRes && realf != NULL)
+  if(!cmplxRes && realf != NULL) {
     realf();
-  else if(complexf != NULL)
+  }
+  else if(complexf != NULL) {
     complexf();
-  else
+  }
+  else {
     badTypeError(xCmplx ? REGISTER_X : REGISTER_Y);
+  }
 
 fin:
   adjustResult(REGISTER_X, true, true, REGISTER_X, REGISTER_Y, -1);
@@ -1433,12 +1489,14 @@ void processIntRealComplexDyadicFunction(void (*realf)(void), void (*complexf)(v
   const bool_t yInt = typeY == dtLongInteger || typeY == dtShortInteger;
 
   if(typeX == dtShortInteger && typeY == dtShortInteger && shortintf != NULL) {
-    if(saveLastX())
+    if(saveLastX()) {
       shortintf();
+    }
   }
   else if(xInt && yInt && longintf != NULL) {
-    if(saveLastX())
+    if(saveLastX()) {
       longintf();
+    }
   }
   else {
     processRealComplexDyadicFunction(realf, complexf);

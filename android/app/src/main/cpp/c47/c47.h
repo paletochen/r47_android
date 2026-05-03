@@ -97,6 +97,7 @@
     #include "hal/gui.h"
     #include "hal/io.h"
     #include "hal/lcd.h"
+    #include "hal/print_ir.h"
     #include "integers.h"
     #include "items.h"
     #include "keyboard.h"
@@ -104,6 +105,7 @@
     #include "mathematics/mathematics.h"
     #include "memory.h"
     #include "plotstat.h"
+    #include "printing/print.h"
     #include "programming/programming.h"
     #include "recall.h"
     #include "registers.h"
@@ -160,6 +162,7 @@
     #include "fonts.h"
     #include "items.h"
     #include "mathematics/mathematics.h"
+    #include "printing/print.h"
     #include "solver/solver.h"
     #include "sort.h"
     #include "stats.h"
@@ -281,8 +284,6 @@
   extern void                            (*confirmedFunction)(uint16_t);
   extern const softmenu_t                softmenu[];
   extern const confirmationTI_t          confirmationTI[];
-
-  #define gammaLanczosCoefficients       ((real51_t *)const_gammaC01)
 
   // Variables stored in RAM
   extern bool_t                 fnAsnDisplayUSER;
@@ -523,6 +524,8 @@
   extern uint16_t               currentProgramNumber;
   extern uint16_t               lrSelection;
   extern uint16_t               lrSelectionUndo;
+  extern uint16_t               amortP1;
+  extern uint16_t               amortP2;
   extern uint16_t               lrChosen;
   extern uint16_t               lrChosenUndo;
   extern uint16_t               lastPlotMode;
@@ -609,6 +612,13 @@
 
   extern uint8_t                firstDayOfWeek;
   extern uint8_t                firstWeekOfYearDay;
+
+  //#if defined(IR_PRINTING)
+    extern printerState_t         printerState;
+    extern const printerFont_t    printerFont8;
+    extern const martelFont24_t   martelFont24;
+    extern uint16_t               printerColumn;
+  //#endif //IR_PRINTING
 
   #if defined(DMCP_BUILD)
     extern bool_t               backToDMCP;

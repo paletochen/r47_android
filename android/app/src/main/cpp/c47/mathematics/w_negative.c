@@ -8,7 +8,7 @@
 #include "c47.h"
 
 static real_t *get_1oneE(real_t *a) {
-  realCopy(const_1oneE, a);
+  realCopy(const39_1oneE, a);
   realSetNegativeSign(a);
   return a;
 }
@@ -16,8 +16,9 @@ static real_t *get_1oneE(real_t *a) {
 static void wNegReal(void) {
   real_t x, res;
 
-  if(!getRegisterAsReal(REGISTER_X, &x))
+  if(!getRegisterAsReal(REGISTER_X, &x)) {
     return;
+  }
 
   if(realCompareGreaterEqual(&x, get_1oneE(&res)) && realCompareLessEqual(&x, const_0)) {
     WP34S_LambertW(&x, &res, true, &ctxtReal39);
@@ -34,8 +35,9 @@ static void wNegReal(void) {
 static void wNegCplx(void) {
   real_t xr, xi, res;
 
-  if(!getRegisterAsComplex(REGISTER_X, &xr, &xi))
+  if(!getRegisterAsComplex(REGISTER_X, &xr, &xi)) {
     return;
+  }
 
   if(realIsZero(&xi)) {
     if(realCompareGreaterEqual(&xr, get_1oneE(&res)) && realCompareLessEqual(&xr, const_0)) {

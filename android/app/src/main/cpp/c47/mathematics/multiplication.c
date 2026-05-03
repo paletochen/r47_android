@@ -133,28 +133,33 @@ void mulComplexComplex75(const real_t *factor1Real, const real_t *factor1Imag, c
 // This re-write is needed as the mixing of decNumber types cannot deal with the real_t temporary variable withinn mulComplexComplex().
 // The 159 series is needed for 39 digit precision in cuberoots and the cubic formula solver
 void mulComplexComplex159(const real_t *factor1Real, const real_t *factor1Imag, const real_t *factor2Real, const real_t *factor2Imag, real_t *productReal, real_t *productImag, realContext_t *realContext) {
-  real159_t a, b, c, d, p, t;
+  REAL_T_PTR(a, 159);
+  REAL_T_PTR(b, 159);
+  REAL_T_PTR(c, 159);
+  REAL_T_PTR(d, 159);
+  REAL_T_PTR(p, 159);
+  REAL_T_PTR(t, 159);
 
-  realSetZero((real_t *)&a);
-  realSetZero((real_t *)&b);
-  realSetZero((real_t *)&c);
-  realSetZero((real_t *)&d);
-  realSetZero((real_t *)&p);
-  realSetZero((real_t *)&t);
-  realCopy(factor1Real, (real_t *)&a);
-  realCopy(factor1Imag, (real_t *)&b);
-  realCopy(factor2Real, (real_t *)&c);
-  realCopy(factor2Imag, (real_t *)&d);
+  realSetZero(a);
+  realSetZero(b);
+  realSetZero(c);
+  realSetZero(d);
+  realSetZero(p);
+  realSetZero(t);
+  realCopy(factor1Real, a);
+  realCopy(factor1Imag, b);
+  realCopy(factor2Real, c);
+  realCopy(factor2Imag, d);
 
   // Real part: ac - bd
-  realMultiply((real_t *)&a, (real_t *)&c, (real_t *)&p, realContext);
-  realChangeSign((real_t *)&b);
-  realFMA((real_t *)&b, (real_t *)&d, (real_t *)&p, productReal, realContext);
-  realChangeSign((real_t *)&b);
+  realMultiply(a, c, p, realContext);
+  realChangeSign(b);
+  realFMA(b, d, p, productReal, realContext);
+  realChangeSign(b);
 
   // Imaginary part: ad + bc
-  realMultiply((real_t *)&a, (real_t *)&d, (real_t *)&p, realContext);
-  realFMA((real_t *)&b, (real_t *)&c, (real_t *)&p, productImag, realContext);
+  realMultiply(a, d, p, realContext);
+  realFMA(b, c, p, productImag, realContext);
 }
 #endif //OPTION_CUBIC_159 || OPTION_SQUARE_159 || OPTION_EIGEN_159
 
@@ -181,50 +186,55 @@ void mulComplexComplex(const real_t *factor1Real, const real_t *factor1Imag, con
 
 // void mulComplexComplex159(const real_t *factor1Real, const real_t *factor1Imag, const real_t *factor2Real, const real_t *factor2Imag, real_t *productReal, real_t *productImag, realContext_t *realContext) {
 //   printf("DEBUG MUL159: realContext->digits = %d\n", realContext->digits);
-//   real159_t a, b, c, d, p, t;
+//   REAL_T_PTR(a, 159);
+//   REAL_T_PTR(b, 159);
+//   REAL_T_PTR(c, 159);
+//   REAL_T_PTR(d, 159);
+//   REAL_T_PTR(p, 159);
+//   REAL_T_PTR(t, 159);
 //   printf("DEBUG: mulComplexComplex159 called with compensated algorithm\n");
 //
-//   realSetZero((real_t *)&a);
-//   realSetZero((real_t *)&b);
-//   realSetZero((real_t *)&c);
-//   realSetZero((real_t *)&d);
-//   realSetZero((real_t *)&p);
-//   realSetZero((real_t *)&t);
-//   realPlus(factor1Real, (real_t *)&a, realContext);
-//   realPlus(factor1Imag, (real_t *)&b, realContext);
-//   realPlus(factor2Real, (real_t *)&c, realContext);
-//   realPlus(factor2Imag, (real_t *)&d, realContext);
+//   realSetZero(a);
+//   realSetZero(b);
+//   realSetZero(c);
+//   realSetZero(d);
+//   realSetZero(p);
+//   realSetZero(t);
+//   realPlus(factor1Real, a, realContext);
+//   realPlus(factor1Imag, b, realContext);
+//   realPlus(factor2Real, c, realContext);
+//   realPlus(factor2Imag, d, realContext);
 //
 //
 // char dbg[2000];
-// printf("DEBUG MUL159: a.digits = %3d = %s\n", a.digits, realToString((real_t *)&a, dbg));
-// printf("DEBUG MUL159: b.digits = %3d = %s\n", b.digits, realToString((real_t *)&b, dbg));
-// printf("DEBUG MUL159: c.digits = %3d = %s\n", c.digits, realToString((real_t *)&c, dbg));
-// printf("DEBUG MUL159: d.digits = %3d = %s\n", d.digits, realToString((real_t *)&d, dbg));
+// printf("DEBUG MUL159: a.digits = %3d = %s\n", a.digits, realToString(a, dbg));
+// printf("DEBUG MUL159: b.digits = %3d = %s\n", b.digits, realToString(b, dbg));
+// printf("DEBUG MUL159: c.digits = %3d = %s\n", c.digits, realToString(c, dbg));
+// printf("DEBUG MUL159: d.digits = %3d = %s\n", d.digits, realToString(d, dbg));
 //
 //
 //
 //   // Real part: ac - bd (numerically stable compensated algorithm)
-// realMultiply((real_t *)&a, (real_t *)&c, (real_t *)&p, realContext);
-// printf("DEBUG MUL159: p = a*c = %s\n", realToString((real_t *)&p, dbg));
-// realChangeSign((real_t *)&b);
-// realFMA((real_t *)&b, (real_t *)&d, (real_t *)&p, (real_t *)&t, realContext);
-// printf("DEBUG MUL159: t = p - b*d = %s\n", realToString((real_t *)&t, dbg));
+// realMultiply(a, c, p, realContext);
+// printf("DEBUG MUL159: p = a*c = %s\n", realToString(p, dbg));
+// realChangeSign(b);
+// realFMA(b, d, p, t, realContext);
+// printf("DEBUG MUL159: t = p - b*d = %s\n", realToString(t, dbg));
 //
-// //  realMultiply((real_t *)&a, (real_t *)&c, (real_t *)&p, realContext);                  // p = ac
-// //  realChangeSign((real_t *)&b);
-// //  realFMA((real_t *)&b, (real_t *)&d, (real_t *)&p, (real_t *)&t, realContext);         // t = p - bd
-//   realChangeSign((real_t *)&b);
-//   realChangeSign((real_t *)&p);
-//   realFMA((real_t *)&a, (real_t *)&c, (real_t *)&p, productReal, realContext);          // productReal = ac - p
-//   realAdd(productReal, (real_t *)&t, productReal, realContext);                          // productReal = (ac - p) + (p - bd)
+// //  realMultiply(a, c, p, realContext);                // p = ac
+// //  realChangeSign(b);
+// //  realFMA(b, d, p, t, realContext);                  // t = p - bd
+//   realChangeSign(b);
+//   realChangeSign(p);
+//   realFMA(a, c, p, productReal, realContext);          // productReal = ac - p
+//   realAdd(productReal, t, productReal, realContext);   // productReal = (ac - p) + (p - bd)
 //
 //   // Imaginary part: ad + bc (numerically stable compensated algorithm)
-//   realMultiply((real_t *)&a, (real_t *)&d, (real_t *)&p, realContext);                  // p = ad
-//   realFMA((real_t *)&b, (real_t *)&c, (real_t *)&p, (real_t *)&t, realContext);         // t = bc + p
-//   realChangeSign((real_t *)&p);
-//   realFMA((real_t *)&a, (real_t *)&d, (real_t *)&p, productImag, realContext);          // productImag = ad - p
-//   realAdd(productImag, (real_t *)&t, productImag, realContext);                          // productImag = (ad - p) + (bc + p)
+//   realMultiply(a, d, p, realContext);                  // p = ad
+//   realFMA(b, c, p, t, realContext);                    // t = bc + p
+//   realChangeSign(p);
+//   realFMA(a, d, p, productImag, realContext);          // productImag = ad - p
+//   realAdd(productImag, t, productImag, realContext);   // productImag = (ad - p) + (bc + p)
 // }
 
 

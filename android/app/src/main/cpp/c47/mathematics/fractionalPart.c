@@ -23,8 +23,9 @@ static void fpShoI(void) {
      * number becomes -0 rather than +0.
      */
     x = *(REGISTER_SHORT_INTEGER_DATA(REGISTER_X));
-    if((x & shortIntegerSignBit) != 0)
+    if((x & shortIntegerSignBit) != 0) {
       y = shortIntegerMode == SIM_1COMPL ? shortIntegerMask : shortIntegerSignBit;
+    }
   }
   *(REGISTER_SHORT_INTEGER_DATA(REGISTER_X)) = y;
 }

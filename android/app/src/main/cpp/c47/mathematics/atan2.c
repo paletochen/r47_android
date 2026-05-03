@@ -62,8 +62,9 @@ void fnAtan2(uint16_t unusedButMandatoryParameter) {
 void atan2RealReal(void) {
   real_t y, x;
 
-  if(!getRegisterAsReal(REGISTER_X, &x) || !getRegisterAsReal(REGISTER_Y, &y))
+  if(!getRegisterAsReal(REGISTER_X, &x) || !getRegisterAsReal(REGISTER_Y, &y)) {
     return;
+  }
 
   if(realIsZero(&y) && realIsZero(&x) && !getSystemFlag(FLAG_SPCRES)) {
     displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);

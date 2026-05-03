@@ -13,11 +13,15 @@ void fnXSWAP (uint16_t mode) {
   #define isSwap (!isEdit)
 
     if(calcMode == CM_EIM || calcMode == CM_AIM) {
-      if(calcMode==CM_AIM) fnSwapXY(0);
+      if(calcMode==CM_AIM) {
+        fnSwapXY(0);
+      }
       //convert X to string if needed
       int type_x = getRegisterDataType(REGISTER_X);
       if(type_x == dtString && stringByteLength(REGISTER_STRING_DATA(REGISTER_X)) >= AIM_BUFFER_LENGTH) {
-        if(calcMode==CM_AIM) fnSwapXY(0);                                           //swap back before returning with nothing done
+        if(calcMode==CM_AIM) {
+          fnSwapXY(0);                                           //swap back before returning with nothing done
+        }
         return;
       }
       if(type_x == dtReal34 || type_x == dtComplex34 || type_x == dtLongInteger || type_x == dtShortInteger || type_x == dtTime || type_x == dtDate) {
@@ -36,7 +40,9 @@ void fnXSWAP (uint16_t mode) {
         //resulting in a converted string in X, with Y unchanged
       }
       if(getRegisterDataType(REGISTER_X) != dtString) {                             //somehow failed to convert then return with whatever was done in X
-        if(calcMode==CM_AIM) fnSwapXY(0);                                           //  This could be optimized to still restore the original X register if it had failed to convert
+        if(calcMode==CM_AIM) {
+          fnSwapXY(0);                                           //  This could be optimized to still restore the original X register if it had failed to convert
+        }
         return;
       }
 

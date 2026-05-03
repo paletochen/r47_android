@@ -33,12 +33,14 @@ void fnPcSigmaDeltaPcXmean(uint16_t unusedButMandatoryParameter) {
     return;
   }
 
-  if(!getRegisterAsReal(REGISTER_X, &xReal))
+  if(!getRegisterAsReal(REGISTER_X, &xReal)) {
     return;
+  }
 
   if(!saveLastX()) {
     return;
   }
+
   liftStack();
 
   if(percentSigma(&xReal, &rReal, &ctxtReal75)) {

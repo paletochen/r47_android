@@ -5,7 +5,7 @@
 #include "log10.h"
 
 static void log2LonI(void) {
-  logxyLonI(const_ln2);
+  logxyLonI(const39_ln2);
 }
 
 static void log2ShoI(void) {
@@ -13,11 +13,11 @@ static void log2ShoI(void) {
 }
 
 static void log2Real(void) {
-  logxyReal(const_ln2);
+  logxyReal(const39_ln2);
 }
 
 static void log2Cplx(void) {
-  logxyCplx(const_ln2);
+  logxyCplx(const39_ln2);
 }
 
 /********************************************//**

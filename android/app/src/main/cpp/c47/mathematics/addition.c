@@ -387,7 +387,7 @@ void addDateReal(void) {
   xAngularMode = getRegisterAngularMode(REGISTER_X);
 
   if(xAngularMode == amNone) {
-    real34ToIntegralValue(REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X), roundingMode);
+    real34ToIntegralValue(REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X), roundingModeTable[roundingMode]);
     real34Multiply(REGISTER_REAL34_DATA(REGISTER_X), const34_86400, &val);
     reallocateRegister(REGISTER_X, dtDate, 0, amNone);
     real34Add(REGISTER_REAL34_DATA(REGISTER_Y), &val, REGISTER_REAL34_DATA(REGISTER_X));
@@ -412,7 +412,7 @@ void addRealDate(void) {
   yAngularMode = getRegisterAngularMode(REGISTER_Y);
 
   if(yAngularMode == amNone) {
-    real34ToIntegralValue(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_Y), roundingMode);
+    real34ToIntegralValue(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_Y), roundingModeTable[roundingMode]);
     real34Multiply(REGISTER_REAL34_DATA(REGISTER_Y), const34_86400, &val);
     real34Add(&val, REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X));
   }

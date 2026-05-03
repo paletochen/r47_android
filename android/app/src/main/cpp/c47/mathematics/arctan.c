@@ -10,8 +10,9 @@
 static void arctanReal(void) {
   real_t x;
 
-  if(!getRegisterAsReal(REGISTER_X, &x))
+  if(!getRegisterAsReal(REGISTER_X, &x)) {
     return;
+  }
 
   if(realIsInfinite(&x)) {
     if(getSystemFlag(FLAG_SPCRES)) {
@@ -43,8 +44,9 @@ static void arctanReal(void) {
 static void arctanCplx(void) {
   real_t xReal, xImag, rReal, rImag;
 
-  if(!getRegisterAsComplex(REGISTER_X, &xReal, &xImag))
+  if(!getRegisterAsComplex(REGISTER_X, &xReal, &xImag)) {
     return;
+  }
 
   ArctanComplex(&xReal, &xImag, &rReal, &rImag, &ctxtReal39);
 

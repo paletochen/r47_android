@@ -15,8 +15,9 @@ static void arctanhCplx(void) {
   real_t numerReal, denomReal;
   real_t numerImag, denomImag;
 
-  if(!getRegisterAsComplex(REGISTER_X, &denomImag, &numerImag))
+  if(!getRegisterAsComplex(REGISTER_X, &denomImag, &numerImag)) {
     return;
+  }
 
   // numer = 1 + (a + ib)
   realAdd(&denomImag, const_1, &numerReal, &ctxtReal39);
@@ -43,8 +44,9 @@ static void arctanhReal(void) {
   real_t x;
   const real_t *r = &x;
 
-  if(!getRegisterAsReal(REGISTER_X, &x))
+  if(!getRegisterAsReal(REGISTER_X, &x)) {
     return;
+  }
 
   if(realIsZero(&x)) {
     r = const_0;

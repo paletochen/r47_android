@@ -29,17 +29,21 @@
   enum normalType {stdNormal, paramNormal, logNormal};
 
   static bool_t checkParamNormal(enum normalType type, real_t *x, real_t *i, real_t *j) {
-    if(!saveLastX())
+    if(!saveLastX()) {
       return false;
+    }
 
-    if(!getRegisterAsReal(REGISTER_X, x))
+    if(!getRegisterAsReal(REGISTER_X, x)) {
       goto err;
-    if(type == stdNormal)
+    }
+
+    if(type == stdNormal) {
       return true;
+    }
 
-    if(!getRegisterAsReal(REGISTER_M, i)
-        || !getRegisterAsReal(REGISTER_S, j))
+    if(!getRegisterAsReal(REGISTER_M, i) || !getRegisterAsReal(REGISTER_S, j)) {
       goto err;
+    }
 
     if(realIsZero(j) || realIsNegative(j)) {
       displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE, REGISTER_X);
@@ -84,9 +88,10 @@
         }
         WP34S_Pdf_Q(&val, &ans, &ctxtReal39);
         if(!stdn) {
-            realDivide(&ans, &sigma, &ans, &ctxtReal39);
-            if(logn)
-              realDivide(&ans, &alval, &ans, &ctxtReal39);
+          realDivide(&ans, &sigma, &ans, &ctxtReal39);
+          if(logn) {
+            realDivide(&ans, &alval, &ans, &ctxtReal39);
+          }
         }
       }
       convertRealToResultRegister(&ans, REGISTER_X, amNone);
@@ -258,7 +263,7 @@
     realMultiply(res, const_1on2, res, realContext);
       WP34S_GammaP(res, const_1on2, res, realContext, true, false);
     realMultiply(res, const_1on2, res, realContext);
-      realSquareRoot(const_pi, &p, realContext);
+      realSquareRoot(const39_pi, &p, realContext);
       realDivide(res, &p, res, realContext);
       return;
     }
@@ -270,7 +275,7 @@
     realMultiply(x, x, res, realContext);
     realMultiply(res, const_1on2, res, realContext);
       WP34S_GammaP(res, const_1on2, res, realContext, false, false);
-      realSquareRoot(const_pi, &p, realContext);
+      realSquareRoot(const39_pi, &p, realContext);
       realDivide(res, &p, res, realContext);
       realAdd(res, const_1, res, realContext);
     realMultiply(res, const_1on2, res, realContext);
@@ -284,7 +289,7 @@
   realMultiply(res, const_1on2, res, realContext);
     realChangeSign(res);
    realExp(res, res, realContext);
-   realSquareRoot(const_2pi, &p, realContext);
+   realSquareRoot(const39_2pi, &p, realContext);
    realDivide(res, &p, res, realContext);
  }
 
@@ -319,7 +324,7 @@
       realMultiply(&q, const_2, &q, realContext);
       realChangeSign(&q);
       realSubtract(&q, const_1, &r, realContext);
-      realMultiply(&r, const_2pi, &r, realContext);
+      realMultiply(&r, const39_2pi, &r, realContext);
       realSquareRoot(&r, &r, realContext);
       realMultiply(&r, &p, &r, realContext);
       WP34S_Ln(&r, &r, realContext);
@@ -334,7 +339,7 @@
     else { // qf_q_mid
       realMinus(&p, &q, realContext);
       realAdd(&q, const_1on2, &q, realContext);
-      realSquareRoot(const_2pi, &r, realContext);
+      realSquareRoot(const39_2pi, &r, realContext);
       realMultiply(&q, &r, &q, realContext);
       realMultiply(&q, &q, &r, realContext);
       realMultiply(&r, &q, &r, realContext);

@@ -333,6 +333,9 @@ real_t                 SAVED_SIGMA_LASTX;
 real_t                 SAVED_SIGMA_LASTY;
 int8_t                 SAVED_SIGMA_lastAddRem;
 
+uint16_t               amortP1;
+uint16_t               amortP2;
+
 uint16_t               lrSelectionHistobackup;
 uint16_t               lrChosenHistobackup;
 int16_t                histElementXorY;
@@ -359,6 +362,15 @@ bool_t                 cancelFilename;
 
 uint8_t                firstDayOfWeek = 1;     // Monday
 uint8_t                firstWeekOfYearDay = 4; // Thursday
+
+//#if defined(IR_PRINTING)
+  printerState_t         printerState;
+  /*
+   *  Where will the next data be printed?
+   *  Columns are in pixel units from 0 to 165 for the HP-82240 and 0 to 383 for the Martel graphic mode
+   */
+  uint16_t               printerColumn;
+//#endif //IR_PRINTING
 
 
 #if defined(DMCP_BUILD)
@@ -1196,8 +1208,7 @@ int convertKeyCode(int key) {
                             #endif //DM42_KEYCLICK
           fnTimerStart(TO_KB_ACTV, TO_KB_ACTV, TO_KB_ACTV_CURSOR);
         }
-        else
-        {
+        else {
                             #if defined(DM42_KEYCLICK)
                               keyClick(7);
                             #endif //DM42_KEYCLICK

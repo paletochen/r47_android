@@ -7,6 +7,8 @@
 #if !defined(MATRIX_H)
   #define MATRIX_H
 
+  bool_t getMatrixDims(calcRegister_t regist, const char *funcName, uint16_t *rows, uint16_t *cols);
+
   /**
    * Creates new Matrix of size y->m x x ->n.
    *
@@ -57,28 +59,29 @@
    * \param[in] unusedParamButMandatory
    */
   void       fnInvertMatrix                 (uint16_t unusedParamButMandatory);
+  void       fnMatrixSquareRoot             (uint16_t unusedParamButMandatory);
 
   /**
    * Euclidean norm of matrix X.
    *
    * \param[in] unusedParamButMandatory
    */
-  void       fnEuclideanNorm                (uint16_t unusedParamButMandatory);
+
+  void       fnPNorm                        (uint16_t unusedParamButMandatory);
   void       fnVectorDist                   (uint16_t unusedParamButMandatory);
+  void       convert3DtoSPH                 (const real34Matrix_t *matrix, real_t *r, real_t *th1, real_t *th2, uint8_t am, decContext *ctxtRealDisplay);
+  void       convertSPHto3D                 (real_t *r, real_t *th1, real_t *th2, uint8_t am, real34Matrix_t *matrix, decContext *ctxtRealDisplay);
+  void       convert3DtoCYL                 (const real34Matrix_t *matrix, real_t *r, real_t *th1, real_t *z, uint8_t am, decContext *ctxtRealDisplay);
+  void       convertCYLto3D                 (real_t *r, real_t *th1, real_t *z, uint8_t am, real34Matrix_t *matrix, decContext *ctxtRealDisplay);
+  void       convert2DtoPOL                 (const real34Matrix_t *matrix, real_t *r, real_t *th1, uint8_t am, decContext *ctxtRealDisplay);
+  void       convertPOLto2D                 (real_t *r, real_t *th1, uint8_t am, real34Matrix_t *matrix, decContext *ctxtRealDisplay);
 
   /**
    * Row sum of matrix X.
    *
    * \param[in] unusedParamButMandatory
    */
-  void       fnRowSum                       (uint16_t unusedParamButMandatory);
-
-  /**
-   * Row norm of matrix X.
-   *
-   * \param[in] unusedParamButMandatory
-   */
-  void       fnRowNorm                      (uint16_t unusedParamButMandatory);
+  void       fnRowColSum                    (uint16_t unusedParamButMandatory);
 
 
   /**
@@ -117,6 +120,7 @@
    * \param[in] unusedParamButMandatory
    */
   void       fnSwapRows                     (uint16_t unusedParamButMandatory);
+  void       fnSwapColumns                  (uint16_t unusedParamButMandatory);
 
   /**
    * Initialize simultaneous linear equation solver.
@@ -183,6 +187,7 @@
    * \param[in] matrix
    */
   void     realMatrixIdentity             (real34Matrix_t *matrix, uint16_t size);
+  void     fnMatrixIdentity               (uint16_t unusedButMandatoryParameter);
 
   /**
    * Redemention a real matrix.
@@ -238,8 +243,9 @@
    * \param[in] matrix
    * \param[in] prefixWidth
    */
+  #define regXp true
   #define toDisplayVectorMatrix true
-  void     showRealMatrix                 (const real34Matrix_t *matrix, int16_t prefixWidth, bool_t toDisplay);
+  void     showRealMatrix                 (const real34Matrix_t *matrix, int16_t prefixWidth, bool_t toDisplay, bool_t regXposition);
 
   /**
    * Calculates width of columns of a real matrix.
@@ -261,7 +267,7 @@
    * \param[in] matrix
    * \param[in] prefixWidth
    */
-  void     showComplexMatrix              (const complex34Matrix_t *matrix, int16_t prefixWidth, angularMode_t angleMode, bool_t polarMode);
+  void     showComplexMatrix              (const complex34Matrix_t *matrix, int16_t prefixWidth, angularMode_t angleMode, bool_t polarMode, bool_t regXposition);
 
   /**
    * Calculates width of columns of a complex matrix.
@@ -360,8 +366,8 @@
   void     _multiplyComplexMatrix         (const complex34Matrix_t *matrix, const real_t *xr, const real_t *xi, complex34Matrix_t *res, realContext_t *realContext);
   void     multiplyComplexMatrices        (const complex34Matrix_t *y, const complex34Matrix_t *x, complex34Matrix_t *res);
 
-  void     euclideanNormRealMatrix        (const real34Matrix_t *matrix, real34_t *res);
-  void     euclideanNormComplexMatrix     (const complex34Matrix_t *matrix, real34_t *res);
+  void     euclideanNormRealMatrix        (const real34Matrix_t *matrix, uint16_t pParam, real34_t *res);
+  void     euclideanNormComplexMatrix     (const complex34Matrix_t *matrix, uint16_t pParam, real34_t *res);
 
   uint16_t realVectorSize                 (const real34Matrix_t *matrix);
   void     dotRealVectors                 (const real34Matrix_t *y, const real34Matrix_t *x, real34_t *res);
@@ -375,6 +381,7 @@
 
   void     WP34S_LU_decomposition         (const real34Matrix_t *matrix, real34Matrix_t *lu, uint16_t *p);
   void     realMatrixSwapRows             (const real34Matrix_t *matrix, real34Matrix_t *res, uint16_t a, uint16_t b);
+  void     realMatrixSwapColumns          (const real34Matrix_t *matrix, real34Matrix_t *res, uint16_t a, uint16_t b);
   void     detRealMatrix                  (const real34Matrix_t *matrix, real34_t *res);
   void     invertRealMatrix               (const real34Matrix_t *matrix, real34Matrix_t *res);
   void     divideRealMatrix               (const real34Matrix_t *matrix, const real34_t *x, real34Matrix_t *res);
@@ -385,6 +392,7 @@
 
   void     complex_LU_decomposition       (const complex34Matrix_t *matrix, complex34Matrix_t *lu, uint16_t *p);
   void     complexMatrixSwapRows          (const complex34Matrix_t *matrix, complex34Matrix_t *res, uint16_t a, uint16_t b);
+  void     complexMatrixSwapColumns       (const complex34Matrix_t *matrix, complex34Matrix_t *res, uint16_t a, uint16_t b);
   void     detComplexMatrix               (const complex34Matrix_t *matrix, real34_t *res_r, real34_t *res_i);
   void     invertComplexMatrix            (const complex34Matrix_t *matrix, complex34Matrix_t *res);
   void     divideComplexMatrix            (const complex34Matrix_t *matrix, const real34_t *xr, const real34_t *xi, complex34Matrix_t *res);
@@ -399,10 +407,6 @@
   void     real_QR_decomposition          (const real34Matrix_t *matrix, real34Matrix_t *q, real34Matrix_t *r);
   void     complex_QR_decomposition       (const complex34Matrix_t *matrix, complex34Matrix_t *q, complex34Matrix_t *r);
 
-  void     realEigenvalues                (const real34Matrix_t *matrix, real34Matrix_t *res, real34Matrix_t *ires);
-  void     complexEigenvalues             (const complex34Matrix_t *matrix, complex34Matrix_t *res);
-  void     realEigenvectors               (const real34Matrix_t *matrix, real34Matrix_t *res, real34Matrix_t *ires);
-  void     complexEigenvectors            (const complex34Matrix_t *matrix, complex34Matrix_t *res);
   void     callByIndexedMatrix            (bool_t (*real_f)(real34Matrix_t *), bool_t (*complex_f)(complex34Matrix_t *));
 
   void       linkToRealMatrixRegister       (calcRegister_t regist, real34Matrix_t *linkedMatrix);
@@ -429,5 +433,17 @@
   void       elementwiseCxmaRema            (void (*f)(void));
   void       elementwiseCplxRema            (void (*f)(void));
   void       elementwiseRemaCplx            (void (*f)(void));
+
+  void       V3RectoToSph                   (uint16_t am);
+  void       V3RectoToCyl                   (uint16_t am);
+  bool_t     VtoAngleMode                   (angularMode_t angleMode);
+  void       fnComplexToVector              (uint16_t unusedButMandatoryParameter);
+  bool_t     is_2D3D_Register_Ready         (uint32_t *ang2Dx, uint32_t *ang2Dy, uint32_t *ang3Dx, uint32_t *ang3Dy, uint32_t *ang3Dz, bool_t *validPolarInput, bool_t *valid2DRInput, bool_t *validSPHInput, bool_t *validCYLInput, bool_t *valid3DRInput, uint16_t constVector);
+
+  void       fnColumnMin                    (uint16_t unusedButMandatoryParameter);
+  void       fnColumnMax                    (uint16_t unusedButMandatoryParameter);
+  void       fnMatrixFind                   (uint16_t unusedButMandatoryParameter);
+
+
 
 #endif // !MATRIX_H

@@ -37,8 +37,9 @@ static void invertReal(void) {
     const int setNeg = realIsNegative(&x) && getSystemFlag(FLAG_SPCRES);
 
     realSetZero(&x);
-    if(setNeg)
+    if(setNeg) {
       realChangeSign(&x);
+    }
   }
 
   else if(realCompareAbsEqual(&x, const_1)) {

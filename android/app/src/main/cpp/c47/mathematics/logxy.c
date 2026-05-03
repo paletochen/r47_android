@@ -147,8 +147,7 @@ static void logXYReal(void) {
 static void logXYCplx(void) {
   real_t xReal, xImag, yReal, yImag, rReal, rImag;
 
-  if(   !getRegisterAsComplex(REGISTER_Y, &yReal, &yImag)
-     || !getRegisterAsComplex(REGISTER_X, &xReal, &xImag)) {
+  if(   !getRegisterAsComplex(REGISTER_Y, &yReal, &yImag) || !getRegisterAsComplex(REGISTER_X, &xReal, &xImag)) {
     return;
   }
   if(checkArgs(&xReal, &xImag, &yReal, &yImag)) {
