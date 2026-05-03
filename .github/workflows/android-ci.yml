@@ -774,6 +774,6 @@ jobs:
           files: release-assets/*
           fail_on_unmatched_files: true
           overwrite_files: true
-          prerelease: true
+          prerelease: false
           draft: false
-          make_latest: false
+          make_latest: true
