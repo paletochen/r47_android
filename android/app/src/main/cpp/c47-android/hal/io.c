@@ -11,7 +11,8 @@
 #endif
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 
-char android_base_path[512] = "/data/data/com.example.r47/files";
+static char android_base_path[512] = "";
+static int android_base_path_ready = 0;
 int current_slot_id = 0; // Linked via JNI
 
 static FILE *openedFile = NULL;
@@ -19,13 +20,47 @@ extern int requestAndroidFile(int isSave, const char* defaultName, int fileType)
 extern void onFileSelectedNative(int fd);
 extern void onFileCancelledNative();
 
-void set_android_base_path(const char* path) {
-    strncpy(android_base_path, path, 511);
+static void ensure_android_subdir(const char *subdir) {
     char buf[1024];
-    snprintf(buf, 1024, "%s/%s", path, STATE_DIR);
+
+    if (!android_base_path_ready) {
+        return;
+    }
+
+    snprintf(buf, sizeof(buf), "%s/%s", android_base_path, subdir);
     mkdir(buf, 0777);
-    snprintf(buf, 1024, "%s/%s", path, PROGRAMS_DIR);
-    mkdir(buf, 0777);
+}
+
+static int has_android_base_path(void) {
+    if (android_base_path_ready) {
+        return 1;
+    }
+
+    LOGI("Android base path is not initialized.");
+    return 0;
+}
+
+void set_android_base_path(const char* path) {
+    int written;
+
+    if (path == NULL || path[0] == '\0') {
+        android_base_path[0] = '\0';
+        android_base_path_ready = 0;
+        return;
+    }
+
+    written = snprintf(android_base_path, sizeof(android_base_path), "%s", path);
+    if (written < 0 || written >= (int)sizeof(android_base_path)) {
+        android_base_path[0] = '\0';
+        android_base_path_ready = 0;
+        LOGI("Android base path is too long.");
+        return;
+    }
+
+    android_base_path_ready = 1;
+    ensure_android_subdir(STATE_DIR);
+    ensure_android_subdir(PROGRAMS_DIR);
+    ensure_android_subdir(SAVE_DIR);
 }
 
 int ioFileOpen(ioFilePath_t path, ioFileMode_t mode) {
@@ -92,6 +127,10 @@ int ioFileOpen(ioFilePath_t path, ioFileMode_t mode) {
             return FILE_ERROR;
         }
         return FILE_OK;
+    }
+
+    if (!has_android_base_path()) {
+        return FILE_ERROR;
     }
 
     char fullpath[1024];

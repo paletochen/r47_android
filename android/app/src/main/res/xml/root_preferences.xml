@@ -16,7 +16,7 @@
             app:title="Haptic Intensity"
             app:min="0"
             android:max="255"
-            app:defaultValue="180"
+            app:defaultValue="64"
             app:dependency="haptic_enabled"
             app:showSeekBarValue="true" />
         <SwitchPreferenceCompat
@@ -62,30 +62,26 @@
             app:summaryOff="Shows status and navigation bars (for 3-button navigation)"
             app:defaultValue="true" />
         <ListPreference
-            app:key="current_skin"
-            app:title="Calculator Skin"
-            app:entries="@array/skin_entries"
-            app:entryValues="@array/skin_values"
-            app:defaultValue="r47_texture" />
-        <SwitchPreferenceCompat
-            app:key="dynamic_shift_labels"
-            app:title="Dynamic Shift Labels (Dynamic Skin)"
-            app:summaryOn="f/g-shift and USER menu change key labels dynamically"
-            app:summaryOff="Static labels (Requires Dynamic Skin. Alpha remains dynamic)"
-            app:defaultValue="false"
-            app:dependency="current_skin" />
+            app:key="chrome_mode"
+            app:title="Shell Chrome"
+            app:entries="@array/chrome_entries"
+            app:entryValues="@array/chrome_values"
+            app:defaultValue="r47_background"
+            app:useSimpleSummaryProvider="true" />
         <ListPreference
             app:key="lcd_mode"
             app:title="LCD Mode"
             app:entries="@array/lcd_entries"
             app:entryValues="@array/lcd_values"
-            app:defaultValue="vintage" />
+            app:defaultValue="vintage"
+            app:useSimpleSummaryProvider="true" />
         <ListPreference
             app:key="scaling_mode"
             app:title="Scaling"
             app:entries="@array/scaling_entries"
             app:entryValues="@array/scaling_values"
-            app:defaultValue="full_width" />
+            app:defaultValue="full_width"
+            app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
 
     <PreferenceCategory app:title="Developer Tools">
@@ -105,8 +101,16 @@
             app:title="Version"
             app:summary="R47 Android Port (f8e6f8c70)" />
         <Preference
+            app:key="view_gpl_license"
+            app:title="@string/about_gpl_license_title"
+            app:summary="@string/about_gpl_license_summary" />
+        <Preference
+            app:key="view_android_source"
+            app:title="@string/about_android_source_title"
+            app:summary="@string/about_android_source_summary" />
+        <Preference
             app:key="visit_gitlab"
-            app:title="Visit Project Page (GitLab)" />
+            app:title="@string/about_upstream_project_title" />
         <Preference
             app:key="view_wiki"
             app:title="View R47 Wiki" />

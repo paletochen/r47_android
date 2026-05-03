@@ -1,11 +1,13 @@
 <resources>
-    <string-array name="skin_entries">
-        <item>Classic (Standard)</item>
-        <item>Dynamic (Simulator Style)</item>
+    <string-array name="chrome_entries">
+        <item>Native + Background</item>
+        <item>Native Chrome</item>
+        <item>Texture Image</item>
     </string-array>
-    <string-array name="skin_values">
+    <string-array name="chrome_values">
+        <item>r47_background</item>
+        <item>native</item>
         <item>r47_texture</item>
-        <item>r47_background_v2</item>
     </string-array>
 
     <string-array name="lcd_entries">
@@ -18,8 +20,8 @@
     </string-array>
 
     <string-array name="scaling_entries">
-        <item>Full Width</item>
-        <item>1:1 Physical</item>
+        <item>Adaptive Fit</item>
+        <item>1:1 Shell</item>
     </string-array>
     <string-array name="scaling_values">
         <item>full_width</item>

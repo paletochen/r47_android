@@ -1,18 +1,73 @@
 plugins {
     id 'com.android.application'
-    id 'kotlin-android'
 }
+
+base {
+    archivesName = "R47calculator"
+}
+
+def readGitOutput(List<String> args) {
+    def stdout = new ByteArrayOutputStream()
+    try {
+        exec {
+            workingDir rootProject.file('..')
+            commandLine(['git'] + args)
+            standardOutput = stdout
+            errorOutput = new ByteArrayOutputStream()
+            ignoreExitValue = true
+        }
+    } catch (Exception ignored) {
+        return null
+    }
+
+    def output = stdout.toString().trim()
+    return output ? output : null
+}
+
+def normalizeRepositoryUrl(String url) {
+    if (!url) {
+        return null
+    }
+
+    def normalizedUrl = url.trim().replaceAll(/\.git$/, '')
+    if (normalizedUrl.startsWith('ssh://')) {
+        def sshUrl = normalizedUrl.substring('ssh://'.length()).replaceFirst(/^[^@]+@/, '')
+        return "https://${sshUrl}"
+    }
+
+    if (!normalizedUrl.contains('://') && normalizedUrl.contains(':')) {
+        def scpStyleUrl = normalizedUrl.replaceFirst(/^[^@]+@/, '').replaceFirst(':', '/')
+        return "https://${scpStyleUrl}"
+    }
+
+    return normalizedUrl
+}
+
+def inferredAndroidSourceRepositoryUrl = normalizeRepositoryUrl(readGitOutput(['config', '--get', 'remote.origin.url']))
+def androidSourceRepositoryUrl = normalizeRepositoryUrl((project.findProperty('r47.sourceRepositoryUrl') ?: inferredAndroidSourceRepositoryUrl ?: "https://github.com/ppigazzini/r47_android").toString())
+def androidSourceCommit = (project.findProperty('r47.sourceCommit') ?: readGitOutput(['rev-parse', 'HEAD']) ?: 'unknown').toString()
+def upstreamSourceRepositoryUrl = normalizeRepositoryUrl(project.findProperty('r47.upstreamSourceRepositoryUrl')?.toString())
+def upstreamSourceCommit = project.findProperty('r47.upstreamSourceCommit')?.toString()?.trim()
+def xlsxioSourceRepositoryUrl = normalizeRepositoryUrl((project.findProperty('r47.xlsxioSourceRepositoryUrl') ?: System.getenv('R47_XLSXIO_URL') ?: System.getenv('XLSXIO_URL') ?: 'https://github.com/brechtsanders/xlsxio.git').toString())
+def xlsxioSourceCommit = (project.findProperty('r47.xlsxioSourceCommit') ?: System.getenv('R47_XLSXIO_COMMIT') ?: System.getenv('XLSXIO_COMMIT') ?: 'a9016eb2eb46dcd613a68fcfcd1002b5adf64ae9').toString()
+def generatedComplianceAssetsDir = "$buildDir/generated/assets/compliance"
 
 android {
     namespace 'com.example.r47'
-    compileSdk project.findProperty('r47.compileSdk')?.toInteger() ?: 35
+    compileSdk project.findProperty('r47.compileSdk')?.toInteger() ?: 36
+    def coreVersion = (project.findProperty('r47.coreVersion') ?: "unknown").toString()
+    def normalizedCoreVersion = coreVersion.replaceAll(/[^0-9A-Za-z._-]/, "_")
+    def releaseVersionCode = Integer.parseInt((project.findProperty('r47.versionCode') ?: "1").toString())
+    def releaseVersionName = (project.findProperty('r47.versionName') ?: "0.1.0").toString()
 
     defaultConfig {
         applicationId "com.example.r47"
         minSdk project.findProperty('r47.minSdk')?.toInteger() ?: 24
-        targetSdk project.findProperty('r47.targetSdk')?.toInteger() ?: 35
-        versionCode 1
-        versionName "1.0"
+        targetSdk project.findProperty('r47.targetSdk')?.toInteger() ?: 36
+        versionCode releaseVersionCode
+        versionName releaseVersionName
+        resValue "string", "about_version_summary", "R47 Android ${releaseVersionName} (Core: ${coreVersion})"
+        resValue "string", "android_source_repository_url", androidSourceRepositoryUrl
         
         // Use property override if provided, otherwise default to a verified version
         // To use system default, user can pass -Pr47.ndkVersion=
@@ -21,10 +76,11 @@ android {
         externalNativeBuild {
             cmake {
                 cppFlags ""
+                arguments "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
             }
         }
         ndk {
-            abiFilters 'arm64-v8a', 'x86_64'
+            abiFilters 'arm64-v8a'
         }
     }
 
@@ -32,6 +88,9 @@ android {
         debug {
             debuggable true
             jniDebuggable true
+            // Keep the debug snapshot lane separate from a future store release.
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-snapshot.${normalizedCoreVersion}"
         }
         release {
             minifyEnabled false
@@ -41,6 +100,7 @@ android {
 
     buildFeatures {
         viewBinding true
+        resValues true
     }
     
     externalNativeBuild {
@@ -55,21 +115,14 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
     
-    kotlinOptions {
-        jvmTarget = '17'
-    }
 
-    packagingOptions {
-        jniLibs {
-            useLegacyPackaging true
+    sourceSets {
+        main {
+            assets.srcDir generatedComplianceAssetsDir
         }
     }
 
-    applicationVariants.all { variant ->
-        variant.outputs.all {
-            outputFileName = "R47calculator-${variant.name}.apk"
-        }
-    }
+
 }
 
 dependencies {
@@ -79,4 +132,76 @@ dependencies {
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'androidx.preference:preference-ktx:1.2.1'
+}
+
+tasks.register('copyGplLicense', Copy) {
+    from rootProject.file('../COPYING')
+    into generatedComplianceAssetsDir
+}
+
+tasks.register('generateXlsxioLicense') {
+    inputs.property('xlsxioSourceRepositoryUrl', xlsxioSourceRepositoryUrl ?: '')
+    inputs.property('xlsxioSourceCommit', xlsxioSourceCommit ?: '')
+    outputs.file("${generatedComplianceAssetsDir}/LICENSE.txt")
+
+    doLast {
+        def generatedAssetsDir = file(generatedComplianceAssetsDir)
+        generatedAssetsDir.mkdirs()
+
+        file("${generatedAssetsDir}/LICENSE.txt").text = '''Copyright (C) 2016 Brecht Sanders All Rights Reserved
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+'''
+    }
+}
+
+tasks.register('generateSourceManifest') {
+    inputs.property('androidSourceRepositoryUrl', androidSourceRepositoryUrl ?: '')
+    inputs.property('androidSourceCommit', androidSourceCommit ?: '')
+    inputs.property('upstreamSourceRepositoryUrl', upstreamSourceRepositoryUrl ?: '')
+    inputs.property('upstreamSourceCommit', upstreamSourceCommit ?: '')
+    inputs.property('xlsxioSourceRepositoryUrl', xlsxioSourceRepositoryUrl ?: '')
+    inputs.property('xlsxioSourceCommit', xlsxioSourceCommit ?: '')
+    outputs.file("${generatedComplianceAssetsDir}/SOURCE")
+
+    doLast {
+        def generatedAssetsDir = file(generatedComplianceAssetsDir)
+        generatedAssetsDir.mkdirs()
+        def sourceLines = []
+
+        if (upstreamSourceRepositoryUrl && upstreamSourceCommit) {
+            sourceLines << "upstream_url=${upstreamSourceRepositoryUrl}"
+            sourceLines << "upstream_commit=${upstreamSourceCommit}"
+        }
+
+        sourceLines << "android_source_repository_url=${androidSourceRepositoryUrl}"
+        sourceLines << "android_source_commit=${androidSourceCommit}"
+        sourceLines << "xlsxio_url=${xlsxioSourceRepositoryUrl}"
+        sourceLines << "xlsxio_commit=${xlsxioSourceCommit}"
+
+        file("${generatedAssetsDir}/SOURCE").text = sourceLines.join('\n') + '\n'
+    }
+}
+
+tasks.named('preBuild').configure {
+    dependsOn tasks.named('copyGplLicense')
+    dependsOn tasks.named('generateXlsxioLicense')
+    dependsOn tasks.named('generateSourceManifest')
 }

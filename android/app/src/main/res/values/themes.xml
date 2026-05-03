@@ -1,27 +1,27 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Theme.R47" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Primary brand color (f-shift yellow). -->
-        <item name="colorPrimary">#FFBF00</item>
+        <!-- Primary brand color (HSL lightness +10% from the hardware F palette). -->
+        <item name="colorPrimary">#F2AB5E</item>
         <item name="colorOnPrimary">#000000</item>
-        <!-- Secondary brand color (g-shift blue). Used for toggles and headers. -->
-        <item name="colorSecondary">#7EB6BA</item>
+        <!-- Secondary brand color (HSL lightness +10% from the hardware G palette). Used for toggles and headers. -->
+        <item name="colorSecondary">#83B7DF</item>
         <item name="colorOnSecondary">#000000</item>
-        <item name="colorSecondaryContainer">#7EB6BA</item>
+        <item name="colorSecondaryContainer">#83B7DF</item>
         <item name="colorOnSecondaryContainer">#000000</item>
         
-        <!-- Tertiary colors (also mapped to blue to avoid purple fallbacks) -->
-        <item name="colorTertiary">#7EB6BA</item>
+        <!-- Tertiary colors stay on the lifted hardware G palette. -->
+        <item name="colorTertiary">#83B7DF</item>
         <item name="colorOnTertiary">#000000</item>
-        <item name="colorTertiaryContainer">#7EB6BA</item>
+        <item name="colorTertiaryContainer">#83B7DF</item>
         <item name="colorOnTertiaryContainer">#000000</item>
 
-        <!-- Container for primary (fallback for some UI elements) -->
-        <item name="colorPrimaryContainer">#7EB6BA</item>
+        <!-- Keep the upstream role split so slider track and thumb stay distinct. -->
+        <item name="colorPrimaryContainer">#83B7DF</item>
         <item name="colorOnPrimaryContainer">#000000</item>
         <!-- Customize your theme here. -->
         <!-- Legacy/Fallback compatibility -->
-        <item name="colorControlActivated">#7EB6BA</item>
+        <item name="colorControlActivated">#83B7DF</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
     </style>

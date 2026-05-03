@@ -3,33 +3,91 @@ package com.example.r47
 import android.content.Context
 import android.graphics.*
 import android.util.AttributeSet
+import android.util.TypedValue
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.util.Log
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 class ReplicaOverlay @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : ViewGroup(context, attrs, defStyleAttr) {
 
-    private val baseWidth = 537f
-    private val baseHeight = 1005f
-    private val r47BaseWidth = 526f
-    private val r47BaseHeight = 980f
-    
+    companion object {
+        const val CHROME_MODE_NATIVE = "native"
+        const val CHROME_MODE_TEXTURE = "r47_texture"
+        const val CHROME_MODE_BACKGROUND = "r47_background"
+    }
+
+    private data class Projection(val scale: Float, val offsetX: Float, val offsetY: Float)
+    private data class ChromeSpec(
+        val mode: String,
+        val shellWidth: Float,
+        val shellHeight: Float,
+        val topBezelSettingsTapHeight: Float,
+        val lcdWindowLeft: Float,
+        val lcdWindowTop: Float,
+        val lcdWindowWidth: Float,
+        val lcdWindowHeight: Float,
+        val scaledModeFitTrimLeft: Float = 0f,
+        val scaledModeFitTrimTop: Float = 0f,
+        val scaledModeFitTrimRight: Float = 0f,
+        val scaledModeFitTrimBottom: Float = 0f,
+        val imageResId: Int? = null,
+        val drawNativeChrome: Boolean = false,
+    )
+
+    private val baseChromeSpec = ChromeSpec(
+        mode = CHROME_MODE_NATIVE,
+        shellWidth = R47ReferenceGeometry.LOGICAL_CANVAS_WIDTH,
+        shellHeight = R47ReferenceGeometry.LOGICAL_CANVAS_HEIGHT,
+        topBezelSettingsTapHeight = R47AndroidChromeGeometry.TOP_BEZEL_SETTINGS_TAP_HEIGHT,
+        lcdWindowLeft = R47AndroidChromeGeometry.LCD_WINDOW_LEFT,
+        lcdWindowTop = R47AndroidChromeGeometry.LCD_WINDOW_TOP,
+        lcdWindowWidth = R47AndroidChromeGeometry.LCD_WINDOW_WIDTH,
+        lcdWindowHeight = R47AndroidChromeGeometry.LCD_WINDOW_HEIGHT,
+        scaledModeFitTrimLeft = R47AndroidChromeGeometry.SCALED_MODE_FIT_TRIM_LEFT,
+        scaledModeFitTrimTop = R47AndroidChromeGeometry.SCALED_MODE_FIT_TRIM_TOP,
+        scaledModeFitTrimRight = R47AndroidChromeGeometry.SCALED_MODE_FIT_TRIM_RIGHT,
+        scaledModeFitTrimBottom = R47AndroidChromeGeometry.SCALED_MODE_FIT_TRIM_BOTTOM,
+    )
+    private val nativeChromeSpec = baseChromeSpec.copy(
+        mode = CHROME_MODE_NATIVE,
+        drawNativeChrome = true,
+    )
+    private val backgroundChromeSpec = baseChromeSpec.copy(
+        mode = CHROME_MODE_BACKGROUND,
+        imageResId = R.drawable.r47_background,
+    )
+    private val textureChromeSpec = baseChromeSpec.copy(
+        mode = CHROME_MODE_TEXTURE,
+        imageResId = R.drawable.r47_texture,
+    )
+
     private var isPiPMode = false
-    private var isDynamic = false
-    private var currentSkin: Bitmap? = null
+    private var chromeMode = CHROME_MODE_NATIVE
     private var scalingMode = "full_width"
     private var showTouchZones = false
 
-    private val lcdBitmap = Bitmap.createBitmap(400, 240, Bitmap.Config.ARGB_8888)
-    private val lastLcdPixels = IntArray(400 * 240)
-    private val lcdRect = Rect(0, 0, 400, 240)
+    private val lcdBitmap = Bitmap.createBitmap(
+        R47LcdContract.PIXEL_WIDTH,
+        R47LcdContract.PIXEL_HEIGHT,
+        Bitmap.Config.ARGB_8888,
+    )
+    private val chromeBitmapCache = mutableMapOf<Int, Bitmap?>()
+    private var resolvedShellBitmapWidthCache: Float? = null
+    private val lastLcdPixels = IntArray(R47LcdContract.PIXEL_COUNT)
+    private val lcdRect = Rect(0, 0, R47LcdContract.PIXEL_WIDTH, R47LcdContract.PIXEL_HEIGHT)
     private val lcdDestRect = RectF()
     private val dirtyRect = Rect()
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG)
+    private val shellRect = RectF()
+    private val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.rgb(32, 32, 32)
+    }
     private val zonePaint = Paint().apply {
         color = Color.RED
         style = Paint.Style.STROKE
@@ -44,6 +102,7 @@ class ReplicaOverlay @JvmOverloads constructor(
     private val gestureDetector: GestureDetector
 
     init {
+        setBackgroundColor(Color.BLACK)
         // Allow drawing outside individual key boundaries
         clipChildren = false
         clipToPadding = false
@@ -53,6 +112,14 @@ class ReplicaOverlay @JvmOverloads constructor(
                 onLongPressListener?.invoke(e.x, e.y)
             }
         })
+    }
+
+    private fun dp(value: Float): Float {
+        return TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            value,
+            resources.displayMetrics,
+        )
     }
 
     fun setPiPMode(enabled: Boolean) {
@@ -72,29 +139,97 @@ class ReplicaOverlay @JvmOverloads constructor(
         invalidate()
     }
 
-    fun setSkin(skinName: String) {
-        try {
-            isDynamic = (skinName == "r47_background_v2")
-            val resId = context.resources.getIdentifier(skinName, "drawable", context.packageName)
-            currentSkin = BitmapFactory.decodeResource(resources, resId)
-            requestLayout()
-            invalidate()
-        } catch (e: Exception) {
-            Log.e("ReplicaOverlay", "Failed to load skin $skinName", e)
+    fun setChromeMode(mode: String) {
+        val resolvedMode = resolveChromeSpec(mode).mode
+        if (chromeMode == resolvedMode) {
+            return
+        }
+        chromeMode = resolvedMode
+        requestLayout()
+        invalidate()
+    }
+
+    fun setNativeChrome() {
+        setChromeMode(CHROME_MODE_NATIVE)
+    }
+
+    private fun resolveChromeSpec(mode: String): ChromeSpec {
+        return when {
+            mode == CHROME_MODE_TEXTURE -> textureChromeSpec
+            mode == "image" -> backgroundChromeSpec
+            mode.startsWith(CHROME_MODE_BACKGROUND) -> backgroundChromeSpec
+            else -> nativeChromeSpec
         }
     }
 
+    private fun currentChromeSpec(): ChromeSpec {
+        return resolveChromeSpec(chromeMode)
+    }
+
+    private fun chromeBitmapFor(spec: ChromeSpec): Bitmap? {
+        val resId = spec.imageResId ?: return null
+        return chromeBitmapCache.getOrPut(resId) {
+            BitmapFactory.decodeResource(resources, resId)
+        }
+    }
+
+    private fun decodeResourceWidth(resId: Int): Float? {
+        val options = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+        }
+        BitmapFactory.decodeResource(resources, resId, options)
+        return options.outWidth.takeIf { it > 0 }?.toFloat()
+    }
+
+    private fun resolvedShellBitmapWidthForCurrentDensity(): Float {
+        resolvedShellBitmapWidthCache?.let { return it }
+
+        val widths = listOfNotNull(
+            decodeResourceWidth(R.drawable.r47_background),
+            decodeResourceWidth(R.drawable.r47_texture),
+        ).distinct()
+
+        val resolvedWidth = widths.firstOrNull() ?: R47ReferenceGeometry.LOGICAL_CANVAS_WIDTH
+        if (widths.size > 1) {
+            Log.w("ReplicaOverlay", "Shell drawable width mismatch: $widths")
+        }
+
+        resolvedShellBitmapWidthCache = resolvedWidth
+        return resolvedWidth
+    }
+
+    fun isPointInLcd(x: Float, y: Float): Boolean {
+        if (width <= 0 || height <= 0) {
+            return false
+        }
+
+        val spec = currentChromeSpec()
+        val projection = computeShellProjection(spec, width.toFloat(), height.toFloat())
+        val localX = (x - projection.offsetX) / projection.scale
+        val localY = (y - projection.offsetY) / projection.scale
+
+        return localX >= spec.lcdWindowLeft &&
+            localX <= spec.lcdWindowLeft + spec.lcdWindowWidth &&
+            localY >= spec.lcdWindowTop &&
+            localY <= spec.lcdWindowTop + spec.lcdWindowHeight
+    }
+
     fun updateLcd(pixels: IntArray) {
-        var minX = 400
+        val pixelWidth = R47LcdContract.PIXEL_WIDTH
+        val pixelHeight = R47LcdContract.PIXEL_HEIGHT
+        val pixelWidthF = pixelWidth.toFloat()
+        val pixelHeightF = pixelHeight.toFloat()
+
+        var minX = pixelWidth
         var maxX = 0
-        var minY = 240
+        var minY = pixelHeight
         var maxY = 0
         var changed = false
 
         for (i in pixels.indices) {
             if (pixels[i] != lastLcdPixels[i]) {
-                val x = i % 400
-                val y = i / 400
+                val x = i % pixelWidth
+                val y = i / pixelWidth
                 if (x < minX) minX = x
                 if (x > maxX) maxX = x
                 if (y < minY) minY = y
@@ -106,66 +241,41 @@ class ReplicaOverlay @JvmOverloads constructor(
 
         if (!changed) return
 
-        lcdBitmap.setPixels(pixels, 0, 400, 0, 0, 400, 240)
+    lcdBitmap.setPixels(pixels, 0, pixelWidth, 0, 0, pixelWidth, pixelHeight)
 
         // Calculate screen-space dirty rect
-        val w = width.toFloat()
-        val scale = getScale(w)
-        val curBaseWidth = if (isDynamic) r47BaseWidth else baseWidth
-        val curBaseHeight = if (isDynamic) r47BaseHeight else baseHeight
-        val offsetX = (w - curBaseWidth * scale) / 2f
-        val offsetY = (height - curBaseHeight * scale) / 2f
-
-        // LCD offsets - Differentiated per skin
-        // Dynamic: 10% larger and centered (440x264)
-        // Classic: Reverted to original dimensions (486x266.7) and original offsets (25.5, 67.5)
-        val lcdLX: Float = if (isDynamic) 43f else 25.5f
-        val lcdLY: Float = if (isDynamic) 60f else 67.5f
-        val lcdLW: Float = if (isDynamic) 440f else 486f
-        val lcdLH: Float = if (isDynamic) 264f else 266.7f
+        val spec = currentChromeSpec()
+        val projection = computeShellProjection(spec, width.toFloat(), height.toFloat())
 
         // Convert LCD coordinates to Screen coordinates
-        val left = offsetX + (lcdLX + (minX.toFloat() / 400f) * lcdLW) * scale
-        val top = offsetY + (lcdLY + (minY.toFloat() / 240f) * lcdLH) * scale
-        val right = offsetX + (lcdLX + ((maxX.toFloat() + 1f) / 400f) * lcdLW) * scale
-        val bottom = offsetY + (lcdLY + ((maxY.toFloat() + 1f) / 240f) * lcdLH) * scale
+        val left = projection.offsetX + (spec.lcdWindowLeft + (minX.toFloat() / pixelWidthF) * spec.lcdWindowWidth) * projection.scale
+        val top = projection.offsetY + (spec.lcdWindowTop + (minY.toFloat() / pixelHeightF) * spec.lcdWindowHeight) * projection.scale
+        val right = projection.offsetX + (spec.lcdWindowLeft + ((maxX.toFloat() + 1f) / pixelWidthF) * spec.lcdWindowWidth) * projection.scale
+        val bottom = projection.offsetY + (spec.lcdWindowTop + ((maxY.toFloat() + 1f) / pixelHeightF) * spec.lcdWindowHeight) * projection.scale
 
         dirtyRect.set(left.toInt(), top.toInt(), right.toInt(), bottom.toInt())
-        invalidate(dirtyRect)
-    }
-
-    private fun getScale(w: Float): Float {
-        val curBaseWidth = if (isDynamic) r47BaseWidth else baseWidth
-        return if (scalingMode == "physical") {
-            val metrics = resources.displayMetrics
-            val dpi = metrics.xdpi
-            (2.83f * dpi) / curBaseWidth 
-        } else {
-            w / curBaseWidth
-        }
+        postInvalidateOnAnimation(dirtyRect.left, dirtyRect.top, dirtyRect.right, dirtyRect.bottom)
     }
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
         if (isPiPMode) return false
         gestureDetector.onTouchEvent(ev)
-        
-        val scale = getScale(width.toFloat())
-        val curBaseHeight = if (isDynamic) r47BaseHeight else baseHeight
-        val offsetY = (height - curBaseHeight * scale) / 2f
-        val lY = (ev.y - offsetY) / scale
-        
+
+        val projection = computeShellProjection(width.toFloat(), height.toFloat())
+        val lY = (ev.y - projection.offsetY) / projection.scale
+        val spec = currentChromeSpec()
+
         // Intercept touches in the settings area (top bezel)
-        val bezelH = if (isDynamic) 72f else 67.5f
-        if (lY < bezelH && lY > 0) {
+        if (lY < spec.topBezelSettingsTapHeight && lY > 0) {
             return true
         }
-        
-        return false 
+
+        return false
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         gestureDetector.onTouchEvent(event)
-        
+
         if (isPiPMode) {
             val fKey = (event.x / width * 6).toInt() + 38
             if (event.action == MotionEvent.ACTION_DOWN) {
@@ -175,29 +285,78 @@ class ReplicaOverlay @JvmOverloads constructor(
             }
             return true
         }
-        
-        val scale = getScale(width.toFloat())
-        val curBaseHeight = if (isDynamic) r47BaseHeight else baseHeight
-        val offsetY = (height - curBaseHeight * scale) / 2f
-        val lY = (event.y - offsetY) / scale
-        
+
+        val projection = computeShellProjection(width.toFloat(), height.toFloat())
+        val lY = (event.y - projection.offsetY) / projection.scale
+        val spec = currentChromeSpec()
+
         // If we intercepted this (or no one else took it), and it's in the bezel area
-        val bezelH = if (isDynamic) 72f else 67.5f
-        if (lY < bezelH && lY > 0) {
+        if (lY < spec.topBezelSettingsTapHeight && lY > 0) {
             if (event.action == MotionEvent.ACTION_UP) {
                 Log.i("ReplicaOverlay", "Settings area tap received")
                 onSettingsTapListener?.invoke()
             }
-            return true // Always consume touches in the intercept zone
+            return true
         }
-        
+
         return super.onTouchEvent(event)
     }
 
-    class LayoutParams(val x: Float, val y: Float, val w: Float, val h: Float) : ViewGroup.LayoutParams(0, 0)
+    class LayoutParams(
+        val logicalX: Float,
+        val logicalY: Float,
+        val logicalWidth: Float,
+        val logicalHeight: Float,
+        val showTouchZone: Boolean = false,
+    ) : ViewGroup.LayoutParams(0, 0)
 
-    fun addReplicaView(view: View, x: Float, y: Float, w: Float, h: Float) {
-        addView(view, LayoutParams(x, y, w, h))
+    fun addReplicaView(
+        view: View,
+        x: Float,
+        y: Float,
+        w: Float,
+        h: Float,
+        showTouchZone: Boolean = false,
+    ) {
+        addView(view, LayoutParams(x, y, w, h, showTouchZone))
+    }
+
+    private fun computeShellProjection(spec: ChromeSpec, availableWidth: Float, availableHeight: Float): Projection {
+        val fitLeft = if (scalingMode == "physical") 0f else spec.scaledModeFitTrimLeft
+        val fitTop = if (scalingMode == "physical") 0f else spec.scaledModeFitTrimTop
+        val fitWidth = if (scalingMode == "physical") {
+            spec.shellWidth
+        } else {
+            spec.shellWidth - spec.scaledModeFitTrimLeft - spec.scaledModeFitTrimRight
+        }
+        val fitHeight = if (scalingMode == "physical") {
+            spec.shellHeight
+        } else {
+            spec.shellHeight - spec.scaledModeFitTrimTop - spec.scaledModeFitTrimBottom
+        }
+        val fitScale = min(availableWidth / fitWidth, availableHeight / fitHeight)
+        val scale = if (scalingMode == "physical") {
+            val oneToOneProjectionScaleCap =
+                resolvedShellBitmapWidthForCurrentDensity() / R47ReferenceGeometry.LOGICAL_CANVAS_WIDTH
+            min(oneToOneProjectionScaleCap, fitScale)
+        } else {
+            fitScale
+        }
+        val offsetX = (availableWidth - fitWidth * scale) / 2f - fitLeft * scale
+        val offsetY = (availableHeight - fitHeight * scale) / 2f - fitTop * scale
+        return Projection(scale, offsetX, offsetY)
+    }
+
+    private fun computeShellProjection(availableWidth: Float, availableHeight: Float): Projection {
+        return computeShellProjection(currentChromeSpec(), availableWidth, availableHeight)
+    }
+
+    private fun drawNativeShellChrome(
+        canvas: Canvas,
+        rect: RectF,
+        cornerRadius: Float,
+    ) {
+        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, bodyPaint)
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -206,13 +365,15 @@ class ReplicaOverlay @JvmOverloads constructor(
         setMeasuredDimension(w, h)
 
         if (!isPiPMode) {
-            val scale = getScale(w.toFloat())
+            val projection = computeShellProjection(w.toFloat(), h.toFloat())
             for (i in 0 until childCount) {
                 val child = getChildAt(i)
                 val lp = child.layoutParams as LayoutParams
+                val childWidth = (lp.logicalWidth * projection.scale).roundToInt().coerceAtLeast(0)
+                val childHeight = (lp.logicalHeight * projection.scale).roundToInt().coerceAtLeast(0)
                 child.measure(
-                    MeasureSpec.makeMeasureSpec((lp.w * scale).toInt(), MeasureSpec.EXACTLY),
-                    MeasureSpec.makeMeasureSpec((lp.h * scale).toInt(), MeasureSpec.EXACTLY)
+                    MeasureSpec.makeMeasureSpec(childWidth, MeasureSpec.EXACTLY),
+                    MeasureSpec.makeMeasureSpec(childHeight, MeasureSpec.EXACTLY)
                 )
             }
         }
@@ -228,17 +389,13 @@ class ReplicaOverlay @JvmOverloads constructor(
 
         val w = (r - l).toFloat()
         val h = (b - t).toFloat()
-        val scale = getScale(w)
-        val curBaseWidth = if (isDynamic) r47BaseWidth else baseWidth
-        val curBaseHeight = if (isDynamic) r47BaseHeight else baseHeight
-        val offsetX = (w - curBaseWidth * scale) / 2f
-        val offsetY = (h - curBaseHeight * scale) / 2f
+        val projection = computeShellProjection(w, h)
 
         for (i in 0 until childCount) {
             val child = getChildAt(i)
             val lp = child.layoutParams as LayoutParams
-            val left = (lp.x * scale + offsetX).toInt()
-            val top = (lp.y * scale + offsetY).toInt()
+            val left = (projection.offsetX + lp.logicalX * projection.scale).roundToInt()
+            val top = (projection.offsetY + lp.logicalY * projection.scale).roundToInt()
             child.layout(left, top, left + child.measuredWidth, top + child.measuredHeight)
         }
     }
@@ -253,34 +410,42 @@ class ReplicaOverlay @JvmOverloads constructor(
             return
         }
 
-        val scale = getScale(w)
-        val curBaseWidth = if (isDynamic) r47BaseWidth else baseWidth
-        val curBaseHeight = if (isDynamic) r47BaseHeight else baseHeight
-        val offsetX = (w - curBaseWidth * scale) / 2f
-        val offsetY = (h - curBaseHeight * scale) / 2f
+        val layoutSpec = currentChromeSpec()
+        val projection = computeShellProjection(layoutSpec, w, h)
 
-        currentSkin?.let {
-            val src = Rect(0, 0, it.width, it.height)
-            val dst = RectF(offsetX, offsetY, offsetX + curBaseWidth * scale, offsetY + curBaseHeight * scale)
-            canvas.drawBitmap(it, src, dst, paint)
+        shellRect.set(
+            projection.offsetX,
+            projection.offsetY,
+            projection.offsetX + layoutSpec.shellWidth * projection.scale,
+            projection.offsetY + layoutSpec.shellHeight * projection.scale,
+        )
+        val backgroundBitmap = chromeBitmapFor(layoutSpec)
+        if (backgroundBitmap != null) {
+            canvas.drawBitmap(backgroundBitmap, null, shellRect, paint)
+        } else {
+            drawNativeShellChrome(
+                canvas = canvas,
+                rect = shellRect,
+                cornerRadius =
+                    R47AndroidChromeGeometry.NATIVE_SHELL_DRAW_CORNER_RADIUS * projection.scale,
+            )
         }
 
-        val lcdLX: Float = if (isDynamic) 43f else 25.5f
-        val lcdLY: Float = if (isDynamic) 60f else 67.5f
-        val lcdLW: Float = if (isDynamic) 440f else 486f
-        val lcdLH: Float = if (isDynamic) 264f else 266.7f
-
         lcdDestRect.set(
-            offsetX + lcdLX * scale,
-            offsetY + lcdLY * scale,
-            offsetX + (lcdLX + lcdLW) * scale,
-            offsetY + (lcdLY + lcdLH) * scale
+            projection.offsetX + layoutSpec.lcdWindowLeft * projection.scale,
+            projection.offsetY + layoutSpec.lcdWindowTop * projection.scale,
+            projection.offsetX + (layoutSpec.lcdWindowLeft + layoutSpec.lcdWindowWidth) * projection.scale,
+            projection.offsetY + (layoutSpec.lcdWindowTop + layoutSpec.lcdWindowHeight) * projection.scale
         )
         canvas.drawBitmap(lcdBitmap, lcdRect, lcdDestRect, paint)
 
         if (showTouchZones) {
             for (i in 0 until childCount) {
                 val child = getChildAt(i)
+                val lp = child.layoutParams as? LayoutParams ?: continue
+                if (!lp.showTouchZone) {
+                    continue
+                }
                 canvas.drawRect(
                     child.left.toFloat(), child.top.toFloat(),
                     child.right.toFloat(), child.bottom.toFloat(),
@@ -288,8 +453,13 @@ class ReplicaOverlay @JvmOverloads constructor(
                 )
             }
             // Show settings zone
-            val bezelH = if (isDynamic) 72f else 67.5f
-            canvas.drawRect(offsetX, offsetY, offsetX + curBaseWidth * scale, offsetY + bezelH * scale, zonePaint)
+            canvas.drawRect(
+                projection.offsetX,
+                projection.offsetY,
+                projection.offsetX + layoutSpec.shellWidth * projection.scale,
+                projection.offsetY + layoutSpec.topBezelSettingsTapHeight * projection.scale,
+                zonePaint,
+            )
         }
 
         super.dispatchDraw(canvas)

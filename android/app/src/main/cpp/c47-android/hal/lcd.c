@@ -39,7 +39,10 @@ static void updateLookupTable() {
 }
 
 JNIEXPORT void JNICALL
-Java_com_example_r47_MainActivity_setLcdColors(JNIEnv* env, jobject thiz, jint text, jint bg) {
+Java_com_example_r47_MainActivity_setLcdColors(JNIEnv* env,
+                                                      jobject thiz,
+                                                      jint text,
+                                                      jint bg) {
     textPixel = (uint32_t)text;
     backgroundPixel = (uint32_t)bg;
     updateLookupTable();

@@ -1,12 +1,32 @@
 # R47 Android Port: Master Design & Rebuild Guide
 
-**Version:** 3.13 (Automatic Git-Based Versioning)
-**Status:** Stable Production Candidate
-**Target Platform:** Android (API Level 24+), Optimized for Pixel 10 (16KB Page Size)
+**Version:** 3.14 (Property-Backed Package And Version Contract)
+**Status:** Maintainer reference for the current debug-build Android shell
+**Target Platform:** Android (API Level 24+), current checked-in defaults target API 35 and arm64-v8a
 
 ---
 
-**Goal:** This document captures the technical architecture and specifications of the R47 Android port. It serves as both the technical architectural reference and the restoration manual for the project.
+**Goal:** This document captures the current technical architecture and rebuild contract of the R47 Android port. It serves as the technical reference for the checked-in Android shell and the maintainer rebuild guide for the current debug-build pipeline. Public checkouts contain the Android shell and tracked local overrides; `sync_public.sh` hydrates the authoritative core from upstream before rebuilds.
+
+---
+
+## 0. Package Identity And Version Contract
+
+- The stable checked-in Android package identity MUST be
+  `com.example.r47`.
+- Debug snapshots MUST install as `com.example.r47.debug` through the
+  app-module `applicationIdSuffix ".debug"`.
+- The checked-in debug APK currently packages `arm64-v8a` only.
+- Release version inputs MUST come from the Gradle properties
+  `r47.versionCode` and `r47.versionName`.
+- The checked-in defaults are `r47.versionCode=1` and `r47.versionName=0.1.0`.
+- Debug builds append `-snapshot.<core>` to `versionName`, where `<core>` comes
+  from `r47.coreVersion`.
+- `build_android.sh` always passes `-Pr47.coreVersion=<sha>` and may also pass
+  `-Pr47.versionCode=<n>` and `-Pr47.versionName=<name>` from the environment
+  variables `R47_VERSION_CODE` and `R47_VERSION_NAME`.
+- The debug APK output name remains `R47calculator-debug.apk`. That file name is
+  a build artifact name, not the app identity.
 
 ---
 
@@ -18,12 +38,12 @@ The application employs a dual-thread model to decouple the computationally inte
 
 - **UI Thread (Main)**:
   - Manages the `ReplicaOverlay` and standard Android View hierarchy.
-  - Drives the `Choreographer` frame callback (60fps) for display updates.
+  - Owns the currently visible activity instance and Android OS integration while `NativeCoreRuntime` owns the shared display refresh callback.
   - Handles asynchronous OS events (SAF pickers, Permissions, Insets).
 
 - **Core Thread (Background)**:
-  - **PERSISTENCE**: The engine loop and `isAppRunningShared` flag MUST reside in a static context (`companion object`). This allows the engine to survive Activity recreations during PiP transitions.
-  - **Unified Input Queue**: ALL user inputs (touch zones, physical keyboard, PiP events) MUST be routed through the `coreTasks: LinkedBlockingQueue<Runnable>` queue.
+  - **PERSISTENCE**: The engine loop, `isAppRunningShared`, and the shared task queue MUST reside in `NativeCoreRuntime` static state. This allows the engine to survive Activity recreations during PiP transitions.
+  - **Unified Input Queue**: ALL user inputs (touch zones, physical keyboard, PiP events) MUST be routed through the `NativeCoreRuntime` `coreTasks: LinkedBlockingQueue<Runnable>` queue.
   - **Synchronous Save on Pause**: To prevent state loss during force-close, `onPause()` executes `saveStateNative()` synchronously by queuing it to the core thread and waiting via a `CountDownLatch`.
   - **Non-Blocking Program Loops**: To keep the app responsive during long programs, the main execution loop MUST call `yieldToAndroid()`.
   - Runs the native C core loop (`tick`) at a target interval of 10ms.
@@ -59,14 +79,20 @@ To prevent Application Not Responding (ANR) errors and deadlocks:
 
 ### 2.1. Dynamic Scaling & Layout Sync
 
-- **Logical Canvas**: 537 x 1005 pixels.
-- **Scaling Rule**: `scale = ViewWidth / 537f`.
-- **Positioning**: The hardware body is centered vertically. Areas above/below are filled with `#2B2A29`.
+- **Logical Canvas**: The live runtime uses one measured reference canvas, `1820 x 3403`. The checked-in `r47_texture.webp` and `r47_background.webp` assets share the same measured widths across density buckets: mdpi `360`, hdpi `540`, xhdpi `720`, xxhdpi `1080`, xxxhdpi `1440`.
+- **Scaling Rule**: `ReplicaOverlay` fits the active shell contract inside the available window. `full_width` fits the trimmed visible frame (`42 / 49 / 42 / 56` logical-canvas units), while `physical` fits the full shell and caps that scale by the resolved shell bitmap width divided by `R47ReferenceGeometry.LOGICAL_CANVAS_WIDTH`.
+- **Chrome Contract**: `chrome_mode` selects between the default `r47_texture` classic shell with hidden touch zones, the background-backed `r47_background` shell that keeps scene-driven labels and softkey text without Android-painted key surfaces, and the native-drawn chrome mode.
+- **Positioning**: The active projected frame is centered inside the view, and the logical shell is offset by the active trim when `full_width` is selected. Areas outside the rounded shell remain filled by the activity background.
 
 ### 2.2. LCD Calibration
 
-- **Viewport**: `(25.5, 67.5)` relative to the logical canvas.
-- **Size**: `486 x 266.7` logical pixels.
+- **Live LCD Window**: All chrome modes use the same logical LCD window from
+  `R47AndroidChromeGeometry`: left `86`, top `229`, width `1648`, height `903`.
+- **LCD Buffer**: The native display buffer remains `400 x 240`; Android draws
+  that bitmap into the projected logical LCD window.
+- **Readability Bias**: The live Android LCD window is larger than the measured
+  physical LCD opening on the reference image. That is intentional app UI
+  policy, not a geometry parsing error.
 
 ---
 
@@ -94,6 +120,7 @@ To maintain parity with the hardware and simulator structures, users can select 
 
 - **Subfolder Structure**: The app resolves standard subfolders: `STATE`, `PROGRAMS`, `SAVFILES`, and `SCREENS`.
 - **Context-Aware SAF Pickers**: The `requestFile` bridge uses category IDs to open pickers directly in relevant subfolders.
+- **Native Base Path**: `nativePreInit()` passes `filesDir.absolutePath` into `set_android_base_path()`. The native HAL must use that runtime path instead of assuming a package-specific internal directory.
 
 ### 4.2. High-Latency Mitigation (Buffering)
 
@@ -137,6 +164,48 @@ To maintain custom work while pulling latest upstream changes, the `sync_public.
 2. **Upstream Reset**: The script pulls the math core from the authoritative source and populates the workspace.
 3. **Local Patch Restoration**: Immediately after the upstream pull, the script re-applies the Android Port modifications. This ensures that the optimized code takes precedence over the generic core.
 
+### 8.1. Android Native Staging
+
+- `build_android.sh` remains the top-level Android debug-build entry point.
+- `build_android.sh` MUST resolve one worker count from `R47_BUILD_JOBS`, then
+  `CMAKE_BUILD_PARALLEL_LEVEL`, then the host CPU count, export that value as
+  `CMAKE_BUILD_PARALLEL_LEVEL`, and thread it through `make`, `NINJAFLAGS`, and
+  `gradlew --max-workers`.
+- `build_android.sh` MAY pass `R47_SOURCE_REPOSITORY_URL` through as the Gradle
+  property `r47.sourceRepositoryUrl` so redistributed APKs can point the About
+  screen at the Android fork source for the build they convey.
+- `build_android.sh` MUST NOT default the Android source commit to the
+  synchronized upstream core hash. When `R47_SOURCE_COMMIT` is omitted, Gradle
+  MUST infer the checked-out Android repo `HEAD` for `assets/SOURCE`.
+- `build_android.sh` MAY also pass `R47_UPSTREAM_SOURCE_REPOSITORY_URL` and
+  `R47_UPSTREAM_SOURCE_COMMIT` so the packaged `SOURCE` manifest records the
+  synchronized upstream core revision ahead of the Android fork metadata.
+- `build_android.sh` MUST pass the pinned xlsxio repository URL and commit
+  through as `r47.xlsxioSourceRepositoryUrl` and `r47.xlsxioSourceCommit` so
+  the packaged APK provenance matches the host toolchain that generated the
+  fonts.
+- After `make sim`, it MUST delegate native staging to `android/stage_native_sources.sh`.
+- That staging step copies the synced `src/c47` tree, `dep/decNumberICU`, generated files, and mini-gmp inputs into `android/app/src/main/cpp`.
+- The app-module Gradle build MUST generate `assets/COPYING`,
+  `assets/LICENSE.txt`, and `assets/SOURCE`, with `COPYING` copied from the
+  repo root, `LICENSE.txt` carrying the pinned xlsxio MIT license text, and
+  `SOURCE` recording the Android repository URL plus commit plus the xlsxio
+  repository URL plus commit for the packaged APK.
+- When `r47.upstreamSourceRepositoryUrl` and `r47.upstreamSourceCommit` are
+  supplied, `assets/SOURCE` MUST record that synchronized upstream core
+  revision first and then the Android and xlsxio provenance lines.
+- The default Android source URL is inferred from `git remote origin` when
+  available, with a fallback of `https://github.com/ppigazzini/r47_android`.
+  Distributors remain responsible for overriding it when the shipped APK
+  corresponds to a different public Android source location.
+- The Android GitHub Actions workflow in `.github/workflows/android-ci.yml`
+  owns the main-branch snapshot lane. It MUST poll upstream daily, skip the
+  scheduled release path when the resolved upstream commit already has a GitHub
+  release tag in this repository, and keep publication downstream of successful
+  simulator and Android build jobs.
+- Android compatibility for upstream GTK, GDK, and Cairo includes MUST live in tracked Android stub headers under `android/app/src/main/cpp/c47-android/stubs` plus `android_mocks.h`. Do not reintroduce post-copy `sed` rewrites of staged sources.
+- The About-version preference summary MUST come from the Gradle property `r47.coreVersion`, not from build-time edits of tracked XML resources.
+
 ---
 
 ## 9. Audio & Beeper Implementation
@@ -152,7 +221,7 @@ To ensure beeper tones remain distinct and melodies are paced correctly:
 
 ## 10. External Keyboard Mapping
 
-The application implements an extensive mapping table for external hardware keyboards, providing simulator parity for RPN shortcuts.
+The application implements an extensive mapping table for external hardware keyboards. It covers many RPN shortcuts and calculator key IDs, but it remains an Android-specific contract rather than full GTK simulator shortcut parity.
 
 ---
 
@@ -164,7 +233,16 @@ To ensure stable state switching, switches occur in a single background thread u
 
 ## 12. Android Compatibility
 
-The native shared library MUST be linked with `-Wl,-z,max-page-size=16384` to support modern Android kernels.
+The native shared library MUST follow the supported Android NDK flexible-page-size
+contract. In this repo, `android/app/build.gradle` passes
+`-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON` into CMake, and CI verifies both APK
+zip alignment and ELF `LOAD` segment alignment. Do not rely on a project-local
+hardcoded `-Wl,-z,max-page-size=16384` flag as the only contract.
+
+With AGP 8.7.3 and NDK 29, the repo intentionally uses the preferred
+uncompressed-native-library path and no longer carries
+`useLegacyPackaging true`. Treat the current CI zip and ELF alignment checks as
+the artifact-level evidence that justifies that simpler packaging contract.
 
 ---
 

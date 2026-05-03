@@ -1,3 +1,18 @@
 <resources>
     <string name="app_name">R47</string>
+    <string name="about_gpl_license_title">GNU GPL Version 3</string>
+    <string name="about_gpl_license_summary">Shows the packaged GPL text, no-warranty notice, and source guidance</string>
+    <string name="about_android_source_title">View Android Source Repository</string>
+    <string name="about_android_source_summary">Public source for this Android fork</string>
+    <string name="about_upstream_project_title">Visit Upstream C43 Project Page</string>
+    <string name="gpl_license_missing_message">This build could not read the packaged GNU GPL text from the APK.</string>
+    <string name="gpl_license_dialog_intro">R47 Android is licensed under the GNU General Public License, version 3.
+
+This program comes with ABSOLUTELY NO WARRANTY.
+
+A verbatim copy of the GPL is packaged in this APK below.
+
+Distributors of APKs must also provide the exact corresponding source for the build they ship. The Android source repository button in this dialog points at the Android fork for this build. The packaged SOURCE manifest also records the synchronized upstream core revision when the build provides one.</string>
+    <string name="gpl_license_dialog_close">Close</string>
+    <string name="gpl_license_dialog_source_button">Android Source</string>
 </resources>

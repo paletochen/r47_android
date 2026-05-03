@@ -17,8 +17,11 @@ add_definitions(-Dmpz_fits_uint_p=mpz_fits_ulong_p)
 # Forced include of mocks to ensure they are seen everywhere
 add_compile_options("-include" "${CMAKE_CURRENT_SOURCE_DIR}/c47-android/android_mocks.h")
 
+# Android stub headers satisfy upstream GTK/GDK/Cairo includes without
+# rewriting the staged native tree during build_android.sh.
 # Include directories
 include_directories(
+    c47-android/stubs
     c47
     c47/core
     c47/hal
@@ -71,5 +74,5 @@ target_link_libraries(c47-android
     ${m-lib}
 )
 
-# 16KB page alignment
-target_link_options(c47-android PRIVATE "-Wl,-z,max-page-size=16384")
+# The Android module enables 16 KB support through the NDK toolchain argument
+# in app/build.gradle rather than a project-local raw linker flag.
