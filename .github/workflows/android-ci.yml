@@ -211,11 +211,9 @@ jobs:
       - name: Sync authoritative upstream core
         shell: bash
         env:
-          UPSTREAM_URL: ${{ needs.resolve-upstream-core.outputs.upstream_url }}
           UPSTREAM_COMMIT: ${{ needs.resolve-upstream-core.outputs.upstream_commit }}
         run: |
           set -euo pipefail
-
           upstream_url="$UPSTREAM_URL"
           upstream_commit="$UPSTREAM_COMMIT"
 
@@ -252,7 +250,7 @@ jobs:
 
           while IFS= read -r meson_file; do
             git checkout -- "$meson_file"
-            done < <(git ls-files | grep -E '(^|/)meson\.build$' | grep -Ev '^src/')
+          done < <(git ls-files | grep -E '(^|/)meson\.build$' | grep -Ev '^src/')
 
       - name: Run simulator tests
         shell: bash
@@ -470,11 +468,9 @@ jobs:
         id: upstream
         shell: bash
         env:
-          UPSTREAM_URL: ${{ needs.resolve-upstream-core.outputs.upstream_url }}
           UPSTREAM_COMMIT: ${{ needs.resolve-upstream-core.outputs.upstream_commit }}
         run: |
           set -euo pipefail
-
           upstream_url="$UPSTREAM_URL"
           upstream_commit="$UPSTREAM_COMMIT"
 
@@ -725,65 +721,30 @@ jobs:
           name: ${{ needs.android-debug.outputs.artifact_name }}
           path: release-assets
 
-      - name: Write release notes
+      - name: Resolve release metadata
+        id: release
         shell: bash
         run: |
           set -euo pipefail
 
-          upstream_commit=$(sed -n 's/^upstream_commit=//p' release-assets/BUILD-METADATA.txt)
-          upstream_url=$(sed -n 's/^upstream_url=//p' release-assets/BUILD-METADATA.txt)
-          xlsxio_commit=$(sed -n 's/^xlsxio_commit=//p' release-assets/BUILD-METADATA.txt)
-          xlsxio_url=$(sed -n 's/^xlsxio_url=//p' release-assets/BUILD-METADATA.txt)
-          debug_apk_name=$(sed -n 's/^debug_apk_name=//p' release-assets/BUILD-METADATA.txt)
-          upstream_short_commit="${upstream_commit:0:8}"
+          release_tag="${{ needs.android-debug.outputs.release_tag }}"
+          release_title="${{ needs.android-debug.outputs.release_title }}"
 
-          cat > RELEASE_NOTES.md <<EOF
-          - Sync to commit [${upstream_short_commit}](${upstream_url}/-/commit/${upstream_commit})
+          if [[ -z "$release_tag" || -z "$release_title" ]]; then
+            echo "Missing release metadata from build job." >&2
+            exit 1
+          fi
 
-          This prerelease contains the debug-signed debug APK ${debug_apk_name}
-          built by ./build_android.sh from GitHub commit ${GITHUB_SHA}.
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+          echo "release_title=$release_title" >> "$GITHUB_OUTPUT"
 
-          The calculator core was synchronized from ${upstream_url} at commit
-          ${upstream_commit} before the simulator and Android build steps ran.
-
-          The Linux host toolchain built xlsxio_xlsx2csv from ${xlsxio_url} at
-          commit ${xlsxio_commit} to satisfy the upstream font-generation
-          contract.
-
-          Included assets:
-          - ${debug_apk_name}
-          - SHA256SUMS.txt
-          - abis.txt
-          - zipalign.txt
-          - elf-load-segments.txt
-          - BUILD-METADATA.txt
-          - SOURCE
-          - COPYING
-          - LICENSE.txt
-
-          Notes:
-          - This is a main-branch snapshot prerelease, not a signed store release.
-          - The included APK is signed with the default debug signing config.
-          - The workflow ran the root simulator test suite with parallel make test.
-          - The workflow verified packaged ABIs and ran the Android 16 KB zip
-            alignment check described in the Android docs.
-          - COPYING is the GNU GPL text for the packaged calculator core.
-          - LICENSE.txt is the MIT license shipped by the pinned xlsxio project.
-
-          Workflow run:
-          https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-          EOF
-
-      - name: Create and publish prerelease
-        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+      - name: Publish snapshot release
+        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2
         with:
-          tag_name: ${{ needs.android-debug.outputs.release_tag }}
-          name: ${{ needs.android-debug.outputs.release_title }}
-          target_commitish: ${{ github.sha }}
-          body_path: RELEASE_NOTES.md
+          tag_name: ${{ steps.release.outputs.release_tag }}
+          name: ${{ steps.release.outputs.release_title }}
+          body: |
+            Automated main branch snapshot build.
+            Targeting upstream core commit: ${{ needs.resolve-upstream-core.outputs.upstream_commit }}
+          prerelease: true
           files: release-assets/*
-          fail_on_unmatched_files: true
-          overwrite_files: true
-          prerelease: false
-          draft: false
-          make_latest: true
