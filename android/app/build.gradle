@@ -53,7 +53,7 @@ def xlsxioSourceCommit = (project.findProperty('r47.xlsxioSourceCommit') ?: Syst
 def generatedComplianceAssetsDir = "$buildDir/generated/assets/compliance"
 
 android {
-    namespace 'com.example.r47'
+    namespace 'org.rpncalculators.r47'
     compileSdk project.findProperty('r47.compileSdk')?.toInteger() ?: 36
     def coreVersion = (project.findProperty('r47.coreVersion') ?: "unknown").toString()
     def normalizedCoreVersion = coreVersion.replaceAll(/[^0-9A-Za-z._-]/, "_")
@@ -61,7 +61,7 @@ android {
     def releaseVersionName = (project.findProperty('r47.versionName') ?: "0.1.0").toString()
 
     defaultConfig {
-        applicationId "com.example.r47"
+        applicationId "org.rpncalculators.r47"
         minSdk project.findProperty('r47.minSdk')?.toInteger() ?: 24
         targetSdk project.findProperty('r47.targetSdk')?.toInteger() ?: 36
         versionCode releaseVersionCode
@@ -88,9 +88,6 @@ android {
         debug {
             debuggable true
             jniDebuggable true
-            // Keep the debug snapshot lane separate from a future store release.
-            applicationIdSuffix ".debug"
-            versionNameSuffix "-snapshot.${normalizedCoreVersion}"
         }
         release {
             minifyEnabled false

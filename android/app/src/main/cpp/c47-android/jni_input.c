@@ -12,7 +12,7 @@ static char currentPressedKeyStr[4] = {0};
 static int currentPressedKeyCode = 0;
 
 JNIEXPORT void JNICALL
-Java_com_example_r47_MainActivity_sendSimFuncNative(
+Java_org_rpncalculators_r47_MainActivity_sendSimFuncNative(
     JNIEnv *env, jobject thiz, jint funcId) {
   (void)env;
   (void)thiz;
@@ -23,7 +23,7 @@ Java_com_example_r47_MainActivity_sendSimFuncNative(
 }
 
 JNIEXPORT void JNICALL
-Java_com_example_r47_MainActivity_sendSimMenuNative(
+Java_org_rpncalculators_r47_MainActivity_sendSimMenuNative(
     JNIEnv *env, jobject thiz, jint menuId) {
   (void)env;
   (void)thiz;
@@ -35,7 +35,7 @@ Java_com_example_r47_MainActivity_sendSimMenuNative(
 }
 
 JNIEXPORT void JNICALL
-Java_com_example_r47_MainActivity_sendSimKeyNative(
+Java_org_rpncalculators_r47_MainActivity_sendSimKeyNative(
     JNIEnv *env, jobject thiz, jstring keyId, jboolean isFn,
     jboolean isRelease) {
   (void)thiz;
@@ -70,7 +70,7 @@ Java_com_example_r47_MainActivity_sendSimKeyNative(
   (*env)->ReleaseStringUTFChars(env, keyId, nativeKeyId);
 }
 
-JNIEXPORT void JNICALL Java_com_example_r47_MainActivity_sendKey(
+JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_sendKey(
   JNIEnv *env, jobject thiz, jint keyCode) {
   (void)env;
   (void)thiz;

@@ -1,4 +1,4 @@
-package com.example.r47
+package org.rpncalculators.r47
 
 internal object R47ReferenceGeometry {
     // Measured reference-frame geometry shared with the Python contract tests.

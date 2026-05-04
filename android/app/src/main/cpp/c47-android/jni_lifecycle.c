@@ -12,7 +12,7 @@ extern void fnTimerDummy1(uint16_t timerType);
 extern void execTimerApp(uint16_t timerType);
 
 JNIEXPORT void JNICALL
-Java_com_example_r47_MainActivity_updateNativeActivityRef(JNIEnv *env,
+Java_org_rpncalculators_r47_MainActivity_updateNativeActivityRef(JNIEnv *env,
                                                                  jobject thiz) {
   LOGI("updateNativeActivityRef called");
 
@@ -42,7 +42,7 @@ Java_com_example_r47_MainActivity_updateNativeActivityRef(JNIEnv *env,
   pthread_mutex_unlock(&screenMutex);
 }
 
-JNIEXPORT void JNICALL Java_com_example_r47_MainActivity_nativePreInit(
+JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_nativePreInit(
     JNIEnv *env, jobject thiz, jstring path_obj) {
   (void)thiz;
   const char *path = (*env)->GetStringUTFChars(env, path_obj, 0);
@@ -60,10 +60,10 @@ JNIEXPORT void JNICALL Java_com_example_r47_MainActivity_nativePreInit(
   mp_set_memory_functions(allocGmp, reallocGmp, freeGmp);
 }
 
-JNIEXPORT void JNICALL Java_com_example_r47_MainActivity_initNative(
+JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_initNative(
     JNIEnv *env, jobject thiz, jstring pathObj, jint slotId) {
   (void)pathObj;
-  Java_com_example_r47_MainActivity_updateNativeActivityRef(env, thiz);
+  Java_org_rpncalculators_r47_MainActivity_updateNativeActivityRef(env, thiz);
 
   extern int current_slot_id;
   current_slot_id = slotId;
@@ -98,7 +98,7 @@ JNIEXPORT void JNICALL Java_com_example_r47_MainActivity_initNative(
   pthread_mutex_unlock(&screenMutex);
 }
 
-JNIEXPORT void JNICALL Java_com_example_r47_MainActivity_tick(
+JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_tick(
   JNIEnv *env, jobject thiz) {
   (void)env;
   (void)thiz;
@@ -121,7 +121,7 @@ JNIEXPORT void JNICALL Java_com_example_r47_MainActivity_tick(
 }
 
 JNIEXPORT void JNICALL
-Java_com_example_r47_MainActivity_saveStateNative(JNIEnv *env,
+Java_org_rpncalculators_r47_MainActivity_saveStateNative(JNIEnv *env,
                                                          jobject thiz) {
   (void)env;
   (void)thiz;
@@ -156,7 +156,7 @@ Java_com_example_r47_MainActivity_saveStateNative(JNIEnv *env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_example_r47_MainActivity_loadStateNative(JNIEnv *env,
+Java_org_rpncalculators_r47_MainActivity_loadStateNative(JNIEnv *env,
                                                          jobject thiz) {
   (void)env;
   (void)thiz;
@@ -194,7 +194,7 @@ Java_com_example_r47_MainActivity_loadStateNative(JNIEnv *env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_example_r47_MainActivity_forceRefreshNative(
+Java_org_rpncalculators_r47_MainActivity_forceRefreshNative(
     JNIEnv *env, jobject thiz) {
   (void)env;
   (void)thiz;
@@ -209,7 +209,7 @@ Java_com_example_r47_MainActivity_forceRefreshNative(
   pthread_mutex_unlock(&screenMutex);
 }
 
-JNIEXPORT void JNICALL Java_com_example_r47_MainActivity_setSlotNative(
+JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_setSlotNative(
     JNIEnv *env, jobject thiz, jint slot) {
   (void)env;
   (void)thiz;

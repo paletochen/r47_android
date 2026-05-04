@@ -7,7 +7,7 @@
     android:background="#FF000000"
     tools:context=".MainActivity">
 
-    <com.example.r47.ReplicaOverlay
+    <org.rpncalculators.r47.ReplicaOverlay
         android:id="@+id/replica_overlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />

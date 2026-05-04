@@ -1,4 +1,4 @@
-package com.example.r47
+package org.rpncalculators.r47
 
 internal data class KeyboardStateSnapshot(
     val shiftF: Boolean,

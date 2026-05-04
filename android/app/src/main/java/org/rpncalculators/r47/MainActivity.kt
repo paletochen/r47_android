@@ -1,4 +1,4 @@
-package com.example.r47
+package org.rpncalculators.r47
 
 import android.app.Activity
 import android.app.PictureInPictureParams
@@ -17,7 +17,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import com.example.r47.databinding.ActivityMainBinding
+import org.rpncalculators.r47.databinding.ActivityMainBinding
 import android.content.SharedPreferences
 import android.content.res.Configuration
 

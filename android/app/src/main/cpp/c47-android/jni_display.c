@@ -1130,7 +1130,7 @@ static void fillKeyboardState(jint *fill) {
 }
 
 JNIEXPORT jstring JNICALL
-Java_com_example_r47_MainActivity_getXRegisterNative(
+Java_org_rpncalculators_r47_MainActivity_getXRegisterNative(
     JNIEnv *env, jobject thiz) {
   (void)thiz;
   if (!ram || isCoreBlockingForIo) {
@@ -1146,7 +1146,7 @@ Java_com_example_r47_MainActivity_getXRegisterNative(
 }
 
 JNIEXPORT jstring JNICALL
-Java_com_example_r47_MainActivity_getButtonLabelNative(JNIEnv *env,
+Java_org_rpncalculators_r47_MainActivity_getButtonLabelNative(JNIEnv *env,
                                                               jobject thiz,
                                                               jint keyCode,
                                                               jint type,
@@ -1174,7 +1174,7 @@ Java_com_example_r47_MainActivity_getButtonLabelNative(JNIEnv *env,
 }
 
 JNIEXPORT jstring JNICALL
-Java_com_example_r47_MainActivity_getSoftkeyLabelNative(JNIEnv *env,
+Java_org_rpncalculators_r47_MainActivity_getSoftkeyLabelNative(JNIEnv *env,
                                                                jobject thiz,
                                                                jint fnKeyIndex) {
   (void)thiz;
@@ -1193,7 +1193,7 @@ Java_com_example_r47_MainActivity_getSoftkeyLabelNative(JNIEnv *env,
 }
 
 JNIEXPORT jintArray JNICALL
-Java_com_example_r47_MainActivity_getKeyboardStateNative(JNIEnv *env,
+Java_org_rpncalculators_r47_MainActivity_getKeyboardStateNative(JNIEnv *env,
                                                                 jobject thiz) {
   (void)thiz;
   if (!ram) {
@@ -1215,7 +1215,7 @@ Java_com_example_r47_MainActivity_getKeyboardStateNative(JNIEnv *env,
 }
 
 JNIEXPORT jintArray JNICALL
-Java_com_example_r47_MainActivity_getKeypadMetaNative(JNIEnv *env,
+Java_org_rpncalculators_r47_MainActivity_getKeypadMetaNative(JNIEnv *env,
                                                              jobject thiz,
                                                              jboolean isDynamic) {
   (void)thiz;
@@ -1237,7 +1237,7 @@ Java_com_example_r47_MainActivity_getKeypadMetaNative(JNIEnv *env,
 }
 
 JNIEXPORT jobjectArray JNICALL
-Java_com_example_r47_MainActivity_getKeypadLabelsNative(JNIEnv *env,
+Java_org_rpncalculators_r47_MainActivity_getKeypadLabelsNative(JNIEnv *env,
                                                                jobject thiz,
                                                                jboolean isDynamic) {
   (void)thiz;
@@ -1290,7 +1290,7 @@ Java_com_example_r47_MainActivity_getKeypadLabelsNative(JNIEnv *env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_example_r47_MainActivity_getDisplayPixels(
+Java_org_rpncalculators_r47_MainActivity_getDisplayPixels(
     JNIEnv *env, jobject thiz, jintArray pixels) {
   (void)thiz;
   if (!screenData) {

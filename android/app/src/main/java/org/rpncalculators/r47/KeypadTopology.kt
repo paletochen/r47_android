@@ -1,4 +1,4 @@
-package com.example.r47
+package org.rpncalculators.r47
 
 internal enum class KeypadKeyFamily {
     SOFTKEY,

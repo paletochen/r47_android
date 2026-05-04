@@ -13,8 +13,8 @@
 ## 0. Package Identity And Version Contract
 
 - The stable checked-in Android package identity MUST be
-  `com.example.r47`.
-- Debug snapshots MUST install as `com.example.r47.debug` through the
+  `org.rpncalculators.r47`.
+- Debug snapshots MUST install as `org.rpncalculators.r47.debug` through the
   app-module `applicationIdSuffix ".debug"`.
 - The checked-in debug APK currently packages `arm64-v8a` only.
 - Release version inputs MUST come from the Gradle properties

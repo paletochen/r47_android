@@ -11,7 +11,7 @@
 - `ndkVersion 29.0.14206865`
 - CMake `3.22.1`
 - ABI filter `arm64-v8a`
-- base `namespace` and `applicationId` `com.example.r47`
+- base `namespace` and `applicationId` `org.rpncalculators.r47`
 - debug builds add `applicationIdSuffix ".debug"`
 - release version inputs come from `r47.versionCode`, `r47.versionName`, and
   `r47.coreVersion`

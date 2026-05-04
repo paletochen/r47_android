@@ -1,4 +1,4 @@
-package com.example.r47
+package org.rpncalculators.r47
 
 import android.graphics.Typeface
 import android.content.Context
