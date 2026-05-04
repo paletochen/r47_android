@@ -47,7 +47,7 @@
 
   uint32_t getFreeRamMemory      (void);
   void     resizeProgramMemory   (uint16_t newSizeInBlocks);
-  bool_t   isMemoryBlockAvailable(size_t sizeInBlocks);
+  bool_t   isMemoryBlockAvailable(size_t sizeInBlocks, uint16_t numBlocks, float extraFraction);
   void     debugMemory           (const char *message);
 
   // The following macros are for avoid crash in case that the memory is full. The corresponding label `cleanup_***` is needed AFTER freeing the memory.

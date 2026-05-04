@@ -26,18 +26,47 @@ uint32_t getFreeRamMemory(void) {
   }
 #endif // !DMCP_BUILD
 
-bool_t isMemoryBlockAvailable(size_t sizeInBlocks) {
+bool_t isMemoryBlockAvailable(size_t sizeInBlocks, uint16_t numBlocks, float extraFraction) {
   int i;
+  size_t extraSize              = (size_t)((float)sizeInBlocks * extraFraction);
+  size_t requiredForNBlocks     = sizeInBlocks * numBlocks;
+  size_t countOfBlocksOfSize    = 0;
+  bool_t haveOneBigBlockForAllN = false;
+  bool_t haveExtraBlock         = false;
 
+  const size_t spaciousBlockSize = sizeInBlocks + extraSize;
   for(i=0; i<numberOfFreeMemoryRegions; i++) {
-    if(freeMemoryRegions[i].sizeInBlocks >= sizeInBlocks) {
+    const size_t thisBlockSize = freeMemoryRegions[i].sizeInBlocks;
+
+    if(thisBlockSize >= requiredForNBlocks + extraSize) {
       return true;
+    }
+    if(thisBlockSize >= sizeInBlocks) {
+      countOfBlocksOfSize++;
+      if(thisBlockSize >= spaciousBlockSize) {
+        // This block holds the desired block plus the extra space
+        haveExtraBlock = true;
+      }
+      if (countOfBlocksOfSize > numBlocks) {
+        // We've got enough blocks and one over for the extra space
+        return true;
+      }
+      if (countOfBlocksOfSize == numBlocks && haveExtraBlock) {
+        // We've found enough large blocks and already have the extra space
+        return true;
+      }
+    }
+    else if(thisBlockSize >= extraSize) {
+      haveExtraBlock = true;
+      if (countOfBlocksOfSize >= numBlocks) {
+        // We've found enough large blocks and now have the extra space
+        return true;
+      }
     }
   }
 
   return false;
 }
-
 
 
 

@@ -1,1 +1,2 @@
-- Sync to commit [66fd0959](https://gitlab.com/rpncalculators/c43/-/commits/master?ref_type=HEADS)
+- Sync to commit [d82d5725](https://gitlab.com/rpncalculators/c43/-/commits/master?ref_type=HEADS)
+- Fixed the screen and app freezing when running complex calculations (regression created when merged the past PRs)

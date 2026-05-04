@@ -1840,13 +1840,13 @@ bool_t nimWhenButtonPressed = false;                  //PHM eRPN 2021-07
         //  previousItem = item;
         //}
       #endif //DMCP_BUILD
-      #if defined(PC_BUILD) || defined(ANDROID_BUILD)
+      #if defined(PC_BUILD)
                     #if defined(VERBOSEKEYS)
                       printf(">>>>Z 1001 btnPressed       data=|%s| data[0]=%u item=%d calcMode=%u\n", (char *)data, ((char *)data)[0], item, calcMode);
                     #endif // VERBOSEKEYS
         if(programRunStop == PGM_RUNNING || programRunStop == PGM_PAUSED) {
           if((item == ITM_RS || item == ITM_EXIT1) && !getSystemFlag(FLAG_INTING) && !getSystemFlag(FLAG_SOLVING)) {
-            screenUpdatingMode &= ~(SCRUPD_MANUAL_STATUSBAR | SCRUPD_SKIP_STATUSBAR_ONE_TIME);
+            screenUpdatingMode &= !(SCRUPD_MANUAL_STATUSBAR | SCRUPD_SKIP_STATUSBAR_ONE_TIME);
             programRunStop = PGM_WAITING;
             showFunctionNameItem = 0;
             #if defined(IR_PRINTING)

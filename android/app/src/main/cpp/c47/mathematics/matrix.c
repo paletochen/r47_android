@@ -1945,7 +1945,7 @@ return;
 bool_t realMatrixInit(real34Matrix_t *matrix, uint16_t rows, uint16_t cols) {
   //Allocate Memory for Matrix
   const size_t neededSize = rows * cols * REAL34_SIZE_IN_BLOCKS;
-  if(!isMemoryBlockAvailable(neededSize)) {
+  if(!isMemoryBlockAvailable(neededSize, 2, 0.1f)) {
     matrix->header.matrixColumns = matrix->header.matrixRows = 0;
     matrix->matrixElements = NULL;
             #if (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -2054,7 +2054,7 @@ void realMatrixRedim(real34Matrix_t *matrix, uint16_t rows, uint16_t cols) {
 bool_t complexMatrixInit(complex34Matrix_t *matrix, uint16_t rows, uint16_t cols) {
   //Allocate Memory for Matrix
   const size_t neededSize = rows * cols * COMPLEX34_SIZE_IN_BLOCKS;
-  if(!isMemoryBlockAvailable(neededSize)) {
+  if(!isMemoryBlockAvailable(neededSize, 2, 0.1f)) {
     matrix->header.matrixColumns = matrix->header.matrixRows = 0;
     matrix->matrixElements = NULL;
             #if (EXTRA_INFO_ON_CALC_ERROR == 1)
