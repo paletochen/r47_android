@@ -867,9 +867,9 @@ void runProgram(bool_t singleStep, uint16_t menuLabel) {
     stepsToBeAdvanced = executeOneStep(currentStep);
     #if defined(ANDROID_BUILD)
     {
-      static int androidYieldCounter = 0;
-      if (androidYieldCounter++ > 10) { // exactly 10 steps as per Master Guide 3.13
-        androidYieldCounter = 0;
+      static int yieldCounter = 0;
+      if (++yieldCounter >= 10) { // exactly 10 steps as per Master Guide 3.13
+        yieldCounter = 0;
         void yieldToAndroid();
         yieldToAndroid();
       }
