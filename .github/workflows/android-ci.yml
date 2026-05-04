@@ -3,7 +3,7 @@ name: Android CI
 on:
   workflow_dispatch:
   schedule:
-    - cron: '14 3 * * *'
+    - cron: "14 3 * * *"
   push:
     branches:
       - github_ci
@@ -234,7 +234,7 @@ jobs:
 
           # RESTORE local Android-specific fixes that were overwritten by upstream sync
           git checkout HEAD -- \
-            src/c47/keyboard.c \
+            android/app/src/main/cpp/c47/keyboard.c \
             src/c47/programming/lblGtoXeq.c
 
           git checkout -- \
@@ -340,7 +340,7 @@ jobs:
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
 
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
@@ -494,7 +494,7 @@ jobs:
 
           # RESTORE local Android-specific fixes that were overwritten by upstream sync
           git checkout HEAD -- \
-            src/c47/keyboard.c \
+            android/app/src/main/cpp/c47/keyboard.c \
             src/c47/programming/lblGtoXeq.c
 
           git checkout -- \
@@ -540,14 +540,14 @@ jobs:
           R47_NDK_VERSION: ${{ steps.versions.outputs.ndk_version }}
           R47_BUILD_JOBS: ${{ steps.jobs.outputs.jobs }}
           CMAKE_BUILD_PARALLEL_LEVEL: ${{ steps.jobs.outputs.jobs }}
-          R47_GRADLE_ARGS: '--no-daemon --stacktrace --console=plain'
+          R47_GRADLE_ARGS: "--no-daemon --stacktrace --console=plain"
           R47_SOURCE_REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
           R47_SOURCE_COMMIT: ${{ github.sha }}
           R47_UPSTREAM_SOURCE_REPOSITORY_URL: ${{ steps.upstream.outputs.upstream_url }}
           R47_UPSTREAM_SOURCE_COMMIT: ${{ steps.upstream.outputs.upstream_commit }}
           R47_XLSXIO_URL: ${{ steps.xlsxio.outputs.xlsxio_url }}
           R47_XLSXIO_COMMIT: ${{ steps.xlsxio.outputs.xlsxio_commit }}
-          GRADLE_OPTS: '-Dorg.gradle.parallel=true -Dorg.gradle.workers.max=${{ steps.jobs.outputs.jobs }}'
+          GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.workers.max=${{ steps.jobs.outputs.jobs }}"
         run: |
           set -euo pipefail
           mkdir -p ci-artifacts/logs
