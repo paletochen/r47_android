@@ -750,5 +750,6 @@ jobs:
           body: |
             Automated main branch snapshot build.
             Targeting upstream core commit: ${{ needs.resolve-upstream-core.outputs.upstream_commit }}
-          prerelease: true
+          prerelease: false
           files: release-assets/*
+          make_latest: true
