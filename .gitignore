@@ -101,6 +101,7 @@ Thumbs.db
 # --- 7. Upstream Whitelist (Delta Mode) ---
 # We ignore src/c47/ but keep our patches
 /src/c47/
+!/src/c47/keyboard.c
 !/src/c47/programming/input.c
 !/src/c47/programming/lblGtoXeq.c
 !/src/c47/screen.c
