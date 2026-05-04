@@ -208,14 +208,51 @@ jobs:
           export PATH="${{ steps.xlsxio.outputs.xlsxio_prefix }}/bin:$PATH"
           xlsxio_xlsx2csv -h > /dev/null
 
-      - name: Sync authoritative upstream core (Disabled to preserve local fixes)
+      - name: Sync authoritative upstream core
         shell: bash
+        env:
+          UPSTREAM_URL: ${{ needs.resolve-upstream-core.outputs.upstream_url }}
+          UPSTREAM_COMMIT: ${{ needs.resolve-upstream-core.outputs.upstream_commit }}
         run: |
-          echo "Skipping destructive sync to preserve local Android fixes in src/c47"
-          # The following logic is disabled because it overwrites local bug fixes:
-          # git archive --format=tar "$UPSTREAM_COMMIT" | tar -xf -
-          # ...
+          set -euo pipefail
 
+          upstream_url="$UPSTREAM_URL"
+          upstream_commit="$UPSTREAM_COMMIT"
+
+          if [[ -z "$upstream_commit" ]]; then
+            echo "Missing resolved upstream commit." >&2
+            exit 1
+          fi
+
+          if git remote | grep -qx upstream; then
+            git remote set-url upstream "$upstream_url"
+          else
+            git remote add upstream "$upstream_url"
+          fi
+
+          git fetch --depth 1 upstream "$upstream_commit"
+          git cat-file -e "$upstream_commit^{commit}"
+          git archive --format=tar "$upstream_commit" | tar -xf -
+
+          # RESTORE local Android-specific fixes that were overwritten by upstream sync
+          git checkout HEAD -- \
+            src/c47/keyboard.c \
+            src/c47/programming/lblGtoXeq.c
+
+          git checkout -- \
+            .gitignore \
+            README.md \
+            Makefile \
+            build_android.sh \
+            sync_public.sh \
+            dist.sh \
+            meson.build \
+            meson_options.txt \
+            android/
+
+          while IFS= read -r meson_file; do
+            git checkout -- "$meson_file"
+            done < <(git ls-files | grep -E '(^|/)meson\.build$' | grep -Ev '^src/')
 
       - name: Run simulator tests
         shell: bash
@@ -429,14 +466,55 @@ jobs:
           export PATH="${{ steps.xlsxio.outputs.xlsxio_prefix }}/bin:$PATH"
           xlsxio_xlsx2csv -h > /dev/null
 
-      - name: Sync authoritative upstream core (Disabled to preserve local fixes)
+      - name: Sync authoritative upstream core
         id: upstream
         shell: bash
+        env:
+          UPSTREAM_URL: ${{ needs.resolve-upstream-core.outputs.upstream_url }}
+          UPSTREAM_COMMIT: ${{ needs.resolve-upstream-core.outputs.upstream_commit }}
         run: |
-          echo "Skipping destructive sync to preserve local Android fixes in src/c47"
-          echo "upstream_url=${{ needs.resolve-upstream-core.outputs.upstream_url }}" >> "$GITHUB_OUTPUT"
-          echo "upstream_commit=${{ needs.resolve-upstream-core.outputs.upstream_commit }}" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
 
+          upstream_url="$UPSTREAM_URL"
+          upstream_commit="$UPSTREAM_COMMIT"
+
+          if [[ -z "$upstream_commit" ]]; then
+            echo "Missing resolved upstream commit." >&2
+            exit 1
+          fi
+
+          if git remote | grep -qx upstream; then
+            git remote set-url upstream "$upstream_url"
+          else
+            git remote add upstream "$upstream_url"
+          fi
+
+          git fetch --depth 1 upstream "$upstream_commit"
+          git cat-file -e "$upstream_commit^{commit}"
+          echo "upstream_url=$upstream_url" >> "$GITHUB_OUTPUT"
+          echo "upstream_commit=$upstream_commit" >> "$GITHUB_OUTPUT"
+
+          git archive --format=tar "$upstream_commit" | tar -xf -
+
+          # RESTORE local Android-specific fixes that were overwritten by upstream sync
+          git checkout HEAD -- \
+            src/c47/keyboard.c \
+            src/c47/programming/lblGtoXeq.c
+
+          git checkout -- \
+            .gitignore \
+            README.md \
+            Makefile \
+            build_android.sh \
+            sync_public.sh \
+            dist.sh \
+            meson.build \
+            meson_options.txt \
+            android/
+
+          while IFS= read -r meson_file; do
+            git checkout -- "$meson_file"
+          done < <(git ls-files | grep -E '(^|/)meson\.build$' | grep -Ev '^src/')
 
       - name: Set build metadata
         id: meta
