@@ -185,7 +185,7 @@ TO_QSPI static const char *nameOfWday_pt[8] = {"dia inv" STD_a_ACUTE "lido da se
         break;
 
       case dtString:
-        xcopy(string, REGISTER_STRING_DATA(regist), stringByteLength(REGISTER_STRING_DATA(regist)) + 1);
+        COPY_REGISTER_STRING_TO(string,    regist);
         break;
 
       case dtReal34Matrix: {
@@ -2278,7 +2278,7 @@ void createSubstrings(uint8_t number) {
     //printf("TTTT:refreshRegist:%i %i string:%s type:%i\n",viewRegister, refreshRegist, tmpString, getRegisterDataType(viewRegister));
     if(temporaryInformation == TI_VIEW_REGISTER && getRegisterDataType(viewRegister) == dtString) {
       //tmpString[0]=0;
-      xcopy(tmpString, REGISTER_STRING_DATA(viewRegister), stringByteLength(REGISTER_STRING_DATA(viewRegister)) + 1);
+      COPY_REGISTER_STRING_TO(tmpString, viewRegister);
       createSubstrings(4);
       if(refreshRegist == REGISTER_T) {
         char *string1 = "";
@@ -4848,7 +4848,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
             if(w >= SCREEN_WIDTH - prefixWidth) {
               char *tmpStrW;
               if(regist == REGISTER_X || (temporaryInformation == TI_VIEW_REGISTER && origRegist == REGISTER_T)) {
-                xcopy(tmpString, REGISTER_STRING_DATA(regist), stringByteLength(REGISTER_STRING_DATA(regist)) + 1);
+                COPY_REGISTER_STRING_TO(tmpString, regist);
                 if(temporaryInformation == TI_VIEW_REGISTER && origRegist == REGISTER_T) {
                   createSubstrings(1);
                 }
@@ -4861,14 +4861,12 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
                 else {
                   showString(tmpString, &standardFont, SCREEN_WIDTH - w, Y_POSITION_OF_REGISTER_X_LINE - 3 - checkHPoffset, vmNormal, false, true);
                 }
-
                 w = stringByteLength(tmpString);
-                xcopy(tmpString, REGISTER_STRING_DATA(regist), stringByteLength(REGISTER_STRING_DATA(regist)) + 1);
+                COPY_REGISTER_STRING_TO(tmpString, regist);
                 if(temporaryInformation == TI_VIEW_REGISTER && origRegist == REGISTER_T) {
                   createSubstrings(1);
                 }
                 xcopy(tmpString, tmpString + w, stringByteLength(tmpString + w) + 1);
-
                 w = stringWidth(tmpString, &standardFont, false, true);
                 if(w >= SCREEN_WIDTH - prefixWidth) {
                   tmpStrW = stringAfterPixels(tmpString, &standardFont, SCREEN_WIDTH - prefixWidth - 14 - 1, false, true); // 14 is the width of STD_ELLIPSIS
@@ -4883,7 +4881,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
                 }
               }
               else {
-                xcopy(tmpString, REGISTER_STRING_DATA(regist), stringByteLength(REGISTER_STRING_DATA(regist)) + 1);
+                COPY_REGISTER_STRING_TO(tmpString, regist);
                 tmpStrW = stringAfterPixels(tmpString, &standardFont, SCREEN_WIDTH - prefixWidth - 14 - 1, false, true); // 14 is the width of STD_ELLIPSIS
                 xcopy(tmpStrW, STD_ELLIPSIS, 3);
                 w = stringWidth(tmpString, &standardFont, false, true);
@@ -4893,7 +4891,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
             }
             else {
               lineWidth = w;
-              xcopy(tmpString, REGISTER_STRING_DATA(regist), stringByteLength(REGISTER_STRING_DATA(regist)) + 1);
+              COPY_REGISTER_STRING_TO(tmpString, regist);
               if(temporaryInformation == TI_VIEW_REGISTER && origRegist == REGISTER_T) {
                 createSubstrings(1);
               }

@@ -151,7 +151,7 @@ static void _setCaption(uint16_t keyNum) {
     char *ts = tmpString;
     switch(getRegisterDataType(REGISTER_X)) {
       case dtString: {
-        xcopy(tmpString, REGISTER_STRING_DATA(REGISTER_X), stringByteLength(REGISTER_STRING_DATA(REGISTER_X)) + 1);
+        COPY_REGISTER_STRING_TO(tmpString, REGISTER_X);
         break;
       }
 

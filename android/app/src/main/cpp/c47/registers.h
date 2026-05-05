@@ -30,6 +30,15 @@
 
   #define REGISTER_STRING_HEADER(a)                              ((strLgIntHeader_t     *)(getRegisterDataPointer(a)))
   #define REGISTER_STRING_DATA(a)                                ((char                 *)(getRegisterDataPointer(a) + sizeof(strLgIntHeader_t)))
+  // Safe copy of a register string: skips the copy if the register pointer is NULL. Used only where register string is both the source and length argument, which is the pattern GCC's flags on the Windows build
+  #define COPY_REGISTER_STRING_TO(dest, regist)                                  \
+    do {                                                                         \
+      void *regData_ = getRegisterDataPointer(regist);                           \
+      if(regData_ != NULL) {                                                     \
+        char *regStr_ = (char *)regData_ + sizeof(strLgIntHeader_t);             \
+        xcopy((dest), regStr_, stringByteLength(regStr_) + 1);                   \
+      }                                                                          \
+    } while(0)
 
   #define REGISTER_CONFIG_DATA(a)                                ((dtConfigDescriptor_t *)(getRegisterDataPointer(a)))
 

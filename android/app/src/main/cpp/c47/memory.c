@@ -31,7 +31,6 @@ bool_t isMemoryBlockAvailable(size_t sizeInBlocks, uint16_t numBlocks, float ext
   size_t extraSize              = (size_t)((float)sizeInBlocks * extraFraction);
   size_t requiredForNBlocks     = sizeInBlocks * numBlocks;
   size_t countOfBlocksOfSize    = 0;
-  bool_t haveOneBigBlockForAllN = false;
   bool_t haveExtraBlock         = false;
 
   const size_t spaciousBlockSize = sizeInBlocks + extraSize;

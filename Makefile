@@ -42,8 +42,8 @@ else
 endif
 	cd $(BUILD_PC) && ninja sim
 	cd $(BUILD_PC) && ninja simr47
-	cp $(BUILD_PC)/src/c47-gtk/c47$(EXE) ./ 
-	cp $(BUILD_PC)/src/c47-gtk/r47$(EXE) ./ 
+	cp $(BUILD_PC)/src/c47-gtk/c47$(EXE) ./
+	cp $(BUILD_PC)/src/c47-gtk/r47$(EXE) ./
 ifneq ($(OS),Windows_NT)
 	@ASAN_OK=true; \
 	if ! otool -L ./c47 2>/dev/null | grep -q asan && ! ldd ./c47 2>/dev/null | grep -q asan; then \
@@ -79,7 +79,7 @@ build.dmcp5:
 
 sim: $(BUILD_PC)
 	cd $(BUILD_PC) && ninja sim
-	cp $(BUILD_PC)/src/c47-gtk/c47$(EXE) ./ 
+	cp $(BUILD_PC)/src/c47-gtk/c47$(EXE) ./
 	install -C $(BUILD_PC)/src/generateCatalogs/softmenuCatalogs.h src/generated/
 	install -C $(BUILD_PC)/src/generateConstants/constantPointers.h src/generated/
 	install -C $(BUILD_PC)/src/generateConstants/constantPointers.c src/generated/
@@ -88,7 +88,7 @@ sim: $(BUILD_PC)
 
 simr47: $(BUILD_PC)
 	cd $(BUILD_PC) && ninja simr47
-	cp $(BUILD_PC)/src/c47-gtk/r47$(EXE) ./ 
+	cp $(BUILD_PC)/src/c47-gtk/r47$(EXE) ./
 	install -C $(BUILD_PC)/src/generateCatalogs/softmenuCatalogs.h src/generated/
 	install -C $(BUILD_PC)/src/generateConstants/constantPointers.h src/generated/
 	install -C $(BUILD_PC)/src/generateConstants/constantPointers.c src/generated/

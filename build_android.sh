@@ -202,10 +202,14 @@ if [ -n "$R47_COMPILE_SDK" ]; then GRADLE_PROPS="$GRADLE_PROPS -Pr47.compileSdk=
 rm -rf app/.cxx
 $GRADLE_CMD clean
 $GRADLE_CMD assembleDebug $GRADLE_PROPS
+if [ -f "app/build/outputs/apk/debug/R47calculator-debug.apk" ]; then
+    mv app/build/outputs/apk/debug/R47calculator-debug.apk app/build/outputs/apk/debug/R47calculator-debug-local.apk
+fi
+APK_PATH="app/build/outputs/apk/debug/R47calculator-debug-local.apk"
 
-APK_PATH="app/build/outputs/apk/debug/R47calculator-debug.apk"
 if [ -f "$APK_PATH" ]; then
     echo "SUCCESS: APK created at: $ANDROID_PROJECT_DIR/$APK_PATH"
+
 else
     echo "ERROR: APK build failed."
     exit 1
