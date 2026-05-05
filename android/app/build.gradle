@@ -88,8 +88,11 @@ android {
         debug {
             debuggable true
             jniDebuggable true
-            applicationIdSuffix ".debug"
+            if (System.getenv("GITHUB_ACTIONS") != "true") {
+                applicationIdSuffix ".debug"
+            }
         }
+
 
         release {
             minifyEnabled false
