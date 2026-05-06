@@ -9,7 +9,6 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.util.Log
-import kotlin.math.min
 import kotlin.math.roundToInt
 
 class ReplicaOverlay @JvmOverloads constructor(
@@ -22,63 +21,15 @@ class ReplicaOverlay @JvmOverloads constructor(
         const val CHROME_MODE_BACKGROUND = "r47_background"
     }
 
-    private data class Projection(val scale: Float, val offsetX: Float, val offsetY: Float)
-    private data class ChromeSpec(
-        val mode: String,
-        val shellWidth: Float,
-        val shellHeight: Float,
-        val topBezelSettingsTapHeight: Float,
-        val lcdWindowLeft: Float,
-        val lcdWindowTop: Float,
-        val lcdWindowWidth: Float,
-        val lcdWindowHeight: Float,
-        val scaledModeFitTrimLeft: Float = 0f,
-        val scaledModeFitTrimTop: Float = 0f,
-        val scaledModeFitTrimRight: Float = 0f,
-        val scaledModeFitTrimBottom: Float = 0f,
-        val imageResId: Int? = null,
-        val drawNativeChrome: Boolean = false,
-    )
-
-    private val baseChromeSpec = ChromeSpec(
-        mode = CHROME_MODE_NATIVE,
-        shellWidth = R47ReferenceGeometry.LOGICAL_CANVAS_WIDTH,
-        shellHeight = R47ReferenceGeometry.LOGICAL_CANVAS_HEIGHT,
-        topBezelSettingsTapHeight = R47AndroidChromeGeometry.TOP_BEZEL_SETTINGS_TAP_HEIGHT,
-        lcdWindowLeft = R47AndroidChromeGeometry.LCD_WINDOW_LEFT,
-        lcdWindowTop = R47AndroidChromeGeometry.LCD_WINDOW_TOP,
-        lcdWindowWidth = R47AndroidChromeGeometry.LCD_WINDOW_WIDTH,
-        lcdWindowHeight = R47AndroidChromeGeometry.LCD_WINDOW_HEIGHT,
-        scaledModeFitTrimLeft = R47AndroidChromeGeometry.SCALED_MODE_FIT_TRIM_LEFT,
-        scaledModeFitTrimTop = R47AndroidChromeGeometry.SCALED_MODE_FIT_TRIM_TOP,
-        scaledModeFitTrimRight = R47AndroidChromeGeometry.SCALED_MODE_FIT_TRIM_RIGHT,
-        scaledModeFitTrimBottom = R47AndroidChromeGeometry.SCALED_MODE_FIT_TRIM_BOTTOM,
-    )
-    private val nativeChromeSpec = baseChromeSpec.copy(
-        mode = CHROME_MODE_NATIVE,
-        drawNativeChrome = true,
-    )
-    private val backgroundChromeSpec = baseChromeSpec.copy(
-        mode = CHROME_MODE_BACKGROUND,
-        imageResId = R.drawable.r47_background,
-    )
-    private val textureChromeSpec = baseChromeSpec.copy(
-        mode = CHROME_MODE_TEXTURE,
-        imageResId = R.drawable.r47_texture,
-    )
-
     private var isPiPMode = false
-    private var chromeMode = CHROME_MODE_NATIVE
-    private var scalingMode = "full_width"
     private var showTouchZones = false
+    private val chromeLayout = ReplicaChromeLayout(resources)
 
     private val lcdBitmap = Bitmap.createBitmap(
         R47LcdContract.PIXEL_WIDTH,
         R47LcdContract.PIXEL_HEIGHT,
         Bitmap.Config.ARGB_8888,
     )
-    private val chromeBitmapCache = mutableMapOf<Int, Bitmap?>()
-    private var resolvedShellBitmapWidthCache: Float? = null
     private val lastLcdPixels = IntArray(R47LcdContract.PIXEL_COUNT)
     private val lcdRect = Rect(0, 0, R47LcdContract.PIXEL_WIDTH, R47LcdContract.PIXEL_HEIGHT)
     private val lcdDestRect = RectF()
@@ -129,7 +80,7 @@ class ReplicaOverlay @JvmOverloads constructor(
     }
 
     fun setScalingMode(mode: String) {
-        scalingMode = mode
+        chromeLayout.setScalingMode(mode)
         requestLayout()
         invalidate()
     }
@@ -140,11 +91,9 @@ class ReplicaOverlay @JvmOverloads constructor(
     }
 
     fun setChromeMode(mode: String) {
-        val resolvedMode = resolveChromeSpec(mode).mode
-        if (chromeMode == resolvedMode) {
+        if (!chromeLayout.setChromeMode(mode)) {
             return
         }
-        chromeMode = resolvedMode
         requestLayout()
         invalidate()
     }
@@ -153,50 +102,7 @@ class ReplicaOverlay @JvmOverloads constructor(
         setChromeMode(CHROME_MODE_NATIVE)
     }
 
-    private fun resolveChromeSpec(mode: String): ChromeSpec {
-        return when {
-            mode == CHROME_MODE_TEXTURE -> textureChromeSpec
-            mode == "image" -> backgroundChromeSpec
-            mode.startsWith(CHROME_MODE_BACKGROUND) -> backgroundChromeSpec
-            else -> nativeChromeSpec
-        }
-    }
-
-    private fun currentChromeSpec(): ChromeSpec {
-        return resolveChromeSpec(chromeMode)
-    }
-
-    private fun chromeBitmapFor(spec: ChromeSpec): Bitmap? {
-        val resId = spec.imageResId ?: return null
-        return chromeBitmapCache.getOrPut(resId) {
-            BitmapFactory.decodeResource(resources, resId)
-        }
-    }
-
-    private fun decodeResourceWidth(resId: Int): Float? {
-        val options = BitmapFactory.Options().apply {
-            inJustDecodeBounds = true
-        }
-        BitmapFactory.decodeResource(resources, resId, options)
-        return options.outWidth.takeIf { it > 0 }?.toFloat()
-    }
-
-    private fun resolvedShellBitmapWidthForCurrentDensity(): Float {
-        resolvedShellBitmapWidthCache?.let { return it }
-
-        val widths = listOfNotNull(
-            decodeResourceWidth(R.drawable.r47_background),
-            decodeResourceWidth(R.drawable.r47_texture),
-        ).distinct()
-
-        val resolvedWidth = widths.firstOrNull() ?: R47ReferenceGeometry.LOGICAL_CANVAS_WIDTH
-        if (widths.size > 1) {
-            Log.w("ReplicaOverlay", "Shell drawable width mismatch: $widths")
-        }
-
-        resolvedShellBitmapWidthCache = resolvedWidth
-        return resolvedWidth
-    }
+    private fun currentChromeSpec(): ReplicaChromeSpec = chromeLayout.currentChromeSpec()
 
     fun isPointInLcd(x: Float, y: Float): Boolean {
         if (width <= 0 || height <= 0) {
@@ -204,7 +110,7 @@ class ReplicaOverlay @JvmOverloads constructor(
         }
 
         val spec = currentChromeSpec()
-        val projection = computeShellProjection(spec, width.toFloat(), height.toFloat())
+        val projection = chromeLayout.computeProjection(spec, width.toFloat(), height.toFloat())
         val localX = (x - projection.offsetX) / projection.scale
         val localY = (y - projection.offsetY) / projection.scale
 
@@ -245,7 +151,7 @@ class ReplicaOverlay @JvmOverloads constructor(
 
         // Calculate screen-space dirty rect
         val spec = currentChromeSpec()
-        val projection = computeShellProjection(spec, width.toFloat(), height.toFloat())
+        val projection = chromeLayout.computeProjection(spec, width.toFloat(), height.toFloat())
 
         // Convert LCD coordinates to Screen coordinates
         val left = projection.offsetX + (spec.lcdWindowLeft + (minX.toFloat() / pixelWidthF) * spec.lcdWindowWidth) * projection.scale
@@ -261,7 +167,7 @@ class ReplicaOverlay @JvmOverloads constructor(
         if (isPiPMode) return false
         gestureDetector.onTouchEvent(ev)
 
-        val projection = computeShellProjection(width.toFloat(), height.toFloat())
+        val projection = chromeLayout.computeProjection(width.toFloat(), height.toFloat())
         val lY = (ev.y - projection.offsetY) / projection.scale
         val spec = currentChromeSpec()
 
@@ -286,7 +192,7 @@ class ReplicaOverlay @JvmOverloads constructor(
             return true
         }
 
-        val projection = computeShellProjection(width.toFloat(), height.toFloat())
+        val projection = chromeLayout.computeProjection(width.toFloat(), height.toFloat())
         val lY = (event.y - projection.offsetY) / projection.scale
         val spec = currentChromeSpec()
 
@@ -321,51 +227,13 @@ class ReplicaOverlay @JvmOverloads constructor(
         addView(view, LayoutParams(x, y, w, h, showTouchZone))
     }
 
-    private fun computeShellProjection(spec: ChromeSpec, availableWidth: Float, availableHeight: Float): Projection {
-        val fitLeft = if (scalingMode == "physical") 0f else spec.scaledModeFitTrimLeft
-        val fitTop = if (scalingMode == "physical") 0f else spec.scaledModeFitTrimTop
-        val fitWidth = if (scalingMode == "physical") {
-            spec.shellWidth
-        } else {
-            spec.shellWidth - spec.scaledModeFitTrimLeft - spec.scaledModeFitTrimRight
-        }
-        val fitHeight = if (scalingMode == "physical") {
-            spec.shellHeight
-        } else {
-            spec.shellHeight - spec.scaledModeFitTrimTop - spec.scaledModeFitTrimBottom
-        }
-        val fitScale = min(availableWidth / fitWidth, availableHeight / fitHeight)
-        val scale = if (scalingMode == "physical") {
-            val oneToOneProjectionScaleCap =
-                resolvedShellBitmapWidthForCurrentDensity() / R47ReferenceGeometry.LOGICAL_CANVAS_WIDTH
-            min(oneToOneProjectionScaleCap, fitScale)
-        } else {
-            fitScale
-        }
-        val offsetX = (availableWidth - fitWidth * scale) / 2f - fitLeft * scale
-        val offsetY = (availableHeight - fitHeight * scale) / 2f - fitTop * scale
-        return Projection(scale, offsetX, offsetY)
-    }
-
-    private fun computeShellProjection(availableWidth: Float, availableHeight: Float): Projection {
-        return computeShellProjection(currentChromeSpec(), availableWidth, availableHeight)
-    }
-
-    private fun drawNativeShellChrome(
-        canvas: Canvas,
-        rect: RectF,
-        cornerRadius: Float,
-    ) {
-        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, bodyPaint)
-    }
-
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val w = MeasureSpec.getSize(widthMeasureSpec)
         val h = MeasureSpec.getSize(heightMeasureSpec)
         setMeasuredDimension(w, h)
 
         if (!isPiPMode) {
-            val projection = computeShellProjection(w.toFloat(), h.toFloat())
+            val projection = chromeLayout.computeProjection(w.toFloat(), h.toFloat())
             for (i in 0 until childCount) {
                 val child = getChildAt(i)
                 val lp = child.layoutParams as LayoutParams
@@ -389,7 +257,7 @@ class ReplicaOverlay @JvmOverloads constructor(
 
         val w = (r - l).toFloat()
         val h = (b - t).toFloat()
-        val projection = computeShellProjection(w, h)
+        val projection = chromeLayout.computeProjection(w, h)
 
         for (i in 0 until childCount) {
             val child = getChildAt(i)
@@ -411,7 +279,7 @@ class ReplicaOverlay @JvmOverloads constructor(
         }
 
         val layoutSpec = currentChromeSpec()
-        val projection = computeShellProjection(layoutSpec, w, h)
+        val projection = chromeLayout.computeProjection(layoutSpec, w, h)
 
         shellRect.set(
             projection.offsetX,
@@ -419,17 +287,14 @@ class ReplicaOverlay @JvmOverloads constructor(
             projection.offsetX + layoutSpec.shellWidth * projection.scale,
             projection.offsetY + layoutSpec.shellHeight * projection.scale,
         )
-        val backgroundBitmap = chromeBitmapFor(layoutSpec)
-        if (backgroundBitmap != null) {
-            canvas.drawBitmap(backgroundBitmap, null, shellRect, paint)
-        } else {
-            drawNativeShellChrome(
-                canvas = canvas,
-                rect = shellRect,
-                cornerRadius =
-                    R47AndroidChromeGeometry.NATIVE_SHELL_DRAW_CORNER_RADIUS * projection.scale,
-            )
-        }
+        chromeLayout.drawShellBackground(
+            canvas,
+            layoutSpec,
+            shellRect,
+            projection.scale,
+            bodyPaint,
+            paint,
+        )
 
         lcdDestRect.set(
             projection.offsetX + layoutSpec.lcdWindowLeft * projection.scale,

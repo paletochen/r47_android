@@ -1,6 +1,18 @@
+import java.util.Properties
+import java.util.Locale
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+import groovy.xml.XmlSlurper
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+
 plugins {
     id 'com.android.application'
+    id 'com.google.android.gms.oss-licenses-plugin'
 }
+
+def repositoryRootDir = rootProject.file('..').canonicalFile
+def repoNoticeInventoryFile = new File(repositoryRootDir, 'android/compliance/repo-notices/components.json')
+def xlsxioLicenseSourceFile = new File(repositoryRootDir, 'android/compliance/repo-notices/source-texts/xlsxio-mit.txt')
 
 base {
     archivesName = "R47calculator"
@@ -139,6 +151,11 @@ dependencies {
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'androidx.preference:preference-ktx:1.2.1'
+    implementation 'com.google.android.gms:play-services-oss-licenses:17.0.1'
+
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'androidx.test:core:1.6.1'
+    testImplementation 'org.robolectric:robolectric:4.12.2'
 }
 
 tasks.register('copyGplLicense', Copy) {
@@ -179,6 +196,284 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     }
 }
 
+def asSpdxToken = { String value ->
+    value
+        .replaceAll(/[^A-Za-z0-9.-]+/, '-')
+        .replaceAll(/-+/, '-')
+        .replaceAll(/^-|-$/, '')
+}
+
+def toSpdxRef = { String value ->
+    def token = asSpdxToken(value ?: 'unknown')
+    return token ? "SPDXRef-${token}" : 'SPDXRef-unknown'
+}
+
+def mapPomLicenseToSpdx = { String name, String url ->
+    def haystack = "${name ?: ''} ${url ?: ''}".toLowerCase(Locale.ROOT)
+    if (haystack.contains('apache') && haystack.contains('2.0')) {
+        return 'Apache-2.0'
+    }
+    if (haystack.contains('mit')) {
+        return 'MIT'
+    }
+    if (haystack.contains('bsd') && haystack.contains('3')) {
+        return 'BSD-3-Clause'
+    }
+    if (haystack.contains('bsd') && haystack.contains('2')) {
+        return 'BSD-2-Clause'
+    }
+    if (haystack.contains('eclipse public license') && haystack.contains('2.0')) {
+        return 'EPL-2.0'
+    }
+    if (haystack.contains('mozilla public license') && haystack.contains('2.0')) {
+        return 'MPL-2.0'
+    }
+    return null
+}
+
+def createSpdxPackage = { Map values ->
+    def packageEntry = [
+        SPDXID           : values.SPDXID,
+        name             : values.name,
+        downloadLocation : values.downloadLocation ?: 'NOASSERTION',
+        filesAnalyzed    : false,
+        licenseConcluded : values.licenseConcluded ?: 'NOASSERTION',
+        licenseDeclared  : values.licenseDeclared ?: 'NOASSERTION',
+        copyrightText    : values.copyrightText ?: 'NOASSERTION'
+    ]
+
+    [
+        'versionInfo',
+        'summary',
+        'description',
+        'homepage',
+        'licenseComments',
+        'sourceInfo'
+    ].each { optionalKey ->
+        if (values[optionalKey]) {
+            packageEntry[optionalKey] = values[optionalKey]
+        }
+    }
+
+    if (values.externalRefs) {
+        packageEntry.externalRefs = values.externalRefs
+    }
+
+    return packageEntry
+}
+
+def resolveRepoNoticeSourceFile = { Map component ->
+    def sourcePath = component.sourcePath?.toString()?.trim()
+    if (!sourcePath) {
+        throw new GradleException("Repo notice component is missing sourcePath: ${component}")
+    }
+    return new File(repositoryRootDir, sourcePath)
+}
+
+tasks.register('generateRepoNoticeAssets') {
+    inputs.file(repoNoticeInventoryFile)
+    new JsonSlurper().parse(repoNoticeInventoryFile).components.each { component ->
+        inputs.file(resolveRepoNoticeSourceFile(component as Map))
+    }
+    outputs.dir("${generatedComplianceAssetsDir}/repo-notices")
+
+    doLast {
+        def generatedAssetsDir = file(generatedComplianceAssetsDir)
+        def repoAssetsDir = new File(generatedAssetsDir, 'repo-notices')
+        delete(repoAssetsDir)
+        repoAssetsDir.mkdirs()
+
+        def indexEntries = []
+        new JsonSlurper().parse(repoNoticeInventoryFile).components.each { rawComponent ->
+            def component = rawComponent as Map
+            def sourceFile = resolveRepoNoticeSourceFile(component)
+            if (!sourceFile.isFile()) {
+                throw new GradleException("Missing repo notice source file: ${sourceFile}")
+            }
+
+            def assetPath = component.assetPath?.toString()?.trim()
+            if (!assetPath) {
+                throw new GradleException("Repo notice component is missing assetPath: ${component}")
+            }
+
+            def targetFile = new File(generatedAssetsDir, assetPath)
+            targetFile.parentFile.mkdirs()
+            targetFile.bytes = sourceFile.bytes
+
+            indexEntries << [
+                id              : component.id,
+                title           : component.title,
+                summary         : component.summary,
+                assetPath       : assetPath,
+                contentType     : component.contentType ?: 'text/plain',
+                declaredLicense : component.declaredLicense ?: 'NOASSERTION'
+            ]
+        }
+
+        def indexFile = new File(repoAssetsDir, 'NOTICE-INDEX.json')
+        indexFile.text = JsonOutput.prettyPrint(JsonOutput.toJson([
+            schemaVersion : 1,
+            title         : 'R47 repo-owned notices',
+            entries       : indexEntries
+        ])) + '\n'
+    }
+}
+
+tasks.register('generateThirdPartySpdx') {
+    inputs.file(repoNoticeInventoryFile)
+    new JsonSlurper().parse(repoNoticeInventoryFile).components.each { component ->
+        inputs.file(resolveRepoNoticeSourceFile(component as Map))
+    }
+    inputs.property('androidSourceRepositoryUrl', androidSourceRepositoryUrl ?: '')
+    inputs.property('androidSourceCommit', androidSourceCommit ?: '')
+    inputs.property('upstreamSourceRepositoryUrl', upstreamSourceRepositoryUrl ?: '')
+    inputs.property('upstreamSourceCommit', upstreamSourceCommit ?: '')
+    inputs.property('xlsxioSourceRepositoryUrl', xlsxioSourceRepositoryUrl ?: '')
+    inputs.property('xlsxioSourceCommit', xlsxioSourceCommit ?: '')
+    outputs.file("${generatedComplianceAssetsDir}/THIRD-PARTY.spdx.json")
+
+    doLast {
+        def generatedAssetsDir = file(generatedComplianceAssetsDir)
+        generatedAssetsDir.mkdirs()
+
+        def packages = []
+        def documentDescribes = []
+
+        def addPackage = { Map values ->
+            def packageEntry = createSpdxPackage(values)
+            packages << packageEntry
+            documentDescribes << packageEntry.SPDXID
+        }
+
+        addPackage([
+            SPDXID          : toSpdxRef('r47-android-source'),
+            name            : 'r47_android',
+            downloadLocation: androidSourceRepositoryUrl ?: 'NOASSERTION',
+            licenseDeclared : 'GPL-3.0-only',
+            versionInfo     : androidSourceCommit ?: 'unknown',
+            summary         : 'Android fork source repository for the packaged R47 application.',
+            sourceInfo      : 'Recorded from the local Git checkout used for this build.'
+        ])
+
+        if (upstreamSourceRepositoryUrl && upstreamSourceCommit) {
+            addPackage([
+                SPDXID          : toSpdxRef('r47-upstream-core'),
+                name            : 'r47-upstream-core',
+                downloadLocation: upstreamSourceRepositoryUrl,
+                licenseDeclared : 'GPL-3.0-only',
+                versionInfo     : upstreamSourceCommit,
+                summary         : 'Authoritative upstream core revision synchronized into the Android build.',
+                sourceInfo      : 'Recorded from the synchronized upstream core metadata for this build.'
+            ])
+        }
+
+        addPackage([
+            SPDXID          : toSpdxRef('xlsxio'),
+            name            : 'xlsxio',
+            downloadLocation: xlsxioSourceRepositoryUrl ?: 'NOASSERTION',
+            licenseDeclared : 'MIT',
+            versionInfo     : xlsxioSourceCommit ?: 'unknown',
+            summary         : 'Vendored spreadsheet I/O dependency packaged with the Android build.',
+            sourceInfo      : 'Version and source URL come from the shared Android defaults or explicit build properties.'
+        ])
+
+        addPackage([
+            SPDXID          : toSpdxRef('decnumbericu'),
+            name            : 'decNumberICU',
+            downloadLocation: 'NOASSERTION',
+            licenseDeclared : 'ICU',
+            summary         : 'Vendored decimal arithmetic sources under dep/decNumberICU.',
+            sourceInfo      : 'Notice source is hydrated from upstream at dep/decNumberICU/ICU-license.html during the build.'
+        ])
+
+        addPackage([
+            SPDXID          : toSpdxRef('mini-gmp-fallback'),
+            name            : 'mini-gmp fallback',
+            downloadLocation: 'https://gmplib.org/',
+            licenseDeclared : 'LGPL-3.0-or-later OR GPL-2.0-or-later',
+            summary         : 'Fallback big integer implementation under android/compat/mini-gmp-fallback.',
+            sourceInfo      : 'Notice text is recorded in the repo-owned notice inventory.'
+        ])
+
+        def runtimeConfiguration = configurations.findByName('releaseRuntimeClasspath') ?: configurations.findByName('debugRuntimeClasspath')
+        if (runtimeConfiguration == null) {
+            throw new GradleException('Unable to resolve an Android runtime classpath for SPDX inventory generation.')
+        }
+
+        def runtimeModules = runtimeConfiguration.incoming.resolutionResult.allComponents
+            .collect { it.id }
+            .findAll { it instanceof ModuleComponentIdentifier }
+            .unique { id -> "${id.group}:${id.module}:${id.version}" }
+            .sort { left, right ->
+                "${left.group}:${left.module}:${left.version}" <=> "${right.group}:${right.module}:${right.version}"
+            }
+
+        runtimeModules.each { ModuleComponentIdentifier moduleId ->
+            def licenses = []
+            def pomUrl = null
+
+            try {
+                def pomConfiguration = configurations.detachedConfiguration(
+                    dependencies.create("${moduleId.group}:${moduleId.module}:${moduleId.version}@pom")
+                )
+                pomConfiguration.transitive = false
+                def pomFile = pomConfiguration.singleFile
+                def pom = new XmlSlurper(false, false).parse(pomFile)
+                licenses = pom.licenses.license.collect { licenseNode ->
+                    [
+                        name: licenseNode.name.text()?.trim(),
+                        url : licenseNode.url.text()?.trim()
+                    ]
+                }
+                pomUrl = pom.url.text()?.trim()
+            } catch (Exception ignored) {
+                licenses = []
+            }
+
+            def knownSpdxLicenses = licenses.collect { license ->
+                mapPomLicenseToSpdx(license.name as String, license.url as String)
+            }.findAll { it }.unique()
+
+            def rawLicenseSummary = licenses.collect { license ->
+                [license.name, license.url].findAll { it }.join(' - ')
+            }.findAll { it }.join('; ')
+
+            addPackage([
+                SPDXID          : toSpdxRef("maven-${moduleId.group}-${moduleId.module}-${moduleId.version}"),
+                name            : "${moduleId.group}:${moduleId.module}",
+                downloadLocation: "https://repo1.maven.org/maven2/${moduleId.group.replace('.', '/')}/${moduleId.module}/${moduleId.version}",
+                licenseDeclared : knownSpdxLicenses.size() == 1 ? knownSpdxLicenses[0] : 'NOASSERTION',
+                versionInfo     : moduleId.version,
+                homepage        : pomUrl ?: null,
+                summary         : "Android runtime dependency ${moduleId.group}:${moduleId.module}:${moduleId.version}.",
+                licenseComments : rawLicenseSummary ?: 'License metadata was not available in the resolved POM.',
+                sourceInfo      : 'Collected from the resolved runtime classpath and each dependency POM.',
+                externalRefs    : [[
+                    referenceCategory: 'PACKAGE-MANAGER',
+                    referenceType    : 'purl',
+                    referenceLocator : "pkg:maven/${moduleId.group}/${moduleId.module}@${moduleId.version}"
+                ]]
+            ])
+        }
+
+        def spdxDocument = [
+            spdxVersion      : 'SPDX-2.3',
+            dataLicense      : 'CC0-1.0',
+            SPDXID           : 'SPDXRef-DOCUMENT',
+            name             : 'R47 Android third-party inventory',
+            documentNamespace: "https://r47.invalid/spdx/android/${androidSourceCommit ?: 'unknown'}",
+            creationInfo     : [
+                created : new Date().format("yyyy-MM-dd'T'HH:mm:ss'Z'", TimeZone.getTimeZone('UTC')),
+                creators: ['Tool: Gradle generateThirdPartySpdx task']
+            ],
+            documentDescribes: documentDescribes,
+            packages         : packages
+        ]
+
+        file("${generatedComplianceAssetsDir}/THIRD-PARTY.spdx.json").text = JsonOutput.prettyPrint(JsonOutput.toJson(spdxDocument)) + '\n'
+    }
+}
+
 tasks.register('generateSourceManifest') {
     inputs.property('androidSourceRepositoryUrl', androidSourceRepositoryUrl ?: '')
     inputs.property('androidSourceCommit', androidSourceCommit ?: '')
@@ -211,4 +506,6 @@ tasks.named('preBuild').configure {
     dependsOn tasks.named('copyGplLicense')
     dependsOn tasks.named('generateXlsxioLicense')
     dependsOn tasks.named('generateSourceManifest')
+    dependsOn tasks.named('generateRepoNoticeAssets')
+    dependsOn tasks.named('generateThirdPartySpdx')
 }

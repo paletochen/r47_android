@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "title": "R47 repo-owned notices",
+  "components": [
+    {
+      "id": "r47-gpl-3.0",
+      "title": "GNU GPL Version 3",
+      "summary": "Overall app and simulator package license text.",
+      "sourcePath": "COPYING",
+      "assetPath": "repo-notices/gpl/COPYING.txt",
+      "contentType": "text/plain",
+      "declaredLicense": "GPL-3.0-only"
+    },
+    {
+      "id": "decnumbericu-icu-license",
+      "title": "decNumberICU ICU license notice",
+      "summary": "Notice text for the vendored decNumberICU source.",
+      "sourcePath": "dep/decNumberICU/ICU-license.html",
+      "assetPath": "repo-notices/decnumbericu/ICU-license.html",
+      "contentType": "text/html",
+      "declaredLicense": "ICU"
+    },
+    {
+      "id": "mini-gmp-dual-license",
+      "title": "mini-gmp dual-license notice",
+      "summary": "Fallback big integer implementation used when platform GMP is unavailable.",
+      "sourcePath": "android/compliance/repo-notices/source-texts/mini-gmp-dual-license-notice.txt",
+      "assetPath": "repo-notices/mini-gmp/NOTICE.txt",
+      "contentType": "text/plain",
+      "declaredLicense": "LGPL-3.0-or-later OR GPL-2.0-or-later"
+    },
+    {
+      "id": "xlsxio-mit-license",
+      "title": "xlsxio MIT license",
+      "summary": "License text for the vendored xlsxio dependency.",
+      "sourcePath": "android/compliance/repo-notices/source-texts/xlsxio-mit.txt",
+      "assetPath": "repo-notices/xlsxio/LICENSE.txt",
+      "contentType": "text/plain",
+      "declaredLicense": "MIT"
+    }
+  ]
+}

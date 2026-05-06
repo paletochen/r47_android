@@ -2,6 +2,8 @@ name: Linux CI
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '24 3 * * *'
   push:
     branches:
       - github_ci
@@ -14,11 +16,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-env:
-  UPSTREAM_URL: https://gitlab.com/rpncalculators/c43.git
-  XLSXIO_URL: https://github.com/brechtsanders/xlsxio.git
-  XLSXIO_COMMIT: a9016eb2eb46dcd613a68fcfcd1002b5adf64ae9
-
 jobs:
   resolve-upstream-core:
     name: Resolve authoritative upstream core revision
@@ -29,21 +26,34 @@ jobs:
       upstream_commit: ${{ steps.resolve.outputs.upstream_commit }}
       upstream_short: ${{ steps.resolve.outputs.upstream_short }}
     steps:
-      - name: Resolve authoritative upstream core
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Load shared Android defaults
+        id: defaults
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          . ./android/r47-defaults.properties
+
+          echo "xlsxio_url=$R47_DEFAULT_XLSXIO_URL" >> "$GITHUB_OUTPUT"
+          echo "xlsxio_commit=$R47_DEFAULT_XLSXIO_COMMIT" >> "$GITHUB_OUTPUT"
+          echo "xlsxio_prefix=$HOME/.cache/r47/xlsxio/$R47_DEFAULT_XLSXIO_COMMIT" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve latest upstream core
         id: resolve
         shell: bash
         run: |
           set -euo pipefail
 
-          upstream_commit=$(git ls-remote --exit-code "$UPSTREAM_URL" refs/heads/master | awk 'NR == 1 { print $1 }')
-          if [[ -z "$upstream_commit" ]]; then
-            echo "Failed to resolve upstream master." >&2
-            exit 1
-          fi
+          eval "$(bash ./scripts/upstream.sh resolve --latest)"
 
-          echo "upstream_url=$UPSTREAM_URL" >> "$GITHUB_OUTPUT"
-          echo "upstream_commit=$upstream_commit" >> "$GITHUB_OUTPUT"
-          echo "upstream_short=${upstream_commit:0:12}" >> "$GITHUB_OUTPUT"
+          echo "upstream_url=$R47_RESOLVED_UPSTREAM_URL" >> "$GITHUB_OUTPUT"
+          echo "upstream_commit=$R47_RESOLVED_UPSTREAM_COMMIT" >> "$GITHUB_OUTPUT"
+          echo "upstream_short=$R47_RESOLVED_UPSTREAM_SHORT_COMMIT" >> "$GITHUB_OUTPUT"
 
   linux-simulator:
     name: Build Linux simulator package
@@ -65,6 +75,18 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
+
+      - name: Load shared Android defaults
+        id: defaults
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          . ./android/r47-defaults.properties
+
+          echo "xlsxio_url=$R47_DEFAULT_XLSXIO_URL" >> "$GITHUB_OUTPUT"
+          echo "xlsxio_commit=$R47_DEFAULT_XLSXIO_COMMIT" >> "$GITHUB_OUTPUT"
+          echo "xlsxio_prefix=$HOME/.cache/r47/xlsxio/$R47_DEFAULT_XLSXIO_COMMIT" >> "$GITHUB_OUTPUT"
 
       - name: Detect runner build concurrency
         id: jobs
@@ -96,30 +118,20 @@ jobs:
             xvfb \
             zip
 
-      - name: Set pinned xlsxio revision
-        id: xlsxio
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          echo "xlsxio_url=$XLSXIO_URL" >> "$GITHUB_OUTPUT"
-          echo "xlsxio_commit=$XLSXIO_COMMIT" >> "$GITHUB_OUTPUT"
-          echo "xlsxio_prefix=$HOME/.cache/r47/xlsxio/$XLSXIO_COMMIT" >> "$GITHUB_OUTPUT"
-
       - name: Restore xlsxio toolchain cache
         id: xlsxio-cache
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
-          path: ${{ steps.xlsxio.outputs.xlsxio_prefix }}
-          key: ${{ runner.os }}-xlsxio-${{ steps.xlsxio.outputs.xlsxio_commit }}-static-tools-v1
+          path: ${{ steps.defaults.outputs.xlsxio_prefix }}
+          key: ${{ runner.os }}-xlsxio-${{ steps.defaults.outputs.xlsxio_commit }}-static-tools-v1
 
       - name: Build upstream xlsxio toolchain
         if: steps.xlsxio-cache.outputs.cache-hit != 'true'
         shell: bash
         env:
-          XLSXIO_URL: ${{ steps.xlsxio.outputs.xlsxio_url }}
-          XLSXIO_COMMIT: ${{ steps.xlsxio.outputs.xlsxio_commit }}
-          XLSXIO_PREFIX: ${{ steps.xlsxio.outputs.xlsxio_prefix }}
+          XLSXIO_URL: ${{ steps.defaults.outputs.xlsxio_url }}
+          XLSXIO_COMMIT: ${{ steps.defaults.outputs.xlsxio_commit }}
+          XLSXIO_PREFIX: ${{ steps.defaults.outputs.xlsxio_prefix }}
         run: |
           set -euo pipefail
 
@@ -149,55 +161,21 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "${{ steps.xlsxio.outputs.xlsxio_prefix }}/bin" >> "$GITHUB_PATH"
-          export PATH="${{ steps.xlsxio.outputs.xlsxio_prefix }}/bin:$PATH"
+          echo "${{ steps.defaults.outputs.xlsxio_prefix }}/bin" >> "$GITHUB_PATH"
+          export PATH="${{ steps.defaults.outputs.xlsxio_prefix }}/bin:$PATH"
           xlsxio_xlsx2csv -h > /dev/null
 
       - name: Sync authoritative upstream core
         id: upstream
         shell: bash
-        env:
-          UPSTREAM_URL: ${{ needs.resolve-upstream-core.outputs.upstream_url }}
-          UPSTREAM_COMMIT: ${{ needs.resolve-upstream-core.outputs.upstream_commit }}
         run: |
           set -euo pipefail
 
-          upstream_url="$UPSTREAM_URL"
-          upstream_commit="$UPSTREAM_COMMIT"
-
-          if [[ -z "$upstream_commit" ]]; then
-            echo "Missing resolved upstream commit." >&2
-            exit 1
-          fi
-
-          if git remote | grep -qx upstream; then
-            git remote set-url upstream "$upstream_url"
-          else
-            git remote add upstream "$upstream_url"
-          fi
-
-          git fetch --depth 1 upstream "$upstream_commit"
-          git cat-file -e "$upstream_commit^{commit}"
-          echo "upstream_url=$upstream_url" >> "$GITHUB_OUTPUT"
-          echo "upstream_commit=$upstream_commit" >> "$GITHUB_OUTPUT"
-
-          git archive --format=tar "$upstream_commit" | tar -xf -
-
-          git checkout -- \
-            .gitignore \
-            README.md \
-            Makefile \
-            build_android.sh \
-            sync_public.sh \
-            dist.sh \
-            meson.build \
-            meson_options.txt \
-            android/ \
-            .github/
-
-          while IFS= read -r meson_file; do
-            git checkout -- "$meson_file"
-          done < <(git ls-files | grep -E '(^|/)meson\.build$' | grep -Ev '^src/')
+          bash ./scripts/sync_public.sh \
+            --url "${{ needs.resolve-upstream-core.outputs.upstream_url }}" \
+            --commit "${{ needs.resolve-upstream-core.outputs.upstream_commit }}"
+          echo "upstream_url=${{ needs.resolve-upstream-core.outputs.upstream_url }}" >> "$GITHUB_OUTPUT"
+          echo "upstream_commit=${{ needs.resolve-upstream-core.outputs.upstream_commit }}" >> "$GITHUB_OUTPUT"
 
       - name: Set artifact metadata
         id: meta
@@ -225,7 +203,7 @@ jobs:
           set -euo pipefail
 
           mkdir -p ci-artifacts/logs
-          make -j "${{ steps.jobs.outputs.jobs }}" \
+          make \
             NINJAFLAGS="-j ${{ steps.jobs.outputs.jobs }}" \
             XVFB=xvfb-run \
             dist_linux 2>&1 | tee ci-artifacts/logs/build-linux.log
@@ -283,39 +261,13 @@ jobs:
             stripped_count=$((stripped_count + 1))
           done < <(find "$package_dir" -type f -print0)
 
-          cp COPYING "$package_dir/COPYING"
-
-          cat > "$package_dir/LICENSE.txt" <<'EOF'
-          Copyright (C) 2016 Brecht Sanders All Rights Reserved
-
-          Permission is hereby granted, free of charge, to any person obtaining
-          a copy of this software and associated documentation files (the
-          "Software"), to deal in the Software without restriction, including
-          without limitation the rights to use, copy, modify, merge, publish,
-          distribute, sublicense, and/or sell copies of the Software, and to
-          permit persons to whom the Software is furnished to do so, subject to
-          the following conditions:
-
-          The above copyright notice and this permission notice shall be
-          included in all copies or substantial portions of the Software.
-
-          THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-          EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-          MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-          IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-          CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-          TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-          SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-          EOF
-
-          cat > "$package_dir/SOURCE" <<EOF
-          upstream_url=${{ steps.upstream.outputs.upstream_url }}
-          upstream_commit=${{ steps.upstream.outputs.upstream_commit }}
-          upstream_license_file=COPYING
-          xlsxio_url=${{ steps.xlsxio.outputs.xlsxio_url }}
-          xlsxio_commit=${{ steps.xlsxio.outputs.xlsxio_commit }}
-          xlsxio_license_file=LICENSE.txt
-          EOF
+          bash ./scripts/generate_simulator_notice_artifacts.sh \
+            --platform linux \
+            --package-dir "$package_dir" \
+            --upstream-source-repository-url "${{ steps.upstream.outputs.upstream_url }}" \
+            --upstream-source-commit "${{ steps.upstream.outputs.upstream_commit }}" \
+            --xlsxio-source-repository-url "${{ steps.defaults.outputs.xlsxio_url }}" \
+            --xlsxio-source-commit "${{ steps.defaults.outputs.xlsxio_commit }}"
 
           find "$package_dir" -type f | sed "s#^$release_dir/##" | sort > "$release_dir/PACKAGE-CONTENTS.txt"
 
@@ -324,14 +276,23 @@ jobs:
           upstream_commit=${{ steps.upstream.outputs.upstream_commit }}
           upstream_license_file=COPYING
           source_manifest_file=SOURCE
-          xlsxio_url=${{ steps.xlsxio.outputs.xlsxio_url }}
-          xlsxio_commit=${{ steps.xlsxio.outputs.xlsxio_commit }}
+          xlsxio_url=${{ steps.defaults.outputs.xlsxio_url }}
+          xlsxio_commit=${{ steps.defaults.outputs.xlsxio_commit }}
           xlsxio_license_file=LICENSE.txt
           make_target=dist_linux
           strip_tool=$strip_tool
           stripped_files_count=$stripped_count
           package_zip=$package_zip
           package_dir=$(basename "$package_dir")
+          third_party_inventory_file=THIRD-PARTY.spdx.json
+          platform_notice_root=repo-notices/linux
+          platform_notice_summary_file=repo-notices/linux/NOTICE-SUMMARY.txt
+          gpl_notice_file=repo-notices/linux/gpl/COPYING.txt
+          decnumbericu_notice_file=repo-notices/linux/decnumbericu/ICU-license.html
+          xlsxio_notice_file=repo-notices/linux/xlsxio/LICENSE.txt
+          linux_runtime_library_inventory_file=repo-notices/linux/LINUX-RUNTIME-LIBRARIES.txt
+          linux_runtime_notice_summary_file=repo-notices/linux/LINUX-LIBRARY-NOTICES.txt
+          linux_runtime_notice_dir=repo-notices/linux/licenses
           EOF
 
       - name: Upload Linux simulator artifact

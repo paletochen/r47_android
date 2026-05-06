@@ -21,6 +21,16 @@ internal class NativeCoreRuntime(
     private val getKeypadSnapshot: (IntArray) -> KeypadSnapshot,
     private val onLcdPixels: (IntArray) -> Unit,
     private val onDynamicRefresh: (KeypadSnapshot) -> Unit,
+    private val displayRefreshLoop: DisplayRefreshLoop = NativeDisplayRefreshLoop(
+        isAppRunning = { isAppRunningShared },
+        isNativeInitialized = { isNativeInitializedShared },
+        getDisplayPixels = getDisplayPixels,
+        getKeypadMetaNative = getKeypadMetaNative,
+        useSceneDrivenKeypadProvider = useSceneDrivenKeypadProvider,
+        getKeypadSnapshot = getKeypadSnapshot,
+        onLcdPixels = onLcdPixels,
+        onDynamicRefresh = onDynamicRefresh,
+    )
 ) {
     companion object {
         private const val TAG = "R47CoreRuntime"
@@ -46,48 +56,16 @@ internal class NativeCoreRuntime(
         }
     }
 
-    private val lcdPixels = IntArray(R47LcdContract.PIXEL_COUNT)
-    private var lastLabelRefresh = 0L
-    private var lastKeypadMeta = IntArray(0)
-    private var frameLoopActive = false
 
-    private val frameCallback = object : Choreographer.FrameCallback {
-        override fun doFrame(frameTimeNanos: Long) {
-            if (!frameLoopActive || !isAppRunningShared) {
-                return
-            }
-
-            if (isNativeInitializedShared) {
-                getDisplayPixels(lcdPixels)
-                if (lcdPixels.isNotEmpty()) {
-                    onLcdPixels(lcdPixels)
-                }
-
-                val currentMeta = getKeypadMetaNative(useSceneDrivenKeypadProvider())
-                val now = System.currentTimeMillis()
-                val shouldRefreshLabels = now - lastLabelRefresh > 500
-                val keypadStateChanged = !lastKeypadMeta.contentEquals(currentMeta)
-                if (shouldRefreshLabels || keypadStateChanged) {
-                    lastKeypadMeta = currentMeta.copyOf()
-                    onDynamicRefresh(getKeypadSnapshot(currentMeta))
-                    lastLabelRefresh = now
-                }
-            }
-
-            if (frameLoopActive && isAppRunningShared) {
-                Choreographer.getInstance().postFrameCallback(this)
-            }
-        }
-    }
 
     fun attach() {
         isAppRunningShared = true
         startOrAttachCoreThread()
-        startFrameLoop()
+        displayRefreshLoop.start()
     }
 
     fun dispose(stopApp: Boolean) {
-        stopFrameLoop()
+        displayRefreshLoop.stop()
         if (stopApp) {
             isAppRunningShared = false
             coreTasks.clear()
@@ -174,23 +152,7 @@ internal class NativeCoreRuntime(
         }
     }
 
-    private fun startFrameLoop() {
-        if (frameLoopActive) {
-            return
-        }
 
-        frameLoopActive = true
-        Choreographer.getInstance().postFrameCallback(frameCallback)
-    }
-
-    private fun stopFrameLoop() {
-        if (!frameLoopActive) {
-            return
-        }
-
-        frameLoopActive = false
-        Choreographer.getInstance().removeFrameCallback(frameCallback)
-    }
 
     private fun drainCoreTasks() {
         var task = coreTasks.poll()

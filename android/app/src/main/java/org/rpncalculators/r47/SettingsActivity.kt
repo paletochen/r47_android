@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
+import com.google.android.gms.oss.licenses.OssLicensesMenuActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.io.IOException
 
@@ -193,12 +194,43 @@ class SettingsFragment : PreferenceFragmentCompat() {
             true
         }
             findPreference<Preference>("view_gpl_license")?.setOnPreferenceClickListener {
-                showGplLicenseDialog()
+                startActivity(
+                    NoticeAssetActivity.createIntent(
+                        requireContext(),
+                        getString(R.string.about_gpl_license_title),
+                        "COPYING",
+                        "text/plain",
+                        getString(R.string.about_gpl_license_intro)
+                    )
+                )
                 true
             }
 
             findPreference<Preference>("view_android_source")?.setOnPreferenceClickListener {
                 openUrl(getString(R.string.android_source_repository_url))
+                true
+            }
+
+            findPreference<Preference>("view_repo_notices")?.setOnPreferenceClickListener {
+                startActivity(Intent(requireContext(), RepoNoticeIndexActivity::class.java))
+                true
+            }
+
+            findPreference<Preference>("view_android_library_licenses")?.setOnPreferenceClickListener {
+                OssLicensesMenuActivity.setActivityTitle(getString(R.string.about_android_library_licenses_title))
+                startActivity(Intent(requireContext(), OssLicensesMenuActivity::class.java))
+                true
+            }
+
+            findPreference<Preference>("view_third_party_inventory")?.setOnPreferenceClickListener {
+                startActivity(
+                    NoticeAssetActivity.createIntent(
+                        requireContext(),
+                        getString(R.string.about_spdx_inventory_title),
+                        "THIRD-PARTY.spdx.json",
+                        "application/json"
+                    )
+                )
                 true
             }
 

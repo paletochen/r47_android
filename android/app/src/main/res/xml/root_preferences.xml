@@ -117,6 +117,18 @@
             app:title="@string/about_android_source_title"
             app:summary="@string/about_android_source_summary" />
         <Preference
+            app:key="view_repo_notices"
+            app:title="@string/about_repo_notices_title"
+            app:summary="@string/about_repo_notices_summary" />
+        <Preference
+            app:key="view_android_library_licenses"
+            app:title="@string/about_android_library_licenses_title"
+            app:summary="@string/about_android_library_licenses_summary" />
+        <Preference
+            app:key="view_third_party_inventory"
+            app:title="@string/about_spdx_inventory_title"
+            app:summary="@string/about_spdx_inventory_summary" />
+        <Preference
             app:key="visit_gitlab"
             app:title="@string/about_upstream_project_title" />
         <Preference

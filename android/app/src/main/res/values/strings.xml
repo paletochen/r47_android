@@ -15,4 +15,15 @@ A verbatim copy of the GPL is packaged in this APK below.
 Distributors of APKs must also provide the exact corresponding source for the build they ship. The Android source repository button in this dialog points at the Android fork for this build. The packaged SOURCE manifest also records the synchronized upstream core revision when the build provides one.</string>
     <string name="gpl_license_dialog_close">Close</string>
     <string name="gpl_license_dialog_source_button">Android Source</string>
+    <string name="about_repo_notices_title">View Bundled Native and Vendored Notices</string>
+    <string name="about_repo_notices_summary">Shows repo-owned notices for vendored or native surfaces that do not come from Maven metadata</string>
+    <string name="repo_notice_catalog_title">Bundled Native and Vendored Notices</string>
+    <string name="repo_notice_catalog_missing_message">This build could not read the packaged repo notice index from the APK.</string>
+    <string name="repo_notice_asset_missing_message">This build could not read the selected packaged notice from the APK.</string>
+    <string name="repo_notice_asset_fallback_title">Packaged Notice</string>
+    <string name="about_spdx_inventory_title">View SPDX Inventory</string>
+    <string name="about_spdx_inventory_summary">Shows the packaged machine-readable third-party inventory</string>
+    <string name="about_gpl_license_intro">R47 Android is licensed under the GNU General Public License, version 3.</string>
+    <string name="about_android_library_licenses_title">View Android Library Notices</string>
+    <string name="about_android_library_licenses_summary">Shows notices collected from Android runtime dependency POM metadata</string>
 </resources>
