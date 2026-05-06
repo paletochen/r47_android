@@ -111,3 +111,6 @@ Thumbs.db
 /android/app/src/main/cpp/c47/
 !/android/app/src/main/cpp/c47-android/
 android/build_output.txt
+
+# --- 9. Brainstorming / Research ---
+/tmp/

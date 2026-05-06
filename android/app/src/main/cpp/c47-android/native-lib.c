@@ -95,6 +95,12 @@ void yieldToAndroidWithMs(int ms) {
     return;
   }
 
+  uint32_t now = sys_current_ms();
+  if (nextTimerRefresh <= now) {
+    refreshTimer(NULL);
+    nextTimerRefresh = now + 5;
+  }
+
   refreshLcd(NULL);
   lcd_refresh();
 
@@ -156,6 +162,23 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved) {
   return JNI_VERSION_1_6;
 }
 
+void releaseNativeActivityReferences(JNIEnv *env) {
+  if (g_mainActivityObj != NULL) {
+    (*env)->DeleteGlobalRef(env, g_mainActivityObj);
+    g_mainActivityObj = NULL;
+  }
+
+  g_requestFileId = NULL;
+  g_playToneId = NULL;
+  g_stopToneId = NULL;
+  g_processCoreTasksId = NULL;
+}
+
+JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_releaseNativeRuntime(JNIEnv *env, jobject thiz) {
+  (void)thiz;
+  releaseNativeActivityReferences(env);
+}
+
 int register_main_activity_natives(JNIEnv *env) {
   static const JNINativeMethod methods[] = {
       {"updateNativeActivityRef", "()V",
@@ -165,6 +188,8 @@ int register_main_activity_natives(JNIEnv *env) {
       {"initNative", "(Ljava/lang/String;I)V",
         (void *)Java_org_rpncalculators_r47_MainActivity_initNative},
        {"tick", "()V", (void *)Java_org_rpncalculators_r47_MainActivity_tick},
+      {"releaseNativeRuntime", "()V",
+        (void *)Java_org_rpncalculators_r47_MainActivity_releaseNativeRuntime},
        {"sendKey", "(I)V", (void *)Java_org_rpncalculators_r47_MainActivity_sendKey},
       {"sendSimKeyNative", "(Ljava/lang/String;ZZ)V",
         (void *)Java_org_rpncalculators_r47_MainActivity_sendSimKeyNative},

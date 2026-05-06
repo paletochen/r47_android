@@ -37,6 +37,13 @@ internal class NativeCoreRuntime(
         private var isNativeInitializedShared = false
 
         fun isAppRunning(): Boolean = isAppRunningShared
+
+        internal fun resetSharedState() {
+            coreTasks.clear()
+            isCoreThreadStarted = false
+            isAppRunningShared = false
+            isNativeInitializedShared = false
+        }
     }
 
     private val lcdPixels = IntArray(R47LcdContract.PIXEL_COUNT)

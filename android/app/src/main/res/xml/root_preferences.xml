@@ -75,6 +75,14 @@
             app:entryValues="@array/lcd_values"
             app:defaultValue="vintage"
             app:useSimpleSummaryProvider="true" />
+        <SeekBarPreference
+            app:key="lcd_luminance"
+            app:title="LCD Luminance"
+            app:summary="Adjust screen brightness percentage"
+            app:min="60"
+            android:max="120"
+            app:defaultValue="100"
+            app:showSeekBarValue="true" />
         <ListPreference
             app:key="scaling_mode"
             app:title="Scaling"

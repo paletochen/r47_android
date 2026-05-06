@@ -14,6 +14,7 @@ import android.view.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.Keep
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.ColorUtils
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -24,12 +25,15 @@ import android.content.res.Configuration
 @Keep
 class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceChangeListener {
 
+    private data class LcdPalette(val text: Int, val background: Int)
+
     private val TAG = "R47Activity"
     private lateinit var binding: ActivityMainBinding
     private lateinit var replicaOverlay: ReplicaOverlay
     private lateinit var coreRuntime: NativeCoreRuntime
     private lateinit var storageAccessCoordinator: StorageAccessCoordinator
     private lateinit var displayActionController: DisplayActionController
+    private lateinit var factoryResetController: FactoryResetController
     private val appPreferences by lazy {
         getSharedPreferences(SlotStore.APP_PREFS_NAME, MODE_PRIVATE)
     }
@@ -138,10 +142,54 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     @Keep
     fun stopTone() {}
 
-    private fun applyLcdMode(mode: String) {
+    private fun applyLcdMode(mode: String, luminancePercent: Int) {
         lcdMode = mode
-        if (mode == DEFAULT_LCD_MODE) setLcdColors(VINTAGE_TEXT, VINTAGE_BG)
-        else setLcdColors(BW_TEXT.toInt(), BW_BG.toInt())
+        val palette = resolveLcdPalette(mode, luminancePercent)
+        setLcdColors(palette.text, palette.background)
+    }
+
+    private fun resolveLcdPalette(mode: String, luminancePercent: Int): LcdPalette {
+        val basePalette = when (mode) {
+            "vintage" -> LcdPalette(VINTAGE_TEXT, VINTAGE_BG)
+            else -> LcdPalette(BW_TEXT, BW_BG)
+        }
+        val toneScale = luminancePercent / 100f
+        val background = adjustTone(basePalette.background, toneScale, minTone = 30f, maxTone = 97f)
+        val minContrast = if (mode == "vintage") 9.0 else 7.0
+        val text = ensureTextContrast(basePalette.text, background, minContrast)
+        return LcdPalette(text = text, background = background)
+    }
+
+    private fun adjustTone(color: Int, toneScale: Float, minTone: Float, maxTone: Float): Int {
+        val hct = FloatArray(3)
+        ColorUtils.colorToM3HCT(color, hct)
+        val targetTone = (hct[2] * toneScale).coerceIn(minTone, maxTone)
+        return ColorUtils.M3HCTToColor(hct[0], hct[1], targetTone)
+    }
+
+    private fun ensureTextContrast(baseText: Int, background: Int, minContrast: Double): Int {
+        if (ColorUtils.calculateContrast(baseText, background) >= minContrast) {
+            return baseText
+        }
+
+        val hct = FloatArray(3)
+        ColorUtils.colorToM3HCT(baseText, hct)
+        val darkBackground = ColorUtils.calculateLuminance(background) < 0.5
+
+        for (step in 1..20) {
+            val ratio = step / 20f
+            val targetTone = if (darkBackground) {
+                hct[2] + ((100f - hct[2]) * ratio)
+            } else {
+                hct[2] * (1f - ratio)
+            }
+            val candidate = ColorUtils.M3HCTToColor(hct[0], hct[1], targetTone.coerceIn(0f, 100f))
+            if (ColorUtils.calculateContrast(candidate, background) >= minContrast) {
+                return candidate
+            }
+        }
+
+        return if (darkBackground) Color.WHITE else Color.BLACK
     }
 
     private fun normalizeChromeMode(mode: String?): String {
@@ -204,7 +252,11 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             }
             "lcd_mode" -> {
                 lcdMode = prefs.getString(key, DEFAULT_LCD_MODE) ?: DEFAULT_LCD_MODE
-                applyLcdMode(lcdMode)
+                applyLcdMode(lcdMode, prefs.getInt("lcd_luminance", 100))
+            }
+            "lcd_luminance" -> {
+                val luminance = prefs.getInt(key, 100)
+                applyLcdMode(lcdMode, luminance)
             }
             "chrome_mode" -> {
                 applyChromeMode(prefs.getString(key, DEFAULT_CHROME_MODE) ?: DEFAULT_CHROME_MODE)
@@ -327,6 +379,23 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             enterPiP = ::enterPiP,
         )
         
+        factoryResetController = FactoryResetController(
+            activity = this,
+            onResetRequested = {
+                coreRuntime.dispose(stopApp = true)
+                AudioEngine.stop()
+            },
+            onDestroyFactoryReset = {
+                AudioEngine.stop()
+                releaseNativeRuntime()
+                NativeCoreRuntime.resetSharedState()
+            },
+            onDestroyFinish = {
+                AudioEngine.stop()
+                releaseNativeRuntime()
+            },
+        )
+        
         window.attributes.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         val isFullscreen = prefs.getBoolean("fullscreen_mode", true)
         applyFullscreenMode(isFullscreen)
@@ -377,7 +446,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         replicaOverlay.post {
             replicaOverlay.setShowTouchZones(showTouchZones)
             replicaOverlay.setScalingMode(scalingMode)
-            applyLcdMode(lcdMode)
+            applyLcdMode(lcdMode, prefs.getInt("lcd_luminance", 100))
             if (chromeMode != ReplicaOverlay.CHROME_MODE_TEXTURE) {
                 updateDynamicKeys()
             }
@@ -392,18 +461,29 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
 
         coreRuntime.attach()
         AudioEngine.start { NativeCoreRuntime.isAppRunning() }
+
+        if (factoryResetController.isFactoryResetIntent(intent)) {
+            binding.root.post { factoryResetController.handleResetRequest() }
+        }
     }
 
     private external fun updateNativeActivityRef()
 
     override fun onDestroy() { 
-        Log.i(TAG, "onDestroy: isFinishing=$isFinishing")
-        coreRuntime.dispose(stopApp = isFinishing)
-        if (isFinishing) {
-            AudioEngine.stop()
-        }
+        Log.i(TAG, "onDestroy: isFinishing=$isFinishing isFactoryResetInProgress=${factoryResetController.isResetInProgress}")
+        val shouldStopApp = isFinishing || factoryResetController.isResetInProgress
+        coreRuntime.dispose(stopApp = shouldStopApp)
         appPreferences.unregisterOnSharedPreferenceChangeListener(this)
+        factoryResetController.handleDestroy(shouldStopApp)
         super.onDestroy() 
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (factoryResetController.isFactoryResetIntent(intent)) {
+            factoryResetController.handleResetRequest()
+        }
     }
 
     override fun onResume() {
@@ -517,6 +597,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     private external fun nativePreInit(storagePath: String)
     private external fun initNative(storagePath: String, slotId: Int)
     private external fun tick()
+    private external fun releaseNativeRuntime()
     private external fun sendKey(keyCode: Int)
     private external fun sendSimKeyNative(keyId: String, isFn: Boolean, isRelease: Boolean)
     private external fun sendSimMenuNative(menuId: Int)

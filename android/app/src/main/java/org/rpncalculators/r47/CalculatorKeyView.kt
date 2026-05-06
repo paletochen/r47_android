@@ -27,7 +27,7 @@ private data class MainKeyStyleSpec(
     val pressedFillColor: Int,
 )
 
-private object KeyVisualPolicy {
+internal object KeyVisualPolicy {
     // Android presentation tuning values. These are UI policy, not measured hardware geometry.
     const val MAIN_KEY_DRAW_CORNER_RADIUS = 20f
     const val SOFTKEY_DRAW_CORNER_RADIUS = MAIN_KEY_DRAW_CORNER_RADIUS
@@ -41,6 +41,9 @@ private object KeyVisualPolicy {
     const val FOURTH_LABEL_TEXT_SIZE = 66f
     const val TOP_F_G_LABEL_HORIZONTAL_GAP = 10f
     const val TOP_F_G_LABEL_VERTICAL_LIFT = 86f
+    const val TOP_F_G_LABEL_MAX_SHIFT_FRACTION = 0.15f
+    const val TOP_F_G_LABEL_STAGGER_STEP_RATIO = 0.75f
+    const val TOP_F_G_LABEL_MIN_SCALE = 0.82f
     const val SOFTKEY_DECOR_STROKE_WIDTH = 2f
     const val SOFTKEY_OUTER_INSET = 2f
     const val SOFTKEY_PREVIEW_LINE_SIDE_INSET = 10f
@@ -129,6 +132,7 @@ class CalculatorKeyView @JvmOverloads constructor(
     private var mainKeyState = KeypadKeySnapshot.EMPTY
     private var currentShiftFOn = false
     private var currentShiftGOn = false
+    private var topLabelPlacement = TopLabelLanePlacement.DEFAULT
     private var designCellWidth = R47ReferenceGeometry.STANDARD_PITCH
     private var designButtonWidth = R47ReferenceGeometry.STANDARD_KEY_WIDTH
     private var drawKeySurfaces = true
@@ -259,8 +263,9 @@ class CalculatorKeyView @JvmOverloads constructor(
 
         primaryLabel.setTextSize(TypedValue.COMPLEX_UNIT_PX, primarySize)
         primaryLabel.textScaleX = 1f
-        fLabel.setTextSize(TypedValue.COMPLEX_UNIT_PX, KeyVisualPolicy.TOP_F_G_LABEL_TEXT_SIZE * referenceCellToViewWidthScale)
-        gLabel.setTextSize(TypedValue.COMPLEX_UNIT_PX, KeyVisualPolicy.TOP_F_G_LABEL_TEXT_SIZE * referenceCellToViewWidthScale)
+        val topLabelTextSize = KeyVisualPolicy.TOP_F_G_LABEL_TEXT_SIZE * referenceCellToViewWidthScale * topLabelPlacement.scale
+        fLabel.setTextSize(TypedValue.COMPLEX_UNIT_PX, topLabelTextSize)
+        gLabel.setTextSize(TypedValue.COMPLEX_UNIT_PX, topLabelTextSize)
         letterLabel.setTextSize(TypedValue.COMPLEX_UNIT_PX, KeyVisualPolicy.FOURTH_LABEL_TEXT_SIZE * referenceCellToViewWidthScale)
         primaryLabel.translationX = 0f
     }
@@ -318,7 +323,7 @@ class CalculatorKeyView @JvmOverloads constructor(
             hasFLabel -> fWidth
             else -> 0f
         }
-        val groupLeft = buttonCenterX - groupWidth / 2f
+        val groupLeft = buttonCenterX - groupWidth / 2f + topLabelPlacement.centerShift
 
         when {
             hasGLabel -> {
@@ -653,6 +658,73 @@ class CalculatorKeyView @JvmOverloads constructor(
                 }
             }
         }
+    }
+
+    private fun measureTextWidth(labelView: TextView, textSize: Float = labelView.textSize): Float {
+        val text = labelView.text?.toString().orEmpty()
+        if (text.isBlank()) {
+            return 0f
+        }
+        val paint = Paint(labelView.paint)
+        paint.textSize = textSize
+        return paint.measureText(text)
+    }
+
+    internal fun buildTopLabelLaneInput(): TopLabelLaneGroupInput? {
+        if (isFnKey || width <= 0) {
+            return null
+        }
+
+        val hasFLabel = fLabel.visibility == View.VISIBLE && fLabel.text.isNotBlank()
+        val hasGLabel = hasFLabel && gLabel.visibility == View.VISIBLE && gLabel.text.isNotBlank()
+        if (!hasFLabel) {
+            return null
+        }
+
+        val buttonWidth = buttonView.width.toFloat()
+        if (buttonWidth <= 0f || buttonView.height <= 0) {
+            return null
+        }
+
+        val referenceCellToViewWidthScale = if (designCellWidth > 0f) {
+            width.toFloat() / designCellWidth
+        } else {
+            1f
+        }
+        val referenceBodyToViewWidthScale = if (designButtonWidth > 0f) {
+            buttonWidth / designButtonWidth
+        } else {
+            1f
+        }
+        updateMainKeySurfaceRect(mainKeyRect, referenceBodyToViewWidthScale)
+
+        val baseTopLabelTextSize = KeyVisualPolicy.TOP_F_G_LABEL_TEXT_SIZE * referenceCellToViewWidthScale
+        val textWidth = measureTextWidth(fLabel, baseTopLabelTextSize) +
+            if (hasGLabel) measureTextWidth(gLabel, baseTopLabelTextSize) else 0f
+        val gapWidth = if (hasGLabel) {
+            KeyVisualPolicy.TOP_F_G_LABEL_HORIZONTAL_GAP * referenceCellToViewWidthScale
+        } else {
+            0f
+        }
+
+        return TopLabelLaneGroupInput(
+            code = keyCode,
+            centerX = left + mainKeyRect.centerX(),
+            bodyWidth = mainKeyRect.width(),
+            textWidth = textWidth,
+            gapWidth = gapWidth,
+            maxShift = mainKeyRect.width() * KeyVisualPolicy.TOP_F_G_LABEL_MAX_SHIFT_FRACTION,
+        )
+    }
+
+    internal fun applyTopLabelPlacement(placement: TopLabelLanePlacement?) {
+        val resolvedPlacement = placement ?: TopLabelLanePlacement.DEFAULT
+        if (topLabelPlacement == resolvedPlacement) {
+            return
+        }
+        topLabelPlacement = resolvedPlacement
+        updateFontSize(currentShiftFOn, currentShiftGOn)
+        scheduleFaceplateOffsetUpdate()
     }
     
     override fun setPressed(pressed: Boolean) {
