@@ -63,12 +63,21 @@
             app:defaultValue="true" />
         <ListPreference
             app:key="chrome_mode"
-            app:title="Shell Chrome"
+            app:title="Calculator Skin"
+
             app:entries="@array/chrome_entries"
             app:entryValues="@array/chrome_values"
             app:defaultValue="r47_background"
             app:useSimpleSummaryProvider="true" />
+        <SwitchPreferenceCompat
+            app:key="dynamic_shift_labels"
+            app:title="Dynamic Shift Labels"
+            app:summaryOn="f/g-shift and USER menu change key labels dynamically"
+            app:summaryOff="no f/g-shift dynamic labels. Alpha remains dynamic"
+            app:defaultValue="true" />
+
         <ListPreference
+
             app:key="lcd_mode"
             app:title="LCD Mode"
             app:entries="@array/lcd_entries"

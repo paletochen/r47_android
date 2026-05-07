@@ -43,7 +43,7 @@ internal object ReplicaKeypadLayout {
         initialSnapshotProvider: () -> KeypadSnapshot = { activity.currentKeypadSnapshot() },
     ) {
         overlay.removeAllViews()
-        if (chromeMode == CHROME_MODE_TEXTURE) {
+        if (chromeMode == CHROME_MODE_TEXTURE || chromeMode == ReplicaOverlay.CHROME_MODE_DAS_KALKULATOR) {
             addClassicKeypad(activity, overlay, performHapticClick, dispatchKey)
         } else {
             addDynamicKeypad(
@@ -56,6 +56,7 @@ internal object ReplicaKeypadLayout {
             )
         }
     }
+
 
     fun updateDynamicKeys(
         overlay: ReplicaOverlay,

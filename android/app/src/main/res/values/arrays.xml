@@ -1,14 +1,18 @@
 <resources>
     <string-array name="chrome_entries">
-        <item>Native + Background</item>
-        <item>Native Chrome</item>
-        <item>Texture Image</item>
+        <item>Swissmicros (Replica)</item>
+        <item>Swissmicros (Dynamic Labels)</item>
+        <item>Chrome (Dynamic Labels)</item>
+        <item>Das Kalkulator</item>
     </string-array>
     <string-array name="chrome_values">
+        <item>r47_texture</item>
         <item>r47_background</item>
         <item>native</item>
-        <item>r47_texture</item>
+        <item>das_kalkulator</item>
     </string-array>
+
+
 
     <string-array name="lcd_entries">
         <item>Vintage Green</item>

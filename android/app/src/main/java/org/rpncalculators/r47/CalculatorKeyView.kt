@@ -124,6 +124,8 @@ class CalculatorKeyView @JvmOverloads constructor(
     
     var keyCode: Int = 0
     private var isFnKey: Boolean = false
+    private var isDynamicShiftEnabled = true
+
     private var lastLayoutClass: Int? = null
     private var usesLetterSpacer = true
     private var keepLetterSpacerInvisible = false
@@ -250,7 +252,7 @@ class CalculatorKeyView @JvmOverloads constructor(
         updateFaceplateOffsets()
     }
 
-    private fun updateFontSize(fOn: Boolean, gOn: Boolean) {
+    private fun updateFontSize(fOn: Boolean, gOn: Boolean, isDynamic: Boolean = true, keyState: KeypadKeySnapshot? = null) {
         currentShiftFOn = fOn
         currentShiftGOn = gOn
 
@@ -259,7 +261,16 @@ class CalculatorKeyView @JvmOverloads constructor(
         }
 
         val referenceCellToViewWidthScale = if (designCellWidth > 0f) width.toFloat() / designCellWidth else 1f
-        val primarySize = mainKeyStyleSpec(mainKeyState.styleRole).fontSize * referenceCellToViewWidthScale
+        
+        val state = keyState ?: mainKeyState
+        val isNumber = state.primaryLabel.matches(Regex("[0-9.]"))
+        val isOperator = state.primaryLabel.matches(Regex("[+\\-×÷]"))
+
+        val role = if (!isDynamic && (isNumber || isOperator)) KeypadSceneContract.STYLE_NUMERIC else state.styleRole
+
+
+        val primarySize = mainKeyStyleSpec(role).fontSize * referenceCellToViewWidthScale
+
 
         primaryLabel.setTextSize(TypedValue.COMPLEX_UNIT_PX, primarySize)
         primaryLabel.textScaleX = 1f
@@ -635,13 +646,38 @@ class CalculatorKeyView @JvmOverloads constructor(
             invalidate()
         } else {
             mainKeyState = keyState
-            primaryLabel.text = keyState.primaryLabel
-            fLabel.text = keyState.fLabel
-            gLabel.text = keyState.gLabel
-            letterLabel.text = keyState.letterLabel
+            val main = context as MainActivity
+            val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
+            val skin = prefs.getString("chrome_mode", "r47_background")
+            
+            if (skin == "das_kalkulator") {
+                primaryLabel.visibility = View.GONE
+                fLabel.visibility = View.GONE
+                gLabel.visibility = View.GONE
+                letterLabel.visibility = View.GONE
+            } else {
+                primaryLabel.visibility = View.VISIBLE
+                fLabel.visibility = View.VISIBLE
+                gLabel.visibility = View.VISIBLE
+                letterLabel.visibility = View.VISIBLE
+                
+                primaryLabel.text = keyState.primaryLabel
+                fLabel.text = keyState.fLabel
+                gLabel.text = keyState.gLabel
+                letterLabel.text = keyState.letterLabel
+            }
+
+
+
             currentShiftFOn = snapshot.shiftF
             currentShiftGOn = snapshot.shiftG || snapshot.alphaOn
-            updateFontSize(currentShiftFOn, currentShiftGOn)
+            
+            this.isDynamicShiftEnabled = main.isDynamicShiftEnabled
+            updateFontSize(currentShiftFOn, currentShiftGOn, main.isDynamicShiftEnabled, keyState)
+
+
+
+
             updateLayoutPositioning(keyState.layoutClass)
             applySceneStyling(keyState)
             applyLabelVisibility(keyState)
@@ -770,7 +806,12 @@ class CalculatorKeyView @JvmOverloads constructor(
     }
 
     private fun drawSoftkey(canvas: Canvas) {
+        val main = context as MainActivity
+        if (!main.isDynamicShiftEnabled) {
+            return
+        }
         val keyState = softkeyState
+
         val reverseVideo = keyState.hasSceneFlag(KeypadSceneContract.SCENE_FLAG_REVERSE_VIDEO)
         val showText = keyState.hasSceneFlag(KeypadSceneContract.SCENE_FLAG_SHOW_TEXT) &&
             keyState.auxLabel.isNotBlank()
@@ -823,8 +864,11 @@ class CalculatorKeyView @JvmOverloads constructor(
             softkeyDecorPaint.color = decorColor
         }
 
-        if (showValue) {
+        if (showValue && isDynamicShiftEnabled) {
             val valueText = formatSoftkeyValue(keyState.showValue)
+
+
+
             if (valueText.isNotBlank()) {
                 drawFittedText(
                     canvas = canvas,
@@ -842,8 +886,9 @@ class CalculatorKeyView @JvmOverloads constructor(
             }
         }
 
-        if (showOverlay) {
+        if (showOverlay && isDynamicShiftEnabled) {
             drawSoftkeyOverlay(
+
                 canvas = canvas,
                 overlayState = keyState.overlayState,
                 centerX = softkeyRect.right - KeyVisualPolicy.SOFTKEY_OVERLAY_CENTER_RIGHT_INSET,
@@ -852,8 +897,11 @@ class CalculatorKeyView @JvmOverloads constructor(
             )
         }
 
-        if (keyState.primaryLabel.isNotBlank()) {
+        if (keyState.primaryLabel.isNotBlank() && isDynamicShiftEnabled) {
             val primaryCenterY = if (showText) {
+
+
+
                 softkeyRect.top + (softkeyRect.height() * KeyVisualPolicy.SOFTKEY_PRIMARY_TOP_RATIO)
             } else {
                 softkeyRect.centerY()
@@ -875,8 +923,11 @@ class CalculatorKeyView @JvmOverloads constructor(
             )
         }
 
-        if (showText) {
+        if (showText && isDynamicShiftEnabled) {
             drawFittedText(
+
+
+
                 canvas = canvas,
                 text = keyState.auxLabel,
                 paint = softkeyAuxPaint,
@@ -890,7 +941,7 @@ class CalculatorKeyView @JvmOverloads constructor(
             )
         }
 
-        if (keyState.hasSceneFlag(KeypadSceneContract.SCENE_FLAG_STRIKE_THROUGH)) {
+        if (keyState.hasSceneFlag(KeypadSceneContract.SCENE_FLAG_STRIKE_THROUGH) && isDynamicShiftEnabled) {
             canvas.drawLine(
                 softkeyRect.left + KeyVisualPolicy.SOFTKEY_STRIKE_SIDE_INSET,
                 softkeyRect.centerY(),
@@ -899,7 +950,7 @@ class CalculatorKeyView @JvmOverloads constructor(
                 softkeyDecorPaint,
             )
         }
-        if (keyState.hasSceneFlag(KeypadSceneContract.SCENE_FLAG_STRIKE_OUT)) {
+        if (keyState.hasSceneFlag(KeypadSceneContract.SCENE_FLAG_STRIKE_OUT) && isDynamicShiftEnabled) {
             canvas.drawLine(
                 softkeyRect.left + KeyVisualPolicy.SOFTKEY_STRIKE_OUT_SIDE_INSET,
                 softkeyRect.top + KeyVisualPolicy.SOFTKEY_STRIKE_OUT_VERTICAL_INSET,
@@ -908,6 +959,7 @@ class CalculatorKeyView @JvmOverloads constructor(
                 softkeyDecorPaint,
             )
         }
+
     }
 
     private fun drawKeyChrome(
@@ -928,8 +980,15 @@ class CalculatorKeyView @JvmOverloads constructor(
         centerY: Float,
         color: Int,
     ) {
+        val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
+        val skin = prefs.getString("chrome_mode", "r47_background")
+        if (skin == "das_kalkulator") {
+            return
+        }
+
         val size = KeyVisualPolicy.SOFTKEY_OVERLAY_SIZE
         softkeyDecorPaint.color = color
+
 
         when (overlayState) {
             KeypadSceneContract.OVERLAY_RB_FALSE -> {
@@ -1022,9 +1081,13 @@ class CalculatorKeyView @JvmOverloads constructor(
         align: Paint.Align = Paint.Align.CENTER,
         verticalAnchor: Int = TEXT_ANCHOR_CENTER,
     ) {
-        if (text.isBlank()) {
+        val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
+        val skin = prefs.getString("chrome_mode", "r47_background")
+        if (skin == "das_kalkulator" || text.isBlank()) {
             return
         }
+
+
 
         paint.typeface = typeface
         paint.textAlign = align

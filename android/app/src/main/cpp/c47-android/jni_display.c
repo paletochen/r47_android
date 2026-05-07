@@ -6,7 +6,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+extern volatile bool_t g_isDynamicShiftEnabled;
+
 enum {
+
+
+
   KEYPAD_LABEL_PRIMARY = 0,
   KEYPAD_LABEL_F = 1,
   KEYPAD_LABEL_G = 2,
@@ -617,19 +622,22 @@ static bool_t composeSoftkeyInlineLabel(keypadSoftkeyScene_t *scene,
   return true;
 }
 
-static void resolveSoftkeyScene(int16_t fnKeyIndex, keypadSoftkeyScene_t *scene) {
+static void resolveSoftkeyScene(int16_t fnKeyIndex, keypadSoftkeyScene_t *scene, jboolean isDynamic) {
   clearSoftkeyScene(scene);
+  __android_log_print(ANDROID_LOG_INFO, "R47Native", "resolveSoftkeyScene: fnKeyIndex=%d, softmenuId=%d", fnKeyIndex, softmenuStack[0].softmenuId);
 
   if (fnKeyIndex < 1 || fnKeyIndex > 6) {
+
     return;
   }
 
   int16_t softmenuId = softmenuStack[0].softmenuId;
   int16_t numberOfItems = getCurrentSoftmenuItemCount(softmenuId);
   int16_t firstItem = softmenuStack[0].firstItem;
-  int16_t visibleRowOffset = getVisibleSoftkeyRowOffset() * 6;
+  int16_t visibleRowOffset = (isDynamic ? getVisibleSoftkeyRowOffset() : 0) * 6;
   int16_t absoluteIndex = firstItem + visibleRowOffset + (fnKeyIndex - 1);
   int16_t visibleIndex = visibleRowOffset + (fnKeyIndex - 1);
+
 
   if (softmenuId < 0 || numberOfItems <= 0 || absoluteIndex < 0 ||
       absoluteIndex >= numberOfItems) {
@@ -691,11 +699,32 @@ static void resolveSoftkeyScene(int16_t fnKeyIndex, keypadSoftkeyScene_t *scene)
       break;
     case MNU_DYNAMIC:
       sceneItem = userMenus[currentUserMenu].menuItem[visibleIndex].item;
+      {
+        int16_t unshiftedIndex = (fnKeyIndex - 1);
+        int16_t unshiftedItem = 0;
+        if (-softmenu[softmenuId].menuItem == MNU_MyMenu) {
+          unshiftedItem = userMenuItems[unshiftedIndex].item;
+        } else if (-softmenu[softmenuId].menuItem == MNU_DYNAMIC) {
+          unshiftedItem = userMenus[currentUserMenu].menuItem[unshiftedIndex].item;
+        }
+        
+        if (unshiftedItem <= ASSIGN_USER_MENU) {
+
+
+
+          int16_t menuIndex = ASSIGN_USER_MENU - unshiftedItem;
+          if (menuIndex >= 0 && menuIndex < numberOfUserMenus) {
+            snprintf(scene->primaryLabel, sizeof(scene->primaryLabel), "%s", userMenus[menuIndex].menuName);
+          }
+        }
+      }
       if (sceneItem < 0) {
         scene->sceneFlags |= KEYPAD_SCENE_FLAG_REVERSE_VIDEO |
                              KEYPAD_SCENE_FLAG_MENU;
       } else if (userMenus[currentUserMenu].menuItem[visibleIndex].argumentName[0] ==
+
                  0) {
+
         changeSoftKey(softmenu[softmenuId].menuItem, sceneItem, itemName, &videoMode,
                       &showCb, &showValue, showText);
         if (shouldComposeSoftkeyLabel(softmenu[softmenuId].menuItem,
@@ -733,18 +762,57 @@ static void resolveSoftkeyScene(int16_t fnKeyIndex, keypadSoftkeyScene_t *scene)
       return;
     }
 
-    int16_t item = softmenu[softmenuId].softkeyItem[absoluteIndex];
+    int16_t item;
+    if (softmenu[softmenuId].menuItem == -MNU_DYNAMIC) {
+      item = userMenus[currentUserMenu].menuItem[absoluteIndex].item;
+    } else {
+      item = softmenu[softmenuId].softkeyItem[absoluteIndex];
+    }
     if (item == 0) {
       return;
     }
 
     sceneItem = item;
+
     if (item < 0) {
       fillStaticSoftkeyMenuLabel(item, scene->primaryLabel,
                                  sizeof(scene->primaryLabel));
+      if (strcmp(scene->primaryLabel, "DYNMNU") == 0 || strcmp(scene->primaryLabel, "DYNM") == 0) {
+        int16_t unshiftedIndex = (fnKeyIndex - 1);
+        int16_t customMenuId = 0;
+        
+        int16_t item = userMenus[currentUserMenu].menuItem[unshiftedIndex].item;
+        if (item <= ASSIGN_USER_MENU) customMenuId = item;
+        
+        if (customMenuId == 0) {
+          item = userMenuItems[unshiftedIndex].item;
+          if (item <= ASSIGN_USER_MENU) customMenuId = item;
+        }
+        
+        if (customMenuId == 0) {
+          for (int j = 0; j < numberOfUserMenus; j++) {
+            item = userMenus[j].menuItem[unshiftedIndex].item;
+            if (item <= ASSIGN_USER_MENU) {
+              customMenuId = item;
+              break;
+            }
+          }
+        }
+        
+        if (customMenuId != 0) {
+          int16_t menuIndex = ASSIGN_USER_MENU - customMenuId;
+          if (menuIndex >= 0 && menuIndex < numberOfUserMenus) {
+            snprintf(scene->primaryLabel, sizeof(scene->primaryLabel), "%s", userMenus[menuIndex].menuName);
+          }
+        }
+      }
+
+
+
       scene->sceneFlags |= KEYPAD_SCENE_FLAG_REVERSE_VIDEO |
                KEYPAD_SCENE_FLAG_MENU;
-    } else {
+    }
+ else {
       videoMode_t videoMode = vmNormal;
       int8_t showCb = NOVAL;
       int16_t showValue = NOVAL;
@@ -795,6 +863,11 @@ static void resolveSoftkeyScene(int16_t fnKeyIndex, keypadSoftkeyScene_t *scene)
   if (scene->primaryLabel[0] != 0 && scene->enabled == false && strikeItem <= 0) {
     scene->enabled = true;
   }
+
+  if (!isDynamic) {
+    scene->primaryLabel[0] = 0;
+  }
+
 }
 
 static int16_t resolveMainKeyItem(const calcKey_t *key, jint type,
@@ -945,7 +1018,21 @@ static keypadMainLabel_t resolveMainKeyLabelInfo(const calcKey_t *key,
     return makeMainLabel("", 0, false);
   }
 
+  int16_t customMenuId = 0;
+  if (key->primary <= ASSIGN_USER_MENU) customMenuId = key->primary;
+  else if (key->fShifted <= ASSIGN_USER_MENU) customMenuId = key->fShifted;
+  else if (key->gShifted <= ASSIGN_USER_MENU) customMenuId = key->gShifted;
+
+  if (customMenuId != 0) {
+    int16_t menuIndex = ASSIGN_USER_MENU - customMenuId;
+    if (menuIndex >= 0 && menuIndex < numberOfUserMenus) {
+      return makeMainLabel(userMenus[menuIndex].menuName, customMenuId, false);
+    }
+  }
+
+
   const char *name = indexOfItems[abs(item)].itemSoftmenuName;
+
   if (!name) {
     return makeMainLabel("", item, false);
   }
@@ -981,6 +1068,15 @@ static void fillStaticSoftkeyMenuLabel(int16_t item, char *label,
   int16_t menu = findSoftmenuIndexByItem(item);
   const char *labelName = "";
 
+  if (item <= ASSIGN_USER_MENU) {
+    int16_t menuIndex = ASSIGN_USER_MENU - item;
+    if (menuIndex >= 0 && menuIndex < numberOfUserMenus) {
+      snprintf(label, labelSize, "%s", userMenus[menuIndex].menuName);
+      return;
+    }
+  }
+
+
   if (item == -MNU_ASN_N && calcModel == USER_C47) {
     labelName = STD_SIGMA "+ KEY";
   } else if (item == -MNU_ASN_N && isR47FAM) {
@@ -1011,7 +1107,8 @@ static void fillStaticSoftkeyMenuLabel(int16_t item, char *label,
 static void resolveSoftkeyLabel(int16_t fnKeyIndex, char *label,
                                 size_t labelSize, bool_t *enabled) {
   keypadSoftkeyScene_t scene;
-  resolveSoftkeyScene(fnKeyIndex, &scene);
+  resolveSoftkeyScene(fnKeyIndex, &scene, true);
+
   snprintf(label, labelSize, "%s", scene.primaryLabel);
   *enabled = scene.enabled;
 }
@@ -1070,7 +1167,8 @@ static void fillKeypadMeta(jint *fill, jboolean isDynamic) {
   for (int fnKeyIndex = 1; fnKeyIndex <= 6; fnKeyIndex++) {
     int keyCode = 37 + fnKeyIndex;
     keypadSoftkeyScene_t scene;
-    resolveSoftkeyScene(fnKeyIndex, &scene);
+    resolveSoftkeyScene(fnKeyIndex, &scene, isDynamic);
+
 
     jint sceneFlags = scene.sceneFlags;
     if (previewKeyCode == keyCode) {
@@ -1228,9 +1326,11 @@ Java_org_rpncalculators_r47_MainActivity_getKeypadMetaNative(JNIEnv *env,
   memset(fill, 0, sizeof(fill));
   if (ram) {
     pthread_mutex_lock(&screenMutex);
+    g_isDynamicShiftEnabled = isDynamic;
     fillKeypadMeta(fill, isDynamic);
     pthread_mutex_unlock(&screenMutex);
   }
+
 
   (*env)->SetIntArrayRegion(env, result, 0, KEYPAD_META_LENGTH, fill);
   return result;
@@ -1262,8 +1362,12 @@ Java_org_rpncalculators_r47_MainActivity_getKeypadLabelsNative(JNIEnv *env,
   }
 
   pthread_mutex_lock(&screenMutex);
+  g_isDynamicShiftEnabled = isDynamic;
+  __android_log_print(ANDROID_LOG_INFO, "R47Native", "getKeypadLabelsNative: isDynamic=%d", isDynamic);
   bool_t alphaOn = isAlphaKeyboardActive();
+
   const calcKey_t *keys = getVisibleKeyTable(isDynamic);
+
 
   for (int keyCode = 1; keyCode <= 37; keyCode++) {
     const calcKey_t *key = &keys[keyCode - 1];
@@ -1277,12 +1381,13 @@ Java_org_rpncalculators_r47_MainActivity_getKeypadLabelsNative(JNIEnv *env,
 
   for (int fnKeyIndex = 1; fnKeyIndex <= 6; fnKeyIndex++) {
     keypadSoftkeyScene_t scene;
-    resolveSoftkeyScene(fnKeyIndex, &scene);
+    resolveSoftkeyScene(fnKeyIndex, &scene, isDynamic);
     setKeypadLabelElement(env, result, 37 + fnKeyIndex, KEYPAD_LABEL_PRIMARY,
                           scene.primaryLabel);
     setKeypadLabelElement(env, result, 37 + fnKeyIndex, KEYPAD_LABEL_AUX,
                           scene.auxLabel);
   }
+
 
   pthread_mutex_unlock(&screenMutex);
   (*env)->DeleteLocalRef(env, empty);

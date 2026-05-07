@@ -19,7 +19,9 @@ class ReplicaOverlay @JvmOverloads constructor(
         const val CHROME_MODE_NATIVE = "native"
         const val CHROME_MODE_TEXTURE = "r47_texture"
         const val CHROME_MODE_BACKGROUND = "r47_background"
+        const val CHROME_MODE_DAS_KALKULATOR = "das_kalkulator"
     }
+
 
     private var isPiPMode = false
     private var showTouchZones = false

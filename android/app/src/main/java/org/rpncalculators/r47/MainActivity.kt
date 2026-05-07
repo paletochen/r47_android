@@ -74,6 +74,9 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
 
     private var isBeeperEnabled = true
     private var showTouchZones = false
+    internal var isDynamicShiftEnabled = true
+
+
     private fun performHapticClick() {
         if (!isHapticEnabled || hapticIntensity <= 0) return
         val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -197,10 +200,12 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             mode == null -> DEFAULT_CHROME_MODE
             mode == ReplicaOverlay.CHROME_MODE_NATIVE ||
                 mode == ReplicaOverlay.CHROME_MODE_TEXTURE ||
-                mode == ReplicaOverlay.CHROME_MODE_BACKGROUND -> mode
+                mode == ReplicaOverlay.CHROME_MODE_BACKGROUND ||
+                mode == ReplicaOverlay.CHROME_MODE_DAS_KALKULATOR -> mode
             else -> DEFAULT_CHROME_MODE
         }
     }
+
 
     private fun applyChromeMode(mode: String) {
         chromeMode = normalizeChromeMode(mode)
@@ -269,6 +274,11 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
                 showTouchZones = prefs.getBoolean(key, false)
                 replicaOverlay.setShowTouchZones(showTouchZones)
             }
+            "dynamic_shift_labels" -> {
+                isDynamicShiftEnabled = prefs.getBoolean(key, true)
+                updateDynamicKeys()
+            }
+
             "fullscreen_mode" -> {
                 applyFullscreenMode(prefs.getBoolean(key, true))
             }
@@ -331,12 +341,13 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     }
 
     internal fun currentKeypadSnapshot(meta: IntArray? = null): KeypadSnapshot {
-        val resolvedMeta = meta ?: getKeypadMetaNative(true)
+        val resolvedMeta = meta ?: getKeypadMetaNative(isDynamicShiftEnabled)
         return KeypadSnapshot.fromNative(
             resolvedMeta,
-            getKeypadLabelsNative(true),
+            getKeypadLabelsNative(isDynamicShiftEnabled),
         )
     }
+
 
     private fun updateDynamicKeys(snapshot: KeypadSnapshot? = null) {
         val resolvedSnapshot = snapshot ?: currentKeypadSnapshot()
@@ -418,7 +429,9 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         scalingMode = prefs.getString("scaling_mode", DEFAULT_SCALING_MODE) ?: DEFAULT_SCALING_MODE
         isBeeperEnabled = prefs.getBoolean("beeper_enabled", true)
         showTouchZones = prefs.getBoolean("show_touch_zones", false)
+        isDynamicShiftEnabled = prefs.getBoolean("dynamic_shift_labels", true)
         if (prefs.getBoolean("keep_screen_on", false)) window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
         syncAudioSettings()
         
         replicaOverlay.setChromeMode(chromeMode)

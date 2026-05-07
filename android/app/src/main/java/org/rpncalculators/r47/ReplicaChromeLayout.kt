@@ -54,6 +54,12 @@ internal class ReplicaChromeLayout(
         mode = ReplicaOverlay.CHROME_MODE_TEXTURE,
         imageResId = R.drawable.r47_texture,
     )
+    private val dasKalkulatorChromeSpec = baseChromeSpec.copy(
+        mode = ReplicaOverlay.CHROME_MODE_DAS_KALKULATOR,
+        imageResId = R.drawable.r47_das_kalkulator,
+    )
+
+
 
     private val chromeBitmapCache = mutableMapOf<Int, Bitmap?>()
     private var resolvedShellBitmapWidthCache: Float? = null
@@ -135,11 +141,13 @@ internal class ReplicaChromeLayout(
     private fun resolveChromeSpec(mode: String): ReplicaChromeSpec {
         return when {
             mode == ReplicaOverlay.CHROME_MODE_TEXTURE -> textureChromeSpec
+            mode == ReplicaOverlay.CHROME_MODE_DAS_KALKULATOR -> dasKalkulatorChromeSpec
             mode == "image" -> backgroundChromeSpec
             mode.startsWith(ReplicaOverlay.CHROME_MODE_BACKGROUND) -> backgroundChromeSpec
             else -> nativeChromeSpec
         }
     }
+
 
     private fun chromeBitmapFor(spec: ReplicaChromeSpec): Bitmap? {
         val resId = spec.imageResId ?: return null
