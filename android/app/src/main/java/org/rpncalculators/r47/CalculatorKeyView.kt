@@ -807,10 +807,8 @@ class CalculatorKeyView @JvmOverloads constructor(
 
     private fun drawSoftkey(canvas: Canvas) {
         val main = context as MainActivity
-        if (!main.isDynamicShiftEnabled) {
-            return
-        }
         val keyState = softkeyState
+
 
         val reverseVideo = keyState.hasSceneFlag(KeypadSceneContract.SCENE_FLAG_REVERSE_VIDEO)
         val showText = keyState.hasSceneFlag(KeypadSceneContract.SCENE_FLAG_SHOW_TEXT) &&
