@@ -3,7 +3,10 @@
 
 #include "c47.h"
 
+#ifndef ANDROID
 volatile bool_t g_isDynamicShiftEnabled = true;
+#endif
+
 
 TO_QSPI static const char bugScreenIdMustNotBe0[] = "In function showSoftmenu: id must not be 0!";
 

@@ -6,7 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern volatile bool_t g_isDynamicShiftEnabled;
+volatile bool_t g_isDynamicShiftEnabled = true;
+
 
 enum {
 
