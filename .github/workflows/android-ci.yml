@@ -654,7 +654,8 @@ jobs:
           cmake_version=${{ steps.versions.outputs.cmake_version }}
           ndk_version=${{ steps.versions.outputs.ndk_version }}
           android_variant=debug
-          debug_apk_name=${apk_name}
+          artifact_name=${apk_name}
+
           debug_apk_signed=debug
           EOF
 
