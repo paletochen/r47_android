@@ -743,6 +743,35 @@ jobs:
           echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
           echo "release_title=$release_title" >> "$GITHUB_OUTPUT"
 
+      - name: Pack packaging evidence archive
+        id: evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          debug_apk_name=$(sed -n 's/^artifact_name=//p' release-assets/BUILD-METADATA.txt)
+          if [[ -z "$debug_apk_name" ]]; then
+            echo "BUILD-METADATA.txt did not contain artifact_name." >&2
+            exit 1
+          fi
+          evidence_archive_name="${debug_apk_name%.apk}-packaging-evidence.zip"
+
+          rm -f "release-assets/${evidence_archive_name}"
+          (
+            cd release-assets
+            zip -qr "$evidence_archive_name" \
+              BUILD-METADATA.txt \
+              SHA256SUMS.txt \
+              abis.txt \
+              zipalign.txt \
+              elf-load-segments.txt \
+              SOURCE \
+              COPYING \
+              LICENSE.txt
+          )
+
+          echo "evidence_archive_name=${evidence_archive_name}" >> "$GITHUB_OUTPUT"
+
       - name: Write release notes
         shell: bash
         run: |
@@ -803,6 +832,9 @@ jobs:
           name: ${{ steps.release.outputs.release_title }}
           body_path: release-notes.md
           prerelease: false
-          files: release-assets/*
+          files: |
+            release-assets/${{ steps.evidence.outputs.evidence_archive_name }}
+            release-assets/*.apk
           make_latest: true
+
 
