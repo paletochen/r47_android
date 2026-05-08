@@ -114,3 +114,6 @@ android/build_output.txt
 
 # --- 9. Brainstorming / Research ---
 /tmp/
+
+# --- 10. Configuration Secrets ---
+.google_env
