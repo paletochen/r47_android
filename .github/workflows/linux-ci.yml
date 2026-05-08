@@ -49,7 +49,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          eval "$(bash ./scripts/upstream.sh resolve --latest)"
+          eval "$(bash ./scripts/upstream-sync/upstream.sh resolve --latest)"
 
           echo "upstream_url=$R47_RESOLVED_UPSTREAM_URL" >> "$GITHUB_OUTPUT"
           echo "upstream_commit=$R47_RESOLVED_UPSTREAM_COMMIT" >> "$GITHUB_OUTPUT"
@@ -171,7 +171,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          bash ./scripts/sync_public.sh \
+          bash ./scripts/upstream-sync/upstream.sh sync --auto --write-lock \
             --url "${{ needs.resolve-upstream-core.outputs.upstream_url }}" \
             --commit "${{ needs.resolve-upstream-core.outputs.upstream_commit }}"
           echo "upstream_url=${{ needs.resolve-upstream-core.outputs.upstream_url }}" >> "$GITHUB_OUTPUT"
@@ -261,7 +261,7 @@ jobs:
             stripped_count=$((stripped_count + 1))
           done < <(find "$package_dir" -type f -print0)
 
-          bash ./scripts/generate_simulator_notice_artifacts.sh \
+          bash ./scripts/package-notices/generate_simulator_notice_artifacts.sh \
             --platform linux \
             --package-dir "$package_dir" \
             --upstream-source-repository-url "${{ steps.upstream.outputs.upstream_url }}" \

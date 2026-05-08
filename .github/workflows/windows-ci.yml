@@ -2,6 +2,8 @@ name: Windows CI
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '34 3 * * *'
   push:
     branches:
       - github_ci
@@ -13,11 +15,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-env:
-  UPSTREAM_URL: https://gitlab.com/rpncalculators/c43.git
-  XLSXIO_URL: https://github.com/brechtsanders/xlsxio.git
-  XLSXIO_COMMIT: a9016eb2eb46dcd613a68fcfcd1002b5adf64ae9
-
 jobs:
   resolve-upstream-core:
     name: Resolve authoritative upstream core revision
@@ -28,21 +25,33 @@ jobs:
       upstream_commit: ${{ steps.resolve.outputs.upstream_commit }}
       upstream_short: ${{ steps.resolve.outputs.upstream_short }}
     steps:
-      - name: Resolve authoritative upstream core
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Load shared Android defaults
+        id: defaults
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          . ./android/r47-defaults.properties
+
+          echo "xlsxio_url=$R47_DEFAULT_XLSXIO_URL" >> "$GITHUB_OUTPUT"
+          echo "xlsxio_commit=$R47_DEFAULT_XLSXIO_COMMIT" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve latest upstream core
         id: resolve
         shell: bash
         run: |
           set -euo pipefail
 
-          upstream_commit=$(git ls-remote --exit-code "$UPSTREAM_URL" refs/heads/master | awk 'NR == 1 { print $1 }')
-          if [[ -z "$upstream_commit" ]]; then
-            echo "Failed to resolve upstream master." >&2
-            exit 1
-          fi
+          eval "$(bash ./scripts/upstream-sync/upstream.sh resolve --latest)"
 
-          echo "upstream_url=$UPSTREAM_URL" >> "$GITHUB_OUTPUT"
-          echo "upstream_commit=$upstream_commit" >> "$GITHUB_OUTPUT"
-          echo "upstream_short=${upstream_commit:0:12}" >> "$GITHUB_OUTPUT"
+          echo "upstream_url=$R47_RESOLVED_UPSTREAM_URL" >> "$GITHUB_OUTPUT"
+          echo "upstream_commit=$R47_RESOLVED_UPSTREAM_COMMIT" >> "$GITHUB_OUTPUT"
+          echo "upstream_short=$R47_RESOLVED_UPSTREAM_SHORT_COMMIT" >> "$GITHUB_OUTPUT"
 
   windows-simulator:
     name: Build Windows simulator (${{ matrix.label }})
@@ -74,6 +83,17 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
+
+      - name: Load shared Android defaults
+        id: defaults
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          . ./android/r47-defaults.properties
+
+          echo "xlsxio_url=$R47_DEFAULT_XLSXIO_URL" >> "$GITHUB_OUTPUT"
+          echo "xlsxio_commit=$R47_DEFAULT_XLSXIO_COMMIT" >> "$GITHUB_OUTPUT"
 
       - name: Set up MSYS2 ${{ matrix.msystem }}
         uses: msys2/setup-msys2@e9898307ac31d1a803454791be09ab9973336e1c # v2.31.1
@@ -115,38 +135,19 @@ jobs:
           echo "jobs=$jobs" >> "$GITHUB_OUTPUT"
 
       - name: Sync authoritative upstream core
-        env:
-          UPSTREAM_URL: ${{ needs.resolve-upstream-core.outputs.upstream_url }}
-          UPSTREAM_COMMIT: ${{ needs.resolve-upstream-core.outputs.upstream_commit }}
         run: |
           set -euo pipefail
 
+          bash ./scripts/upstream-sync/upstream.sh sync --auto --write-lock \
+            --url "${{ needs.resolve-upstream-core.outputs.upstream_url }}" \
+            --commit "${{ needs.resolve-upstream-core.outputs.upstream_commit }}"
+
+          [ -f tools/onARaspberry ] || {
+            echo "Missing hydrated upstream helper at tools/onARaspberry after sync." >&2
+            exit 1
+          }
+
           chmod +x tools/onARaspberry
-
-          if git remote | grep -qx upstream; then
-            git remote set-url upstream "$UPSTREAM_URL"
-          else
-            git remote add upstream "$UPSTREAM_URL"
-          fi
-
-          git fetch --depth 1 upstream "$UPSTREAM_COMMIT"
-          git cat-file -e "$UPSTREAM_COMMIT^{commit}"
-          git archive --format=tar "$UPSTREAM_COMMIT" | tar -xf -
-
-          git checkout -- \
-            .gitignore \
-            README.md \
-            Makefile \
-            build_android.sh \
-            sync_public.sh \
-            dist.sh \
-            meson.build \
-            meson_options.txt \
-            android/
-
-          while IFS= read -r meson_file; do
-            git checkout -- "$meson_file"
-          done < <(git ls-files | grep -E '(^|/)meson\.build$' | grep -Ev '^src/')
 
       - name: Load packaged Windows font into runner session
         shell: pwsh
@@ -187,7 +188,7 @@ jobs:
           log_file="ci-artifacts/logs/build-windows-${{ matrix.artifact_suffix }}.log"
           mkdir -p "$(dirname "$log_file")"
 
-          make -j "${{ steps.jobs.outputs.jobs }}" \
+          make \
             NINJAFLAGS="-j ${{ steps.jobs.outputs.jobs }}" \
             dist_windows 2>&1 | tee "$log_file"
 
@@ -243,39 +244,13 @@ jobs:
           printf 'Stripped executable sizes:\n'
           stat -c '%n %s' "$package_dir/c47.exe" "$package_dir/r47.exe"
 
-          cp COPYING "$package_dir/COPYING"
-
-          cat > "$package_dir/LICENSE.txt" <<'EOF'
-          Copyright (C) 2016 Brecht Sanders All Rights Reserved
-
-          Permission is hereby granted, free of charge, to any person obtaining
-          a copy of this software and associated documentation files (the
-          "Software"), to deal in the Software without restriction, including
-          without limitation the rights to use, copy, modify, merge, publish,
-          distribute, sublicense, and/or sell copies of the Software, and to
-          permit persons to whom the Software is furnished to do so, subject to
-          the following conditions:
-
-          The above copyright notice and this permission notice shall be
-          included in all copies or substantial portions of the Software.
-
-          THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-          EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-          MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-          IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-          CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-          TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-          SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-          EOF
-
-          cat > "$package_dir/SOURCE" <<EOF
-          upstream_url=${{ needs.resolve-upstream-core.outputs.upstream_url }}
-          upstream_commit=${{ needs.resolve-upstream-core.outputs.upstream_commit }}
-          upstream_license_file=COPYING
-          xlsxio_url=$XLSXIO_URL
-          xlsxio_commit=$XLSXIO_COMMIT
-          xlsxio_license_file=LICENSE.txt
-          EOF
+          bash ./scripts/package-notices/generate_simulator_notice_artifacts.sh \
+            --platform windows \
+            --package-dir "$package_dir" \
+            --upstream-source-repository-url "${{ needs.resolve-upstream-core.outputs.upstream_url }}" \
+            --upstream-source-commit "${{ needs.resolve-upstream-core.outputs.upstream_commit }}" \
+            --xlsxio-source-repository-url "${{ steps.defaults.outputs.xlsxio_url }}" \
+            --xlsxio-source-commit "${{ steps.defaults.outputs.xlsxio_commit }}"
 
           find "$package_dir" -type f | sed "s#^$release_dir/##" | sort > "$release_dir/PACKAGE-CONTENTS.txt"
 
@@ -284,8 +259,8 @@ jobs:
           upstream_commit=${{ needs.resolve-upstream-core.outputs.upstream_commit }}
           upstream_license_file=COPYING
           source_manifest_file=SOURCE
-          xlsxio_url=$XLSXIO_URL
-          xlsxio_commit=$XLSXIO_COMMIT
+          xlsxio_url=${{ steps.defaults.outputs.xlsxio_url }}
+          xlsxio_commit=${{ steps.defaults.outputs.xlsxio_commit }}
           xlsxio_license_file=LICENSE.txt
           make_target=dist_windows
           msystem=${{ matrix.msystem }}
@@ -293,6 +268,15 @@ jobs:
           stripped_files_count=$stripped_count
           package_zip=c47-windows.zip
           package_dir=$(basename "$package_dir")
+          third_party_inventory_file=THIRD-PARTY.spdx.json
+          platform_notice_root=repo-notices/windows
+          platform_notice_summary_file=repo-notices/windows/NOTICE-SUMMARY.txt
+          gpl_notice_file=repo-notices/windows/gpl/COPYING.txt
+          decnumbericu_notice_file=repo-notices/windows/decnumbericu/ICU-license.html
+          xlsxio_notice_file=repo-notices/windows/xlsxio/LICENSE.txt
+          windows_dll_inventory_file=repo-notices/windows/WINDOWS-RUNTIME-DLLS.txt
+          windows_dll_notice_summary_file=repo-notices/windows/WINDOWS-DLL-NOTICES.txt
+          windows_dll_notice_dir=repo-notices/windows/licenses
           EOF
 
           rm -f c47-windows.zip
