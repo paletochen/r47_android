@@ -201,10 +201,12 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             mode == ReplicaOverlay.CHROME_MODE_NATIVE ||
                 mode == ReplicaOverlay.CHROME_MODE_TEXTURE ||
                 mode == ReplicaOverlay.CHROME_MODE_BACKGROUND ||
-                mode == ReplicaOverlay.CHROME_MODE_DAS_KALKULATOR -> mode
+                mode == ReplicaOverlay.CHROME_MODE_DAS_KALKULATOR ||
+                mode == ReplicaOverlay.CHROME_MODE_SIMULATOR -> mode
             else -> DEFAULT_CHROME_MODE
         }
     }
+
 
 
     private fun applyChromeMode(mode: String) {

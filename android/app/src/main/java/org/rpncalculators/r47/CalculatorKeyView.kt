@@ -638,8 +638,12 @@ class CalculatorKeyView @JvmOverloads constructor(
     internal fun updateLabels(snapshot: KeypadSnapshot) {
         val keyState = snapshot.keyStateFor(keyCode)
         applyEnabledState(keyState.isEnabled)
+        
+        val main = context as MainActivity
+        this.isDynamicShiftEnabled = main.isDynamicShiftEnabled
 
         if (isFnKey) {
+
             softkeyState = keyState
             mainKeyState = KeypadKeySnapshot.EMPTY
             contentDescription = buildSoftkeyContentDescription(keyState)
@@ -647,7 +651,8 @@ class CalculatorKeyView @JvmOverloads constructor(
         } else {
             mainKeyState = keyState
             val main = context as MainActivity
-            val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
+            val prefs = context.getSharedPreferences(SlotStore.APP_PREFS_NAME, android.content.Context.MODE_PRIVATE)
+
             val skin = prefs.getString("chrome_mode", "r47_background")
             
             if (skin == "das_kalkulator") {
@@ -793,16 +798,26 @@ class CalculatorKeyView @JvmOverloads constructor(
 
         val styleSpec = mainKeyStyleSpec(keyState.styleRole)
         val fillColor = if (isPressed) styleSpec.pressedFillColor else styleSpec.idleFillColor
+        val prefs = context.getSharedPreferences(SlotStore.APP_PREFS_NAME, android.content.Context.MODE_PRIVATE)
+        
+        val skin = prefs.getString("chrome_mode", "r47_background")
+        val resolvedFillColor = if (skin == "r47_background_v2" && keyCode != 11 && keyCode != 12) {
+            Color.parseColor("#212121")
+        } else {
+            fillColor
+        }
 
         if (drawKeySurfaces) {
             drawKeyChrome(
                 canvas = canvas,
                 rect = mainKeyRect,
                 fillPaint = mainKeyFillPaint,
-                fillColor = fillColor,
+                fillColor = resolvedFillColor,
                 cornerRadius = cornerRadius,
             )
         }
+
+
     }
 
     private fun drawSoftkey(canvas: Canvas) {
@@ -831,6 +846,11 @@ class CalculatorKeyView @JvmOverloads constructor(
             isPressed -> mainKeyPressedColor
             else -> mainKeyFillColor
         }
+        val prefs = context.getSharedPreferences(SlotStore.APP_PREFS_NAME, android.content.Context.MODE_PRIVATE)
+
+        val skin = prefs.getString("chrome_mode", "r47_background")
+        val resolvedFillColor = if (skin == "r47_background_v2") Color.parseColor("#212121") else fillColor
+
         val decorColor = if (reverseVideo) softkeyLightTextColor else defaultPrimaryColor
         val primaryTextColor = if (reverseVideo) softkeyLightTextColor else defaultPrimaryColor
         val metaTextColor = if (reverseVideo) softkeyMetaLightColor else letterColor
@@ -846,10 +866,11 @@ class CalculatorKeyView @JvmOverloads constructor(
                 canvas = canvas,
                 rect = softkeyRect,
                 fillPaint = softkeyFillPaint,
-                fillColor = fillColor,
+                fillColor = resolvedFillColor,
                 cornerRadius = cornerRadius,
             )
         }
+
         if (drawKeySurfaces && keyState.hasSceneFlag(KeypadSceneContract.SCENE_FLAG_PREVIEW_TARGET)) {
             softkeyDecorPaint.color = softkeyPreviewColor
             canvas.drawLine(
@@ -862,101 +883,95 @@ class CalculatorKeyView @JvmOverloads constructor(
             softkeyDecorPaint.color = decorColor
         }
 
-        if (showValue && isDynamicShiftEnabled) {
-            val valueText = formatSoftkeyValue(keyState.showValue)
+        if (isDynamicShiftEnabled) {
+            if (showValue) {
+                val valueText = formatSoftkeyValue(keyState.showValue)
 
+                if (valueText.isNotBlank()) {
+                    drawFittedText(
+                        canvas = canvas,
+                        text = valueText,
+                        paint = softkeyValuePaint,
+                        typeface = fontSet.numeric ?: fontSet.tiny ?: fontSet.standard,
+                        baseSize = height * KeyVisualPolicy.SOFTKEY_VALUE_TEXT_SIZE_RATIO,
+                        maxWidth = softkeyRect.width() * KeyVisualPolicy.SOFTKEY_VALUE_WIDTH_RATIO,
+                        x = softkeyRect.right - KeyVisualPolicy.SOFTKEY_VALUE_RIGHT_INSET,
+                        anchorY = softkeyRect.top + KeyVisualPolicy.SOFTKEY_VALUE_TOP_INSET,
+                        color = valueTextColor,
+                        align = Paint.Align.RIGHT,
+                        verticalAnchor = TEXT_ANCHOR_TOP,
+                    )
+                }
+            }
 
+            if (showOverlay) {
+                drawSoftkeyOverlay(
+                    canvas = canvas,
+                    overlayState = keyState.overlayState,
+                    centerX = softkeyRect.right - KeyVisualPolicy.SOFTKEY_OVERLAY_CENTER_RIGHT_INSET,
+                    centerY = softkeyRect.bottom - KeyVisualPolicy.SOFTKEY_OVERLAY_CENTER_BOTTOM_INSET,
+                    color = decorColor,
+                )
+            }
 
-            if (valueText.isNotBlank()) {
+            if (keyState.primaryLabel.isNotBlank()) {
+                val primaryCenterY = if (showText) {
+                    softkeyRect.top + (softkeyRect.height() * KeyVisualPolicy.SOFTKEY_PRIMARY_TOP_RATIO)
+                } else {
+                    softkeyRect.centerY()
+                }
+                val reservedRight = when {
+                    showOverlay -> KeyVisualPolicy.SOFTKEY_PRIMARY_RIGHT_RESERVE_WITH_OVERLAY
+                    else -> KeyVisualPolicy.SOFTKEY_PRIMARY_SIDE_INSET
+                }
                 drawFittedText(
                     canvas = canvas,
-                    text = valueText,
-                    paint = softkeyValuePaint,
-                    typeface = fontSet.numeric ?: fontSet.tiny ?: fontSet.standard,
-                    baseSize = height * KeyVisualPolicy.SOFTKEY_VALUE_TEXT_SIZE_RATIO,
-                    maxWidth = softkeyRect.width() * KeyVisualPolicy.SOFTKEY_VALUE_WIDTH_RATIO,
-                    x = softkeyRect.right - KeyVisualPolicy.SOFTKEY_VALUE_RIGHT_INSET,
-                    anchorY = softkeyRect.top + KeyVisualPolicy.SOFTKEY_VALUE_TOP_INSET,
-                    color = valueTextColor,
-                    align = Paint.Align.RIGHT,
-                    verticalAnchor = TEXT_ANCHOR_TOP,
+                    text = keyState.primaryLabel,
+                    paint = softkeyTextPaint,
+                    typeface = fontSet.standard,
+                    baseSize = KeyVisualPolicy.DEFAULT_PRIMARY_LEGEND_TEXT_SIZE * softkeySurfaceScale,
+                    maxWidth = softkeyRect.width() - reservedRight - KeyVisualPolicy.SOFTKEY_PRIMARY_SIDE_INSET,
+                    x = softkeyRect.centerX(),
+                    anchorY = primaryCenterY,
+                    color = primaryTextColor,
+                )
+            }
+
+            if (showText) {
+                drawFittedText(
+                    canvas = canvas,
+                    text = keyState.auxLabel,
+                    paint = softkeyAuxPaint,
+                    typeface = fontSet.tiny ?: fontSet.standard,
+                    baseSize = height * KeyVisualPolicy.SOFTKEY_AUX_TEXT_SIZE_RATIO,
+                    maxWidth = softkeyRect.width() - KeyVisualPolicy.SOFTKEY_AUX_SIDE_INSET,
+                    x = softkeyRect.centerX(),
+                    anchorY = softkeyRect.bottom - KeyVisualPolicy.SOFTKEY_AUX_BOTTOM_INSET,
+                    color = metaTextColor,
+                    verticalAnchor = TEXT_ANCHOR_BOTTOM,
+                )
+            }
+
+            if (keyState.hasSceneFlag(KeypadSceneContract.SCENE_FLAG_STRIKE_THROUGH)) {
+                canvas.drawLine(
+                    softkeyRect.left + KeyVisualPolicy.SOFTKEY_STRIKE_SIDE_INSET,
+                    softkeyRect.centerY(),
+                    softkeyRect.right - KeyVisualPolicy.SOFTKEY_STRIKE_SIDE_INSET,
+                    softkeyRect.centerY(),
+                    softkeyDecorPaint,
+                )
+            }
+            if (keyState.hasSceneFlag(KeypadSceneContract.SCENE_FLAG_STRIKE_OUT)) {
+                canvas.drawLine(
+                    softkeyRect.left + KeyVisualPolicy.SOFTKEY_STRIKE_OUT_SIDE_INSET,
+                    softkeyRect.top + KeyVisualPolicy.SOFTKEY_STRIKE_OUT_VERTICAL_INSET,
+                    softkeyRect.right - KeyVisualPolicy.SOFTKEY_STRIKE_OUT_SIDE_INSET,
+                    softkeyRect.bottom - KeyVisualPolicy.SOFTKEY_STRIKE_OUT_VERTICAL_INSET,
+                    softkeyDecorPaint,
                 )
             }
         }
 
-        if (showOverlay && isDynamicShiftEnabled) {
-            drawSoftkeyOverlay(
-
-                canvas = canvas,
-                overlayState = keyState.overlayState,
-                centerX = softkeyRect.right - KeyVisualPolicy.SOFTKEY_OVERLAY_CENTER_RIGHT_INSET,
-                centerY = softkeyRect.bottom - KeyVisualPolicy.SOFTKEY_OVERLAY_CENTER_BOTTOM_INSET,
-                color = decorColor,
-            )
-        }
-
-        if (keyState.primaryLabel.isNotBlank() && isDynamicShiftEnabled) {
-            val primaryCenterY = if (showText) {
-
-
-
-                softkeyRect.top + (softkeyRect.height() * KeyVisualPolicy.SOFTKEY_PRIMARY_TOP_RATIO)
-            } else {
-                softkeyRect.centerY()
-            }
-            val reservedRight = when {
-                showOverlay -> KeyVisualPolicy.SOFTKEY_PRIMARY_RIGHT_RESERVE_WITH_OVERLAY
-                else -> KeyVisualPolicy.SOFTKEY_PRIMARY_SIDE_INSET
-            }
-            drawFittedText(
-                canvas = canvas,
-                text = keyState.primaryLabel,
-                paint = softkeyTextPaint,
-                typeface = fontSet.standard,
-                baseSize = KeyVisualPolicy.DEFAULT_PRIMARY_LEGEND_TEXT_SIZE * softkeySurfaceScale,
-                maxWidth = softkeyRect.width() - reservedRight - KeyVisualPolicy.SOFTKEY_PRIMARY_SIDE_INSET,
-                x = softkeyRect.centerX(),
-                anchorY = primaryCenterY,
-                color = primaryTextColor,
-            )
-        }
-
-        if (showText && isDynamicShiftEnabled) {
-            drawFittedText(
-
-
-
-                canvas = canvas,
-                text = keyState.auxLabel,
-                paint = softkeyAuxPaint,
-                typeface = fontSet.tiny ?: fontSet.standard,
-                baseSize = height * KeyVisualPolicy.SOFTKEY_AUX_TEXT_SIZE_RATIO,
-                maxWidth = softkeyRect.width() - KeyVisualPolicy.SOFTKEY_AUX_SIDE_INSET,
-                x = softkeyRect.centerX(),
-                anchorY = softkeyRect.bottom - KeyVisualPolicy.SOFTKEY_AUX_BOTTOM_INSET,
-                color = metaTextColor,
-                verticalAnchor = TEXT_ANCHOR_BOTTOM,
-            )
-        }
-
-        if (keyState.hasSceneFlag(KeypadSceneContract.SCENE_FLAG_STRIKE_THROUGH) && isDynamicShiftEnabled) {
-            canvas.drawLine(
-                softkeyRect.left + KeyVisualPolicy.SOFTKEY_STRIKE_SIDE_INSET,
-                softkeyRect.centerY(),
-                softkeyRect.right - KeyVisualPolicy.SOFTKEY_STRIKE_SIDE_INSET,
-                softkeyRect.centerY(),
-                softkeyDecorPaint,
-            )
-        }
-        if (keyState.hasSceneFlag(KeypadSceneContract.SCENE_FLAG_STRIKE_OUT) && isDynamicShiftEnabled) {
-            canvas.drawLine(
-                softkeyRect.left + KeyVisualPolicy.SOFTKEY_STRIKE_OUT_SIDE_INSET,
-                softkeyRect.top + KeyVisualPolicy.SOFTKEY_STRIKE_OUT_VERTICAL_INSET,
-                softkeyRect.right - KeyVisualPolicy.SOFTKEY_STRIKE_OUT_SIDE_INSET,
-                softkeyRect.bottom - KeyVisualPolicy.SOFTKEY_STRIKE_OUT_VERTICAL_INSET,
-                softkeyDecorPaint,
-            )
-        }
 
     }
 
@@ -978,7 +993,8 @@ class CalculatorKeyView @JvmOverloads constructor(
         centerY: Float,
         color: Int,
     ) {
-        val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
+        val prefs = context.getSharedPreferences(SlotStore.APP_PREFS_NAME, android.content.Context.MODE_PRIVATE)
+
         val skin = prefs.getString("chrome_mode", "r47_background")
         if (skin == "das_kalkulator") {
             return

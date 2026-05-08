@@ -742,14 +742,66 @@ jobs:
           echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
           echo "release_title=$release_title" >> "$GITHUB_OUTPUT"
 
+      - name: Write release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          upstream_commit=$(sed -n 's/^upstream_commit=//p' release-assets/BUILD-METADATA.txt)
+          upstream_url=$(sed -n 's/^upstream_url=//p' release-assets/BUILD-METADATA.txt)
+          xlsxio_commit=$(sed -n 's/^xlsxio_commit=//p' release-assets/BUILD-METADATA.txt)
+          xlsxio_url=$(sed -n 's/^xlsxio_url=//p' release-assets/BUILD-METADATA.txt)
+          debug_apk_name=$(sed -n 's/^artifact_name=//p' release-assets/BUILD-METADATA.txt)
+          if [[ -z "$debug_apk_name" ]]; then
+            echo "BUILD-METADATA.txt did not contain artifact_name." >&2
+            exit 1
+          fi
+          upstream_short_commit="${upstream_commit:0:8}"
+          evidence_archive_name="${debug_apk_name%.apk}-packaging-evidence.zip"
+
+          cat > release-notes.md <<EOF
+          - Sync to commit [${upstream_short_commit}](${upstream_url}/-/commit/${upstream_commit})
+
+          This prerelease contains the debug-signed debug APK ${debug_apk_name}
+          built by ./scripts/android/build_android.sh from GitHub commit ${GITHUB_SHA}.
+
+          The calculator core was synchronized from ${upstream_url} at commit
+          ${upstream_commit} before the simulator and Android build steps ran.
+
+          The Linux host toolchain built xlsxio_xlsx2csv from ${xlsxio_url} at
+          commit ${xlsxio_commit} to satisfy the upstream font-generation
+          contract.
+
+          Included assets:
+          - ${debug_apk_name}
+          - ${evidence_archive_name}
+
+          Notes:
+          - This is a main-branch snapshot prerelease, not a signed store release.
+          - The included APK is signed with the default debug signing config.
+          - The workflow first sanity-checked the authoritative upstream
+            simulator core with parallel make test.
+          - The Android lane rebuilt assets, reran the simulator-native suite
+            from ./scripts/android/build_android.sh --run-sim-tests, and then
+            packaged the debug APK.
+          - The workflow verified packaged ABIs and ran the Android 16 KB zip
+            alignment check described in the Android docs.
+          - ${evidence_archive_name} preserves the compliance-assets/ directory,
+            BUILD-METADATA.txt, SHA256SUMS.txt, ABI/alignment reports, and the
+            packaged notice inventory exactly as collected by
+            android/collect_packaging_evidence.sh.
+
+          Workflow run:
+          https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          EOF
+
       - name: Publish snapshot release
         uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2
         with:
           tag_name: ${{ steps.release.outputs.release_tag }}
           name: ${{ steps.release.outputs.release_title }}
-          body: |
-            Automated main branch snapshot build.
-            Targeting upstream core commit: ${{ needs.resolve-upstream-core.outputs.upstream_commit }}
+          body_path: release-notes.md
           prerelease: false
           files: release-assets/*
           make_latest: true
+

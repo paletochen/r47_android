@@ -3,14 +3,17 @@
         <item>Swissmicros (Replica)</item>
         <item>Swissmicros (Dynamic Labels)</item>
         <item>Chrome (Dynamic Labels)</item>
+        <item>Simulator (Dynamic Labels)</item>
         <item>Das Kalkulator</item>
     </string-array>
     <string-array name="chrome_values">
         <item>r47_texture</item>
         <item>r47_background</item>
         <item>native</item>
+        <item>r47_background_v2</item>
         <item>das_kalkulator</item>
     </string-array>
+
 
 
 

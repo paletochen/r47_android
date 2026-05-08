@@ -20,7 +20,9 @@ class ReplicaOverlay @JvmOverloads constructor(
         const val CHROME_MODE_TEXTURE = "r47_texture"
         const val CHROME_MODE_BACKGROUND = "r47_background"
         const val CHROME_MODE_DAS_KALKULATOR = "das_kalkulator"
+        const val CHROME_MODE_SIMULATOR = "r47_background_v2"
     }
+
 
 
     private var isPiPMode = false
