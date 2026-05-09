@@ -3,14 +3,7 @@
 
 #include "c47.h"
 
-#ifndef ANDROID
-volatile bool_t g_isDynamicShiftEnabled = true;
-#endif
-
-
 TO_QSPI static const char bugScreenIdMustNotBe0[] = "In function showSoftmenu: id must not be 0!";
-
-
 
 
 /* The numbers refer to the index of items in items.c
@@ -1554,31 +1547,18 @@ void fnGetMenu(uint16_t funusedButMandatoryParameter) {
     dynamicSoftmenu[menu].menuContent = ptr;
     for(i = 0; i < 18; i++) {
       const char *lbl;
-      int16_t unshiftedIndex = i % 6;
-      int16_t unshiftedItem = menuData[unshiftedIndex].item;
-      
       if(menuData[i].argumentName[0] != 0) {
         lbl = menuData[i].argumentName;
       }
       else if(menuData[i].item == ITM_NULL) {
         lbl = "";
       }
-      else if (unshiftedItem <= ASSIGN_USER_MENU) {
-        int16_t menuIndex = ASSIGN_USER_MENU - unshiftedItem;
-        if (menuIndex >= 0 && menuIndex < numberOfUserMenus) {
-          lbl = userMenus[menuIndex].menuName;
-        } else {
-          lbl = "DYNM";
-        }
-      }
-
       else if(indexOfItems[abs(menuData[i].item)].itemCatalogName[0] == 0 || (menuData[i].item == ITM_op_j || menuData[i].item == ITM_op_j_pol || menuData[i].item == ITM_op_a || menuData[i].item == ITM_op_a2)) {
         lbl = indexOfItems[abs(menuData[i].item)].itemSoftmenuName;
       }
       else {
         lbl = indexOfItems[abs(menuData[i].item)].itemCatalogName;
       }
-
       int16_t len = stringByteLength(lbl) + 1;
       xcopy(ptr, lbl, len);
       ptr += len;
@@ -1922,12 +1902,8 @@ static inline void drawKeyFrame(int16_t x1, int16_t x2, int16_t y1, int16_t y2, 
 
 
 static void showKey2(const char *label0, const char *label1, int16_t x1, int16_t x2, int16_t y1, int16_t y2, videoMode_t videoMode, bool_t topLine, bool_t bottomLine, int8_t showCb, int16_t showValue, const char *showText) {
-    extern volatile bool_t g_isDynamicShiftEnabled;
-
-
   #define YY -100
   int16_t Text0   ;
-
   int16_t Arr0    ;
   int16_t midpoint;
   int16_t Arr1    ;
@@ -2010,20 +1986,11 @@ static void showKey2(const char *label0, const char *label1, int16_t x1, int16_t
 }
 
 
-#ifdef ANDROID_BUILD
-#include <android/log.h>
-#endif
-
 void showKey(const char *label, int16_t x1, int16_t x2, int16_t y1, int16_t y2, videoMode_t videoMode, bool_t topLine, bool_t bottomLine, int8_t showCb, int16_t showValue, const char *showText) {
-    extern volatile bool_t g_isDynamicShiftEnabled;
-
     int16_t w;
     char l[16];
 
-
-
     drawKeyFrame(x1, x2, y1, y2, videoMode, topLine, bottomLine);
-
 
     xcopy(l, label, stringByteLength(label) + 1);
     //    char *lw = stringAfterPixels(l, &standardFont, (rightMostSlot ? 65 : 66), false, false);
@@ -2032,7 +1999,6 @@ void showKey(const char *label, int16_t x1, int16_t x2, int16_t y1, int16_t y2, 
     w = stringWidthC47(figlabel(l, showText, showValue), stdNoEnlarge, 0, false, false);
     if((showCb >= 0) || (w >= ((min(x2, SCREEN_WIDTH) - max(0, x1))*3)/4 )) {
       w = stringWidthC47(figlabel(l, showText, showValue), stdNoEnlarge, 1, false, false);
-
       if(showCb >= 0) { w = w + 8; }
       //    char *lw = stringAfterPixelsC47(l, stdNoEnlarge, compressString, rightMostSlot ? 65 : 66, false, false);
       //    *lw = 0;
@@ -2043,8 +2009,7 @@ void showKey(const char *label, int16_t x1, int16_t x2, int16_t y1, int16_t y2, 
   else {
      //clearly short enough so no trimming was needed anyway
      showString(figlabel(l, showText, showValue), &standardFont, (x1 + x2 - w)/2, y1 + 2, videoMode, false, false);
-  }
-                                                                                               //JM & dr ^^
+  }                                                                                              //JM & dr ^^
 
 #if defined(JM_LINE2_DRAW)
   if(showCb >= 0) {
@@ -2055,10 +2020,9 @@ void showKey(const char *label, int16_t x1, int16_t x2, int16_t y1, int16_t y2, 
 #endif // JM_LINE2_DRAW
 
   //EXTRA DRAWINGS FOR RADIO_BUTTON AND CHECK_BOX
-  if(g_isDynamicShiftEnabled && showCb >= 0) {
+  if(showCb >= 0) {
     if(videoMode == vmNormal) {
       if(showCb == RB_FALSE) {
-
         RB_UNCHECKED(x2-11, y2-16);
       }
       else if(showCb == RB_TRUE) {
@@ -3128,12 +3092,8 @@ void showSoftmenuCurrentPart(void) {
                (softmenu[m].menuItem == -MNU_TIMERF && y == 0)) {                           // If stopwatch is open
               int16_t yStrokeA = SCREEN_HEIGHT - (y-currentFirstItem/6)*23 - 1;
               int16_t xStrokeA=x*67 + 66 -12;
-              extern volatile bool_t g_isDynamicShiftEnabled;
-              if (g_isDynamicShiftEnabled) {
-                plotline1(xStrokeA +2+4, yStrokeA -16-3-1, xStrokeA +2+4+5-1, yStrokeA -16-3+5);
-              }
+              plotline1(xStrokeA +2+4, yStrokeA -16-3-1, xStrokeA +2+4+5-1, yStrokeA -16-3+5);
             }
-
           }
 
           if(softmenu[m].menuItem == -MNU_TIMERF && y == 0) {
@@ -3162,15 +3122,8 @@ void showSoftmenuCurrentPart(void) {
             }
           }
 
-          extern volatile bool_t g_isDynamicShiftEnabled;
-
-          if (g_isDynamicShiftEnabled) {
-            fnStrikeOutIfNotCoded(item%10000, x, y-currentFirstItem/6);
-            fnStrikeThroughIfNA(item%10000, x, y-currentFirstItem/6);
-          }
-
-
-
+          fnStrikeOutIfNotCoded(item%10000, x, y-currentFirstItem/6);
+          fnStrikeThroughIfNA(item%10000, x, y-currentFirstItem/6);
         }
       }
 

@@ -146,7 +146,20 @@ void fnPause(uint16_t dur) {
       leaveTamModeIfEnabled();
     }
 
-    #if defined(DMCP_BUILD)
+    #if defined(ANDROID_BUILD)
+      // Android: 100ms loop for progress display (10x per second refresh)
+      for(int32_t i = 0; i < duration && (programRunStop == PGM_PAUSED || programRunStop == PGM_KEY_PRESSED_WHILE_PAUSED); ++i) {
+        // Force refresh to show intermediate measurements (e.g. in VolTest)
+        screenUpdatingMode &= ~SCRUPD_MANUAL_STATUSBAR;
+        refreshScreen(12);
+        lcd_refresh();
+        
+        // Fully unlock mutex for 100ms to allow UI thread to render the buffer
+        yieldToAndroidWithMs(100);
+        
+        if (programRunStop != PGM_PAUSED && programRunStop != PGM_KEY_PRESSED_WHILE_PAUSED) break;
+      }
+    #elif defined(DMCP_BUILD)
       if(previousProgramRunStop != PGM_RUNNING && dur != 99) {
         screenUpdatingMode &= ~SCRUPD_MANUAL_STATUSBAR;
         refreshScreen(12);

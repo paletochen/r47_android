@@ -1010,7 +1010,9 @@ static void extractVectorElement34(const real34Matrix_t *matrix, int j, int ii, 
   }
 
   decContext c = ctxtReal39;
-  c.digits = digits + 3; //NUMBER_OF_DISPLAY_REAL_CONTEXT_DIGITS; //speedup for display purposes (FIX max 19); for vector element, at least two elements in vector, so no mor ethan 10+5 digits possible
+  if(!getSystemFlag(FLAG_IRFRAC)) {
+    c.digits = digits + 3; //NUMBER_OF_DISPLAY_REAL_CONTEXT_DIGITS; //speedup for display purposes (FIX max 19); for vector element, at least two elements in vector, so no mor ethan 10+5 digits possible
+  }
 
   if((isMatrix3dVectorSPH(rows, cols, matrix->header.mtag))) {
     if(j == 0) {

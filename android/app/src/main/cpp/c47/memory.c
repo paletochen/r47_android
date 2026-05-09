@@ -33,17 +33,20 @@ bool_t isMemoryBlockAvailable(size_t sizeInBlocks, uint16_t numBlocks, float ext
   size_t countOfBlocksOfSize    = 0;
   bool_t haveExtraBlock         = false;
 
-  const size_t spaciousBlockSize = sizeInBlocks + extraSize;
   for(i=0; i<numberOfFreeMemoryRegions; i++) {
     const size_t thisBlockSize = freeMemoryRegions[i].sizeInBlocks;
 
     if(thisBlockSize >= requiredForNBlocks + extraSize) {
+      // Total space fits in this block
       return true;
     }
     if(thisBlockSize >= sizeInBlocks) {
-      countOfBlocksOfSize++;
-      if(thisBlockSize >= spaciousBlockSize) {
-        // This block holds the desired block plus the extra space
+      // Count the number of blocks that would fit into this chunk of memory
+      countOfBlocksOfSize += thisBlockSize / sizeInBlocks;
+      const size_t residualSize = thisBlockSize % sizeInBlocks;
+
+      if(residualSize >= extraSize) {
+        // This block holds a number of block(s) plus the extra space
         haveExtraBlock = true;
       }
       if (countOfBlocksOfSize > numBlocks) {

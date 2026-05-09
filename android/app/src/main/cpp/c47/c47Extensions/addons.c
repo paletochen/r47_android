@@ -3442,10 +3442,7 @@ int16_t mm(int16_t id) {
   // Radio button checked: 11×11 circle with filled center
   // Draws visible black ring with black center dot
   void RB_CHECKED(uint32_t xx, uint32_t yy) {
-
-
     // BLACK pixels: outer ring + center dot (visible parts)
-
     TO_QSPI static const uint8_t rbBlack[][2] = {
       {1, 3},  {1, 4},  {1, 5},  {1, 6},  {1, 7},                   // Column 1: yy+3..yy+7
       {2, 2},  {2, 3},  {2, 4},  {2, 5},  {2, 6},  {2, 7},  {2, 8}, // Column 2: yy+2..yy+8
@@ -3478,10 +3475,7 @@ int16_t mm(int16_t id) {
 
   // Radio button unchecked: 11×11 circle with hollow center
   void RB_UNCHECKED(uint32_t xx, uint32_t yy) {
-
-
     // BLACK pixels: outer ring only (visible parts)
-
     TO_QSPI static const uint8_t rbBlack[][2] = {
       {1, 3},  {1, 4},  {1, 5},  {1, 6},  {1, 7}, // Column 1: yy+3..yy+7
       {2, 2},  {2, 3},  {2, 7},  {2, 8},          // Column 2: yy+2, yy+3, yy+7, yy+8
@@ -3514,10 +3508,7 @@ int16_t mm(int16_t id) {
 
   // Checkbox checked: 11×11 square with filled center
   void CB_CHECKED(uint32_t xx, uint32_t yy) {
-
-
     lcd_fill_rect(xx, yy-1, 10, 11, 0);  // Clear background area
-
 
     // BLACK pixels: outer square + inner checkmark pattern
     TO_QSPI static const uint8_t cbBlack[][2] = {
@@ -3553,10 +3544,7 @@ int16_t mm(int16_t id) {
 
   // Checkbox unchecked: 11×11 square with hollow center
   void CB_UNCHECKED(uint32_t xx, uint32_t yy) {
-
-
     lcd_fill_rect(xx, yy-1, 10, 11, 0);  // Clear background area
-
 
     // BLACK pixels: outer square only (hollow inside)
     TO_QSPI static const uint8_t cbBlack[][2] = {
@@ -3593,10 +3581,7 @@ int16_t mm(int16_t id) {
 
   // ◇ Diamond/macro button outline: 11×11 diamond shape
   void MB_MACRO(uint32_t xx, uint32_t yy) {
-
-
     // Diamond outline coordinates (x_offset, y_offset from xx, yy)
-
     // Forms diamond shape: top point → widest middle → bottom point
     TO_QSPI static const uint8_t diamond[][2] = {
       {5, 0},           // Top point
@@ -3623,10 +3608,7 @@ int16_t mm(int16_t id) {
 
   // ◇ Diamond/macro button checked: diamond outline + center fill
   void MB_MACRO_CHECKED(uint32_t xx, uint32_t yy) {
-
-
     MB_MACRO(xx, yy);  // Draw outline first
-
 
     // Diamond interior fill coordinates (x_offset, y_offset from xx, yy)
     // Fills center area to indicate checked state
