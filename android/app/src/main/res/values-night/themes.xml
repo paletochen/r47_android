@@ -1,0 +1,25 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme for Dark Mode. -->
+    <style name="Theme.R47" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Primary brand color -->
+        <item name="colorPrimary">#F2AB5E</item>
+        <item name="colorOnPrimary">#000000</item>
+        <item name="colorPrimaryContainer">#83B7DF</item>
+        <item name="colorOnPrimaryContainer">#000000</item>
+        
+        <!-- Secondary brand color (used for toggles) -->
+        <item name="colorSecondary">#83B7DF</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">#83B7DF</item>
+        <item name="colorOnSecondaryContainer">#000000</item>
+        
+        <!-- Ensure surface and background use dark colors -->
+        <item name="colorSurface">#121212</item>
+        <item name="colorOnSurface">#E0E0E0</item>
+        
+        <!-- Legacy/Fallback compatibility -->
+        <item name="colorControlActivated">#83B7DF</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+    </style>
+</resources>
