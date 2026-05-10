@@ -158,10 +158,12 @@ static bool_t isUserKeyboardEnabled(void) {
 
 static bool_t isAlphaKeyboardActive(void) {
   extern bool_t getSystemFlag(int32_t sf);
+  extern int16_t catalog;
   return (calcMode == CM_AIM) ||
          ((calcMode == CM_PEM || calcMode == CM_ASSIGN) &&
           getSystemFlag(0x800e)) ||
-         ((tam.mode != 0 || tam.alpha) && getSystemFlag(0x800e));
+         ((tam.mode != 0 || tam.alpha) && getSystemFlag(0x800e)) ||
+         (catalog != 0);
 }
 
 static const calcKey_t *getVisibleKeyTable(jboolean isDynamic) {
