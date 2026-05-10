@@ -538,6 +538,32 @@ jobs:
             echo "release_title=R47 Android (Core: ${upstream_short_commit})" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Configure persistent signing
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          # Decode keystore
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
+          
+          # Inject signingConfigs in build.gradle before the buildTypes block
+          sed -i "/buildTypes {/i \\
+              signingConfigs {\\
+                  release {\\
+                      storeFile file(\"release.keystore\")\\
+                      storePassword System.getenv(\"ANDROID_KEYSTORE_PASSWORD\")\\
+                      keyAlias System.getenv(\"ANDROID_KEY_ALIAS\")\\
+                      keyPassword System.getenv(\"ANDROID_KEY_PASSWORD\")\\
+                  }\\
+              }\\
+          " android/app/build.gradle
+          
+          # Inject signingConfig in debug block
+          sed -i "/debug {/a \\
+                      signingConfig signingConfigs.release
+          " android/app/build.gradle
+
       - name: Build Android debug APK
         shell: bash
         env:
@@ -552,6 +578,9 @@ jobs:
           R47_XLSXIO_URL: ${{ steps.xlsxio.outputs.xlsxio_url }}
           R47_XLSXIO_COMMIT: ${{ steps.xlsxio.outputs.xlsxio_commit }}
           GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.workers.max=${{ steps.jobs.outputs.jobs }}"
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
           mkdir -p ci-artifacts/logs
@@ -808,7 +837,7 @@ jobs:
 
           Notes:
           - This is a main-branch snapshot prerelease, not a signed store release.
-          - The included APK is signed with the default debug signing config.
+          - The included APK is signed with a persistent key for updates.
           - The workflow first sanity-checked the authoritative upstream
             simulator core with parallel make test.
           - The Android lane rebuilt assets, reran the simulator-native suite
