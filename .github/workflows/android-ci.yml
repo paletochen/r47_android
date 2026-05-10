@@ -878,7 +878,7 @@ jobs:
           prerelease: false
           files: |
             release-assets/${{ steps.evidence.outputs.evidence_archive_name }}
-            release-assets/*.apk
+            ${{ env.METADATA_DIR }}/*.apk
           make_latest: true
 
 
