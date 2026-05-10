@@ -755,6 +755,18 @@ jobs:
           name: ${{ needs.android-debug.outputs.artifact_name }}
           path: release-assets
 
+      - name: Locate metadata file
+        shell: bash
+        run: |
+          set -euo pipefail
+          metadata_file=$(find release-assets -name BUILD-METADATA.txt | head -n 1)
+          if [[ -z "$metadata_file" ]]; then
+            echo "BUILD-METADATA.txt not found in release-assets." >&2
+            exit 1
+          fi
+          echo "METADATA_FILE=$metadata_file" >> "$GITHUB_ENV"
+          echo "METADATA_DIR=$(dirname "$metadata_file")" >> "$GITHUB_ENV"
+
       - name: Resolve release metadata
         id: release
         shell: bash
@@ -778,7 +790,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          debug_apk_name=$(sed -n 's/^artifact_name=//p' release-assets/BUILD-METADATA.txt)
+          echo "Listing release-assets directory:"
+          ls -R release-assets || true
+
+          debug_apk_name=$(sed -n 's/^artifact_name=//p' "$METADATA_FILE")
           if [[ -z "$debug_apk_name" ]]; then
             echo "BUILD-METADATA.txt did not contain artifact_name." >&2
             exit 1
@@ -787,8 +802,8 @@ jobs:
 
           rm -f "release-assets/${evidence_archive_name}"
           (
-            cd release-assets
-            zip -qr "$evidence_archive_name" \
+            cd "$METADATA_DIR"
+            zip -qr "../$evidence_archive_name" \
               BUILD-METADATA.txt \
               SHA256SUMS.txt \
               abis.txt \
@@ -806,11 +821,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          upstream_commit=$(sed -n 's/^upstream_commit=//p' release-assets/BUILD-METADATA.txt)
-          upstream_url=$(sed -n 's/^upstream_url=//p' release-assets/BUILD-METADATA.txt)
-          xlsxio_commit=$(sed -n 's/^xlsxio_commit=//p' release-assets/BUILD-METADATA.txt)
-          xlsxio_url=$(sed -n 's/^xlsxio_url=//p' release-assets/BUILD-METADATA.txt)
-          debug_apk_name=$(sed -n 's/^artifact_name=//p' release-assets/BUILD-METADATA.txt)
+          upstream_commit=$(sed -n 's/^upstream_commit=//p' "$METADATA_FILE")
+          upstream_url=$(sed -n 's/^upstream_url=//p' "$METADATA_FILE")
+          xlsxio_commit=$(sed -n 's/^xlsxio_commit=//p' "$METADATA_FILE")
+          xlsxio_url=$(sed -n 's/^xlsxio_url=//p' "$METADATA_FILE")
+          debug_apk_name=$(sed -n 's/^artifact_name=//p' "$METADATA_FILE")
           if [[ -z "$debug_apk_name" ]]; then
             echo "BUILD-METADATA.txt did not contain artifact_name." >&2
             exit 1
