@@ -71,10 +71,11 @@ echo "======================================================="
 # We pull the hash from SwissMicros. 
 # Public repo uses 'upstream', Private repo uses 'origin'.
 if [ -n "$R47_UPSTREAM_SOURCE_COMMIT" ]; then
-    COMMIT_HASH="${R47_UPSTREAM_SOURCE_COMMIT:0:8}"
+    COMMIT_HASH="$R47_UPSTREAM_SOURCE_COMMIT"
 else
     COMMIT_HASH=$(git rev-parse --short upstream/master 2>/dev/null || git rev-parse --short origin/master 2>/dev/null || echo "unknown")
 fi
+COMMIT_HASH="${COMMIT_HASH:0:8}"
 echo "--- SwissMicros Core Version: $COMMIT_HASH ---"
 PREFS_FILE="$ANDROID_PROJECT_DIR/app/src/main/res/xml/root_preferences.xml"
 if [ -f "$PREFS_FILE" ]; then
