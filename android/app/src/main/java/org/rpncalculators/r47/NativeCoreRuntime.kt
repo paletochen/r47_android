@@ -16,7 +16,7 @@ internal class NativeCoreRuntime(
     private val saveStateNative: () -> Unit,
     private val forceRefreshNative: () -> Unit,
     private val getDisplayPixels: (IntArray) -> Unit,
-    private val getKeypadMetaNative: (Boolean) -> IntArray,
+    private val getKeypadMetaNative: (Boolean, Boolean) -> IntArray,
     private val useSceneDrivenKeypadProvider: () -> Boolean,
     private val getKeypadSnapshot: (IntArray) -> KeypadSnapshot,
     private val onLcdPixels: (IntArray) -> Unit,

@@ -119,7 +119,8 @@ typedef struct {
 
 static keypadMainLabel_t resolveMainKeyLabelInfo(const calcKey_t *key,
                                                  jint keyCode, jint type,
-                                                 jboolean isDynamic,
+                                                 jboolean isDynamicShift,
+                                                 jboolean isDynamicUser,
                                                  bool_t alphaOn);
 static int16_t findSoftmenuIndexByItem(int16_t item);
 static void fillStaticSoftkeyMenuLabel(int16_t item, char *label,
@@ -409,13 +410,13 @@ static jint resolveMainLabelRoles(const calcKey_t *key, jint keyCode,
   jint roles = 0;
 
   keypadMainLabel_t primaryLabel = resolveMainKeyLabelInfo(
-      key, keyCode, KEYPAD_LABEL_PRIMARY, isDynamic, alphaOn);
+      key, keyCode, KEYPAD_LABEL_PRIMARY, isDynamic, isDynamic, alphaOn);
   if (primaryLabel.name[0] != 0) {
     roles |= packLabelRole(KEYPAD_LABEL_PRIMARY, KEYPAD_TEXT_ROLE_PRIMARY);
   }
 
   keypadMainLabel_t fLabel =
-      resolveMainKeyLabelInfo(key, keyCode, KEYPAD_LABEL_F, isDynamic, alphaOn);
+      resolveMainKeyLabelInfo(key, keyCode, KEYPAD_LABEL_F, isDynamic, isDynamic, alphaOn);
   if (fLabel.name[0] != 0) {
     jint role = KEYPAD_TEXT_ROLE_F;
     if (usesLongpressAccentF(key, alphaOn)) {
@@ -428,7 +429,7 @@ static jint resolveMainLabelRoles(const calcKey_t *key, jint keyCode,
   }
 
   keypadMainLabel_t gLabel =
-      resolveMainKeyLabelInfo(key, keyCode, KEYPAD_LABEL_G, isDynamic, alphaOn);
+      resolveMainKeyLabelInfo(key, keyCode, KEYPAD_LABEL_G, isDynamic, isDynamic, alphaOn);
   if (gLabel.name[0] != 0) {
     jint role = KEYPAD_TEXT_ROLE_G;
     if (usesLongpressAccentG(key, alphaOn)) {
@@ -441,7 +442,7 @@ static jint resolveMainLabelRoles(const calcKey_t *key, jint keyCode,
   }
 
   keypadMainLabel_t letterLabel = resolveMainKeyLabelInfo(
-      key, keyCode, KEYPAD_LABEL_LETTER, isDynamic, alphaOn);
+      key, keyCode, KEYPAD_LABEL_LETTER, isDynamic, isDynamic, alphaOn);
   if (letterLabel.name[0] != 0) {
     roles |= packLabelRole(KEYPAD_LABEL_LETTER, KEYPAD_TEXT_ROLE_LETTER);
   }
@@ -972,7 +973,8 @@ static keypadMainLabel_t resolveAimLongpressLabel(const calcKey_t *key) {
 
 static keypadMainLabel_t resolveMainKeyLabelInfo(const calcKey_t *key,
                                                  jint keyCode, jint type,
-                                                 jboolean isDynamic,
+                                                 jboolean isDynamicShift,
+                                                 jboolean isDynamicUser,
                                                  bool_t alphaOn) {
   if (alphaOn && type == KEYPAD_LABEL_PRIMARY) {
     if (key->keyLblAim == ITM_SHIFTf || key->keyLblAim == ITM_SHIFTg ||
@@ -1009,7 +1011,7 @@ static keypadMainLabel_t resolveMainKeyLabelInfo(const calcKey_t *key,
     }
   }
 
-  int16_t item = resolveMainKeyItem(key, type, alphaOn, isDynamic);
+  int16_t item = resolveMainKeyItem(key, type, alphaOn, isDynamicShift);
   if (!alphaOn && !tam.mode && type == KEYPAD_LABEL_PRIMARY &&
       canUseNormKey00Label(key, item)) {
     return resolveNormKey00Label();
@@ -1019,15 +1021,10 @@ static keypadMainLabel_t resolveMainKeyLabelInfo(const calcKey_t *key,
     return makeMainLabel("", 0, false);
   }
 
-  int16_t customMenuId = 0;
-  if (key->primary <= ASSIGN_USER_MENU) customMenuId = key->primary;
-  else if (key->fShifted <= ASSIGN_USER_MENU) customMenuId = key->fShifted;
-  else if (key->gShifted <= ASSIGN_USER_MENU) customMenuId = key->gShifted;
-
-  if (customMenuId != 0) {
-    int16_t menuIndex = ASSIGN_USER_MENU - customMenuId;
+  if (item <= ASSIGN_USER_MENU) {
+    int16_t menuIndex = ASSIGN_USER_MENU - item;
     if (menuIndex >= 0 && menuIndex < numberOfUserMenus) {
-      return makeMainLabel(userMenus[menuIndex].menuName, customMenuId, false);
+      return makeMainLabel(userMenus[menuIndex].menuName, item, false);
     }
   }
 
@@ -1038,11 +1035,28 @@ static keypadMainLabel_t resolveMainKeyLabelInfo(const calcKey_t *key,
     return makeMainLabel("", item, false);
   }
 
-  if (isDynamic && (userKeyLabelSize > 0) &&
+  if (strcmp(name, "DYNMNU") == 0) {
+    // Fallback to static item to see if it's a custom menu
+    int16_t staticItem = resolveMainKeyItem(key, type, alphaOn, false);
+    if (staticItem <= ASSIGN_USER_MENU) {
+      int16_t menuIndex = ASSIGN_USER_MENU - staticItem;
+      if (menuIndex >= 0 && menuIndex < numberOfUserMenus) {
+        return makeMainLabel(userMenus[menuIndex].menuName, staticItem, false);
+      }
+    }
+  }
+
+  if (isDynamicUser && (userKeyLabelSize > 0) &&
       (strcmp(name, "DYNMNU") == 0 || strcmp(name, "XEQ") == 0 ||
        strcmp(name, "RCL") == 0)) {
     int16_t keyLogicalId = calculateKeyLogicalId(key->keyId);
     int16_t keyStateCode = type;
+    
+    if (isDynamicShift && type == KEYPAD_LABEL_PRIMARY) {
+      if (shiftF) keyStateCode = KEYPAD_LABEL_F;
+      else if (shiftG) keyStateCode = KEYPAD_LABEL_G;
+    }
+    
     uint8_t *userLabel =
         getNthString((uint8_t *)userKeyLabel, keyLogicalId * 6 + keyStateCode);
     if (userLabel && userLabel[0] != 0) {
@@ -1116,7 +1130,7 @@ static void resolveSoftkeyLabel(int16_t fnKeyIndex, char *label,
 
 static void fillKeyboardState(jint *fill);
 
-static void fillKeypadMeta(jint *fill, jboolean isDynamic) {
+static void fillKeypadMeta(jint *fill, jboolean isDynamicShift, jboolean isDynamicUser) {
   memset(fill, 0, sizeof(jint) * KEYPAD_META_LENGTH);
   fillKeyboardState(fill);
 
@@ -1129,7 +1143,7 @@ static void fillKeypadMeta(jint *fill, jboolean isDynamic) {
   int16_t previewKeyCode = getFunctionPreviewKeyCode();
   int16_t previewRow = getFunctionPreviewRow();
   bool_t alphaOn = isAlphaKeyboardActive();
-  const calcKey_t *keys = getVisibleKeyTable(isDynamic);
+  const calcKey_t *keys = getVisibleKeyTable(isDynamicUser);
 
   fill[KEYPAD_META_SOFTMENU_ID] = softmenuId;
   fill[KEYPAD_META_SOFTMENU_FIRST_ITEM] = softmenuFirstItem;
@@ -1168,7 +1182,7 @@ static void fillKeypadMeta(jint *fill, jboolean isDynamic) {
   for (int fnKeyIndex = 1; fnKeyIndex <= 6; fnKeyIndex++) {
     int keyCode = 37 + fnKeyIndex;
     keypadSoftkeyScene_t scene;
-    resolveSoftkeyScene(fnKeyIndex, &scene, isDynamic);
+    resolveSoftkeyScene(fnKeyIndex, &scene, isDynamicUser);
 
 
     jint sceneFlags = scene.sceneFlags;
@@ -1265,7 +1279,7 @@ Java_org_rpncalculators_r47_MainActivity_getButtonLabelNative(JNIEnv *env,
   const calcKey_t *keys = getVisibleKeyTable(isDynamic);
   const calcKey_t *key = &keys[keyCode - 1];
   keypadMainLabel_t label =
-      resolveMainKeyLabelInfo(key, keyCode, type, isDynamic, alphaOn);
+      resolveMainKeyLabelInfo(key, keyCode, type, isDynamic, isDynamic, alphaOn);
   char utf8[128];
   encodeMainKeypadLabel(key, type, &label, alphaOn, utf8, sizeof(utf8));
   pthread_mutex_unlock(&screenMutex);
@@ -1316,7 +1330,8 @@ Java_org_rpncalculators_r47_MainActivity_getKeyboardStateNative(JNIEnv *env,
 JNIEXPORT jintArray JNICALL
 Java_org_rpncalculators_r47_MainActivity_getKeypadMetaNative(JNIEnv *env,
                                                              jobject thiz,
-                                                             jboolean isDynamic) {
+                                                             jboolean isDynamicShift,
+                                                             jboolean isDynamicUser) {
   (void)thiz;
   jintArray result = (*env)->NewIntArray(env, KEYPAD_META_LENGTH);
   if (result == NULL) {
@@ -1327,8 +1342,8 @@ Java_org_rpncalculators_r47_MainActivity_getKeypadMetaNative(JNIEnv *env,
   memset(fill, 0, sizeof(fill));
   if (ram) {
     pthread_mutex_lock(&screenMutex);
-    g_isDynamicShiftEnabled = isDynamic;
-    fillKeypadMeta(fill, isDynamic);
+    g_isDynamicShiftEnabled = isDynamicShift;
+    fillKeypadMeta(fill, isDynamicShift, isDynamicUser);
     pthread_mutex_unlock(&screenMutex);
   }
 
@@ -1340,7 +1355,8 @@ Java_org_rpncalculators_r47_MainActivity_getKeypadMetaNative(JNIEnv *env,
 JNIEXPORT jobjectArray JNICALL
 Java_org_rpncalculators_r47_MainActivity_getKeypadLabelsNative(JNIEnv *env,
                                                                jobject thiz,
-                                                               jboolean isDynamic) {
+                                                               jboolean isDynamicShift,
+                                                               jboolean isDynamicUser) {
   (void)thiz;
 
   jclass stringClass = (*env)->FindClass(env, "java/lang/String");
@@ -1363,18 +1379,18 @@ Java_org_rpncalculators_r47_MainActivity_getKeypadLabelsNative(JNIEnv *env,
   }
 
   pthread_mutex_lock(&screenMutex);
-  g_isDynamicShiftEnabled = isDynamic;
-  __android_log_print(ANDROID_LOG_INFO, "R47Native", "getKeypadLabelsNative: isDynamic=%d", isDynamic);
+  g_isDynamicShiftEnabled = isDynamicShift;
+  __android_log_print(ANDROID_LOG_INFO, "R47Native", "getKeypadLabelsNative: isDynamicShift=%d, isDynamicUser=%d", isDynamicShift, isDynamicUser);
   bool_t alphaOn = isAlphaKeyboardActive();
 
-  const calcKey_t *keys = getVisibleKeyTable(isDynamic);
+  const calcKey_t *keys = getVisibleKeyTable(isDynamicUser);
 
 
   for (int keyCode = 1; keyCode <= 37; keyCode++) {
     const calcKey_t *key = &keys[keyCode - 1];
     for (int labelType = 0; labelType < KEYPAD_LABELS_PER_KEY; labelType++) {
       keypadMainLabel_t label =
-          resolveMainKeyLabelInfo(key, keyCode, labelType, isDynamic, alphaOn);
+          resolveMainKeyLabelInfo(key, keyCode, labelType, isDynamicShift, isDynamicUser, alphaOn);
       setMainKeypadLabelElement(env, result, keyCode, labelType, key, &label,
                                 alphaOn);
     }
@@ -1382,7 +1398,7 @@ Java_org_rpncalculators_r47_MainActivity_getKeypadLabelsNative(JNIEnv *env,
 
   for (int fnKeyIndex = 1; fnKeyIndex <= 6; fnKeyIndex++) {
     keypadSoftkeyScene_t scene;
-    resolveSoftkeyScene(fnKeyIndex, &scene, isDynamic);
+    resolveSoftkeyScene(fnKeyIndex, &scene, isDynamicUser);
     setKeypadLabelElement(env, result, 37 + fnKeyIndex, KEYPAD_LABEL_PRIMARY,
                           scene.primaryLabel);
     setKeypadLabelElement(env, result, 37 + fnKeyIndex, KEYPAD_LABEL_AUX,

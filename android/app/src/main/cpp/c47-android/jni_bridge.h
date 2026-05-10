@@ -116,11 +116,13 @@ Java_org_rpncalculators_r47_MainActivity_getKeyboardStateNative(JNIEnv *env,
 JNIEXPORT jintArray JNICALL
 Java_org_rpncalculators_r47_MainActivity_getKeypadMetaNative(JNIEnv *env,
                                                              jobject thiz,
-                                                             jboolean isDynamic);
+                                                             jboolean isDynamicShift,
+                                                             jboolean isDynamicUser);
 JNIEXPORT jobjectArray JNICALL
 Java_org_rpncalculators_r47_MainActivity_getKeypadLabelsNative(JNIEnv *env,
                                                                jobject thiz,
-                                                               jboolean isDynamic);
+                                                               jboolean isDynamicShift,
+                                                               jboolean isDynamicUser);
 JNIEXPORT void JNICALL
 Java_org_rpncalculators_r47_MainActivity_onFileSelectedNative(JNIEnv *env,
                                                               jobject thiz,

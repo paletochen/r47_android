@@ -75,6 +75,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     private var isBeeperEnabled = true
     private var showTouchZones = false
     internal var isDynamicShiftEnabled = true
+    internal var isDynamicUserEnabled = true
 
 
     private fun performHapticClick() {
@@ -280,6 +281,10 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
                 isDynamicShiftEnabled = prefs.getBoolean(key, true)
                 updateDynamicKeys()
             }
+            "dynamic_user_labels" -> {
+                isDynamicUserEnabled = prefs.getBoolean(key, true)
+                updateDynamicKeys()
+            }
 
             "fullscreen_mode" -> {
                 applyFullscreenMode(prefs.getBoolean(key, true))
@@ -343,10 +348,10 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     }
 
     internal fun currentKeypadSnapshot(meta: IntArray? = null): KeypadSnapshot {
-        val resolvedMeta = meta ?: getKeypadMetaNative(isDynamicShiftEnabled)
+        val resolvedMeta = meta ?: getKeypadMetaNative(isDynamicShiftEnabled, isDynamicUserEnabled)
         return KeypadSnapshot.fromNative(
             resolvedMeta,
-            getKeypadLabelsNative(isDynamicShiftEnabled),
+            getKeypadLabelsNative(isDynamicShiftEnabled, isDynamicUserEnabled),
         )
     }
 
@@ -432,6 +437,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         isBeeperEnabled = prefs.getBoolean("beeper_enabled", true)
         showTouchZones = prefs.getBoolean("show_touch_zones", false)
         isDynamicShiftEnabled = prefs.getBoolean("dynamic_shift_labels", true)
+        isDynamicUserEnabled = prefs.getBoolean("dynamic_user_labels", true)
         if (prefs.getBoolean("keep_screen_on", false)) window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         syncAudioSettings()
@@ -451,7 +457,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             saveStateNative = ::saveStateNative,
             forceRefreshNative = ::forceRefreshNative,
             getDisplayPixels = ::getDisplayPixels,
-            getKeypadMetaNative = ::getKeypadMetaNative,
+            getKeypadMetaNative = { shift, user -> getKeypadMetaNative(shift, user) },
             useSceneDrivenKeypadProvider = { true },
             getKeypadSnapshot = ::currentKeypadSnapshot,
             onLcdPixels = { pixels -> replicaOverlay.updateLcd(pixels) },
@@ -631,8 +637,8 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     private external fun getKeyboardStateNative(): IntArray // returns [shiftF, shiftG, calcMode, userMode, alphaFlag]
 
     // Snapshot keypad APIs used by the default Android-native keypad.
-    private external fun getKeypadMetaNative(isDynamic: Boolean): IntArray
-    private external fun getKeypadLabelsNative(isDynamic: Boolean): Array<String>
+    private external fun getKeypadMetaNative(isDynamicShift: Boolean, isDynamicUser: Boolean): IntArray
+    private external fun getKeypadLabelsNative(isDynamicShift: Boolean, isDynamicUser: Boolean): Array<String>
 
     @Keep fun onFileSelected(fd: Int) { onFileSelectedNative(fd) }
     @Keep fun onFileCancelled() { onFileCancelledNative() }

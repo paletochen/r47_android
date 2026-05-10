@@ -71,9 +71,16 @@
             app:useSimpleSummaryProvider="true" />
         <SwitchPreferenceCompat
             app:key="dynamic_shift_labels"
-            app:title="Dynamic Shift Labels"
-            app:summaryOn="f/g-shift and USER menu change key labels dynamically"
+            app:title="Dynamic f/g-Shift Labels"
+            app:summaryOn="f/g-shift change key labels dynamically"
             app:summaryOff="no f/g-shift dynamic labels. Alpha remains dynamic"
+            app:defaultValue="true" />
+
+        <SwitchPreferenceCompat
+            app:key="dynamic_user_labels"
+            app:title="Dynamic USER Labels"
+            app:summaryOn="USER menu change key labels dynamically"
+            app:summaryOff="no USER menu dynamic labels. Alpha remains dynamic"
             app:defaultValue="true" />
 
         <ListPreference

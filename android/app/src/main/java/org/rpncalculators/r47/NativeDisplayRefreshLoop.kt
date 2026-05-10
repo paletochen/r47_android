@@ -11,7 +11,7 @@ internal class NativeDisplayRefreshLoop(
     private val isAppRunning: () -> Boolean,
     private val isNativeInitialized: () -> Boolean,
     private val getDisplayPixels: (IntArray) -> Unit,
-    private val getKeypadMetaNative: (Boolean) -> IntArray,
+    private val getKeypadMetaNative: (Boolean, Boolean) -> IntArray,
     private val useSceneDrivenKeypadProvider: () -> Boolean,
     private val getKeypadSnapshot: (IntArray) -> KeypadSnapshot,
     private val onLcdPixels: (IntArray) -> Unit,
@@ -34,7 +34,7 @@ internal class NativeDisplayRefreshLoop(
                     onLcdPixels(lcdPixels)
                 }
 
-                val currentMeta = getKeypadMetaNative(useSceneDrivenKeypadProvider())
+                val currentMeta = getKeypadMetaNative(useSceneDrivenKeypadProvider(), useSceneDrivenKeypadProvider())
                 val now = System.currentTimeMillis()
                 val shouldRefreshLabels = now - lastLabelRefresh > 500
                 val keypadStateChanged = !lastKeypadMeta.contentEquals(currentMeta)
