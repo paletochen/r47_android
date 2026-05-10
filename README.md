@@ -2,6 +2,10 @@
 
 This repository provides a photographic Android port of the [SwissMicros C43/C47 project](https://gitlab.com/rpncalculators/c43.git). It runs the high-performance mathematical core of the C43 via a native JNI wrapper.
 
+<p align="center">
+  <img src="android/app.png" width="300" alt="R47 Android Screenshot">
+</p>
+
 ## 🎯 Features
 - **Photographic Replica**: High-fidelity UI matching the physical hardware from SwissMicros (R47).
 - **Native Performance**: Math engine runs in C via JNI for 100% parity with the hardware.
@@ -20,7 +24,7 @@ sudo apt-get install git build-essential meson ninja-build libgmp-dev libgtk-3-d
 
 ### 2. Android Development
 - **Java**: OpenJDK 17 or higher.
-- **Android SDK & NDK**: Version 26.1.10909125 or newer recommended.
+- **Android SDK & NDK**: Version 29.0.14206865 or newer recommended.
 
 ### 3. Firmware Cross-Compilation (Optional)
 ```bash
