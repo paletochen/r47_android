@@ -55,6 +55,10 @@ tags
 src/generated/*.c
 src/generated/*.h
 manual/**/*.pdf
+pdfs/**/*.pdf
+WP43_Docs/**/*.pdf
+"draft documentation"/**/*.pdf
+*.pdf
 
 # --- 4. Subprojects ---
 /subprojects/*
@@ -74,6 +78,8 @@ manual/**/*.pdf
 .nfs*
 Thumbs.db
 [Dd]esktop.ini
+.git_backup/
+.git_private/
 
 # --- 6. Explicitly TRACK these in Vault ---
 !android/
