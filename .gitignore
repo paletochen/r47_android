@@ -54,6 +54,7 @@ tags
 /SAVFILES/
 src/generated/*.c
 src/generated/*.h
+manual/**/*.pdf
 
 # --- 4. Subprojects ---
 /subprojects/*
