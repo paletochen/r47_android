@@ -865,6 +865,7 @@ void runProgram(bool_t singleStep, uint16_t menuLabel) {
       temporaryInformation = TI_NO_INFO;
     }
     stepsToBeAdvanced = executeOneStep(currentStep);
+<<<<<<< HEAD
     #if defined(ANDROID_BUILD)
     {
       static int androidYieldCounter = 0;
@@ -875,6 +876,8 @@ void runProgram(bool_t singleStep, uint16_t menuLabel) {
       }
     }
     #endif
+=======
+>>>>>>> upstream/master
     if(lastErrorCode == ERROR_NONE) {
       switch(stepsToBeAdvanced) {
         case -1: { // Already the pointer is set
