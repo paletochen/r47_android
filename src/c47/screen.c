@@ -22,13 +22,12 @@ static void _refreshPemScreen(void);
   #define shiftOffset        17
   #define noShiftOffset      0
   #if defined(FIXED_FN_NAME_SHIFT)
-    #define funcNameOffset_x shiftOffset
+    #define funcNameOffset_x  (shiftOffset)
   #else
-    #define funcNameOffset_x (Y_SHIFT ? shiftOffset : noShiftOffset)
+    #define funcNameOffset_x  (Y_SHIFT ? shiftOffset : noShiftOffset)
   #endif
-  #define isShiftOffset      funcNameOffset_x == shiftOffset
-  #define funcNameOffset_str isShiftOffset ? "  " : ""
-
+  #define isShiftOffset      (funcNameOffset_x == shiftOffset && !SHOWMODE)
+  #define funcNameOffset_str (isShiftOffset ? "  " : "")
 
 void setLastintegerBasetoZero(void) {
   if(lastIntegerBase != 0) {
