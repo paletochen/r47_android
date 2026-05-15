@@ -737,6 +737,7 @@ printf("tam.value: %d\n", tam.value);
         return;
       }
       else if(tam.function == ITM_GTOP) {
+        aimBuffer[0] = 0;  // [DL] to avoid crash in insertStepInProgram(ITM_END) if aimBuffer is not empty
         tam.value = programList[numberOfPrograms - 1].step;
         pemCursorIsZerothStep = true;
         reallyRunFunction(ITM_GTOP, tam.value);

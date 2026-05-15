@@ -146,7 +146,6 @@ void fnPause(uint16_t dur) {
       leaveTamModeIfEnabled();
     }
 
-<<<<<<< HEAD
     #if defined(ANDROID_BUILD)
       // Android: 100ms loop for progress display (10x per second refresh)
       for(int32_t i = 0; i < duration && (programRunStop == PGM_PAUSED || programRunStop == PGM_KEY_PRESSED_WHILE_PAUSED); ++i) {
@@ -161,9 +160,6 @@ void fnPause(uint16_t dur) {
         if (programRunStop != PGM_PAUSED && programRunStop != PGM_KEY_PRESSED_WHILE_PAUSED) break;
       }
     #elif defined(DMCP_BUILD)
-=======
-    #if defined(DMCP_BUILD)
->>>>>>> upstream/master
       if(previousProgramRunStop != PGM_RUNNING && dur != 99) {
         screenUpdatingMode &= ~SCRUPD_MANUAL_STATUSBAR;
         refreshScreen(12);

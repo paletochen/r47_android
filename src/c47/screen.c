@@ -1884,13 +1884,10 @@ return res;
 
 
   bool_t checkHalfSec(void) {
-<<<<<<< HEAD
     #if defined(ANDROID_BUILD)
       void yieldToAndroid();
       yieldToAndroid();
     #endif
-=======
->>>>>>> upstream/master
     #if defined(PC_BUILD)
       while(gtk_events_pending()) {
         gtk_main_iteration();
@@ -6195,7 +6192,6 @@ void fnSNAP(uint16_t unusedButMandatoryParameter) {
 
 
 void fnScreenDump(uint16_t unusedButMandatoryParameter) {
-<<<<<<< HEAD
   #if defined(ANDROID_BUILD)
     char bmpFileName[32];
     time_t rawTime;
@@ -6213,27 +6209,16 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
         return;
     }
   #elif defined(PC_BUILD)
-=======
-  #if defined(PC_BUILD)
->>>>>>> upstream/master
     FILE *bmp;
     char bmpFileName[22];
     time_t rawTime;
     struct tm *timeInfo;
-<<<<<<< HEAD
-=======
-    int32_t x, y;
-    uint32_t uint32;
-    uint16_t uint16;
-    uint8_t  uint8;
->>>>>>> upstream/master
 
     time(&rawTime);
     timeInfo = localtime(&rawTime);
 
     strftime(bmpFileName, 22, "%Y%m%d-%H%M%S00.bmp", timeInfo);
     bmp = fopen(bmpFileName, "wb");
-<<<<<<< HEAD
   #else
     return;
   #endif
@@ -6245,8 +6230,6 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
     uint8_t  uint8 = 0;
 
     if (!bmp) return; // Final safety check
-=======
->>>>>>> upstream/master
 
     fwrite("BM", 1, 2, bmp);        // Offset 0x00  0  BMP header
 
@@ -6316,12 +6299,7 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
     fwrite(&uint32, 1, 4, bmp);     // Offset 0x6e  ???
     fwrite(&uint32, 1, 4, bmp);     // Offset 0x72  ???
     fwrite(&uint32, 1, 4, bmp);     // Offset 0x76  ???
-<<<<<<< HEAD
         uint32 = 0x00dff5cc; // light green
-=======
-
-    uint32 = 0x00dff5cc; // light green
->>>>>>> upstream/master
     fwrite(&uint32, 1, 4, bmp);     // Offset 0x7a  RGB color for 0
 
     uint32 = 0;
@@ -6329,7 +6307,6 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
 
     // Offset 0x82  bit map data
     uint16 = 0;
-<<<<<<< HEAD
     for(y=SCREEN_HEIGHT-1; y>=0; y--) {
       uint8 = 0;
       for(x=0; x<SCREEN_WIDTH; x++) {
@@ -6346,15 +6323,6 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
             uint8 |= 1;
           }
         #endif
-=======
-    uint32 = 0;
-    for(y=SCREEN_HEIGHT-1; y>=0; y--) {
-      for(x=0; x<SCREEN_WIDTH; x++) {
-        uint8 <<= 1;
-        if(*(screenData + y*screenStride + x) == ON_PIXEL) {
-          uint8 |= 1;
-        }
->>>>>>> upstream/master
 
         if((x % 8) == 7) {
           fwrite(&uint8, 1, 1, bmp);

@@ -2144,17 +2144,17 @@ void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, boo
     displayString[i++] = '-';
   }
 
-  //JM SHOW //ONLY ADD REGISTER NAME IF IT IS A LETTERED REGISTER - NO SPACE FOR MORE
-  if(str3[0] >= 'A' && str3[0] <= 'Z' && str3[1] == ':' && str3[2] == ' ' && !(base == 2 && orgnumber > 0x3FFF)) {
-    displayString[i++] = str3[2];
-    displayString[i++] = str3[1];
-    displayString[i++] = str3[0];
-  }
-  if(str3[1] >= '0' && str3[1] <= '9' && str3[2] >= '0' && str3[2] <= '9' && str3[0] == 'R' && !(base == 2 && orgnumber > 0x3FFF)) {
-    displayString[i++] = ':';
-    displayString[i++] = str3[2];
-    displayString[i++] = str3[1];
-  }
+ // //JM SHOW //ONLY ADD REGISTER NAME IF IT IS A LETTERED REGISTER - NO SPACE FOR MORE
+ // if(str3[0] >= 'A' && str3[0] <= 'Z' && str3[1] == ':' && str3[2] == ' ' && !(base == 2 && orgnumber > 0x3FFF)) {
+ //   displayString[i++] = str3[2];
+ //   displayString[i++] = str3[1];
+ //   displayString[i++] = str3[0];
+ // }
+ // if(str3[1] >= '0' && str3[1] <= '9' && str3[2] >= '0' && str3[2] <= '9' && str3[0] == 'R' && !(base == 2 && orgnumber > 0x3FFF)) {
+ //   displayString[i++] = ':';
+ //   displayString[i++] = str3[2];
+ //   displayString[i++] = str3[1];
+ // }
 
   if(determineFont) { // The font is not yet determined
     // 1st try: numeric font digits from 30 to 39
@@ -3020,11 +3020,11 @@ static void SHOW_reset(void){
 static void checkAndEat(int16_t *source, int16_t last, int16_t *dest) {
   uint8_t ix;
   if(*source < last && !GROUPLEFT_DISABLED) {                  //Not in the last line
-    for(ix=0; ix<=3; ix++) { //Eat away characters at the end to line up the last space
-      if(!(tmpString[(*dest)-2] & 0x80)) {
-        (*dest)--;
-        (*source)--;
-      }
+    for(ix=0; ix<16; ix++) { //Eat away characters at the end to line up the last space
+      if((uint8_t)tmpString[(*dest)-2] == (uint8_t)STD_SPACE_PUNCTUATION[0] && (uint8_t)tmpString[(*dest)-1] == (uint8_t)STD_SPACE_PUNCTUATION[1]) break;
+      if(tmpString[(*dest)-1] == 32) break;
+      (*dest)--;
+      (*source)--;
     }
     tmpString[*dest] = 0;
   }
@@ -3315,6 +3315,40 @@ void realToSci(real_t* num, char* dispString) {
 }
 
 
+static void showShortIntegerLine(calcRegister_t showRegis, int16_t tag, int16_t startOffset, int16_t numLines, bool_t showName) {
+  int16_t source, last, d, dest, prefixWidth;
+  int16_t lastSlot = startOffset + (numLines - 1) * SHOWLineSize;
+  setRegisterTag(showRegis, tag);
+  if(showName) {
+    viewRegName2(tmpString + 2400, &prefixWidth);                       //name at 2400 so the width is taken into account
+  }
+  else {
+    tmpString[2400] = 0;
+  }
+  shortIntegerToDisplayString(showRegis, tmpString + 2400 + stringByteLength(tmpString + 2400), true, noBaseOverride);
+  last = 2400 + stringByteLength(tmpString + 2400);
+  source = 2400;
+  tmpString[startOffset] = 0;
+  for(d = startOffset; d <= lastSlot ; d += SHOWLineSize) {
+    dest = d;
+    tmpString[d] = 0;
+    if(dest != startOffset) {
+      strcat(tmpString + dest, "  ");
+      dest += 2;
+    }
+    while(source < last && (dest - d) < SHOWLineSize - 2) {
+      tmpString[dest] = tmpString[source];
+      if(tmpString[dest] & 0x80) {
+        tmpString[++dest] = tmpString[++source];
+      }
+      source++;
+      tmpString[++dest] = 0;
+    }
+    checkAndEat(&source, last, &dest);
+  }
+}
+
+
 
 int16_t startingLine = 0;
 int16_t IntShowMode = 0;
@@ -3329,8 +3363,7 @@ void fnC47Show(uint16_t fnShow_param) {
     uint64_t ssf0 = systemFlags0;
     uint64_t ssf1 = systemFlags1;
     bool_t thereIsANextLine;
-    int16_t dest = 0, last = 0, d, i, offset, bytesProcessed, aa, bb, cc, dd, aa2 = 0, aa3 = 0, aa4 = 0, numberOfLines = 0;
-    uint64_t nn;
+    int16_t dest = 0, last = 0, d, i, offset, bytesProcessed, aa, bb, cc, dd, numberOfLines = 0;
 
     displayFormat = DF_ALL;
     displayFormatDigits = 0;
@@ -3742,63 +3775,14 @@ goBreak1:
         #endif // VERBOSE_SCREEN && PC_BUILD
         temporaryInformation = TI_SHOW_REGISTER_BIG;
 
-        shortIntegerToDisplayString(showRegis, tmpString + 2100, true, noBaseOverride); //jm include X:
-  /*
-        if(getRegisterTag(showRegis) == 2) {
-          source = 2100;
-          dest = 2400;
-          while(tmpString[source] !=0 ) {
-            if((uint8_t)(tmpString[source]) == 160 && (uint8_t)(tmpString[source+1]) == 39) {
-              source++;
-              tmpString[dest++]=49;
-            }
-            else if((uint8_t)(tmpString[source]) == 162 && (uint8_t)(tmpString[source+1]) == 14) {
-              source++;
-              tmpString[dest++]=48;
-            }
-            else {
-              tmpString[dest++] = tmpString[source];
-            }
-            source++;
-          }
-          tmpString[dest]=0;
-        }
-  */
-  //      else {
-          strcpy(tmpString + 2400, tmpString + 2100);
-  //      }
-
-        last = 2400 + stringByteLength(tmpString + 2400);
-        source = 2400;
-        tmpString[0]=0;
-        for(d=0; d<=3*SHOWLineSize ; d+=SHOWLineSize) {
-          dest = d;
-          tmpString[d] = 0;
-          if(dest != 0) {
-            strcat(tmpString + dest, "  "); //space below the T:
-            dest += 2;
-          }
-          while(source < last) {
-            tmpString[dest] = tmpString[source];
-            if(tmpString[dest] & 0x80) {
-              tmpString[++dest] = tmpString[++source];
-            }
-            source++;
-            tmpString[++dest] = 0;
-          }
-          checkAndEat(&source, last, &dest);
-        }
-
-        convertShortIntegerRegisterToUInt64(showRegis, &aa, &nn);
+        int16_t aa2 = 0, aa3 = 0, aa4 = 0, aa5 = 0;
         aa = getRegisterTag(showRegis);
-
         switch(aa) {
-          case  2: aa2=10;  aa3= 8;  aa4=16; break;   //Keeping the 2 8 16 sequence where possible
-          case  4: aa2= 2;  aa3= 8;  aa4=16; break;   //Keeping the 2 8 16 sequence where possible
-          case  8: aa2= 2;  aa3=10;  aa4=16; break;   //Keeping the 2 8 16 sequence where possible
-          case 10: aa2= 2;  aa3= 8;  aa4=16; break;   //Keeping the 2 8 16 sequence where possible
-          case 16: aa2= 2;  aa3= 8;  aa4=10; break;   //Keeping the 2 8 16 sequence where possible
-
+          case  2: aa2 =  8;  aa3 = 10;  aa4 = 16;  aa5 = aa;  break;   //skip 2
+          case  4: aa2 =  2;  aa3 =  8;  aa4 = 16;  aa5 = aa;  break;   //drop 10 (keep 2 8 16)
+          case  8: aa2 =  2;  aa3 = 10;  aa4 = 16;  aa5 = aa;  break;   //skip 8
+          case 10: aa2 =  2;  aa3 =  8;  aa4 = 16;  aa5 = aa;  break;   //skip 10
+          case 16: aa2 =  2;  aa3 =  8;  aa4 = 10;  aa5 = aa;  break;   //skip 16
           case  3:
           case  5:
           case  6:
@@ -3808,87 +3792,14 @@ goBreak1:
           case 12:
           case 13:
           case 14:
-          case 15: aa2=10;  aa3= 8;  aa4=16; break;
+          case 15: aa2 =  2;  aa3 = 10;  aa4 = 16;  aa5 = aa;  break;   //drop 8 (keep 2 10 16)
+          default:;
         }
+        showShortIntegerLine(showRegis, aa2,              0, 2, true );  //first non-actual base on lines 0+1 with name prefix
+        showShortIntegerLine(showRegis, aa3, 2*SHOWLineSize, 1, false);  //line 2
+        showShortIntegerLine(showRegis, aa4, 3*SHOWLineSize, 1, false);  //line 3
+        showShortIntegerLine(showRegis, aa5, 4*SHOWLineSize, 2, false);  //actual base on line 4
 
-        if(aa2){
-          setRegisterTag(showRegis, aa2);
-          RegName();
-          shortIntegerToDisplayString(showRegis, tmpString + 2100, true, noBaseOverride);
-          strcpy(tmpString + 2400, tmpString + 2100);
-          last = 2400 + stringByteLength(tmpString + 2400);
-          source = 2400;
-          tmpString[SHOWLineSize]=0;
-          for(d=SHOWLineSize; d<=3*SHOWLineSize ; d+=SHOWLineSize) {
-            dest = d;
-            tmpString[0] = 0;
-            if(dest != SHOWLineSize) {
-              strcat(tmpString + dest, "  ");               //space below the T:
-              dest += 2;
-            }
-            while(source < last) {
-              tmpString[dest] = tmpString[source];
-              if(tmpString[dest] & 0x80) {
-                tmpString[++dest] = tmpString[++source];
-              }
-              source++;
-              tmpString[++dest] = 0;
-            }
-            checkAndEat(&source, last, &dest);
-          }
-        }
-        if(aa3){
-          RegName();
-          setRegisterTag(showRegis, aa3);
-          shortIntegerToDisplayString(showRegis, tmpString + 2100, true, noBaseOverride);
-          strcpy(tmpString + 2400, tmpString + 2100);
-          last = 2400 + stringByteLength(tmpString + 2400);
-          source = 2400;
-          tmpString[2*SHOWLineSize]=0;
-          for(d=2*SHOWLineSize; d<=3*SHOWLineSize ; d+=SHOWLineSize) {
-            dest = d;
-            tmpString[d] = 0;
-            if(dest != 2*SHOWLineSize) {
-              strcat(tmpString + dest, "  ");               //space below the T:
-              dest += 2;
-            }
-            while(source < last) {
-              tmpString[dest] = tmpString[source];
-              if(tmpString[dest] & 0x80) {
-                tmpString[++dest] = tmpString[++source];
-              }
-              source++;
-              tmpString[++dest] = 0;
-            }
-            checkAndEat(&source, last, &dest);
-          }
-        }
-        if(aa4){
-          RegName();
-          setRegisterTag(showRegis, aa4);
-          shortIntegerToDisplayString(showRegis, tmpString + 2100, true, noBaseOverride);
-          strcpy(tmpString + 2400, tmpString + 2100);
-          last = 2400 + stringByteLength(tmpString + 2400);
-          source = 2400;
-          tmpString[3*SHOWLineSize]=0;
-          for(d=3*SHOWLineSize; d<=3*SHOWLineSize ; d+=SHOWLineSize) {
-            tmpString[d] = 0;
-            dest = d;
-            if(dest != 3*SHOWLineSize) {
-              strcat(tmpString + dest, "  ");               //space below the T:
-              dest += 2;
-            }
-            while(source < last) {
-              tmpString[dest] = tmpString[source];
-              if(tmpString[dest] & 0x80) {
-                tmpString[++dest] = tmpString[++source];
-              }
-              source++;
-              tmpString[++dest] = 0;
-            }
-            checkAndEat(&source, last, &dest);
-          }
-        }
         setRegisterTag(showRegis, aa);
         break;
 
