@@ -19,6 +19,9 @@ void fnInput(uint16_t regist) {
     #else // !DMCP_BUILD
       refreshLcd(NULL);
     #endif // DMCP_BUILD
+    #if defined(IR_PRINTING)
+      printInputPrompt(ITM_INPUT, regist);
+    #endif //IR_PRINTING
   }
 }
 
@@ -367,14 +370,26 @@ void fnKeyType(uint16_t regist) {
     case 83: uInt32ToLongInteger(10u, kt); break;
 
     case 35:
-    case 36: uInt32ToLongInteger(11u, kt); break;
+    case 36:
+      #if (CALCMODEL == USER_R47)
+        uInt32ToLongInteger(11u, kt); break;
+      #else
+        uInt32ToLongInteger(12u, kt); break;
+      #endif
+      
+    case 71:
+      #if (CALCMODEL == USER_R47)
+        uInt32ToLongInteger(12u, kt); break;
+      #else
+        uInt32ToLongInteger(11u, kt); break;
+      #endif
 
     case 11:
     case 12:
     case 13:
     case 14:
     case 15:
-    case 16: uInt32ToLongInteger(12u, kt); break;
+    case 16: uInt32ToLongInteger(13u, kt); break;
 
     case 21:
     case 22:
@@ -393,11 +408,10 @@ void fnKeyType(uint16_t regist) {
     case 55:
     case 61:
     case 65:
-    case 71:
     case 75:
     case 81:
     case 84:
-    case 85: uInt32ToLongInteger(13u, kt); break;
+    case 85: uInt32ToLongInteger(12u, kt); break;
 
     default: {
       displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);

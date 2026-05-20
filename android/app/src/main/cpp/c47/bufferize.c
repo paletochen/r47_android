@@ -2696,7 +2696,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
                 #if (EXTRA_INFO_ON_CALC_ERROR == 1)
                   moreInfoOnError("In function closeNIM:", "there is a non numeric character in the base of the integer!", NULL, NULL);
                 #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-                return;
+                goto closeNim_exit;
               }
             }
 
@@ -2706,7 +2706,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
               #if (EXTRA_INFO_ON_CALC_ERROR == 1)
                moreInfoOnError("In function closeNIM:", "the base of the integer must be from 2 to 16!", NULL, NULL);
               #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-              return;
+              goto closeNim_exit;
             }
 
             for(i=aimBuffer[0] == '-' ? 1 : 0; i<posHash; i++) {
@@ -2721,7 +2721,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
                   printf(">>> undo from addItemToNimBufferD\n");
                 #endif // DEBUGUNDO
                 undo();
-                return;
+                goto closeNim_exit;
               }
             }
 
@@ -2739,7 +2739,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
               displayBugScreen(errorMessage);
               longIntegerFree(maxVal);
               longIntegerFree(value);
-              return;
+              goto closeNim_exit;
             }
 
             // minVal = -maxVal/2
@@ -2775,7 +2775,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
               longIntegerFree(maxVal);
               longIntegerFree(minVal);
               longIntegerFree(value);
-              return;
+              goto closeNim_exit;
             }
 
             reallocateRegister(REGISTER_X, dtShortInteger, 0, base);
@@ -2921,6 +2921,9 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
       }
       lastItem = 0;
     #endif //IR_PRINTING
+
+    closeNim_exit:    
+    nimNumberPart = NP_EMPTY;   //Added to ensure test for nimNumberPart in insertStepInProgram() will have the correct value 
   }
 
 

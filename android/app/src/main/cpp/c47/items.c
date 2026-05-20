@@ -387,11 +387,12 @@ bool_t isFunctionOldParam16(uint16_t func) {
 
 
     refreshStatusBar();
-    #if defined(IR_PRINTING)
-      if(tam.mode && getSystemFlag(FLAG_PRTACT)) {
-        leaveTamModeIfEnabled();
-      }
-    #endif// IR_PRINTING
+    //DL] removed to fix issue with GTO and XEQ tam menus - but don't remember why it was needed initially
+    //#if defined(IR_PRINTING)
+    //  if(tam.mode && getSystemFlag(FLAG_PRTACT)) {
+    //    leaveTamModeIfEnabled();
+    //  }
+    //#endif// IR_PRINTING
 
 
     //**RunFunction

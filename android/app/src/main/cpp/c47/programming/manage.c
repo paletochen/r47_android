@@ -1341,7 +1341,6 @@ void insertStepInProgram(const int16_t func) {
                                 #if defined(DEBUG_PGM)
                                   print_caller(NULL);
                                 #endif
-
   uint32_t opBytes = (func >= 128) ? 2 : 1;
 
   if(func == ITM_END) {
@@ -1372,6 +1371,7 @@ void insertStepInProgram(const int16_t func) {
     pemCursorIsZerothStep = false;
     return;
   }
+  
   if(   indexOfItems[func].func == addItemToBuffer
      || (!tam.mode && aimBuffer[0] != 0 && (   func == ITM_CHS || func == ITM_CC || func == ITM_op_j || func == ITM_op_j_pol || func == ITM_toINT
                                             || (nimNumberPart == NP_INT_BASE && (   ( isR47FAM && (func == ITM_SQUAREROOTX || func == ITM_YX))

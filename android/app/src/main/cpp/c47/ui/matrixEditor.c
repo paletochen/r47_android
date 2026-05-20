@@ -1015,9 +1015,7 @@ static void extractVectorElement34(const real34Matrix_t *matrix, int j, int ii, 
   }
 
   if((isMatrix3dVectorSPH(rows, cols, matrix->header.mtag))) {
-    if(j == 0) {
-      convert3DtoSPH(matrix, aa, bb, cc, *toBeAngle, &c);   // Only do the expensive 3D conversion once, at the first element, j = 0; Store the results back to the caller storage aa, bb, cc and use cheap copying for bb and cc.
-    }
+    convert3DtoSPH(matrix, aa, bb, cc, *toBeAngle, &c);
     if(getSystemFlag(FLAG_3DPHYS)) {
       switch(j) {
         case 0: realToReal34(aa, element); break;
@@ -1040,9 +1038,7 @@ static void extractVectorElement34(const real34Matrix_t *matrix, int j, int ii, 
     //printRealToConsole(cc, "SPH cc=", "\n");
   }
   else if((isMatrix3dVectorCYL(rows, cols, matrix->header.mtag))) {
-    if(j == 0) {
-      convert3DtoCYL(matrix, aa, bb, cc, *toBeAngle, &c);   // Only do the expensive 3D conversion once, at the first element, j = 0; Store the results back to the caller storage aa, bb, cc and use cheap copying for bb and cc.
-    }
+    convert3DtoCYL(matrix, aa, bb, cc, *toBeAngle, &c);
     switch(j) {
       case 0: realToReal34(aa, element); break;
       case 1: realToReal34(bb, element); break;
@@ -1054,9 +1050,7 @@ static void extractVectorElement34(const real34Matrix_t *matrix, int j, int ii, 
     //printRealToConsole(cc, "CYL cc=", "\n");
   }
   else if((isMatrix2dVectorPOL(rows, cols, matrix->header.mtag))) {
-    if(j == 0) {
-      convert2DtoPOL(matrix, aa, bb, *toBeAngle, &c);      // Only do the expensive 2D conversion once, at the first element, j = 0; Store the results back to the caller storage aa & bb and use cheap copying for bb.
-    }
+    convert2DtoPOL(matrix, aa, bb, *toBeAngle, &c);
     switch(j) {
       case 0: realToReal34(aa, element); break;
       case 1: realToReal34(bb, element); break;

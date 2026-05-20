@@ -943,7 +943,8 @@ typedef enum  {
   LINE_FULL  = 0,
   LINE_LEFT  = 1,
   LINE_RIGHT = 2,
-  LINE_NOLF  = 3
+  LINE_NOLF  = 3,
+  LINE_ASIS  = 4,
 } print_area_t;
 
 
