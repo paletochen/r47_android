@@ -36,29 +36,36 @@ void fnTicks(uint16_t unusedButMandatoryParameter) {
   longIntegerFree(lgInt);
 }
 
-void LastOpTimerReStart (uint16_t func) {
+void LastOpTimerReStart(uint16_t func) {
   timeLastOp0 = getUptimeMs() / 100;
-  //printf("Func:%s setting %u Running:%u\n",indexOfItems[func].itemCatalogName, timeLastOp0, programRunStop == PGM_RUNNING);
+  // printf("Func:%s setting %u
+  // Running:%u\n",indexOfItems[func].itemCatalogName, timeLastOp0,
+  // programRunStop == PGM_RUNNING);
 }
 
-void LastOpTimerLap (uint16_t func) {
+void LastOpTimerLap(uint16_t func) {
   timeLastOp1 = getUptimeMs() / 100;
-  if(timeLastOp1 >= timeLastOp0) {
+  if (timeLastOp1 >= timeLastOp0) {
     timeLastOp = timeLastOp1 - timeLastOp0;
-    //printf("Func:%s setting STOP %u: %u Running:%u\n",indexOfItems[func].itemCatalogName, timeLastOp1, timeLastOp, programRunStop == PGM_RUNNING);
+    // printf("Func:%s setting STOP %u: %u
+    // Running:%u\n",indexOfItems[func].itemCatalogName, timeLastOp1,
+    // timeLastOp, programRunStop == PGM_RUNNING);
+  } else {
+    timeLastOp = ((int)(0xFFFFFFFF) / 100 - timeLastOp0) +
+                 timeLastOp1; // if loop passed 2^32-1 ms, recalc offset
+    // printf("setting STOP Wrapped %u: %u Running:%u\n",timeLastOp1,
+    // timeLastOp, programRunStop == PGM_RUNNING);
   }
-  else {
-    timeLastOp =  ((int)(0xFFFFFFFF) / 100 - timeLastOp0) + timeLastOp1; //if loop passed 2^32-1 ms, recalc offset
-    //printf("setting STOP Wrapped %u: %u Running:%u\n",timeLastOp1, timeLastOp, programRunStop == PGM_RUNNING);
-  }
-  if(timeLastOp > 30*24*60*60*10) {                                      //More than one month is an unreasonable amount and probably is due to either timeLastOp0 or timeLastOp1 not set correctly
+  if (timeLastOp >
+      30 * 24 * 60 * 60 *
+          10) { // More than one month is an unreasonable amount and probably is
+                // due to either timeLastOp0 or timeLastOp1 not set correctly
     timeLastOp = 0;
-    //printf("setting STOP Error too long %u: %u\n",timeLastOp1, timeLastOp);
+    // printf("setting STOP Error too long %u: %u\n",timeLastOp1, timeLastOp);
   }
 }
 
-
-void fnLastT (uint16_t unusedButMandatoryParameter) {
+void fnLastT(uint16_t unusedButMandatoryParameter) {
   longInteger_t lgInt;
   liftStack();
   longIntegerInit(lgInt);
@@ -67,57 +74,65 @@ void fnLastT (uint16_t unusedButMandatoryParameter) {
   longIntegerFree(lgInt);
 }
 
-
-
 void fnRebuildTimerRefresh(void) {
-  #if defined(DMCP_BUILD)
+#if defined(DMCP_BUILD)
   uint32_t next;
 
-  if(mutexRefreshTimer == false) {
+  if (mutexRefreshTimer == false) {
     nextTimerRefresh = 0;
-    for(int i = 0; i < TMR_NUMBER; i++) {
-      if(timer[i].state == TMR_RUNNING) {
+    for (int i = 0; i < TMR_NUMBER; i++) {
+      if (timer[i].state == TMR_RUNNING) {
         next = timer[i].timer_will_expire;
-        if(nextTimerRefresh != 0 && next < nextTimerRefresh) {
+        if (nextTimerRefresh != 0 && next < nextTimerRefresh) {
           nextTimerRefresh = next;
         }
-        if(nextTimerRefresh == 0) {
+        if (nextTimerRefresh == 0) {
           nextTimerRefresh = next;
         }
       }
     }
   }
-  #endif // DMCP_BUILD
+#endif // DMCP_BUILD
 }
 
-
 #if defined(PC_BUILD)
-/********************************************//**
- * \brief Refreshes timer. This function is
- * called every 5 ms by a GTK timer.
- *
- * \param[in] data gpointer Not used
- * \return gboolean         What will happen next?
- *                          * true  = timer will call this function again
- *                          * false = timer stops calling this function
- ***********************************************/
-gboolean refreshTimer(gpointer data) {      // This function is called every 5 ms by a GTK timer
+/********************************************/ /**
+                                                * \brief Refreshes timer. This
+                                                *function is called every 5 ms
+                                                *by a GTK timer.
+                                                *
+                                                * \param[in] data gpointer Not
+                                                *used
+                                                * \return gboolean         What
+                                                *will happen next?
+                                                *                          *
+                                                *true  = timer will call this
+                                                *function again
+                                                *                          *
+                                                *false = timer stops calling
+                                                *this function
+                                                ***********************************************/
+gboolean refreshTimer(
+    gpointer data) { // This function is called every 5 ms by a GTK timer
   gint64 now = g_get_monotonic_time();
 
-  if(now < timerLastCalled) {
-    for(int i = 0; i < TMR_NUMBER; i++) {
-      if(timer[i].state == TMR_RUNNING) {
+  if (now < timerLastCalled) {
+    for (int i = 0; i < TMR_NUMBER; i++) {
+      if (timer[i].state == TMR_RUNNING) {
         timer[i].state = TMR_COMPLETED;
-        timer[i].func(timer[i].param);      // Callback to configured function
+        if (timer[i].func) {
+          timer[i].func(timer[i].param); // Callback to configured function
+        }
       }
     }
-  }
-  else {
-    for(int i = 0; i < TMR_NUMBER; i++) {
-      if(timer[i].state == TMR_RUNNING) {
-        if(timer[i].timer_will_expire <= now) {
+  } else {
+    for (int i = 0; i < TMR_NUMBER; i++) {
+      if (timer[i].state == TMR_RUNNING) {
+        if (timer[i].timer_will_expire <= now) {
           timer[i].state = TMR_COMPLETED;
-          timer[i].func(timer[i].param);    // Callback to configured function
+          if (timer[i].func) {
+            timer[i].func(timer[i].param); // Callback to configured function
+          }
         }
       }
     }
@@ -125,33 +140,37 @@ gboolean refreshTimer(gpointer data) {      // This function is called every 5 m
 
   timerLastCalled = now;
 
-//fnRebuildTimerRefresh();
+  // fnRebuildTimerRefresh();
 
   return TRUE;
 }
 #endif // PC_BUILD
 
 #if defined(DMCP_BUILD)
-void refreshTimer(void) {                   // This function is called when nextTimerRefresh has been elapsed
+void refreshTimer(
+    void) { // This function is called when nextTimerRefresh has been elapsed
   uint32_t now = (uint32_t)sys_current_ms();
 
-  if(now < timerLastCalled) {
-    for(int i = 0; i < TMR_NUMBER; i++) {
-      if(timer[i].state == TMR_RUNNING) {
+  if (now < timerLastCalled) {
+    for (int i = 0; i < TMR_NUMBER; i++) {
+      if (timer[i].state == TMR_RUNNING) {
         timer[i].state = TMR_COMPLETED;
         mutexRefreshTimer = true;
-        timer[i].func(timer[i].param);      // Callback to configured function
+        if (timer[i].func) {
+          timer[i].func(timer[i].param); // Callback to configured function
+        }
         mutexRefreshTimer = false;
       }
     }
-  }
-  else {
-    for(int i = 0; i < TMR_NUMBER; i++) {
-      if(timer[i].state == TMR_RUNNING) {
-        if(timer[i].timer_will_expire <= now) {
+  } else {
+    for (int i = 0; i < TMR_NUMBER; i++) {
+      if (timer[i].state == TMR_RUNNING) {
+        if (timer[i].timer_will_expire <= now) {
           timer[i].state = TMR_COMPLETED;
           mutexRefreshTimer = true;
-          timer[i].func(timer[i].param);    // Callback to configured function
+          if (timer[i].func) {
+            timer[i].func(timer[i].param); // Callback to configured function
+          }
           mutexRefreshTimer = false;
         }
       }
@@ -341,7 +360,7 @@ static void _antirewinder(uint32_t currTime) {
 static uint32_t _getTimerValue(void) {
   uint32_t currTime = _currentTime();
 
-  if(timerStartTime == TIMER_APP_STOPPED) {
+  if (timerStartTime == TIMER_APP_STOPPED) {
     return timerValue;
   }
 
