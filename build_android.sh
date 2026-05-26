@@ -177,18 +177,22 @@ cp -v res/fonts/*.ttf "$ASSETS_FONTS_DIR/"
 
 # Copy GMP (mini-gmp)
 echo "--- Setting up GMP ---"
-rm -rf "$CPP_DIR/gmp"
-mkdir -p "$CPP_DIR/gmp"
 GMP_SRC_DIR="$PROJECT_ROOT/subprojects/gmp-6.2.1/mini-gmp"
 if [ -d "$GMP_SRC_DIR" ]; then
     echo "Found mini-gmp at $GMP_SRC_DIR"
+    rm -rf "$CPP_DIR/gmp"
+    mkdir -p "$CPP_DIR/gmp"
     cp "$GMP_SRC_DIR/mini-gmp.c" "$CPP_DIR/gmp/"
     cp "$GMP_SRC_DIR/mini-gmp.h" "$CPP_DIR/gmp/gmp.h"
     # Patch mini-gmp.c to include gmp.h instead of mini-gmp.h
     sed -i 's|#include "mini-gmp.h"|#include "gmp.h"|g' "$CPP_DIR/gmp/mini-gmp.c"
 else
-    echo "ERROR: Could not locate mini-gmp at $GMP_SRC_DIR. Aborting."
-    exit 1
+    if [ -f "$CPP_DIR/gmp/mini-gmp.c" ] && [ -f "$CPP_DIR/gmp/gmp.h" ]; then
+        echo "ℹ️ subprojects/gmp-6.2.1/mini-gmp is missing, but using pre-existing GMP in $CPP_DIR/gmp"
+    else
+        echo "ERROR: Could not locate mini-gmp at $GMP_SRC_DIR and no fallback exists. Aborting."
+        exit 1
+    fi
 fi
 
 # Create local.properties
