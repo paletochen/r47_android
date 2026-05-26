@@ -2028,7 +2028,22 @@ void reallocateRegister(calcRegister_t regist, uint32_t dataType, uint32_t dataS
       return;
     }
     freeRegisterData(regist);
-    setRegisterDataPointer(regist, allocC47Blocks(dataSizeWithDataLenBlocks));
+    void *newMem = allocC47Blocks(dataSizeWithDataLenBlocks);
+    if (newMem == NULL) {
+      // Fallback to a safe dtReal34 zero to avoid NULL pointer dereferences in drawing code
+      newMem = allocC47Blocks(REAL34_SIZE_IN_BLOCKS);
+      if (newMem != NULL) {
+        setRegisterDataPointer(regist, newMem);
+        setRegisterDataType(regist, dtReal34, amNone);
+        real34SetZero(REGISTER_REAL34_DATA(regist));
+      } else {
+        setRegisterDataPointer(regist, NULL);
+        setRegisterDataType(regist, 15, 0); // dtNumbers (fallback representation)
+      }
+      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, regist);
+      return;
+    }
+    setRegisterDataPointer(regist, newMem);
     setRegisterDataType(regist, dataType, tag);
 
     // After reallocating a register to a matrix, you MUST set

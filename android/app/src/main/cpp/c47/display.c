@@ -2478,22 +2478,15 @@ void longIntegerToDisplayString(longInteger_t lgInt, char *displayString, int32_
 
   //for any exponent display, further manipulation of GRP is not needed
   if(stringWidth(displayString, allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, false, false) > maxWidth) {      //JM
-    char exponentString[14], lastRemovedDigit;
+    char exponentString[14] = {0}, lastRemovedDigit = '0';
     int16_t lastChar, stringStep, tenExponent;
+    int16_t minChar = (displayString[0] == '-' ? 2 : 1);
 
     stringStep = (GROUPLEFT_DISABLED ? 1 : GROUPWIDTH_LEFT + (SEPARATOR_LEFT[1] == 1 ? 1 : 2));
     tenExponent = exponentStep + exponentShift;
-    lastChar = strlen(displayString) - stringStep;
-    lastRemovedDigit = displayString[lastChar + (SEPARATOR_LEFT[1] == 1 ? 1 : 2)];
-    displayString[lastChar] = 0;
-    if(updateDisplayValueX) {
-      displayValueX[strlen(displayValueX) - max(GROUPWIDTH_LEFT, 1)] = 0;
-    }
-    exponentString[0] = 0;
-    exponentToDisplayString(tenExponent, exponentString, NULL, false);
-    while(stringWidth(displayString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, false, true) + stringWidth(exponentString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, true, false) > maxWidth) {  //JM getSystemFlag(FLAG_LARGELI)
-      lastChar -= stringStep;
-      tenExponent += exponentStep;
+    lastChar = (int16_t)strlen(displayString) - stringStep;
+
+    if (lastChar >= minChar) {
       lastRemovedDigit = displayString[lastChar + (SEPARATOR_LEFT[1] == 1 ? 1 : 2)];
       displayString[lastChar] = 0;
       if(updateDisplayValueX) {
@@ -2501,71 +2494,84 @@ void longIntegerToDisplayString(longInteger_t lgInt, char *displayString, int32_
       }
       exponentString[0] = 0;
       exponentToDisplayString(tenExponent, exponentString, NULL, false);
-    }
+      while(lastChar >= minChar + stringStep && (stringWidth(displayString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, false, true) + stringWidth(exponentString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, true, false) > maxWidth)) {  //JM getSystemFlag(FLAG_LARGELI)
+        lastChar -= stringStep;
+        tenExponent += exponentStep;
+        lastRemovedDigit = displayString[lastChar + (SEPARATOR_LEFT[1] == 1 ? 1 : 2)];
+        displayString[lastChar] = 0;
+        if(updateDisplayValueX) {
+          displayValueX[strlen(displayValueX) - max(GROUPWIDTH_LEFT, 1)] = 0;
+        }
+        exponentString[0] = 0;
+        exponentToDisplayString(tenExponent, exponentString, NULL, false);
+      }
 
-    if(lastRemovedDigit >= '5') { // Round up
-      lastChar = strlen(displayString) - 1;
-      displayString[lastChar]++;
-      while(displayString[lastChar] > '9') {
-        displayString[lastChar--] = '0';
-        while(lastChar >= 0 && (displayString[lastChar] < '0' || displayString[lastChar] > '9')) {
-          lastChar--;
-        }
-        if(lastChar >= 0) {
-          displayString[lastChar]++;
-        }
-        else { // We are rounding up from 9999... to 10000...
-          lastChar = (displayString[0] == '-' ? 1 : 0);
-          xcopy(displayString + lastChar + 1, displayString + lastChar, strlen(displayString) + 1);
-          displayString[lastChar] = '1';
-          if(SEPARATOR_LEFT[1] != 1) {
-            if(!GROUPLEFT_DISABLED && displayString[lastChar + GROUPWIDTH_LEFT + 2] == SEPARATOR_LEFT[1]) { // We need to insert a new goup SEPARATOR_LEFT
-              xcopy(displayString + lastChar + 3, displayString + lastChar + 1, strlen(displayString));
-              displayString[lastChar + 1] = SEPARATOR_LEFT[0];
-              displayString[lastChar + 2] = SEPARATOR_LEFT[1];
+      if(lastRemovedDigit >= '5') { // Round up
+        lastChar = strlen(displayString) - 1;
+        displayString[lastChar]++;
+        while(displayString[lastChar] > '9') {
+          displayString[lastChar--] = '0';
+          while(lastChar >= 0 && (displayString[lastChar] < '0' || displayString[lastChar] > '9')) {
+            lastChar--;
+          }
+          if(lastChar >= 0) {
+            displayString[lastChar]++;
+          }
+          else { // We are rounding up from 9999... to 10000...
+            lastChar = (displayString[0] == '-' ? 1 : 0);
+            xcopy(displayString + lastChar + 1, displayString + lastChar, strlen(displayString) + 1);
+            displayString[lastChar] = '1';
+            if(SEPARATOR_LEFT[1] != 1) {
+              if(!GROUPLEFT_DISABLED && displayString[lastChar + GROUPWIDTH_LEFT + 2] == SEPARATOR_LEFT[1]) { // We need to insert a new goup SEPARATOR_LEFT
+                xcopy(displayString + lastChar + 3, displayString + lastChar + 1, strlen(displayString));
+                displayString[lastChar + 1] = SEPARATOR_LEFT[0];
+                displayString[lastChar + 2] = SEPARATOR_LEFT[1];
+              }
+            }
+            else if(SEPARATOR_LEFT[0] !=1 ){
+              if(!GROUPLEFT_DISABLED && displayString[lastChar + GROUPWIDTH_LEFT + 1] == SEPARATOR_LEFT[0]) { // We need to insert a new goup SEPARATOR_LEFT
+                xcopy(displayString + lastChar + 2, displayString + lastChar + 1, strlen(displayString));
+                displayString[lastChar + 1] = SEPARATOR_LEFT[0];
+              }
+            }
+
+            // Has the string become too long?
+            if(stringWidth(displayString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, false, true) + stringWidth(exponentString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, true, false) > maxWidth) {   //JM getSystemFlag(FLAG_LARGELI)
+              lastChar = (int16_t)strlen(displayString) - stringStep;
+              if (lastChar >= minChar) {
+                tenExponent += exponentStep;
+                displayString[lastChar] = 0;
+                if(updateDisplayValueX) {
+                  displayValueX[strlen(displayValueX) - max(GROUPWIDTH_LEFT, 1)] = 0;
+                }
+                exponentString[0] = 0;
+                exponentToDisplayString(tenExponent, exponentString, NULL, false);
+              }
             }
           }
-          else if(SEPARATOR_LEFT[0] !=1 ){
-            if(!GROUPLEFT_DISABLED && displayString[lastChar + GROUPWIDTH_LEFT + 1] == SEPARATOR_LEFT[0]) { // We need to insert a new goup SEPARATOR_LEFT
-              xcopy(displayString + lastChar + 2, displayString + lastChar + 1, strlen(displayString));
-              displayString[lastChar + 1] = SEPARATOR_LEFT[0];
-            }
+        }
+
+        if(updateDisplayValueX) {
+          lastChar = strlen(displayValueX) - 1;
+          displayValueX[lastChar]++;
+          while(lastChar>0 && '0' <= displayValueX[lastChar - 1] && displayValueX[lastChar - 1] <= '9' && displayValueX[lastChar] > '9') {
+            displayValueX[lastChar--] = '0';
+            displayValueX[lastChar]++;
           }
 
-          // Has the string become too long?
-          if(stringWidth(displayString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, false, true) + stringWidth(exponentString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, true, false) > maxWidth) {   //JM getSystemFlag(FLAG_LARGELI)
-            lastChar = strlen(displayString) - stringStep;
-            tenExponent += exponentStep;
-            displayString[lastChar] = 0;
-            if(updateDisplayValueX) {
-              displayValueX[strlen(displayValueX) - max(GROUPWIDTH_LEFT, 1)] = 0;
-            }
-            exponentString[0] = 0;
-            exponentToDisplayString(tenExponent, exponentString, NULL, false);
+          if(displayValueX[lastChar] > '9') { // We are rounding 9999... to 10000...
+            xcopy(displayValueX + 1, displayValueX, strlen(displayValueX) + 1);
+            displayValueX[lastChar++] = '1';
+            displayValueX[lastChar] = '0';
           }
         }
       }
+
+      strcat(displayString, exponentString);
 
       if(updateDisplayValueX) {
-        lastChar = strlen(displayValueX) - 1;
-        displayValueX[lastChar]++;
-        while(lastChar>0 && '0' <= displayValueX[lastChar - 1] && displayValueX[lastChar - 1] <= '9' && displayValueX[lastChar] > '9') {
-          displayValueX[lastChar--] = '0';
-          displayValueX[lastChar]++;
-        }
-
-        if(displayValueX[lastChar] > '9') { // We are rounding 9999... to 10000...
-          xcopy(displayValueX + 1, displayValueX, strlen(displayValueX) + 1);
-          displayValueX[lastChar++] = '1';
-          displayValueX[lastChar] = '0';
-        }
+        sprintf(displayValueX + strlen(displayValueX), "e%d", tenExponent);
       }
-    }
-
-    strcat(displayString, exponentString);
-
-    if(updateDisplayValueX) {
-      sprintf(displayValueX + strlen(displayValueX), "e%d", tenExponent);
     }
   }
 }
