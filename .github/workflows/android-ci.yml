@@ -241,7 +241,9 @@ jobs:
             src/c47/display.c \
             src/c47/core/freeList.c \
             src/c47/registerValueConversions.c \
-            src/c47/mathematics/matrix.c
+            src/c47/mathematics/matrix.c \
+            src/c47/registers.c \
+            src/c47/registers.h
 
           git checkout -- \
             .gitignore \
@@ -507,7 +509,9 @@ jobs:
             src/c47/display.c \
             src/c47/core/freeList.c \
             src/c47/registerValueConversions.c \
-            src/c47/mathematics/matrix.c
+            src/c47/mathematics/matrix.c \
+            src/c47/registers.c \
+            src/c47/registers.h
 
           git checkout -- \
             .gitignore \
