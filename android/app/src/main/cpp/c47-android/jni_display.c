@@ -249,6 +249,27 @@ static const char *resolveCpxJMainKeyLabel(const keypadMainLabel_t *label,
   return replaceInternalGlyph(mapped, from, to) ? mapped : label->name;
 }
 
+static int16_t safeGetUserMenuItem(int16_t menuIndex, int16_t itemIndex) {
+  if (userMenus != NULL && menuIndex >= 0 && menuIndex < numberOfUserMenus && itemIndex >= 0 && itemIndex < 18) {
+    return userMenus[menuIndex].menuItem[itemIndex].item;
+  }
+  return 0;
+}
+
+static const char* safeGetUserMenuName(int16_t menuIndex) {
+  if (userMenus != NULL && menuIndex >= 0 && menuIndex < numberOfUserMenus) {
+    return userMenus[menuIndex].menuName;
+  }
+  return "";
+}
+
+static const char* safeGetUserMenuArgumentName(int16_t menuIndex, int16_t itemIndex) {
+  if (userMenus != NULL && menuIndex >= 0 && menuIndex < numberOfUserMenus && itemIndex >= 0 && itemIndex < 18) {
+    return userMenus[menuIndex].menuItem[itemIndex].argumentName;
+  }
+  return "";
+}
+
 static const char *resolveMainFaceplateGlyphLabel(jint labelType,
                                                   const char *name,
                                                   char *mapped,
@@ -702,32 +723,25 @@ static void resolveSoftkeyScene(int16_t fnKeyIndex, keypadSoftkeyScene_t *scene,
       }
       break;
     case MNU_DYNAMIC:
-      sceneItem = userMenus[currentUserMenu].menuItem[visibleIndex].item;
+      sceneItem = safeGetUserMenuItem(currentUserMenu, visibleIndex);
       {
         int16_t unshiftedIndex = (fnKeyIndex - 1);
         int16_t unshiftedItem = 0;
         if (-softmenu[softmenuId].menuItem == MNU_MyMenu) {
           unshiftedItem = userMenuItems[unshiftedIndex].item;
         } else if (-softmenu[softmenuId].menuItem == MNU_DYNAMIC) {
-          unshiftedItem = userMenus[currentUserMenu].menuItem[unshiftedIndex].item;
+          unshiftedItem = safeGetUserMenuItem(currentUserMenu, unshiftedIndex);
         }
         
         if (unshiftedItem <= ASSIGN_USER_MENU) {
-
-
-
           int16_t menuIndex = ASSIGN_USER_MENU - unshiftedItem;
-          if (menuIndex >= 0 && menuIndex < numberOfUserMenus) {
-            snprintf(scene->primaryLabel, sizeof(scene->primaryLabel), "%s", userMenus[menuIndex].menuName);
-          }
+          snprintf(scene->primaryLabel, sizeof(scene->primaryLabel), "%s", safeGetUserMenuName(menuIndex));
         }
       }
       if (sceneItem < 0) {
         scene->sceneFlags |= KEYPAD_SCENE_FLAG_REVERSE_VIDEO |
                              KEYPAD_SCENE_FLAG_MENU;
-      } else if (userMenus[currentUserMenu].menuItem[visibleIndex].argumentName[0] ==
-
-                 0) {
+      } else if (safeGetUserMenuArgumentName(currentUserMenu, visibleIndex)[0] == 0) {
 
         changeSoftKey(softmenu[softmenuId].menuItem, sceneItem, itemName, &videoMode,
                       &showCb, &showValue, showText);
@@ -768,7 +782,7 @@ static void resolveSoftkeyScene(int16_t fnKeyIndex, keypadSoftkeyScene_t *scene,
 
     int16_t item;
     if (softmenu[softmenuId].menuItem == -MNU_DYNAMIC) {
-      item = userMenus[currentUserMenu].menuItem[absoluteIndex].item;
+      item = safeGetUserMenuItem(currentUserMenu, absoluteIndex);
     } else {
       item = softmenu[softmenuId].softkeyItem[absoluteIndex];
     }
@@ -785,7 +799,7 @@ static void resolveSoftkeyScene(int16_t fnKeyIndex, keypadSoftkeyScene_t *scene,
         int16_t unshiftedIndex = (fnKeyIndex - 1);
         int16_t customMenuId = 0;
         
-        int16_t item = userMenus[currentUserMenu].menuItem[unshiftedIndex].item;
+        int16_t item = safeGetUserMenuItem(currentUserMenu, unshiftedIndex);
         if (item <= ASSIGN_USER_MENU) customMenuId = item;
         
         if (customMenuId == 0) {
@@ -795,7 +809,7 @@ static void resolveSoftkeyScene(int16_t fnKeyIndex, keypadSoftkeyScene_t *scene,
         
         if (customMenuId == 0) {
           for (int j = 0; j < numberOfUserMenus; j++) {
-            item = userMenus[j].menuItem[unshiftedIndex].item;
+            item = safeGetUserMenuItem(j, unshiftedIndex);
             if (item <= ASSIGN_USER_MENU) {
               customMenuId = item;
               break;
@@ -805,9 +819,7 @@ static void resolveSoftkeyScene(int16_t fnKeyIndex, keypadSoftkeyScene_t *scene,
         
         if (customMenuId != 0) {
           int16_t menuIndex = ASSIGN_USER_MENU - customMenuId;
-          if (menuIndex >= 0 && menuIndex < numberOfUserMenus) {
-            snprintf(scene->primaryLabel, sizeof(scene->primaryLabel), "%s", userMenus[menuIndex].menuName);
-          }
+          snprintf(scene->primaryLabel, sizeof(scene->primaryLabel), "%s", safeGetUserMenuName(menuIndex));
         }
       }
 
@@ -1025,8 +1037,9 @@ static keypadMainLabel_t resolveMainKeyLabelInfo(const calcKey_t *key,
 
   if (item <= ASSIGN_USER_MENU) {
     int16_t menuIndex = ASSIGN_USER_MENU - item;
-    if (menuIndex >= 0 && menuIndex < numberOfUserMenus) {
-      return makeMainLabel(userMenus[menuIndex].menuName, item, false);
+    const char *menuName = safeGetUserMenuName(menuIndex);
+    if (menuName[0] != 0) {
+      return makeMainLabel(menuName, item, false);
     }
   }
 
@@ -1042,8 +1055,9 @@ static keypadMainLabel_t resolveMainKeyLabelInfo(const calcKey_t *key,
     int16_t staticItem = resolveMainKeyItem(key, type, alphaOn, false);
     if (staticItem <= ASSIGN_USER_MENU) {
       int16_t menuIndex = ASSIGN_USER_MENU - staticItem;
-      if (menuIndex >= 0 && menuIndex < numberOfUserMenus) {
-        return makeMainLabel(userMenus[menuIndex].menuName, staticItem, false);
+      const char *menuName = safeGetUserMenuName(menuIndex);
+      if (menuName[0] != 0) {
+        return makeMainLabel(menuName, staticItem, false);
       }
     }
   }
@@ -1087,8 +1101,9 @@ static void fillStaticSoftkeyMenuLabel(int16_t item, char *label,
 
   if (item <= ASSIGN_USER_MENU) {
     int16_t menuIndex = ASSIGN_USER_MENU - item;
-    if (menuIndex >= 0 && menuIndex < numberOfUserMenus) {
-      snprintf(label, labelSize, "%s", userMenus[menuIndex].menuName);
+    const char *menuName = safeGetUserMenuName(menuIndex);
+    if (menuName[0] != 0) {
+      snprintf(label, labelSize, "%s", menuName);
       return;
     }
   }
