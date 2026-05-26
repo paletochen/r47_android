@@ -21,11 +21,16 @@ void convertLongIntegerRegisterToLongInteger(calcRegister_t regist, longInteger_
 
   xcopy(lgInt->_mp_d, REGISTER_LONG_INTEGER_DATA(regist), sizeInBytes);
 
-  if(getRegisterLongIntegerSign(regist) == LI_NEGATIVE) {
-    lgInt->_mp_size = -(sizeInBytes / LIMB_SIZE);
+  int32_t numLimbs = (int32_t)(sizeInBytes / LIMB_SIZE);
+  while(numLimbs > 0 && lgInt->_mp_d[numLimbs - 1] == 0) {
+    --numLimbs;
+  }
+
+  if(numLimbs > 0 && getRegisterLongIntegerSign(regist) == LI_NEGATIVE) {
+    lgInt->_mp_size = -numLimbs;
   }
   else {
-    lgInt->_mp_size = sizeInBytes / LIMB_SIZE;
+    lgInt->_mp_size = numLimbs;
   }
 }
 

@@ -34,6 +34,7 @@ void *freeListAlloc(size_t sizeInBlocks) {
           errorf("numberOfAllocatedMemoryRegions is >= MAX_ALLOCATED_REGIONS, increase MAX_ALLOCATED_REGIONS in defines.h (this affects only the PC simulator not the HW firmware)");
         }
       #endif // !DMCP_BUILD
+      memset(pcMemPtr, 0, TO_BYTES(sizeInBlocks));
       return pcMemPtr;
     }
     else if(freeMemoryRegions[i].sizeInBlocks > sizeInBlocks && freeMemoryRegions[i].sizeInBlocks < minSizeInBlocks) {
@@ -71,6 +72,7 @@ void *freeListAlloc(size_t sizeInBlocks) {
       errorf("numberOfAllocatedMemoryRegions is >= MAX_ALLOCATED_REGIONS, increase MAX_ALLOCATED_REGIONS in defines.h (this affects only the PC simulator not the HW firmware)");
     }
   #endif // !DMCP_BUILD
+  memset(pcMemPtr, 0, TO_BYTES(sizeInBlocks));
   return pcMemPtr;
 }
 
