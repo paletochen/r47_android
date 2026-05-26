@@ -1,2 +1,2 @@
-- Sync to commit [0a676130](https://gitlab.com/rpncalculators/c43/-/commits/master?ref_type=HEADS)
+- Sync to commit [294d2805](https://gitlab.com/rpncalculators/c43/-/commits/master?ref_type=HEADS)
 

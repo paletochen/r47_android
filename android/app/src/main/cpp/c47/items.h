@@ -2540,13 +2540,13 @@
 #define ITM_V3toCYL                 2470
 #define ITM_V3toSPH                 2471
 #define ITM_VVDIST                  2472
-#define ITM_M_CONCAT                2473
+#define ITM_M_CONCATR               2473
 
 #define ITM_STKtoV3_M               2474
 #define ITM_STKtoV2                 2475
 #define ITM_V3toSTK_M               2476
 #define ITM_V2toSTK                 2477
-#define ITM_2478                    2478
+#define ITM_M_CONCATB               2478
 #define ITM_V100                    2479
 #define ITM_V010                    2480
 #define ITM_V001                    2481
@@ -2831,8 +2831,40 @@
 #define ITM_STOVEL                  2729
 #define ITM_2730                    2730
 #define ITM_2731                    2731 //spares for Matrix/Vector
+#define ITM_PGMPLT                  2732
+#define MNU_PLTf                    2733
+#define ITM_PLTf                    2734
+#define ITM_IMPLOT                  2735
+#define MNU_BASE2                   2736
+#define ITM_M_DIMNQ                 2737
+#define MNU_42                      2738
 
-#define LAST_ITEM                   2732
+#define ITM_2739                    2739
+#define ITM_2740                    2740
+#define ITM_2741                    2741
+#define ITM_2742                    2742
+#define ITM_KNOTtoMPS               2743
+#define ITM_MPStoKNOT               2744
+#define ITM_DEGPStoRADPS            2745
+#define ITM_RADPStoDEGPS            2746
+#define ITM_SLUGtoKG                2747
+#define ITM_KGtoSLUG                2748
+#define ITM_SLINCHtoKG              2749
+#define ITM_KGtoSLINCH              2750
+#define ITM_BLOBtoKG                2751
+#define ITM_KGtoBLOB                2752
+#define ITM_TONNEtoKG               2753
+#define ITM_KGtoTONNE               2754
+#define ITM_2755                    2755
+#define ITM_2756                    2756
+#define ITM_2757                    2757
+#define ITM_2758                    2758
+#define ITM_2759                    2759
+#define ITM_2760                    2760
+#define ITM_2761                    2761
+#define ITM_2762                    2762
+
+#define LAST_ITEM                   2763
 
 #define SCREENDUMP                    9875 // Used to signal screen dump operated (not to be confused with SNAP)
 #define NOPARAM                       9876 // Item for function who don't need an item

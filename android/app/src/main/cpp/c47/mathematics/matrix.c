@@ -551,16 +551,20 @@ void fnSetMatrixDimensionsGr(uint16_t regist) {
 }
 
 
-void fnGetMatrixDimensions(uint16_t unusedButMandatoryParameter) {
-  if(!saveLastX()) {
+void fnGetMatrixDimensions(uint16_t regist) {
+
+  if(regist == REGISTER_X && !saveLastX()) {
     return;
   }
 
-  if(getRegisterDataType(REGISTER_X) == dtReal34Matrix || getRegisterDataType(REGISTER_X) == dtComplex34Matrix) {
-    const uint16_t rows = REGISTER_MATRIX_HEADER(REGISTER_X)->matrixRows;
-    const uint16_t cols = REGISTER_MATRIX_HEADER(REGISTER_X)->matrixColumns;
+  if(getRegisterDataType(regist) == dtReal34Matrix || getRegisterDataType(regist) == dtComplex34Matrix) {
+    const uint16_t rows = REGISTER_MATRIX_HEADER(regist)->matrixRows;
+    const uint16_t cols = REGISTER_MATRIX_HEADER(regist)->matrixColumns;
     longInteger_t li;
 
+    if(regist != REGISTER_X) {
+      liftStack();
+    }
     reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
     liftStack();
     reallocateRegister(REGISTER_Y, dtReal34, 0, amNone);
@@ -575,7 +579,7 @@ void fnGetMatrixDimensions(uint16_t unusedButMandatoryParameter) {
   else {
     displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      sprintf(errorMessage, "DataType %" PRIu32, getRegisterDataType(REGISTER_X));
+      sprintf(errorMessage, "DataType %" PRIu32, getRegisterDataType(regist));
       moreInfoOnError("In function fnGetMatrixDimensions:", errorMessage, "is not a matrix.", "");
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
   }
