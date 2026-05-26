@@ -58,12 +58,15 @@ Build-safety rule:
 
 - The synced upstream `src/**` tree, including `src/**/meson.build`, is
   authoritative for the shared native build graph.
-- `sync_public.sh` and hosted CI overlay upstream first and then restore
-  repo-owned files from Git, so restore allowlists and generic restore loops
-  must never restore `src/**`.
-- Android-only native fixes belong under
-  `android/app/src/main/cpp/c47-android` or in staging logic, not in tracked
-  root `src/**` overrides.
+- `sync_public.sh` and hosted CI overlay upstream first and then restore repo-owned files from Git.
+- **Divergences and Core Fixes**:
+  - Android-only native fixes should belong under `android/app/src/main/cpp/c47-android` or JNI/HAL stubs.
+  - Core C bugs (which affect all builds, including GTK/Simulator) should ideally be upstreamed to the authoritative `c43` repository.
+  - Temporary core fixes that must be applied to `src/**` locally **must** be explicitly whitelisted in `publish_public.sh` (to be tracked in the public repo) and added to the restore list in `.github/workflows/android-ci.yml` (to prevent them from being overwritten by the upstream sync step in CI).
+  - Currently tracked local core overrides:
+    - `src/c47/programming/input.c`, `src/c47/programming/lblGtoXeq.c`, `src/c47/screen.c` (legacy overrides).
+    - `src/c47/display.c`, `src/c47/core/freeList.c`, `src/c47/registerValueConversions.c` (fixes for REGS mode ANR/memory corruption).
+    - `src/c47/mathematics/matrix.c`, `src/c47/registers.c`, `src/c47/registers.h` (fixes for 256x256 Matrix allocation overflow).
 
 ## Android build flow
 

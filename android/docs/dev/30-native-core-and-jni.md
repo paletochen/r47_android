@@ -127,3 +127,20 @@ The CI lane verifies that contract by checking zip alignment and native library
 
 That artifact verification is the reason packaging changes should be documented
 alongside the workflow and Gradle files, not only in the CMake layer.
+
+## GMP Memory Management and Register Rounding
+
+When converting between C47 registers and GMP's arbitrary-precision `mpz_t` (defined as `longInteger_t` in core), be aware of the following layout and allocation rules:
+
+### 1. Register Rounding
+- Registers allocated for `dtLongInteger` have their data size rounded up in `reallocateRegister` to be a multiple of `LIMB_SIZE` blocks (which is `4` bytes on 32-bit and `8` bytes on 64-bit/Simulator).
+- Because of this, the physical allocation size in blocks (`dataMaxLengthInBlocks` in the header) is often larger than the actual number of limbs written by the writer (`convertLongIntegerToLongIntegerRegister`).
+
+### 2. GMP Invariant Verification
+- GMP's `_mp_size` must strictly represent the number of limbs *excluding* any leading zero limbs. Violating this invariant (e.g., leaving `_mp_size` at the rounded-up size when the most significant limbs are zero) can cause infinite loops or crashes in GMP functions (such as during display formatting).
+- **Reader Contract**: When reading a `longInteger` from a register in `convertLongIntegerRegisterToLongInteger`, we must explicitly **trim trailing zero limbs** (which correspond to most significant limbs in GMP's little-endian layout) before setting `_mp_size`.
+
+### 3. Dirty Memory
+- The core block allocator `freeListAlloc` returns dirty memory from the free list.
+- If the extra bytes resulting from register rounding contain garbage, the reader will read them as "phantom limbs" and fail to trim them, leading to corrupt values.
+- **Fix**: Memory returned by `freeListAlloc` is zero-filled by default in the Android port to ensure rounding bytes are clean. If missing `subprojects` triggers a fallback in `build_android.sh`, the build uses the pre-existing pre-patched `mini-gmp` files in the source tree.
