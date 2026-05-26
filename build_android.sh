@@ -91,6 +91,11 @@ echo "--- Generating Core Assets (running make sim) ---"
 # Clean polluted generated headers that might break Meson include precedence
 rm -f src/generated/*.c src/generated/constantPointers.h src/generated/softmenuCatalogs.h
 
+if [ ! -d "subprojects/gmp-6.2.1/mini-gmp" ]; then
+    echo "ℹ️ subprojects/gmp-6.2.1/mini-gmp is missing. Downloading subproject wraps..."
+    meson subprojects download
+fi
+
 if [ -d "build.sim" ] && [ ! -f "build.sim/build.ninja" ]; then
     rm -rf build.sim
 fi
@@ -172,6 +177,7 @@ cp -v res/fonts/*.ttf "$ASSETS_FONTS_DIR/"
 
 # Copy GMP (mini-gmp)
 echo "--- Setting up GMP ---"
+rm -rf "$CPP_DIR/gmp"
 mkdir -p "$CPP_DIR/gmp"
 GMP_SRC_DIR="$PROJECT_ROOT/subprojects/gmp-6.2.1/mini-gmp"
 if [ -d "$GMP_SRC_DIR" ]; then
@@ -181,7 +187,8 @@ if [ -d "$GMP_SRC_DIR" ]; then
     # Patch mini-gmp.c to include gmp.h instead of mini-gmp.h
     sed -i 's|#include "mini-gmp.h"|#include "gmp.h"|g' "$CPP_DIR/gmp/mini-gmp.c"
 else
-    echo "ERROR: Could not locate mini-gmp at $GMP_SRC_DIR. Build will likely fail."
+    echo "ERROR: Could not locate mini-gmp at $GMP_SRC_DIR. Aborting."
+    exit 1
 fi
 
 # Create local.properties
