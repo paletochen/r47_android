@@ -237,7 +237,11 @@ jobs:
             android/app/src/main/cpp/c47/keyboard.c \
             src/c47/programming/input.c \
             src/c47/programming/lblGtoXeq.c \
-            src/c47/screen.c
+            src/c47/screen.c \
+            src/c47/display.c \
+            src/c47/core/freeList.c \
+            src/c47/registerValueConversions.c \
+            src/c47/mathematics/matrix.c
 
           git checkout -- \
             .gitignore \
@@ -499,7 +503,11 @@ jobs:
             android/app/src/main/cpp/c47/keyboard.c \
             src/c47/programming/input.c \
             src/c47/programming/lblGtoXeq.c \
-            src/c47/screen.c
+            src/c47/screen.c \
+            src/c47/display.c \
+            src/c47/core/freeList.c \
+            src/c47/registerValueConversions.c \
+            src/c47/mathematics/matrix.c
 
           git checkout -- \
             .gitignore \
