@@ -711,6 +711,7 @@ void fnDateTo(uint16_t unusedButMandatoryParameter) {
 
   if(checkDateArgument(REGISTER_X, &j)) {
     liftStack();
+    setSystemFlag(FLAG_ASLIFT);
     liftStack();
     decomposeJulianDay(&j, &y, &m, &d);
     convertReal34ToLongIntegerRegister(&y, getSystemFlag(FLAG_YMD) ? REGISTER_Z :                                        REGISTER_X, DEC_ROUND_FLOOR);

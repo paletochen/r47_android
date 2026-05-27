@@ -524,6 +524,7 @@ void fnRecallIJ(uint16_t unusedButMandatoryParameter) {
       }
 
       liftStack();
+      setSystemFlag(FLAG_ASLIFT);
       liftStack();
 
       if(matrixIndex == INVALID_VARIABLE || !regInRange(matrixIndex) || !((getRegisterDataType(matrixIndex) == dtReal34Matrix) || (getRegisterDataType(matrixIndex) == dtComplex34Matrix))) {

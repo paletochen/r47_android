@@ -2537,16 +2537,14 @@ void longIntegerToDisplayString(longInteger_t lgInt, char *displayString, int32_
 
             // Has the string become too long?
             if(stringWidth(displayString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, false, true) + stringWidth(exponentString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, true, false) > maxWidth) {   //JM getSystemFlag(FLAG_LARGELI)
-              lastChar = (int16_t)strlen(displayString) - stringStep;
-              if (lastChar >= minChar) {
-                tenExponent += exponentStep;
-                displayString[lastChar] = 0;
-                if(updateDisplayValueX) {
-                  displayValueX[strlen(displayValueX) - max(GROUPWIDTH_LEFT, 1)] = 0;
-                }
-                exponentString[0] = 0;
-                exponentToDisplayString(tenExponent, exponentString, NULL, false);
+              lastChar = strlen(displayString) - stringStep;
+              tenExponent += exponentStep;
+              displayString[lastChar] = 0;
+              if(updateDisplayValueX) {
+                displayValueX[strlen(displayValueX) - max(GROUPWIDTH_LEFT, 1)] = 0;
               }
+              exponentString[0] = 0;
+              exponentToDisplayString(tenExponent, exponentString, NULL, false);
             }
           }
         }

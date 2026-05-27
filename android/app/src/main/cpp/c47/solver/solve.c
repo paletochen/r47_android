@@ -98,8 +98,11 @@ void fnSolve(uint16_t labelOrVariable) {
 
       fnUndo(0);
       liftStack();
+      setSystemFlag(FLAG_ASLIFT);
       liftStack();
+      setSystemFlag(FLAG_ASLIFT);
       liftStack();
+      setSystemFlag(FLAG_ASLIFT);
       liftStack();
       real34ToReal(&z, &tmp), convertRealToReal34ResultRegister(&tmp, REGISTER_Z);
       real34ToReal(&y, &tmp), convertRealToReal34ResultRegister(&tmp, REGISTER_Y);

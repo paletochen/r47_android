@@ -1885,6 +1885,7 @@ static inline void powCplxNat(const cplx_t *base, const uint8_t *exp, cplx_t *re
     // reset stack and lift to reasonable height
     fnUndo(0);
     liftStack();
+    setSystemFlag(FLAG_ASLIFT);
     liftStack();
 
     if(!Y2IsZero) {
@@ -1958,6 +1959,7 @@ void fnEqSolvGraph (uint16_t func) {
         case EQ_REALSOLVE_LU: {
           if(getRegisterAsReal(RESERVED_VARIABLE_LEST, &y) && getRegisterAsReal(RESERVED_VARIABLE_UEST, &x)) {
             liftStack();
+            setSystemFlag(FLAG_ASLIFT);
             reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
             liftStack();
             reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
@@ -1981,6 +1983,7 @@ void fnEqSolvGraph (uint16_t func) {
         case EQ_PLOT_LU: {           //uses limits
           if(getRegisterAsReal(RESERVED_VARIABLE_LX, &y) && getRegisterAsReal(RESERVED_VARIABLE_UX, &x)) {
             liftStack();
+            setSystemFlag(FLAG_ASLIFT);
             reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
             liftStack();
             reallocateRegister(REGISTER_X, dtReal34, 0, amNone);

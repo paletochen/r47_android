@@ -226,6 +226,7 @@ saveForUndo();
 done:
     fnUndo(0);
     liftStack();
+    setSystemFlag(FLAG_ASLIFT);
     liftStack();
 
     convertRealToReal34ResultRegister(&res, REGISTER_X);

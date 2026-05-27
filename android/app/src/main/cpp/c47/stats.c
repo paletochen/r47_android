@@ -1017,7 +1017,9 @@ static void convertStatsMatrixToHistoMatrix(uint16_t statsVariableToHistogram) {
         }
 
         liftStack();
+        setSystemFlag(FLAG_ASLIFT);
         liftStack();
+        setSystemFlag(FLAG_ASLIFT);
         liftStack();
         convertRealToResultRegister(&nb, REGISTER_Z, amNone);
         convertRealToResultRegister(&lb, REGISTER_Y, amNone);

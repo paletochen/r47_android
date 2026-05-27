@@ -31,6 +31,7 @@
    * \param[in] unusedParamButMandatory
    */
   void       fnGetMatrixDimensions          (uint16_t regist);
+  void       fnGetMatrixDimensions42        (uint16_t unusedButMandatoryParameter);
 
   /**
    * Transpose matrix.

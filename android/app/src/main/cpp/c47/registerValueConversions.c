@@ -21,16 +21,18 @@ void convertLongIntegerRegisterToLongInteger(calcRegister_t regist, longInteger_
 
   xcopy(lgInt->_mp_d, REGISTER_LONG_INTEGER_DATA(regist), sizeInBytes);
 
-  int32_t numLimbs = (int32_t)(sizeInBytes / LIMB_SIZE);
-  while(numLimbs > 0 && lgInt->_mp_d[numLimbs - 1] == 0) {
-    --numLimbs;
+  // Trim trailing zero limbs: GMP requires _mp_size = 0 for value zero,
+  // else mpz_sizeinbase returns 0 and callers underflow on (bits - 1).
+  // GRAMOD = 0 was checked to have _mp_size = 1, not 0
+  while(sizeInBytes >= LIMB_SIZE && lgInt->_mp_d[sizeInBytes/LIMB_SIZE - 1] == 0) {
+    sizeInBytes -= LIMB_SIZE;
   }
 
-  if(numLimbs > 0 && getRegisterLongIntegerSign(regist) == LI_NEGATIVE) {
-    lgInt->_mp_size = -numLimbs;
+  if(sizeInBytes > 0 && getRegisterLongIntegerSign(regist) == LI_NEGATIVE) {
+    lgInt->_mp_size = -(sizeInBytes / LIMB_SIZE);
   }
   else {
-    lgInt->_mp_size = numLimbs;
+    lgInt->_mp_size = sizeInBytes / LIMB_SIZE;
   }
 }
 

@@ -551,24 +551,20 @@ void fnSetMatrixDimensionsGr(uint16_t regist) {
 }
 
 
-void fnGetMatrixDimensions(uint16_t regist) {
-
-  if(regist == REGISTER_X && !saveLastX()) {
-    return;
-  }
-
+static void getMatrixDimensionsToStack(uint16_t regist, bool_t consumeX) {
   if(getRegisterDataType(regist) == dtReal34Matrix || getRegisterDataType(regist) == dtComplex34Matrix) {
     const uint16_t rows = REGISTER_MATRIX_HEADER(regist)->matrixRows;
     const uint16_t cols = REGISTER_MATRIX_HEADER(regist)->matrixColumns;
     longInteger_t li;
 
-    if(regist != REGISTER_X) {
-      liftStack();
+    if(consumeX) {
+      fnDrop(NOPARAM);
     }
-    reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
     liftStack();
+    setSystemFlag(FLAG_ASLIFT);
+    liftStack();
+    reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
     reallocateRegister(REGISTER_Y, dtReal34, 0, amNone);
-
     longIntegerInit(li);
     uInt32ToLongInteger(rows, li);
     convertLongIntegerToLongIntegerRegister(li, REGISTER_Y);
@@ -583,8 +579,20 @@ void fnGetMatrixDimensions(uint16_t regist) {
       moreInfoOnError("In function fnGetMatrixDimensions:", errorMessage, "is not a matrix.", "");
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
   }
+}
 
-  adjustResult(REGISTER_X, false, true, REGISTER_X, -1, -1);
+void fnGetMatrixDimensions(uint16_t regist) {
+  if(regist == REGISTER_X && !saveLastX()) {
+    return;
+  }
+  getMatrixDimensionsToStack(regist, false);
+}
+
+void fnGetMatrixDimensions42(uint16_t unusedButMandatoryParameter) {
+  if(!saveLastX()) {
+    return;
+  }
+  getMatrixDimensionsToStack(REGISTER_X, true);
 }
 
 
@@ -662,6 +670,7 @@ void fnLuDecomposition(uint16_t unusedParamButMandatory) {
             }
             transposeRealMatrix(&x, &x);
             liftStack();
+            setSystemFlag(FLAG_ASLIFT);
             liftStack();
             convertReal34MatrixToReal34MatrixRegister(&x, REGISTER_Z);
             if(lastErrorCode == ERROR_NONE) {
@@ -734,6 +743,7 @@ void fnLuDecomposition(uint16_t unusedParamButMandatory) {
               }
               transposeRealMatrix(&pivot, &pivot);
               liftStack();
+              setSystemFlag(FLAG_ASLIFT);
               liftStack();
               setSystemFlag(FLAG_ASLIFT);
               convertReal34MatrixToReal34MatrixRegister(&pivot, REGISTER_Z);
@@ -9142,6 +9152,7 @@ static bool columnMinMaxReal(real34Matrix_t *matrix, bool calcMax) {
       }
 
       liftStack();
+      setSystemFlag(FLAG_ASLIFT);
       liftStack();
 
       longIntegerInit(longIntVar);
