@@ -624,7 +624,7 @@ class CalculatorKeyView @JvmOverloads constructor(
     }
 
     private fun applyEnabledState(enabled: Boolean) {
-        isEnabled = enabled
+        isEnabled = if (isFnKey) true else enabled
         alpha = if (isFnKey || enabled) 1f else 0.45f
         if (!isFnKey) {
             buttonView.alpha = if (enabled) 1f else 0.45f
