@@ -247,7 +247,6 @@ jobs:
 
           git checkout -- \
             .gitignore \
-            .gitmodules \
             README.md \
             Makefile \
             build_android.sh \
@@ -257,11 +256,22 @@ jobs:
             meson_options.txt \
             android/
 
-          git submodule update --init --recursive
-
           while IFS= read -r meson_file; do
             git checkout -- "$meson_file"
           done < <(git ls-files | grep -E '(^|/)meson\.build$' | grep -Ev '^src/')
+
+          # Manual checkout of jimtcl submodule because it is not tracked in public repo
+          JIMTCL_COMMIT=$(git ls-tree "$upstream_commit" dep/jimtcl | awk '{print $3}')
+          if [ -n "$JIMTCL_COMMIT" ]; then
+            echo "Found jimtcl commit: $JIMTCL_COMMIT"
+            rm -rf dep/jimtcl
+            git clone https://github.com/msteveb/jimtcl.git dep/jimtcl
+            cd dep/jimtcl
+            git checkout "$JIMTCL_COMMIT"
+            cd ../..
+          else
+            echo "Warning: jimtcl submodule not found in upstream commit $upstream_commit"
+          fi
 
       - name: Run simulator tests
         shell: bash
@@ -518,7 +528,6 @@ jobs:
 
           git checkout -- \
             .gitignore \
-            .gitmodules \
             README.md \
             Makefile \
             build_android.sh \
@@ -528,11 +537,22 @@ jobs:
             meson_options.txt \
             android/
 
-          git submodule update --init --recursive
-
           while IFS= read -r meson_file; do
             git checkout -- "$meson_file"
           done < <(git ls-files | grep -E '(^|/)meson\.build$' | grep -Ev '^src/')
+
+          # Manual checkout of jimtcl submodule because it is not tracked in public repo
+          JIMTCL_COMMIT=$(git ls-tree "$upstream_commit" dep/jimtcl | awk '{print $3}')
+          if [ -n "$JIMTCL_COMMIT" ]; then
+            echo "Found jimtcl commit: $JIMTCL_COMMIT"
+            rm -rf dep/jimtcl
+            git clone https://github.com/msteveb/jimtcl.git dep/jimtcl
+            cd dep/jimtcl
+            git checkout "$JIMTCL_COMMIT"
+            cd ../..
+          else
+            echo "Warning: jimtcl submodule not found in upstream commit $upstream_commit"
+          fi
 
       - name: Set build metadata
         id: meta
