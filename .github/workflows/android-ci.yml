@@ -247,6 +247,7 @@ jobs:
 
           git checkout -- \
             .gitignore \
+            .gitmodules \
             README.md \
             Makefile \
             build_android.sh \
@@ -255,6 +256,8 @@ jobs:
             meson.build \
             meson_options.txt \
             android/
+
+          git submodule update --init --recursive
 
           while IFS= read -r meson_file; do
             git checkout -- "$meson_file"
@@ -515,6 +518,7 @@ jobs:
 
           git checkout -- \
             .gitignore \
+            .gitmodules \
             README.md \
             Makefile \
             build_android.sh \
@@ -523,6 +527,8 @@ jobs:
             meson.build \
             meson_options.txt \
             android/
+
+          git submodule update --init --recursive
 
           while IFS= read -r meson_file; do
             git checkout -- "$meson_file"
