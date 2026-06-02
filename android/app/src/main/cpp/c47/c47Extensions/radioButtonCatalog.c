@@ -19,12 +19,12 @@ TO_QSPI const radiocb_t indexOfRadioCbEepromItems[] = {
   {ITM_DMY,              DF_DMY,                 RB_DF},  //fnSetDateFormat
   {ITM_MDY,              DF_MDY,                 RB_DF},  //fnSetDateFormat
   {ITM_YMD,              DF_YMD,                 RB_DF},  //fnSetDateFormat
-  {ITM_ALL,              DF_ALL,                 RB_DI},  //fnDisplayFormatAll
-  {ITM_ENG,              DF_ENG,                 RB_DI},  //fnDisplayFormatEng
-  {ITM_FIX,              DF_FIX,                 RB_DI},  //fnDisplayFormatFix
-  {ITM_SCI,              DF_SCI,                 RB_DI},  //fnDisplayFormatSci
-  {ITM_SIGFIG,           DF_SF,                  RB_DI},  //fnDisplayFormatSigFig
-  {ITM_UNIT,             DF_UN,                  RB_DI},  //fnDisplayFormatUnit
+//  {ITM_ALL,              DF_ALL,                 RB_DI},  //fnDisplayFormatAll
+//  {ITM_ENG,              DF_ENG,                 RB_DI},  //fnDisplayFormatEng
+//  {ITM_FIX,              DF_FIX,                 RB_DI},  //fnDisplayFormatFix
+//  {ITM_SCI,              DF_SCI,                 RB_DI},  //fnDisplayFormatSci
+//  {ITM_SIGFIG,           DF_SF,                  RB_DI},  //fnDisplayFormatSigFig
+//  {ITM_UNIT,             DF_UN,                  RB_DI},  //fnDisplayFormatUnit
   {ITM_INP_DEF_43S,      ID_43S,                 RB_ID},  //fnInDefault
   {ITM_INP_DEF_CPXDP,    ID_CPXDP,               RB_ID},  //fnInDefault
   {ITM_INP_DEF_DP,       ID_DP,                  RB_ID},  //fnInDefault
@@ -564,6 +564,16 @@ int16_t fnItemShowValue(int16_t item) {
     case ITM_DSPCYCLE:  result = 32700 + displayFormat;                             break;
     case ITM_SCR:       result = (scrLock & 0x03) | (nextChar & 0x03);              break;
     case ITM_DSP:       result = displayFormatDigits;                               break;
+//    case ITM_GET_ADM:    
+    case ITM_SET_ADM:   result = currentAngularMode;                                break;
+//    case ITM_GET_ISM:
+    case ITM_SET_ISM:   result = shortIntegerModeValue();                           break;
+//    case ITM_GET_REALDF:
+    case ITM_SET_REALDF:result = displayFormat;                                     break;
+//    case ITM_GETDMX:
+    case ITM_SET_DMX:   result = denMax;                                            break;
+//    case ITM_GET_NDEC:
+    case ITM_SET_NDEC:  result = displayFormatDigits;                               break;
     case ITM_HIDE:      result = exponentHideLimit;                                 break;
     case ITM_BESTF:     result = (lrSelection) & 0x1FF;                             break;
     case ITM_RMODE:     result = roundingMode;                                      break;

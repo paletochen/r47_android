@@ -2442,6 +2442,19 @@ void fnStrInputLongint(char inp1[]) { // CONVERT STRING to Longint X      //DONE
 }
 
 
+void fnIntInputLongint(int32_t inp1) { // CONVERT integer to Longint X      //DONE
+  //setSystemFlag(FLAG_ASLIFT);
+  liftStack();
+
+  longInteger_t lgInt;
+  longIntegerInit(lgInt);
+  int32ToLongInteger(inp1, lgInt);
+  convertLongIntegerToLongIntegerRegister(lgInt, REGISTER_X);
+  longIntegerFree(lgInt);
+  setSystemFlag(FLAG_ASLIFT);
+}
+
+
 void fnRCL(int16_t inp) { //DONE
   setSystemFlag(FLAG_ASLIFT);
   if(inp == TEMP_REGISTER_1) {

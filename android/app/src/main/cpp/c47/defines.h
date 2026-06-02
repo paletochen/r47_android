@@ -86,6 +86,7 @@
     #undef TWO_FILE_PGM
     #undef HARDWARE_MODEL
     #define HARDWARE_MODEL HWM_DM42n
+    #define SAVE_SPACE_DM42_14          // All hardware without Load programming sample programs testPgms
   #endif // NEW_HW
 
 //ONE FILE OPERATION needs the original CRC file - see src/c47-dmcp
@@ -159,7 +160,6 @@
     #define SAVE_SPACE_DM42_12ELLIP            // 12888 bytes // Without ELLIPTIC
     #define SAVE_SPACE_DM42_12BESSEL           //  5168 bytes // Without X.FN BESSEL
     #define SAVE_SPACE_DM42_12ORTHO            //  0744 bytes // Without X.FN ORTHO MENU
-         // #define SAVE_SPACE_DM42_14         //   184 bytes // Without Load programming sample programs testPgms
          // #define SAVE_SPACE_DM42_15         //     0 bytes // Without all distributions, i.e. , cauchy, chi, expo, logis, t, weibull
          // #define SAVE_SPACE_DM42_16         //  1936 bytes // (1) Without Norml, StdNrmal & LogNrml distributions
          // #define SAVE_SPACE_DM42_17B        //  7128 bytes // (2) Without cauchy, chi, expo, logis, t, weibull
@@ -179,7 +179,6 @@
          // #define SAVE_SPACE_DM42_12ELLIP    // 12888 bytes // Without ELLIPTIC
          // #define SAVE_SPACE_DM42_12BESSEL   //  5168 bytes // Without X.FN BESSEL
          // #define SAVE_SPACE_DM42_12ORTHO    //  0744 bytes // Without X.FN ORTHO MENU
-         // #define SAVE_SPACE_DM42_14         //   184 bytes // Without Load programming sample programs testPgms
          // #define SAVE_SPACE_DM42_15         //     0 bytes // Without all distributions, i.e. , cauchy, chi, expo, logis, t, weibull
          // #define SAVE_SPACE_DM42_16         //  1936 bytes // Without (1) Norml, StdNrmal & LogNrml distributions
     #define SAVE_SPACE_DM42_17B                //  7128 bytes // Without (2) cauchy, chi, expo, logis, t, weibull
@@ -199,7 +198,6 @@
     #define SAVE_SPACE_DM42_12ELLIP            // 12888 bytes // Without ELLIPTIC
     #define SAVE_SPACE_DM42_12BESSEL           //  5168 bytes // Without X.FN BESSEL
     #define SAVE_SPACE_DM42_12ORTHO            //  0744 bytes // Without X.FN ORTHO MENU
-         // #define SAVE_SPACE_DM42_14         //   184 bytes // Without Load programming sample programs testPgms
          // #define SAVE_SPACE_DM42_15         //     0 bytes // Without all distributions, i.e. , cauchy, chi, expo, logis, t, weibull
          // #define SAVE_SPACE_DM42_16         //  1936 bytes // Without (1) Norml, StdNrmal & LogNrml distributions
          // #define SAVE_SPACE_DM42_17B        //  7128 bytes // Without (2) cauchy, chi, expo, logis, t, weibull
@@ -219,7 +217,6 @@
     #define SAVE_SPACE_DM42_12ELLIP            // 12888 bytes // Without ELLIPTIC
     #define SAVE_SPACE_DM42_12BESSEL           //  5168 bytes // Without X.FN BESSEL
     #define SAVE_SPACE_DM42_12ORTHO            //  0744 bytes // Without X.FN ORTHO MENU
-    #define SAVE_SPACE_DM42_14                 //   184 bytes // Without Load programming sample programs testPgms
     #define SAVE_SPACE_DM42_15                 //     0 bytes // Without all distributions, i.e. , cauchy, chi, expo, logis, t, weibull
     #define SAVE_SPACE_DM42_16                 //  1936 bytes // Without (1) Norml, StdNrmal & LogNrml distributions
     #define SAVE_SPACE_DM42_17B                //  7128 bytes // Without (2) cauchy, chi, expo, logis, t, weibull
@@ -245,6 +242,7 @@
   //  #define SAVE_SPACE_DM42_12PRIME  // 27208 bytes // Without ISPRIME, NEXTPRIME, FACTORS, EULPHI, MATXFACTOR, NUMTHEORY
   //  #define SAVE_SPACE_DM42_13GRF    // 17472 bytes // Without Solver & graphics & stat graphics
   //  #define SAVE_SPACE_DM42_13GRF_JM //  7520 bytes // Without More graphics (full plot from memory)
+    #define SAVE_SPACE_DM42_14         //   184 bytes // All hardware without Load programming sample programs testPgms
   //  #define SAVE_SPACE_DM42_20_TIMER //  1232 bytes // Without STOPW
     #define SAVE_SPACE_DM42_22_EDIT1   //  3256 bytes // Without number editing in X-register. Not complete EDIT removal.
     #define SAVE_SPACE_DM42_23_EDIT2   //  1560 bytes // Without number and function parameter editing in PEM. Not complete EDIT removal.
@@ -279,6 +277,9 @@
 
 
 //Testing and debugging
+  #define    MONITOR_IRPRINT
+//#undef     MONITOR_IRPRINT
+
   #define    REFRESH_ON_SCREEN_MONITOR  //refresh debug on actual screen. Shows the refresh source number. Works on hardware and sim.
   #undef     REFRESH_ON_SCREEN_MONITOR
 
@@ -389,6 +390,46 @@
 #undef INLINE_TEST                    //^^
 
 
+#if defined(T47)
+  #undef  MONITOR_IRPRINT
+  #undef  REFRESH_ON_SCREEN_MONITOR
+  #undef  DM42_KEYCLICK
+  #undef  DM42_POWERMARKS
+  #undef  DM42_POWERMARK_KEYPRESS
+  #undef  CLICK_REFRESHSCR
+  #undef  BATTERYTEST
+  #undef  MONITOR_VOLTAGE_INTEGRATOR
+  #undef  DEBUG_SHOWNAME
+  #undef  DEBUGSFN
+  #define DEBUGSFN false
+  #undef  FN_TIME_DEBUG1
+  #undef  VERBOSE_MINIMUM
+  #undef  VERBOSEKEYS
+  #undef  VERBOSEKEYS_BUFFERED
+  #undef  VERBOSEKEYS_AUTOCASE
+  #undef  MONITOR_CLRSCR
+  #undef  ANALYSE_REFRESH
+  #undef  PC_BUILD_TELLTALE
+  #undef  VERBOSE_DETERMINEITEM
+  #undef  VERBOSE_REGISTERS
+  #undef  GRAPHDEBUG
+  #undef  DEBUG_STAT
+  #define DEBUG_STAT 0
+  #undef  STATDEBUG
+  #undef  STATDEBUG_VERBOSE
+  #undef  DEBUGUNDO
+  #undef  DEBUG_EXECUTE
+  #undef  DEBUG_PGM
+  #undef  PAIMDEBUG
+  #undef  VERBOSE_LEVEL
+  #define VERBOSE_LEVEL -1
+  #undef  VERBOSE_COUNTER
+  #undef  PC_BUILD_VERBOSE0
+  #undef  PC_BUILD_VERBOSE1
+  #undef  PC_BUILD_VERBOSE2
+  #undef  VERBOSE_SCREEN
+  #undef  INLINE_TEST
+#endif // T47
 
 
 #define NOMATRIXCURSORS             //JM allow matrix editing to be navigated by up down keys
@@ -612,6 +653,14 @@
 #define AIM_BUFFER_LENGTH                       1024 // WP=199 double byte glyphs + trailing 0 + 1 byte to round up to a 4 byte boundary; JM increase from WP43 to 512*2 so as to exceed the 508*2+extras;
 #define TAM_BUFFER_LENGTH                         32 // TODO: find the exact maximum needed
 #define NIM_BUFFER_LENGTH                        200 // TODO: find the exact maximum needed
+
+#if defined(PATH_MAX)
+  #define C47_PATH_MAX PATH_MAX
+#elif defined(MAX_PATH)
+  #define C47_PATH_MAX MAX_PATH
+#else
+  #define C47_PATH_MAX 1024
+#endif
 
 #define DEBUG_LINES                               68 // Used in for the debug panel
 
@@ -1107,11 +1156,11 @@ typedef enum  {
 #define VAR_NO_U       23
 #define VAR_NO_V       24
 #define VAR_NO_W       25
-#define VAR_NO_ADM     26
-#define VAR_NO_DENMAX  27
-#define VAR_NO_ISM     28
-#define VAR_NO_REALDF  29
-#define VAR_NO_NDEC    30
+#define VAR_NO_SPARE1  26 // removed
+#define VAR_NO_SPARE2  27 // removed
+#define VAR_NO_SPARE3  28 // removed
+#define VAR_NO_SPARE4  29 // removed
+#define VAR_NO_SPARE5  30 // removed
 #define VAR_NO_ACC     31
 #define VAR_NO_ULIM    32
 #define VAR_NO_LLIM    33
@@ -1247,14 +1296,16 @@ enum REG_NUMBERS { // C program register codes
   RESERVED_VARIABLE_V,                                   //2024
   RESERVED_VARIABLE_W,                                   //2025
 
+  // Removed reserved variables (not active for use, placeholders!)
+  RESERVED_VARIABLE_SPARE1,                              //2026
+  RESERVED_VARIABLE_SPARE2,                              //2027
+  RESERVED_VARIABLE_SPARE3,                              //2028
+  RESERVED_VARIABLE_SPARE4,                              //2029
+  RESERVED_VARIABLE_SPARE5,                              //2030
+  
   // Named reserved variables
   FIRST_NAMED_RESERVED_VARIABLE,
-  RESERVED_VARIABLE_ADM = FIRST_NAMED_RESERVED_VARIABLE, //2026
-  RESERVED_VARIABLE_DENMAX,                              //2027
-  RESERVED_VARIABLE_ISM,                                 //2028
-  RESERVED_VARIABLE_REALDF,                              //2029
-  RESERVED_VARIABLE_NDEC,                                //2030
-  RESERVED_VARIABLE_ACC,                                 //2031
+  RESERVED_VARIABLE_ACC = FIRST_NAMED_RESERVED_VARIABLE, //2031
   RESERVED_VARIABLE_ULIM,                                //2032
   RESERVED_VARIABLE_LLIM,                                //2033
   RESERVED_VARIABLE_FV,                                  //2034
@@ -2130,6 +2181,7 @@ static inline uint8_t regCtoKS(const int16_t regC) {
 
 #define isSystemFlagWriteProtected(sf)       ((sf & 0x4000) != 0)
 #define shortIntegerIsZero(op)               (((*(uint64_t *)(op)) == 0) || (shortIntegerMode == SIM_SIGNMT && (((*(uint64_t *)(op)) == 1u<<((uint64_t)shortIntegerWordSize-1)))))
+#define shortIntegerModeValue()              (shortIntegerMode == SIM_2COMPL ? 2 : (shortIntegerMode == SIM_1COMPL ? 1 : (shortIntegerMode == SIM_UNSIGN ? 0 : -1)))
 #define getStackTop()                        (getSystemFlag(FLAG_SSIZE8) ? REGISTER_D : REGISTER_T)
 #define freeRegisterData(regist)             freeC47Blocks(getRegisterDataPointer(regist), getRegisterFullSizeInBlocks(regist))
 #define storeToDtConfigDescriptor(config)    (configToStore->config = config)

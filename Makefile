@@ -1,4 +1,4 @@
-.PHONY: all clean sim test test_asan dmcp dmcpr47 dmcp5 dmcp5r47 docs testPgms both_asan dist_windows dist_macos dist_linux dist_dmcp dist_dmcpr47 dist_dmcp5 dist_dmcp5r47 repeattest
+.PHONY: all clean sim test test_asan dmcp dmcpr47 dmcp5 dmcp5r47 docs testPgms both_asan dist_windows dist_macos dist_linux dist_dmcp dist_dmcpr47 dist_dmcp5 dist_dmcp5r47 repeattest simc47 simr47 t47
 
 all: sim
 both: sim simr47
@@ -16,6 +16,16 @@ GMP_MESON_BUILD  = subprojects/gmp-6.2.1/meson.build
 GMP_MESON_SOURCE = subprojects/packagefiles/gmp-6.2.1/meson.build
 DMCP_PACKAGE = 4
 
+ifneq ($(filter t47,$(MAKECMDGOALS)),)
+  BUILD_PC    = build.sim.t47
+  DIST_DIR_PC = build.sim.t47
+  T47CP_C47 = cp c47$(EXE) t47$(EXE)
+  T47CP_R47 = cp r47$(EXE) t47$(EXE)
+else
+  T47CP_C47 = :
+  T47CP_R47 = :
+endif
+
 $(GMP_MESON_BUILD): $(GMP_MESON_SOURCE)
 	rm -rf subprojects/gmp-6.2.1
 
@@ -23,15 +33,19 @@ clean: $(GMP_MESON_BUILD)
 	rm -f wp43$(EXE)
 	rm -f c47$(EXE)
 	rm -f r47$(EXE)
+	rm -f t47$(EXE)
 	rm -rf wp43-windows* wp43-macos* wp43-linux* wp43-dm42*
 	rm -rf c47-windows* c47-macos* c47-linux* c47-dmcp* r47-dmcp*
-	rm -rf build build.sim build.dmcp build.dmcp.* build.dmcp5 build.rel build.rel.debug
+	rm -rf build build.sim build.sim.t47 build.dmcp build.dmcp.* build.dmcp5 build.rel build.rel.debug
 	rm -f src/generated/*.c src/generated/constantPointers.h src/generated/softmenuCatalogs.h
 	rm -rf PROGRAMS/ALLPGMS
 	rm -f src_files_stamp testPgms_stamp
 
 build.sim:
 	meson setup $(BUILD_PC) --buildtype=custom -DRASPBERRY=`tools/onARaspberry` -DDECNUMBER_FASTMUL=true
+
+build.sim.t47:
+	meson setup $(BUILD_PC) --buildtype=custom -DRASPBERRY=`tools/onARaspberry` -DDECNUMBER_FASTMUL=true -Dc_args="-DT47"
 
 both_asan: clean
 ifeq ($(OS),Windows_NT)
@@ -80,20 +94,31 @@ build.dmcp5:
 sim: $(BUILD_PC)
 	cd $(BUILD_PC) && ninja sim
 	cp $(BUILD_PC)/src/c47-gtk/c47$(EXE) ./
+	$(T47CP_C47)
 	install -C $(BUILD_PC)/src/generateCatalogs/softmenuCatalogs.h src/generated/
 	install -C $(BUILD_PC)/src/generateConstants/constantPointers.h src/generated/
 	install -C $(BUILD_PC)/src/generateConstants/constantPointers.c src/generated/
 	install -C $(BUILD_PC)/src/generateConstants/constantPointers2.c src/generated/
 	install -C $(BUILD_PC)/src/ttf2RasterFonts/rasterFontsData.c src/generated/
 
+simc47: sim
+
 simr47: $(BUILD_PC)
 	cd $(BUILD_PC) && ninja simr47
 	cp $(BUILD_PC)/src/c47-gtk/r47$(EXE) ./
+	$(T47CP_R47)
 	install -C $(BUILD_PC)/src/generateCatalogs/softmenuCatalogs.h src/generated/
 	install -C $(BUILD_PC)/src/generateConstants/constantPointers.h src/generated/
 	install -C $(BUILD_PC)/src/generateConstants/constantPointers.c src/generated/
 	install -C $(BUILD_PC)/src/generateConstants/constantPointers2.c src/generated/
 	install -C $(BUILD_PC)/src/ttf2RasterFonts/rasterFontsData.c src/generated/
+	
+ifeq ($(MAKECMDGOALS),t47)
+t47: simr47
+else
+t47:
+	@:
+endif
 
 dmcp: build.dmcp
 	cd build.dmcp.p$(DMCP_PACKAGE) && ninja dmcp
@@ -176,6 +201,7 @@ dist_install_PC: sim simr47
 	cp $(BUILD_PC)/src/c47-gtk/c47$(EXE) $(DIST_DIR_PC)/
 	cp $(BUILD_PC)/src/c47-gtk/r47$(EXE) $(DIST_DIR_PC)/
 	cp -r res/PROGRAMS $(DIST_DIR_PC)/res/
+	cp -r res/SCRIPTS $(DIST_DIR_PC)/res/
 	cp -r res/STATE $(DIST_DIR_PC)/res/
 	cp res/c47_pre.css $(DIST_DIR_PC)/res/
 	cp res/C47.png $(DIST_DIR_PC)/res/

@@ -42,11 +42,6 @@ struct {
   {1, 'V',  0,   0,   0,   0,   0},
   {1, 'W',  0,   0,   0,   0,   0},
 #endif
-  {{3, 'A', 'D', 'M',  0,   0,   0 }, "RESERVED_VARIABLE_ADM" },
-  {{5, 'D', '.', 'M', 'A', 'X',  0 }, "RESERVED_VARIABLE_DENMAX" },
-  {{3, 'I', 'S', 'M',  0,   0,   0 }, "RESERVED_VARIABLE_ISM" },
-  {{6, 'R', 'E', 'A', 'L', 'D', 'F'}, "RESERVED_VARIABLE_REALDF" },
-  {{4, '#', 'D', 'E', 'C',  0,   0 }, "RESERVED_VARIABLE_NDEC" },
   {{3, 'A', 'C', 'C',  0,   0,   0 }, "RESERVED_VARIABLE_ACC" },
   {{5, 161, 145, 'L', 'i', 'm',  0 }, "RESERVED_VARIABLE_ULIM" },
   {{5, 161, 147, 'L', 'i', 'm',  0 }, "RESERVED_VARIABLE_LLIM" },

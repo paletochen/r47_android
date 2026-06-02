@@ -138,7 +138,7 @@ static void textTag(char *str, const uint8_t angle, const uint8_t polmode) {
 
 // Utility routines to skip stuff
 static char *skip_word(const char *str) {
-  while(*str != ' ') {
+  while(*str != ' ' && *str != 0) {
     str++;
   }
   return (char *)str;
@@ -884,6 +884,12 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     char oneParam[200];
 
     doFnReset(CONFIRMED, loadAutoSav);
+
+    if(loadTestPrograms) { // if test programs loaded. do not continue loading the backup.cfg file
+      refreshScreen(9100);
+      return;
+    }
+
     ret = ioFileOpen(ioPathBackup, ioModeRead);
 
     if(ret != FILE_OK ) {

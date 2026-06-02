@@ -1849,9 +1849,11 @@ bool_t nimWhenButtonPressed = false;                  //PHM eRPN 2021-07
             screenUpdatingMode &= !(SCRUPD_MANUAL_STATUSBAR | SCRUPD_SKIP_STATUSBAR_ONE_TIME);
             programRunStop = PGM_WAITING;
             showFunctionNameItem = 0;
-            #if defined(IR_PRINTING)
-              printf("**[DL]** STOP program\n");
-              fflush(stdout);
+            #if defined(IR_PRINTING) 
+              #if defined(PC_BUILD) && defined(MONITOR_IRPRINT)
+                printf("**[DL]** STOP program\n");
+                fflush(stdout);
+              #endif //MONITOR_IRPRINT
               refreshStatusBar();
               printTrace(ITM_STOP, NOPARAM);   // STOP program
             #endif //IR_PRINTING
@@ -3432,7 +3434,7 @@ void fnKeyEnter(uint16_t unusedButMandatoryParameter) {
           xcopy(REGISTER_STRING_DATA(REGISTER_X), aimBuffer, lenInBytes);
 
           #if defined(IR_PRINTING)
-            #if defined(PC_BUILD)
+            #if defined(PC_BUILD) && defined(MONITOR_IRPRINT)
               printf("**[DL]** fnKeyEnter printTraceX\n");
               fflush(stdout);
             #endif //PC_BUILD

@@ -6166,6 +6166,8 @@ void fnSNAP(uint16_t unusedButMandatoryParameter) {
     printf("fnSNAP!\n");
   #endif // PC_BUILD
   resetShiftState();                  //JM To avoid f or g top left of the screen, clear to make sure
+  screenUpdatingMode = SCRUPD_AUTO;
+  temporaryInformation = TI_NO_INFO;
   refreshScreen(80);
 
   #if defined(PC_BUILD)  //added the xcopy commands needed for hardware, to better duplicate the hardware standardScreenDump
@@ -6185,13 +6187,11 @@ void fnSNAP(uint16_t unusedButMandatoryParameter) {
     fnP_All_Regs(PRN_STK); //print stack
   }
   xcopy(tamBuffer, ss, TAM_BUFFER_LENGTH);      //Backup the TamBuffer, in case we are in a TAM screen when doing screenshot
-
-
-  screenUpdatingMode |= SCRUPD_SKIP_STACK_ONE_TIME | SCRUPD_SKIP_MENU_ONE_TIME;
 }
 
 
 void fnScreenDump(uint16_t unusedButMandatoryParameter) {
+  FILE *bmp = NULL;
   #if defined(ANDROID_BUILD)
     char bmpFileName[32];
     time_t rawTime;
@@ -6203,13 +6203,13 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
     int fd = requestAndroidFile(1, bmpFileName, 3); // 3 = SCREENS category
     if (fd < 0) return;
 
-    FILE *bmp = fdopen(fd, "wb");
+    bmp = fdopen(fd, "wb");
     if (!bmp) {
         close(fd);
         return;
     }
   #elif defined(PC_BUILD)
-    FILE *bmp;
+    extern char _ioFileNameOverride[];
     char bmpFileName[22];
     time_t rawTime;
     struct tm *timeInfo;
@@ -6217,19 +6217,24 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
     time(&rawTime);
     timeInfo = localtime(&rawTime);
 
-    strftime(bmpFileName, 22, "%Y%m%d-%H%M%S00.bmp", timeInfo);
+    if(_ioFileNameOverride[0] != '\0') {
+      strncpy(bmpFileName, _ioFileNameOverride, sizeof(bmpFileName) - 1);
+      bmpFileName[sizeof(bmpFileName) - 1] = '\0';
+      _ioFileNameOverride[0] = '\0';
+    }
+    else {
+      strftime(bmpFileName, sizeof(bmpFileName), "%Y%m%d-%H%M%S00.bmp", timeInfo);
+    }
     bmp = fopen(bmpFileName, "wb");
-  #else
-    return;
   #endif
 
   #if defined(PC_BUILD) || defined(ANDROID_BUILD)
+    if (!bmp) return;
+
     int32_t x, y;
     uint32_t uint32;
     uint16_t uint16;
     uint8_t  uint8 = 0;
-
-    if (!bmp) return; // Final safety check
 
     fwrite("BM", 1, 2, bmp);        // Offset 0x00  0  BMP header
 
@@ -6299,7 +6304,7 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
     fwrite(&uint32, 1, 4, bmp);     // Offset 0x6e  ???
     fwrite(&uint32, 1, 4, bmp);     // Offset 0x72  ???
     fwrite(&uint32, 1, 4, bmp);     // Offset 0x76  ???
-        uint32 = 0x00dff5cc; // light green
+    uint32 = 0x00dff5cc; // light green
     fwrite(&uint32, 1, 4, bmp);     // Offset 0x7a  RGB color for 0
 
     uint32 = 0;
@@ -6307,22 +6312,13 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
 
     // Offset 0x82  bit map data
     uint16 = 0;
+    uint32 = 0;
     for(y=SCREEN_HEIGHT-1; y>=0; y--) {
-      uint8 = 0;
       for(x=0; x<SCREEN_WIDTH; x++) {
         uint8 <<= 1;
-        uint32_t pix = *(screenData + y*screenStride + x);
-        #if defined(ANDROID_BUILD)
-          // Android uses ARGB. Mask alpha and check for 'on' color.
-          // Background colors are: Vintage=0xFFDFF5CC, B&W=0xFFE0E0E0
-          if ((pix & 0xFFFFFF) != 0xDFF5CC && (pix & 0xFFFFFF) != 0xE0E0E0) {
-             uint8 |= 1;
-          }
-        #else
-          if(pix == ON_PIXEL) {
-            uint8 |= 1;
-          }
-        #endif
+        if(lcd_buffer_pixel_on((uint32_t)x, (uint32_t)y)) {
+          uint8 |= 1;
+        }
 
         if((x % 8) == 7) {
           fwrite(&uint8, 1, 1, bmp);
@@ -6332,10 +6328,8 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
       fwrite(&uint16, 1, 2, bmp); // Padding
     }
 
-
     fclose(bmp);
-    screenUpdatingMode |= SCRUPD_SKIP_STACK_ONE_TIME | SCRUPD_SKIP_MENU_ONE_TIME;
-  #endif // PC_BUILD
+  #endif
 }
 
 

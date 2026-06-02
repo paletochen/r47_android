@@ -63,6 +63,25 @@ void set_android_base_path(const char* path) {
     ensure_android_subdir(SAVE_DIR);
 }
 
+int create_dir(char * dir) {
+  char fullpath[1024];
+  if (dir[0] != '/' && android_base_path_ready) {
+    snprintf(fullpath, sizeof(fullpath), "%s/%s", android_base_path, dir);
+  } else {
+    strncpy(fullpath, dir, sizeof(fullpath) - 1);
+    fullpath[sizeof(fullpath) - 1] = '\0';
+  }
+
+  int ret = mkdir(fullpath, 0775);
+
+  if(ret != 0 && errno != EEXIST) {
+    return -1;
+  }
+  else {
+    return 0;
+  }
+}
+
 int ioFileOpen(ioFilePath_t path, ioFileMode_t mode) {
     if (openedFile) {
         ioFileClose();

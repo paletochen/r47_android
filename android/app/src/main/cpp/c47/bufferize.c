@@ -626,7 +626,11 @@ TO_QSPI const fInMim_t MimFunctionsType2[] =
     {ITM_ROUNDI2     },
     {ITM_SETSIG2     },
     {ITM_SIGN        },
-    {ITM_ISM         },
+    {ITM_GET_ADM     },
+    {ITM_GET_ISM     },
+    {ITM_GET_REALDF  },
+    {ITM_GET_NDEC    },
+    {ITM_GET_DMX     },
     {ITM_SMW         },
     {ITM_SSIZE       },
     {ITM_LN1X        },
@@ -2913,7 +2917,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
 
     #if defined(IR_PRINTING)
       if((lastItem != ITM_ms) && (lastItem != ITM_dotD) && (lastItem != ITM_DRG)) {  // Avoid double tracing for functions changing X after closeNim
-        #if defined(PC_BUILD)
+        #if defined(PC_BUILD) && defined(MONITOR_IRPRINT)
           printf("**[DL]** closeNim printTraceX lastItem %d\n", lastItem);
           fflush(stdout);
         #endif //PC_BUILD

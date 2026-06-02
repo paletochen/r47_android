@@ -120,7 +120,7 @@ void     stringToUtf8          (const char *str, uint8_t *utf8);
 void     utf8ToString          (const uint8_t *utf8, char *str);
 void     stringToASCII         (const char *str, char *ascii);
 void     stringToRTF           (const char *str, char *ascii);
-void     stringToFileNameChars (const char *str, char *ascii);
+void     stringToFileNameChars (const char *str, char *ascii, uint8_t distinctQuotes);
 void    *xcopy                 (void *dest, const void *source, uint32_t n);
 void     strReplace            (char *haystack, const char *needle, const char *newNeedle);
 void     addChrBothSides       (uint8_t t, char * str);

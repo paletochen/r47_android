@@ -85,6 +85,7 @@
    * \return FILE_OK if file opened successfully, FILE_CANCEL if file selcetion cancelled or FILE_ERROR
    */
   int ioFileOpen(ioFilePath_t path, ioFileMode_t mode);
+  int create_dir(char * dir);
 
   /**
    * Write to the open file.
@@ -195,5 +196,12 @@
    * Only relevant for the DMCP version, not used for the simulator
    */
   void fnDiskInfo(uint16_t unusedButMandatoryParameter);
+
+   /**
+    * Override filename for file operations.
+    * When set, this filename will be used instead of the default path-based filename.
+    * This allows DSL commands to specify custom file locations.
+    */
+   extern char _ioFileNameOverride[];
 
 #endif // IO_H

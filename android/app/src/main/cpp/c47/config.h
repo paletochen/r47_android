@@ -67,7 +67,6 @@ void     fnFreeMemory                 (uint16_t unusedButMandatoryParameter);
  *
  * \param[in] unusedButMandatoryParameter uint16_t
  ***********************************************/
-void     fnGetDmx                     (uint16_t unusedButMandatoryParameter);
 
 /********************************************//**
  * \brief Sets X to the value of the rounding mode
@@ -192,5 +191,16 @@ void     fnGetHide                    (uint16_t unusedButMandatoryParameter);
 void     fnGetLastErr                 (uint16_t unusedButMandatoryParameter);
 void     fnKeysManagement             (uint16_t choice);
 void     initSimEqMatABX              (void);
+
+void     fnGetADM                     (uint16_t unusedButMandatoryParameter);
+void     fnSetADM                     (uint16_t unusedButMandatoryParameter);
+void     fnSetISM                     (uint16_t unusedButMandatoryParameter);
+void     fnGetREALDF                  (uint16_t unusedButMandatoryParameter);
+void     fnSetREALDF                  (uint16_t unusedButMandatoryParameter);
+void     fnGetNDEC                    (uint16_t unusedButMandatoryParameter);
+void     fnSetNDEC                    (uint16_t unusedButMandatoryParameter);
+void     fnGetDMX                     (uint16_t unusedButMandatoryParameter);
+void     fnSetDMX                     (uint16_t unusedButMandatoryParameter);
+
 
 #endif // !CONFIG_H

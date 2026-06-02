@@ -34,7 +34,7 @@ endif
 # C47 Simulator
 #
 
-deps = [gtk_dep, gmp_dep, m_dep, pulse_dep]
+deps = [gtk_dep, gmp_dep, m_dep, pulse_dep, t47_dep]
 _c_args = []
 
 if host_machine.system() == 'linux'

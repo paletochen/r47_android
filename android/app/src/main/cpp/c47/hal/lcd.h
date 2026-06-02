@@ -105,6 +105,12 @@ static inline void print_caller(const char *format, ...) {}
   void lcd_refresh_lines (uint8_t ln, uint8_t cnt);
 
   void refresh_gui(void);
+
+  /**
+   * True if the pixel at screen (x, y) is on in lcd_buffer (matches ON_PIXEL in BMP dumps).
+   * x: 0 left .. SCREEN_WIDTH-1 right; y: 0 top .. SCREEN_HEIGHT-1 bottom.
+   */
+  bool_t lcd_buffer_pixel_on(uint32_t x, uint32_t y);
 #endif // DMCP_BUILD
  /**
   * Sets a single black pixel on the screen.

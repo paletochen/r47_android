@@ -32,11 +32,11 @@ TO_QSPI const reservedVariableDescStr_t varDescr[] = {
 /*  VAR_NO_U       23 */ { ""},
 /*  VAR_NO_V       24 */ { ""},
 /*  VAR_NO_W       25 */ { ""},
-/*  VAR_NO_ADM     26 */ { ""},
-/*  VAR_NO_DENMAX  27 */ { ""},
-/*  VAR_NO_ISM     28 */ { ""},
-/*  VAR_NO_REALDF  29 */ { ""},
-/*  VAR_NO_NDEC    30 */ { ""},
+/*  VAR_NO_SPARE1  26 */ { ""},
+/*  VAR_NO_SPARE2  27 */ { ""},
+/*  VAR_NO_SPARE3  28 */ { ""},
+/*  VAR_NO_SPARE4  29 */ { ""},
+/*  VAR_NO_SPARE5  30 */ { ""},
 /*  VAR_NO_ACC     31 */ { ""},
 /*  VAR_NO_ULIM    32 */ { ""},
 /*  VAR_NO_LLIM    33 */ { ""},
@@ -85,11 +85,11 @@ TO_QSPI const reservedVariableHeader_t allReservedVariables[] = { // MUST be in 
 /*  VAR_NO_U       23 */  { .header = {.pointerToRegisterData = C47_NULL,   .dataType = 0,             .tag = 0,           .readOnly = 0, .notUsed = 0}, .reservedVariableName = {1, 'U',  0,   0,   0,   0,   0,   0} },
 /*  VAR_NO_V       24 */  { .header = {.pointerToRegisterData = C47_NULL,   .dataType = 0,             .tag = 0,           .readOnly = 0, .notUsed = 0}, .reservedVariableName = {1, 'V',  0,   0,   0,   0,   0,   0} },
 /*  VAR_NO_W       25 */  { .header = {.pointerToRegisterData = C47_NULL,   .dataType = 0,             .tag = 0,           .readOnly = 0, .notUsed = 0}, .reservedVariableName = {1, 'W',  0,   0,   0,   0,   0,   0} },
-/*  VAR_NO_ADM     26 */  { .header = {.pointerToRegisterData = C47_NULL,   .dataType = dtLongInteger, .tag = LI_POSITIVE, .readOnly = 1, .notUsed = 0}, .reservedVariableName = {3, 'A', 'D', 'M',  0,   0,   0,   0} },
-/*  VAR_NO_DENMAX  27 */  { .header = {.pointerToRegisterData = C47_NULL,   .dataType = dtLongInteger, .tag = LI_POSITIVE, .readOnly = 1, .notUsed = 0}, .reservedVariableName = {5, 'D', '.', 'M', 'A', 'X',  0,   0} },
-/*  VAR_NO_ISM     28 */  { .header = {.pointerToRegisterData = C47_NULL,   .dataType = dtLongInteger, .tag = LI_POSITIVE, .readOnly = 1, .notUsed = 0}, .reservedVariableName = {3, 'I', 'S', 'M',  0,   0,   0,   0} },
-/*  VAR_NO_REALDF  29 */  { .header = {.pointerToRegisterData = C47_NULL,   .dataType = dtLongInteger, .tag = LI_POSITIVE, .readOnly = 1, .notUsed = 0}, .reservedVariableName = {6, 'R', 'E', 'A', 'L', 'D', 'F',  0} },
-/*  VAR_NO_NDEC    30 */  { .header = {.pointerToRegisterData = C47_NULL,   .dataType = dtLongInteger, .tag = LI_POSITIVE, .readOnly = 1, .notUsed = 0}, .reservedVariableName = {4, '#', 'D', 'E', 'C',  0,   0,   0} },
+/*  VAR_NO_SPARE1  26 */  { .header = {.pointerToRegisterData = C47_NULL,   .dataType = 0,             .tag = 0,           .readOnly = 0, .notUsed = 1}, .reservedVariableName = {0,   0,  0,   0,   0,   0,   0,   0} },   // Removed, spare
+/*  VAR_NO_SPARE2  27 */  { .header = {.pointerToRegisterData = C47_NULL,   .dataType = 0,             .tag = 0,           .readOnly = 0, .notUsed = 1}, .reservedVariableName = {0,   0,  0,   0,   0,   0,   0,   0} },   // Removed, spare
+/*  VAR_NO_SPARE3  28 */  { .header = {.pointerToRegisterData = C47_NULL,   .dataType = 0,             .tag = 0,           .readOnly = 0, .notUsed = 1}, .reservedVariableName = {0,   0,  0,   0,   0,   0,   0,   0} },   // Removed, spare
+/*  VAR_NO_SPARE4  29 */  { .header = {.pointerToRegisterData = C47_NULL,   .dataType = 0,             .tag = 0,           .readOnly = 0, .notUsed = 1}, .reservedVariableName = {0,   0,  0,   0,   0,   0,   0,   0} },   // Removed, spare
+/*  VAR_NO_SPARE5  30 */  { .header = {.pointerToRegisterData = C47_NULL,   .dataType = 0,             .tag = 0,           .readOnly = 0, .notUsed = 1}, .reservedVariableName = {0,   0,  0,   0,   0,   0,   0,   0} },   // Removed, spare
 /*  VAR_NO_ACC     31 */  { .header = {.pointerToRegisterData = 0,          .dataType = dtReal34,      .tag = amNone,      .readOnly = 0, .notUsed = 0}, .reservedVariableName = {3, 'A', 'C', 'C',  0,   0,   0,   0} },
 /*  VAR_NO_ULIM    32 */  { .header = {.pointerToRegisterData = 4,          .dataType = dtReal34,      .tag = amNone,      .readOnly = 0, .notUsed = 0}, .reservedVariableName = {5, 161, 145, 'L', 'i', 'm',  0,   0} },
 /*  VAR_NO_LLIM    33 */  { .header = {.pointerToRegisterData = 8,          .dataType = dtReal34,      .tag = amNone,      .readOnly = 0, .notUsed = 0}, .reservedVariableName = {5, 161, 147, 'L', 'i', 'm',  0,   0} },
@@ -678,13 +678,13 @@ bool_t validateName(const char *name) {
   }
 
   // Check for the 1st character
-  if(                                          compareChar(name, STD_A                   ) < 0) {
+  if(                                          compareChar(name, STD_A                   ) < 0) {    //    \x41
     return false;
   }
-  if(compareChar(name, STD_Z          ) > 0 && compareChar(name, STD_a                   ) < 0) {
+  if(compareChar(name, STD_Z          ) > 0 && compareChar(name, STD_a                   ) < 0) {    //    \x5a      \x61
     return false;
   }
-  if(compareChar(name, STD_z          ) > 0 && compareChar(name, STD_A_GRAVE             ) < 0) {
+  if(compareChar(name, STD_z          ) > 0 && compareChar(name, STD_A_GRAVE             ) < 0) {    //    \x7a      \x80\xc0
     return false;
   }
   if(                                          compareChar(name, STD_CROSS               ) ==0) {
@@ -693,16 +693,16 @@ bool_t validateName(const char *name) {
   if(                                          compareChar(name, STD_DIVIDE              ) ==0) {
     return false;
   }
-  if(compareChar(name, STD_z_CARON    ) > 0 && compareChar(name, STD_iota_DIALYTIKA_TONOS) < 0) {
+  if(compareChar(name, STD_z_CARON    ) > 0 && compareChar(name, STD_iota_DIALYTIKA_TONOS) < 0) {     //   \x81\x7e   \x83\x90 
     return false;
   }
   if(compareChar(name, STD_sampi      ) > 0 && compareChar(name, STD_SUB_alpha           ) < 0) {
     return false;
   }
-  if(compareChar(name, STD_SUB_mu     ) > 0 && compareChar(name, STD_SUP_a               ) < 0) {
+  if(compareChar(name, STD_SUB_mu     ) > 0 && compareChar(name, STD_SUP_a               ) < 0) {     //   \xa2\x98   \xa4\x82
     return false;
   }
-  if(compareChar(name, STD_SUB_Z      ) > 0                                                   ) {
+  if(compareChar(name, STD_SUB_Z      ) > 0                                                   ) {     //   \xa4\xe9
     return false;
   }
 
@@ -766,7 +766,7 @@ static calcRegister_t _findReservedVariable(const char *variableName) {
     printStatus(0, "_findReservedVariable", force);
   #endif //VERBOSE_REGISTERS
 
-  uint8_t len = stringGlyphLength(variableName);
+  uint8_t len = stringByteLength(variableName); // gperf hash keys on byte 2 (-k'1-3'); pass byte length, not glyph count.
   const struct reservedRegister *reg = lookupReservedVariableName(variableName, len);
 
   if(reg != NULL) {
@@ -1419,67 +1419,6 @@ void copySourceRegisterToDestRegister(calcRegister_t sourceRegister, calcRegiste
 
   if(FIRST_RESERVED_VARIABLE <= sourceRegister && sourceRegister < FIRST_NAMED_RESERVED_VARIABLE) {
     sourceRegister = sourceRegister - FIRST_RESERVED_VARIABLE + REGISTER_X;
-  }
-  else if(sourceRegister == RESERVED_VARIABLE_ADM) {
-    longInteger_t longIntVar;
-    longIntegerInit(longIntVar);
-    switch(currentAngularMode) {
-      case amDMS: {
-        uInt32ToLongInteger(1u, longIntVar);
-        break;
-      }
-      case amRadian: {
-        uInt32ToLongInteger(2u, longIntVar);
-        break;
-      }
-      case amMultPi: {
-        uInt32ToLongInteger(3u, longIntVar);
-        break;
-      }
-      case amGrad: {
-        uInt32ToLongInteger(4u, longIntVar);
-        break;
-      }
-      default: {
-        uInt32ToLongInteger(0u, longIntVar);
-        break;
-      }
-    }
-    convertLongIntegerToLongIntegerRegister(longIntVar, destRegister);
-    longIntegerFree(longIntVar);
-    return;
-  }
-  else if(sourceRegister == RESERVED_VARIABLE_DENMAX) {
-    longInteger_t longIntVar;
-    longIntegerInit(longIntVar);
-    uInt32ToLongInteger(denMax, longIntVar);
-    convertLongIntegerToLongIntegerRegister(longIntVar, destRegister);
-    longIntegerFree(longIntVar);
-    return;
-  }
-  else if(sourceRegister == RESERVED_VARIABLE_ISM) {
-    longInteger_t longIntVar;
-    longIntegerInit(longIntVar);
-    int32ToLongInteger((shortIntegerMode==SIM_2COMPL ? 2 : (shortIntegerMode==SIM_1COMPL ? 1 : (shortIntegerMode==SIM_UNSIGN ? 0 : -1))), longIntVar);
-    convertLongIntegerToLongIntegerRegister(longIntVar, destRegister);
-    longIntegerFree(longIntVar);
-    return;
-  }
-  else if(sourceRegister == RESERVED_VARIABLE_REALDF) {
-    longInteger_t longIntVar;
-    longIntegerInit(longIntVar);
-    uInt32ToLongInteger(displayFormat, longIntVar);
-    convertLongIntegerToLongIntegerRegister(longIntVar, destRegister);
-    longIntegerFree(longIntVar);
-    return;
-  }
-  else if(sourceRegister == RESERVED_VARIABLE_NDEC) {
-    longInteger_t longIntVar;
-    longIntegerInit(longIntVar);
-    uInt32ToLongInteger(displayFormatDigits, longIntVar);
-    convertLongIntegerToLongIntegerRegister(longIntVar, destRegister);
-    longIntegerFree(longIntVar);
-    return;
   }
 
   if(   getRegisterDataType(destRegister) != getRegisterDataType(sourceRegister) || getRegisterFullSizeInBlocks(destRegister) != getRegisterFullSizeInBlocks(sourceRegister)) {

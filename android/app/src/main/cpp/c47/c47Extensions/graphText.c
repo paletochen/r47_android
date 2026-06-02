@@ -850,6 +850,10 @@ void preventFilenameTimeout(void){
 
 
   void create_filename(char *fn){ //fn must be in format ".STAT.TSV"
+      if(stringByteLength(filename_csv) > 9 && compareString(filename_csv + (stringByteLength(filename_csv) - 8), ".T47.TSV", CMP_NAME) == 0) {
+        return; // no change to file name needed, file management done in DSL
+      }
+
       uint32_t tmp__32;                                                 //JM_CSV
       time_t rawTime;
       struct tm *timeInfo;
