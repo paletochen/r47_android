@@ -310,10 +310,10 @@ dist_dmcp5r47: dmcp5r47 $(DIST_TESTPGMS_DM)
 	cp res/dmcp5/install_R47_on_DM32.txt $(DMCP5R47_DIST_DIR)/resources
 	cp res/dmcp5/update_R47.txt $(DMCP5R47_DIST_DIR)
 	cp res/combo/R47_combo.py $(DMCP5R47_DIST_DIR)/
-	cp res/combo/DMCP5_flash_3.56.bin $(DMCP5R47_DIST_DIR)/
+	cp res/combo/DMCP5_flash_3.57.bin $(DMCP5R47_DIST_DIR)/
 	cd $(DMCP5R47_DIST_DIR) && python3 R47_combo.py $(VERSION)
 	rm $(DMCP5R47_DIST_DIR)/R47_combo.py
-	rm $(DMCP5R47_DIST_DIR)/DMCP5_flash_3.56.bin
+	rm $(DMCP5R47_DIST_DIR)/DMCP5_flash_3.57.bin
 	zip -r r47-dmcp5.zip $(DMCP5R47_DIST_DIR)
 	rm -rf $(DMCP5R47_DIST_DIR)
 

@@ -96,7 +96,12 @@
     }
 
     if(tam.mode == TM_KEY) {
-      tbPtr = stringCopy(tbPtr, "KEY ");
+      if((tam.function == ITM_42KEYG) || (tam.function == ITM_42KEYX))  {
+        tbPtr = stringCopy(tbPtr, " 42KEY ");
+      }
+      else {
+        tbPtr = stringCopy(tbPtr, "KEY ");
+      }
       if(tam.keyInputFinished) {
         if(tam.keyIndirect) {
           tbPtr = stringCopy(tbPtr, STD_RIGHT_ARROW);
@@ -117,7 +122,7 @@
           }
           tbPtr += 2;
         }
-        if(tam.function == ITM_KEYX) {
+        if((tam.function == ITM_KEYX) || (tam.function == ITM_42KEYX))  {
           tbPtr = stringCopy(tbPtr, " XEQ ");
         }
         else {
@@ -237,7 +242,7 @@
 
 
   static void _tamProcessInput(uint16_t item) {
-    int16_t min, max, min2, max2, dupNum;
+    int16_t min, max, min2, max2, dupNum, maxLen;
     bool_t forceTry = false, tryOoR = false;
     bool_t valueParameter = (tam.function == ITM_GTOP || isFunctionOldParam16(tam.function) || tam.function == ITM_SKIP || tam.function == ITM_BACK);
     char *forcedVar = NULL;
@@ -254,8 +259,9 @@
     max = (tam.dot ? ((tam.mode == TM_FLAGR || tam.mode == TM_FLAGW) ? NUMBER_OF_LOCAL_FLAGS - 1 : (calcMode == CM_PEM ? 98 : currentNumberOfLocalRegisters-1)) : tam.max);
     min2 = (tam.indirect ? 0 : min);
     max2 = (tam.indirect ? (tam.dot ? (calcMode == CM_PEM ? 98 : currentNumberOfLocalRegisters-1) : 99) : max);
+    maxLen = (tam.mode == TM_MENU ? 8 : tam.mode == TM_STRING ? (tam.function == ITM_42STRING ? 14 : 13) : 6);
     dupNum = 0;
-    if((item == ITM_ENTER && !(tam.function == ITM_toINT || tam.function == ITM_HASH_JM)) || (tam.alpha && stringGlyphLength(aimBuffer) > (tam.mode != TM_MENU ? 6 : 8))) {
+    if((item == ITM_ENTER && !(tam.function == ITM_toINT || tam.function == ITM_HASH_JM)) || (tam.alpha && stringGlyphLength(aimBuffer) > maxLen)) {
       forceTry = true;
       if(tam.alpha && calcMode == CM_ASSIGN) {
         assignLeaveAlpha();
@@ -305,6 +311,10 @@
           if(calcMode == CM_ASSIGN) {
             leaveTamModeIfEnabled();
             calcModeNormalGui();
+          }
+          else if(tam.mode == TM_STRING) {
+            leaveTamModeIfEnabled();
+            scrollPemBackwards();
           }
           else {
             calcModeTamGui();
@@ -897,7 +907,8 @@ printf("tam.value: %d\n", tam.value);
       char *buffer = (forcedVar ? forcedVar : aimBuffer);
       bool_t tryAllocate = isFunctionAllowingNewVariable(tam.function);
       int16_t value, value2;
-      if(tam.mode == TM_NEWMENU) {
+
+      if((tam.mode == TM_NEWMENU) || (tam.mode == TM_STRING)) {
         value = 1;
       }
       else if(tam.mode == TM_LABEL || tam.mode == TM_LBLONLY || tam.mode == TM_SOLVE || (tam.mode == TM_KEY && tam.keyInputFinished) || (tam.mode == TM_DELITM && softmenu[softmenuStack[0].softmenuId].menuItem == -MNU_PROGS)) {
@@ -1047,7 +1058,7 @@ printf("tam.value: %d\n", tam.value);
       if(calcMode == CM_PEM && tam.function != ITM_DELP && lastErrorCode == 0) { //do not add a step of any kind if an error occurred in the processing prior to adding the step. This solves the MVAR and STO of an identified variable name problem.
         addStepInProgram(tamOperation());
       }
-      if(tam.mode != TM_NEWMENU) {
+      if((tam.mode != TM_NEWMENU) && (tam.mode != TM_STRING)) {
         aimBuffer[0] = 0;
       }
       if(tam.indirect && value != INVALID_VARIABLE && calcMode != CM_PEM) {
@@ -1257,6 +1268,17 @@ printf("tam.value: %d\n", tam.value);
         break;
       }
 
+      case TM_STRING: {
+        tam.alpha = true;
+        setSystemFlag(FLAG_ALPHA);
+        aimBuffer[0] = 0;
+        alphaCursor = 0;
+        calcModeAim(NOPARAM);
+        showSoftmenu(-MNU_TAMALPHA);
+        screenUpdatingMode &= ~SCRUPD_MANUAL_MENU;
+        break;
+      }
+
       default: {
         sprintf(errorMessage, commonBugScreenMessages[bugMsgValueFor], "tamEnterMode", tam.mode, "tam.mode");
         displayBugScreen(errorMessage);
@@ -1278,7 +1300,7 @@ printf("tam.value: %d\n", tam.value);
       }
     #endif // PC_BUILD
 
-    if(tam.mode == TM_NEWMENU) {
+    if((tam.mode == TM_NEWMENU) || (tam.mode == TM_STRING)) {
       setSystemFlag(FLAG_ALPHA);
       aimBuffer[0] = 0;
       calcModeAim(NOPARAM);

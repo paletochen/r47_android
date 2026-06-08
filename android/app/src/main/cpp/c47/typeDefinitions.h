@@ -10,6 +10,18 @@
 typedef bool bool_t;
 
 
+
+/**
+ * combined complex type, used in complex solver, and elec, and more new functions/conversions
+ */
+typedef struct {
+      real_t Real;
+      real_t Imag;
+} cplx_t;
+
+#define CPLX(x) &(x).Real, &(x).Imag
+
+
 /**
  * \enum multiplyDivide_t
    * Used for unit conversions.

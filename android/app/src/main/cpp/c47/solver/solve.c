@@ -190,9 +190,10 @@ void fnSolveVar(uint16_t unusedButMandatoryParameter) {
           reallyRunFunction(ITM_STO, regist);
           temporaryInformation = TI_SOLVER_VARIABLE;
         }
-        else { // MVAR menu key pressed without a a user entry: store the variable name in K and continue program execution
-          reallocateRegister(REGISTER_K, dtString, TO_BLOCKS(nameLength) , amNone);
-          xcopy(REGISTER_STRING_DATA(REGISTER_K), var, nameLength);
+        else { // MVAR menu key pressed without a a user entry: store the variable name in the alpha register and continue program execution
+          const uint16_t alpha_register = (varMenu42 ? alphaRegister : REGISTER_K);
+          reallocateRegister(alpha_register, dtString, TO_BLOCKS(nameLength) , amNone);
+          xcopy(REGISTER_STRING_DATA(alpha_register), var, nameLength);
           dynamicMenuItem = -1;
           runProgram(false, INVALID_VARIABLE);
         }

@@ -806,7 +806,29 @@ int16_t executeOneStep(uint8_t *step) {
         }
 
         case PTP_REM: {
-          // just ignore it
+          if(op == ITM_42STRING) {
+            if(*step++ == STRING_LABEL_VARIABLE) {
+              _getStringLabelOrVariableName(step);
+              fn42Alpha(NOPARAM);
+            }
+          }
+          else if(op == ITM_42APPEND) {
+            if(*step++ == STRING_LABEL_VARIABLE) {
+              if(getRegisterDataType(alphaRegister) != dtString) {
+                displayCalcErrorMessage(ERROR_NO_STRING_IN_ALPHA_REGISTER, ERR_REGISTER_LINE, REGISTER_T);
+                #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+                  sprintf(errorMessage, "cannot use 42append on %s", getRegisterDataTypeName(alphaRegister, true, false));
+                  moreInfoOnError("In function executeOneStep:", errorMessage, NULL, NULL);
+                #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+                return 0;
+              }
+              _getStringLabelOrVariableName(step);
+              fn42Append(NOPARAM);
+            }
+          }
+          else {  // REM
+                  // just ignore it
+          }
           return 1;
         }
 

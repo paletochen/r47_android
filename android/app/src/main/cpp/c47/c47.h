@@ -621,6 +621,9 @@
     extern const martelFont24_t   martelFont24;
     extern uint16_t               printerColumn;
   //#endif //IR_PRINTING
+  
+  extern uint16_t               alphaRegister;
+  extern bool_t                 varMenu42;
 
   #if defined(DMCP_BUILD)
     extern bool_t               backToDMCP;

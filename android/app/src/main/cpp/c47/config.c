@@ -1197,7 +1197,7 @@ void fnClAll(uint16_t confirmation) {
 
 
 void addTestPrograms(void) {
-  uint32_t numberOfBytesUsed, numberOfBytesForTheTestPrograms = TO_BYTES(TO_BLOCKS(20000));
+  uint32_t numberOfBytesUsed, numberOfBytesForTheTestPrograms = TO_BYTES(TO_BLOCKS(22000));
 
   resizeProgramMemory(TO_BLOCKS(numberOfBytesForTheTestPrograms));
   firstDisplayedStep            = beginOfProgramMemory;
@@ -1905,6 +1905,9 @@ void doFnReset(uint16_t confirmation, bool_t autoSav) {
                                    #endif
     runFunction(ITM_VERS);
 
+    //Initialize default alpha register
+    alphaRegister = REGISTER_K;
+    varMenu42 = false;
 
     //Autoloading of C47Auto.sav
     #if defined(DMCP_BUILD)

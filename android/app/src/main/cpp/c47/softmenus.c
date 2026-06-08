@@ -17,7 +17,11 @@ TO_QSPI static const char bugScreenIdMustNotBe0[] = "In function showSoftmenu: i
 /*      Menu name                           <----------------------------------------------------------------------------- 6 functions ---------------------------------------------------------------------------->  */
 /*                                          <---------------------------------------------------------------------- 6 f shifted functions ------------------------------------------------------------------------->  */
 /*                                          <---------------------------------------------------------------------- 6 g shifted functions ------------------------------------------------------------------------->  */
-TO_QSPI const int16_t menu_42[]          = { ITM_M_DIMQ,                    ITM_NULL,                   ITM_NULL,                 ITM_NULL,              ITM_NULL,                    ITM_NULL                      };
+TO_QSPI const int16_t menu_42[]          = { ITM_42STRING,                  ITM_42APPEND,               ITM_42ARCL,               ITM_42ASTO,            ITM_42AVIEW,                 ITM_42CLA,
+                                             ITM_42ALENG,                   ITM_42POSA,                 ITM_42AROT,               ITM_42ASHF,            ITM_42PRA,                   ITM_42AIP,
+                                             ITM_42KEYG,                    ITM_42KEYX,                 ITM_42VRMNU,              ITM_NULL,              ITM_42ATOX,                  ITM_42XTOA,
+
+                                             ITM_M_DIMQ,                    ITM_42BITQ,                 ITM_42ROTXY,              ITM_NULL,              ITM_NULL,                    ITM_NULL                        };
 
 
 TO_QSPI const int16_t menu_BITS[]        = { ITM_LOGICALAND,                ITM_LOGICALOR,              ITM_LOGICALXOR,           ITM_LOGICALNOT,        ITM_MASKL,                   ITM_MASKR,
@@ -40,9 +44,9 @@ TO_QSPI const int16_t menu_CLK[]         = { ITM_DATE,                      ITM_
                                              ITM_GET_WOY,                   ITM_NULL,                   ITM_NULL,                 ITM_WOY_ISO,           ITM_WOY_US,                  ITM_WOY_ME                    };
 
 
-TO_QSPI const int16_t menu_CLR[]         = { ITM_CF,                        ITM_CLMENU,                 ITM_CLCVAR,               ITM_CLREGS,            ITM_CLX,                     ITM_CLSTK,
-                                             ITM_CLFALL,                    ITM_CLMALL,                 ITM_CLVALL,               ITM_CLSIGMA,           ITM_CLGRF,                   ITM_CLLCD,
-                                             ITM_RESET,                     ITM_NULL,                   ITM_CLTVM,                ITM_NULL,              ITM_CLRMOD,                  -MNU_DELETE                    };
+TO_QSPI const int16_t menu_CLR[]         = { ITM_CLSIGMA,                   ITM_CLMENU,                 ITM_CLCVAR,               ITM_CLALPHA,            ITM_CLX,                     ITM_CLSTK,
+                                             ITM_CLFALL,                    ITM_CLMALL,                 ITM_CLVALL,               ITM_CLD,                ITM_CLLCD,                   ITM_CLREGS,
+                                             ITM_RESET,                     ITM_CLRMOD,                 ITM_CLTVM,                ITM_CLGRF,              ITM_NULL,                   -MNU_DELETE                   };
 
 /*      Menu name                           <----------------------------------------------------------------------------- 6 functions ---------------------------------------------------------------------------->  */
 /*                                          <---------------------------------------------------------------------- 6 f shifted functions ------------------------------------------------------------------------->  */
@@ -598,9 +602,9 @@ TO_QSPI const int16_t menu_ConvTemp[]       = {
 
 
 
-TO_QSPI const int16_t menu_alphaFN[]     = { ITM_FBR,                       ITM_XtoALPHA,                 ITM_ALPHAtoX,                 ITM_ALPHALENG,                ITM_ALPHAPOS,                ITM_XPARSE,
+TO_QSPI const int16_t menu_alphaFN[]     = { ITM_FBR,                       ITM_ALPHAtoX,                 ITM_XtoALPHA,                 ITM_ALPHALENG,                ITM_ALPHAPOS,                ITM_XPARSE,
                                              ITM_ALPHASL,                   ITM_ALPHASR,                  ITM_ALPHARL,                  ITM_ALPHARR,                  ITM_ALPHALOWER,              ITM_ALPHAUPPER,
-                                             ITM_ALPHALTRIM,                ITM_ALPHARTRIM,               ITM_NULL,                     ITM_ALPHAMID,                 ITM_ALPHALEFT,               ITM_ALPHARIGHT                };
+                                             ITM_ALPHALTRIM,                ITM_ALPHARTRIM,               ITM_ALPHAIP,                  ITM_ALPHAMID,                 ITM_ALPHALEFT,               ITM_ALPHARIGHT                };
 
 
 
@@ -827,7 +831,7 @@ TO_QSPI const int16_t menu_Base2[]       = { ITM_A,                         ITM_
                                              -MNU_BASE,                     ITM_SL,                     ITM_SR,                   ITM_2BIN,              ITM_2DEC,                    ITM_2HEX,
 
                                              ITM_A,                         ITM_B,                      ITM_C,                    ITM_D,                 ITM_E,                       ITM_F,
-                                             ITM_CB_LEADING_ZERO,           ITM_OVERFLOW,               ITM_CARRY,                ITM_NULL,              ITM_NULL,                    ITM_BITSp2,                  
+                                             ITM_CB_LEADING_ZERO,           ITM_OVERFLOW,               ITM_CARRY,                ITM_NULL,              ITM_NULL,                    ITM_BITSp2,
                                              -MNU_BASE,                     ITM_NUMB,                   ITM_SB,                   ITM_CB,                ITM_BS,                      -MNU_BITSET                   };
 
 
@@ -3869,7 +3873,7 @@ void fnMenuDump(uint16_t menu, uint16_t item, uint16_t newFilenameformat, const 
   showSoftmenuCurrentPart();
 
   FILE *bmp;
-  char bmpFileName[600];
+  char bmpFileName[1024];
   int32_t x, y;
   uint32_t uint32;
   uint16_t uint16;
@@ -3888,11 +3892,11 @@ void fnMenuDump(uint16_t menu, uint16_t item, uint16_t newFilenameformat, const 
   if(newFilenameformat == 2) {
     stringToASCII(indexOfItems[-softmenu[menu].menuItem].itemSoftmenuName, asciiMenuName);
     stringToFileNameChars(asciiMenuName, asciiString, distinctQuotes);
-    sprintf(bmpFileName, "%s/%s.%d.bmp", menuDumpPath, asciiString, (int)(item/18)+1);
+    snprintf(bmpFileName, sizeof(bmpFileName), "%s/%s.%d.bmp", menuDumpPath, asciiString, (int)(item/18)+1);
   } else   if(newFilenameformat == 1) {
     stringToASCII(indexOfItems[-softmenu[menu].menuItem].itemSoftmenuName, asciiMenuName);
     stringToFileNameChars(asciiMenuName, asciiString, distinctQuotes);
-    sprintf(bmpFileName, "%s/Menu_%03d_p%d_%s.bmp", menuDumpPath, menu, (int)(item/18)+1, asciiString);
+    snprintf(bmpFileName, sizeof(bmpFileName), "%s/Menu_%03d_p%d_%s.bmp", menuDumpPath, menu, (int)(item/18)+1, asciiString);
   }
 
   bmp = fopen(bmpFileName, "wb");

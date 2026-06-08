@@ -147,51 +147,53 @@ void fnClearMenu(uint16_t unusedButMandatoryParameter) {
 
 
 static void _setCaption(uint16_t keyNum) {
+  uint16_t stringRegister;
   if(1 <= keyNum && keyNum <= 18) {
     char *ts = tmpString;
-    switch(getRegisterDataType(REGISTER_X)) {
+    stringRegister = (lastFuncNo() == ITM_KEY)? REGISTER_X : alphaRegister;
+    switch(getRegisterDataType(stringRegister)) {
       case dtString: {
-        COPY_REGISTER_STRING_TO(tmpString, REGISTER_X);
+        COPY_REGISTER_STRING_TO(tmpString, stringRegister);
         break;
       }
 
       case dtLongInteger: {
-        longIntegerRegisterToDisplayString(REGISTER_X, tmpString, TMP_STR_LENGTH, SCREEN_WIDTH, 50, false);  //JM added last parameter: Allow LARGELI);
+        longIntegerRegisterToDisplayString(stringRegister, tmpString, TMP_STR_LENGTH, SCREEN_WIDTH, 50, false);  //JM added last parameter: Allow LARGELI);
         break;
       }
 
       case dtTime: {
-        timeToDisplayString(REGISTER_X, tmpString, false);
+        timeToDisplayString(stringRegister, tmpString, false);
         break;
       }
 
       case dtDate: {
-        dateToDisplayString(REGISTER_X, tmpString);
+        dateToDisplayString(stringRegister, tmpString);
         break;
       }
 
       case dtReal34Matrix: {
-        real34MatrixToDisplayString(REGISTER_X, tmpString);
+        real34MatrixToDisplayString(stringRegister, tmpString);
         break;
       }
 
       case dtComplex34Matrix: {
-        complex34MatrixToDisplayString(REGISTER_X, tmpString);
+        complex34MatrixToDisplayString(stringRegister, tmpString);
         break;
       }
 
       case dtShortInteger: {
-        shortIntegerToDisplayString(REGISTER_X, tmpString, false, noBaseOverride);
+        shortIntegerToDisplayString(stringRegister, tmpString, false, noBaseOverride);
         break;
       }
 
       case dtReal34: {
-        real34ToDisplayString(REGISTER_REAL34_DATA(REGISTER_X), getRegisterAngularMode(REGISTER_X), tmpString, &standardFont, SCREEN_WIDTH, NUMBER_OF_DISPLAY_DIGITS, !LIMITEXP, FRONTSPACE, NOIRFRAC);
+        real34ToDisplayString(REGISTER_REAL34_DATA(stringRegister), getRegisterAngularMode(stringRegister), tmpString, &standardFont, SCREEN_WIDTH, NUMBER_OF_DISPLAY_DIGITS, !LIMITEXP, FRONTSPACE, NOIRFRAC);
         break;
       }
 
       case dtComplex34: {
-        complex34ToDisplayString(REGISTER_COMPLEX34_DATA(REGISTER_X), tmpString, &numericFont, SCREEN_WIDTH, NUMBER_OF_DISPLAY_DIGITS, !LIMITEXP, FRONTSPACE, NOIRFRAC, getComplexRegisterAngularMode(REGISTER_X), getComplexRegisterPolarMode(REGISTER_X));
+        complex34ToDisplayString(REGISTER_COMPLEX34_DATA(stringRegister), tmpString, &numericFont, SCREEN_WIDTH, NUMBER_OF_DISPLAY_DIGITS, !LIMITEXP, FRONTSPACE, NOIRFRAC, getComplexRegisterAngularMode(stringRegister), getComplexRegisterPolarMode(stringRegister));
         break;
       }
 

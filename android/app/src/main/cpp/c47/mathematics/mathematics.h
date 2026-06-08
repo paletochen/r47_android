@@ -43,6 +43,7 @@
   #include "dot.h"
   #include "erf.h"
   #include "erfc.h"
+  #include "elec.h"
   #include "elliptic.h"
   #include "eulersFormula.h"
   #include "exp.h"

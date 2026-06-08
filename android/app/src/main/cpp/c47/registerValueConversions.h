@@ -39,6 +39,8 @@
   void convertRealToLongIntegerRegister                      (const real_t *real, calcRegister_t dest, enum rounding mode);
   void realToIntegralValue                                   (const real_t *source, real_t *destination, enum rounding mode, realContext_t *realContext);
 
+  void convertComplexRegisterToRealIfZeroImag                (calcRegister_t regist);
+
   /********************************************//**
    * \brief Sets function result in real type to a real34 register.
    *        This follows preferences of number of significant digits.

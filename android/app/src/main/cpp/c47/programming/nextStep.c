@@ -256,7 +256,7 @@ uint8_t *findNextStep(uint8_t *step) {
     #endif // !DMCP_BUILD
     return NULL;
   }
-  if(checkOpCodeOfStep(step, ITM_KEY)) {
+  if((checkOpCodeOfStep(step, ITM_KEY)) || (checkOpCodeOfStep(step, ITM_42KEY))) {
     uint8_t *afterFirst = findKey2ndParam(step);
     if(afterFirst == NULL) {
       return NULL;

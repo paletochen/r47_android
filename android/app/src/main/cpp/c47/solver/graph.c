@@ -33,17 +33,9 @@
 #define CONVERGE_FACTOR 1.0f     //
 #define NUMBERITERATIONS 9999    // 35 // Must be smaller than LIM (see STATS)
 
-typedef struct {
-      real_t Real;
-      real_t Imag;
-} cplx_t;
-
 #define ctxtSolver2 &ctxtReal39
-#define CPLX(x) &(x).Real, &(x).Imag
-
 int16_t osc = 0;
 uint8_t DXR = 0, DYR = 0, DXI = 0, DYI = 0;
-
 
 
   static void fnPlot(uint16_t unusedButMandatoryParameter) {
@@ -1258,14 +1250,6 @@ void graph_stat(uint16_t unusedButMandatoryParameter) {
 
   static inline bool_t check2RealZeroTol(const real_t *a, const real_t *b, const real_t *tol) {
     return checkRealZeroTol(a, tol) && checkRealZeroTol(b, tol);
-  }
-
-  static void convertComplexRegisterToRealIfZeroImag(calcRegister_t regist) {
-    real_t b;
-    if(real34IsZero(REGISTER_IMAG34_DATA(regist))) {
-      real34ToReal(REGISTER_REAL34_DATA(regist), &b);
-      convertRealToResultRegister(&b, regist, amNone);
-    }
   }
 
   static void divFunctionComplex(const real_t *a_re, const real_t *a_im, const real_t *b_re, const real_t *b_im, real_t *res_re, real_t *res_im) {

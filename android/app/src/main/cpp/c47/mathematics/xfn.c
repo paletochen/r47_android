@@ -489,7 +489,6 @@ typedef struct {
   }
 
   static bool getSingleParameter (int registerNo, real_t *combined, angularMode_t *angleMode, realContext_t *c) {
-printf("Dddd %d\n", registerNo);
     *angleMode = registerIsNoAngle(registerNo) ? amNone : getRegisterAngularMode(registerNo);
 
     if(!getLongintegerRegisterAsReal1071(registerNo, combined, c)) {                        //ignore anglemode, it is handled elsewhere

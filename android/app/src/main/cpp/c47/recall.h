@@ -100,6 +100,12 @@
    */
   void         fnRecallIJ     (uint16_t unusedButMandatoryParameter);
 
+  /**
+   * Adds a register to K as the 42S ARCL function to the Alpha register. 
+   *
+   * \param[in] regist
+   */
+  void         fn42AlphaRecall    (uint16_t r);
 
   void         fn2Rcl(uint16_t regist);
   void         fn3Rcl(uint16_t regist);

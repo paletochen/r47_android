@@ -1468,7 +1468,7 @@
 #define ITM_CLCVAR                  1420
 #define ITM_CLFALL                  1421
 #define ITM_TGLFRT                  1422
-#define ITM_CLLCD                   1423
+#define ITM_CLLCD_XY                1423
 #define ITM_CLMENU                  1424
 #define ITM_DELP                    1425
 #define ITM_DELPALL                 1426
@@ -1690,7 +1690,7 @@
 #define ITM_XW                      1642
 #define ITM_XCIRC                   1643
 #define ITM_XtoDATE                 1644
-#define ITM_XtoALPHA                1645
+#define ITM_XtoALPHA_OLD            1645 // deprecated, only for backward compatibility
 #define ITM_M_QR                    1646
 #define ITM_YEAR                    1647
 #define ITM_YCIRC                   1648
@@ -2874,28 +2874,37 @@
 //efine ITM_GET_DMX                 1558 // VAR_NO_DENMAX
 #define ITM_SET_DMX                 2770 // VAR_NO_DENMAX
 
-#define ITM_2771                    2771 // CLD
-#define ITM_2772                    2772 // CLLCD
-#define ITM_2773                    2773 // CLA
-#define ITM_2774                    2774 // AIP
-#define ITM_2775                    2775 // 42string
-#define ITM_2776                    2776 // 42append
-#define ITM_2777                    2777 // 42ARCL
-#define ITM_2778                    2778 // 42ASTO
-#define ITM_2779                    2779 // 42AROT
-#define ITM_2780                    2780 // 42ASHF
-#define ITM_2781                    2781 // 42ROTXY
-#define ITM_2782                    2782 // 42BIT?
+#define ITM_CLD                     2771
+#define ITM_CLLCD                   2772
+#define ITM_CLALPHA                 2773
+#define ITM_ALPHAIP                 2774
+#define ITM_42STRING                2775
+#define ITM_42APPEND                2776
+#define ITM_42ARCL                  2777
+#define ITM_42ASTO                  2778
+#define ITM_42AROT                  2779
+#define ITM_42ASHF                  2780
+#define ITM_42ROTXY                 2781
+#define ITM_42BITQ                  2782
 #define ITM_2783                    2783 // 42→DEC
 #define ITM_2784                    2784 // 42→OCT
-#define ITM_2785                    2785
-#define ITM_2786                    2786
-#define ITM_2787                    2787
-#define ITM_2788                    2788
-#define ITM_2789                    2789
-#define ITM_2790                    2790 //spares for 42s compatibility functions
+#define ITM_XtoALPHA                2785
+#define ITM_42AIP                   2786
+#define ITM_42ALENG                 2787
+#define ITM_42ATOX                  2788
+#define ITM_42AVIEW                 2789
+#define ITM_42CLA                   2790
+#define ITM_42POSA                  2791
+#define ITM_42PRA                   2792
+#define ITM_42XTOA                  2793
+#define ITM_42KEY                   2794
+#define ITM_42KEYG                  2795
+#define ITM_42KEYX                  2796
+#define ITM_42VRMNU                 2797
+#define ITM_2798                    2798
+#define ITM_2799                    2799 //spares for 42s compatibility functions
 
-#define LAST_ITEM                   2791
+#define LAST_ITEM                   2800
 
 #define SCREENDUMP                    9875 // Used to signal screen dump operated (not to be confused with SNAP)
 #define NOPARAM                       9876 // Item for function who don't need an item

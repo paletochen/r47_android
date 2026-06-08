@@ -332,6 +332,16 @@ void convertRealToLongIntegerRegister(const real_t *real, calcRegister_t dest, e
 
 
 
+void convertComplexRegisterToRealIfZeroImag(calcRegister_t regist) {
+  real_t b;
+  if(real34IsZero(REGISTER_IMAG34_DATA(regist))) {
+    real34ToReal(REGISTER_REAL34_DATA(regist), &b);
+    convertRealToResultRegister(&b, regist, amNone);
+  }
+}
+
+
+
 void realToIntegralValue(const real_t *source, real_t *destination, enum rounding mode, realContext_t *realContext) {
   enum rounding savedRoundingMode;
 

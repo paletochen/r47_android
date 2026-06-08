@@ -804,12 +804,12 @@ static void decodeLiteral(uint8_t *literalAddress) {
 }
 
 
-static void decodeRem(uint8_t *literalAddress) {
+static void decodeRem(uint8_t *literalAddress, uint16_t op) {
   if(*(uint8_t *)(literalAddress++) == STRING_LABEL_VARIABLE) {
     char *str = tmpString;
     getStringLabelOrVariableName(literalAddress);
-    str = stringCopy(str, "REM ");
-    str = stringCopy(str, STD_LEFT_SINGLE_QUOTE);
+    str = stringCopy(str, indexOfItems[op].itemCatalogName);
+    str = stringCopy(str, " " STD_LEFT_SINGLE_QUOTE);
     str = stringCopy(str, tmpStringLabelOrVariableName);
     str = stringCopy(str, STD_RIGHT_SINGLE_QUOTE);
   }
@@ -881,7 +881,7 @@ static void _decodeOneStep(uint8_t *step, uint16_t textVersion) {
       }
 
       case PTP_REM: {
-        decodeRem(step);
+        decodeRem(step, op);
         break;
       }
 

@@ -85,6 +85,7 @@ c47_src = files(
   'mathematics/deltaPercentXmean.c',
   'mathematics/division.c',
   'mathematics/dot.c',
+  'mathematics/elec.c',
   'mathematics/elliptic.c',
   'mathematics/erf.c',
   'mathematics/erfc.c',

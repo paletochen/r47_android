@@ -374,6 +374,9 @@ uint8_t                firstWeekOfYearDay = 4; // Thursday
   uint16_t               printerColumn;
 //#endif //IR_PRINTING
 
+uint16_t                 alphaRegister;
+bool_t                   varMenu42;
+
 
 #if defined(DMCP_BUILD)
 

@@ -729,7 +729,8 @@
 #define ERROR_RESERVED_VARIABLE_NAME              61
 #define ERROR_INVALID_TYPE_XFN                    62
 #define ERROR_PRINTING_DISABLED                   63
-#define LAST_ERROR_MESSAGE                        63
+#define ERROR_NO_STRING_IN_ALPHA_REGISTER         64
+#define LAST_ERROR_MESSAGE                        64
 
 //Status output messages for time consuming tasks, to keep user informed
 #define LOADING_STATE_FILE                       100
@@ -1567,6 +1568,10 @@ static inline uint8_t regCtoKS(const int16_t regC) {
   #define MAX_ALLOCATED_REGIONS                 5000 // Maximum number of allocated memory regions
 #endif // !DMCP_BUILD
 
+//CLLCD mode
+#define CLLCD_FULL                                 0
+#define CLLCD_XY                                   1
+
 // On/Off 1 bit
 #define OFF                                        0
 #define ON                                         1
@@ -1685,7 +1690,8 @@ static inline uint8_t regCtoKS(const int16_t regC) {
 #define TM_LBLONLY                             10018
 #define TM_VARONLY                             10019
 #define TM_VALUE_NORM                          10020
-#define TM_CMP                                 10021 // TM_CMP must be the last in this list
+#define TM_STRING                              10021
+#define TM_CMP                                 10022 // TM_CMP must be the last in this list
 
 #define TAM_IN_PROGRESS                         true
 #define TAM_COMPLETE                           false
@@ -2082,6 +2088,8 @@ static inline uint8_t regCtoKS(const int16_t regC) {
 #define PARAM_NUMBER_8_16                         10
 #define PARAM_SHUFFLE                             11
 #define PARAM_MENU                                12
+#define PARAM_LITERAL                             13
+#define PARAM_REM                                 14
 
 #define CHECK_INTEGER                              0
 #define CHECK_INTEGER_EVEN                         1

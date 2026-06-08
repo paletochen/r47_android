@@ -29,6 +29,14 @@ void fnInput(uint16_t regist) {
 
 void fnVarMnu(uint16_t label) {
   currentMvarLabel = label;
+  varMenu42 = false;
+  showSoftmenu(-MNU_MVAR);
+}
+
+
+void fn42VarMnu(uint16_t label) {
+  currentMvarLabel = label;
+  varMenu42 = true;
   showSoftmenu(-MNU_MVAR);
 }
 
@@ -376,7 +384,7 @@ void fnKeyType(uint16_t regist) {
       #else
         uInt32ToLongInteger(12u, kt); break;
       #endif
-      
+
     case 71:
       #if (CALCMODEL == USER_R47)
         uInt32ToLongInteger(12u, kt); break;

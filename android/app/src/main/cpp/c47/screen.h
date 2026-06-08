@@ -29,15 +29,16 @@
   void     fnSNAP                             (uint16_t unusedButMandatoryParameter);
 
 
-void       fnClLcd                            (uint16_t unusedButMandatoryParameter);
-void       fnPixel                            (uint16_t unusedButMandatoryParameter);
-void       fnPoint                            (uint16_t unusedButMandatoryParameter);
-void       fnAGraph                           (uint16_t regist);
-void       insertAlphaCursor                  (uint16_t startAt);
+  void       fnClLcd                          (uint16_t clear_mode);
+  void       fnClDisplay                      (uint16_t unusedButMandatoryParameter); //DL
+  void       fnPixel                          (uint16_t unusedButMandatoryParameter);
+  void       fnPoint                          (uint16_t unusedButMandatoryParameter);
+  void       fnAGraph                         (uint16_t regist);
+  void       insertAlphaCursor                (uint16_t startAt);
 
-void       drawSinglePixelFullWidthLine       (int y);
+  void       drawSinglePixelFullWidthLine     (int y);
 
-char       letteredRegisterName(calcRegister_t regist);
+  char       letteredRegisterName(calcRegister_t regist);
 
   #if defined(PC_BUILD)
   /**

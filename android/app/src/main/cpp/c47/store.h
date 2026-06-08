@@ -94,6 +94,13 @@
    */
   void         fnStoreIJ     (uint16_t unusedButMandatoryParameter);
 
+  /**
+   * Stores the first six characters in the K register in an other register, as the 42S ASTO function.
+   *
+   * \param[in] registerNumber
+   */
+  void         fn42AlphaStore(uint16_t r);
+
   void         fn2Sto(uint16_t regist);
   void         fn3Sto(uint16_t regist);
   void         fnStoreVector(uint16_t regist);
