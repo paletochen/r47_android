@@ -2901,7 +2901,7 @@
 #define ITM_42KEYG                  2795
 #define ITM_42KEYX                  2796
 #define ITM_42VRMNU                 2797
-#define ITM_2798                    2798
+#define ITM_42PROMPT                2798
 #define ITM_2799                    2799 //spares for 42s compatibility functions
 
 #define LAST_ITEM                   2800

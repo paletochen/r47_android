@@ -121,7 +121,6 @@ void fnProgrammableMenu(uint16_t unusedButMandatoryParameter) {
   else if(programmableMenu.itemParam[dynamicMenuItem] != INVALID_VARIABLE) {
     int16_t prm = dynamicMenuItem;
     dynamicMenuItem = -1;
-    popSoftmenu();
     runProgram(false, programmableMenu.itemParam[prm]);
   }
 
@@ -207,7 +206,9 @@ static void _setCaption(uint16_t keyNum) {
       }
     }
 
-    fnDrop(NOPARAM);
+    if(lastFunc == ITM_KEY) {  // Drop for ITM_KEY, not for ITM_42KEY
+      fnDrop(NOPARAM);
+    }
 
     for(int i = 0; i < 7 && *ts != 0; ++i) {
       ts += ((*ts) & 0x80) ? 2 : 1;

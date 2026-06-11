@@ -2523,7 +2523,7 @@ void timeToReal34(uint16_t hms) { //always 24 hour time;
   // Pre-rounding
   int32ToReal34(10, &value34);
   for(bDigits = 0; bDigits < (isValid12hTime ? 14 : 16); ++bDigits) {
-    if(real34CompareAbsLessThan(&h34, &value34)) {
+    if(real34CompareAbsLessThan(&real34, &value34)) {
       break;
     }
     real34Multiply(&value34, const34_10, &value34);
@@ -2545,13 +2545,14 @@ void timeToReal34(uint16_t hms) { //always 24 hour time;
     //total seconds
     reallocateRegister(regist, dtReal34, 0, amNone);
     real34Copy(&real34, REGISTER_REAL34_DATA(regist));
+    if(sign) {
+      real34ChangeSign(REGISTER_REAL34_DATA(regist));
+    }
     return;
   }
 
   // Seconds
-  //real34ToIntegralValue(&real34, &s34, DEC_ROUND_DOWN);
   real34Copy(&real34, &s34);
-  real34Subtract(&real34, &s34, &real34); // Fractional part
   // Minutes
   real34Divide(&s34, const34_60, &m34);
   real34ToIntegralValue(&m34, &m34, DEC_ROUND_DOWN);

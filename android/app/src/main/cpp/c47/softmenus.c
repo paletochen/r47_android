@@ -18,8 +18,8 @@ TO_QSPI static const char bugScreenIdMustNotBe0[] = "In function showSoftmenu: i
 /*                                          <---------------------------------------------------------------------- 6 f shifted functions ------------------------------------------------------------------------->  */
 /*                                          <---------------------------------------------------------------------- 6 g shifted functions ------------------------------------------------------------------------->  */
 TO_QSPI const int16_t menu_42[]          = { ITM_42STRING,                  ITM_42APPEND,               ITM_42ARCL,               ITM_42ASTO,            ITM_42AVIEW,                 ITM_42CLA,
-                                             ITM_42ALENG,                   ITM_42POSA,                 ITM_42AROT,               ITM_42ASHF,            ITM_42PRA,                   ITM_42AIP,
-                                             ITM_42KEYG,                    ITM_42KEYX,                 ITM_42VRMNU,              ITM_NULL,              ITM_42ATOX,                  ITM_42XTOA,
+                                             ITM_42ALENG,                   ITM_42POSA,                 ITM_42AROT,               ITM_42ASHF,            ITM_42PROMPT,                ITM_42AIP,
+                                             ITM_42KEYG,                    ITM_42KEYX,                 ITM_42VRMNU,              ITM_42PRA,             ITM_42ATOX,                  ITM_42XTOA,
 
                                              ITM_M_DIMQ,                    ITM_42BITQ,                 ITM_42ROTXY,              ITM_NULL,              ITM_NULL,                    ITM_NULL                        };
 

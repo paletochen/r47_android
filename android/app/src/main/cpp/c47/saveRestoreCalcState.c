@@ -663,6 +663,7 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     saveStateValue(&printerState.print_on,          sizeof(printerState.print_on),                               "printerState.print_on",          "bool");    //DL
     saveStateValue(&printerState.printer_model,     sizeof(printerState.printer_model),                          "printerState.printer_model",     "uint8");   //DL
     saveStateValue(&printerState.delay,             sizeof(printerState.delay),                                  "printerState.delay",             "uint16");  //DL
+    saveStateValue(&programmableMenu,               sizeof(programmableMenu),                                    "programmableMenu",               "hexDump");
 
     ramPtr = TO_C47MEMPTR(allNamedVariables);
     saveStateValue(&ramPtr,                         sizeof(ramPtr),                                              "allNamedVariables",              "c47Ptr");
@@ -1303,6 +1304,7 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     restoreStateValue(&printerState.printer_model,     sizeof(printerState.printer_model),                          "printerState.printer_model",     "uint8");   //DL
     printerState.delay = getLineDelay();
     restoreStateValue(&printerState.delay,             sizeof(printerState.delay),                                  "printerState.delay",             "uint16");  //DL
+    restoreStateValue(&programmableMenu,               sizeof(programmableMenu),                                    "programmableMenu",               "hexDump");
 
     if(backupVersion < 1014) {
       setLongPressFg(calcModel, -MNU_HOME);

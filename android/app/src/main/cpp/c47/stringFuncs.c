@@ -975,3 +975,8 @@ void fn42Posa(uint16_t unusedButMandatoryParameter) {
 void fn42Pra(uint16_t unusedButMandatoryParameter) {
   fnP_Alpha(alphaRegister);
 }
+
+void fn42Prompt(uint16_t unusedButMandatoryParameter) {
+  lastFunc = ITM_PROMPT;
+  fnPrompt(alphaRegister);
+}

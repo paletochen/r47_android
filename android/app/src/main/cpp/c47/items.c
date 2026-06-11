@@ -1657,6 +1657,7 @@ bool_t isFunctionOldParam16(uint16_t func) {
   void fn42Pra                    (uint16_t unusedButMandatoryParameter) {}   //DL
   void fn42Xtoa                   (uint16_t unusedButMandatoryParameter) {}   //DL
   void fn42VarMnu                 (uint16_t unusedButMandatoryParameter) {}   //DL
+  void fn42Prompt                 (uint16_t unusedButMandatoryParameter) {}   //DL
   void fnDeltaToStar              (uint16_t unusedButMandatoryParameter) {}
   void fnStarToDelta              (uint16_t unusedButMandatoryParameter) {}
   void fnSymToAbc                 (uint16_t unusedButMandatoryParameter) {}
@@ -1666,6 +1667,7 @@ bool_t isFunctionOldParam16(uint16_t func) {
   void fnTripleVfromIZ            (uint16_t unusedButMandatoryParameter) {}
   void fnTripleIfromVZ            (uint16_t unusedButMandatoryParameter) {}
   void fnTripleFlipPolar          (uint16_t unusedButMandatoryParameter) {}
+
 
 #endif // GENERATE_CATALOGS || defined(GENERATE_TESTPGMS)
 
@@ -4657,8 +4659,8 @@ TO_QSPI const item_t indexOfItems[] = {
 /* 2794 */  { fnKeyGtoXeq,                  TM_VALUE,                    "42KEY",                                          "42KEY",                                       (1 << TAM_MAX_BITS) |    21, CAT_NONE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_KEYG_KEYX    | HG_ENABLED         },
 /* 2795 */  { fnKeyGto,                     TM_KEY,                      "42KEYG",                                         "42KEYG",                                      (1 << TAM_MAX_BITS) |    21, CAT_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
 /* 2796 */  { fnKeyXeq,                     TM_KEY,                      "42KEYX",                                         "42KEYX",                                      (1 << TAM_MAX_BITS) |    21, CAT_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
-/* 1630 */  { fn42VarMnu,                   TM_LBLONLY,                  "42VRMNU",                                        "42VRMNU",                                      (0 << TAM_MAX_BITS) |    99, CAT_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_LABEL        | HG_ENABLED         },
-/* 2798 */  { itemToBeCoded,                NOPARAM,                     "2798",                                           "2790",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
+/* 2797 */  { fn42VarMnu,                   TM_LBLONLY,                  "42VRMNU",                                        "42VRMNU",                                     (0 << TAM_MAX_BITS) |    99, CAT_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_LABEL        | HG_ENABLED         },
+/* 2798 */  { fn42Prompt,                   NOPARAM,                     "42PRMPT",                                        "42PRMPT",                                     (0 << TAM_MAX_BITS) |     0, CAT_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_NONE         | HG_ENABLED         },
 /* 2799 */  { itemToBeCoded,                NOPARAM,                     "2799",                                           "2790",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
 
 /* 2800 */  { itemToBeCoded,                NOPARAM,                     "",                                               "Last item",                                   (0 << TAM_MAX_BITS) |     0, CAT_NONE | SLS_ENABLED   | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
