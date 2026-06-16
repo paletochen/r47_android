@@ -1503,10 +1503,17 @@ void fnGetMenu(uint16_t funusedButMandatoryParameter) {
 
 
 
-  static void _dynmenuConstructMVarsFromPgm(uint16_t label, uint16_t *numberOfBytes, uint16_t *numberOfVars) {
+static void _dynmenuConstructMVarsFromPgm(uint16_t label, uint16_t *numberOfBytes, uint16_t *numberOfVars) {
     uint8_t *step;
     step = labelList[label].instructionPointer;
-    while((*numberOfVars < 18) && checkOpCodeOfStep(step, ITM_MVAR) && *(step + 2) == STRING_LABEL_VARIABLE) {
+    while(*numberOfVars < 18) {
+      // Skip any user REM to not stop the MVAR count. REM before an MVAR is transparent. Otherwise REM and all others still quite the MVAR count. Also before an .END.
+      while(checkOpCodeOfStep(step, ITM_REM)) {
+        step = findNextStep(step);
+      }
+      if(!(checkOpCodeOfStep(step, ITM_MVAR) && *(step + 2) == STRING_LABEL_VARIABLE)) {
+        break;
+      }
       xcopy(tmpString + *numberOfBytes, step + 4, *(step + 3));
       (void)findOrAllocateNamedVariable(tmpString + *numberOfBytes);
       *numberOfBytes += *(step + 3) + 1;

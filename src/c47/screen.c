@@ -1127,7 +1127,8 @@ return res;
   uint32_t showGlyphCode(uint16_t charCode, const font_t *font, uint32_t x, uint32_t y, videoMode_t videoMode, bool_t showLeadingCols, bool_t showEndingCols, bool_t noPreClear) {
     uint32_t col, row, xGlyph, endingCols;
     int32_t  glyphId;
-    int8_t   byte, *data;
+    uint8_t  byte;
+    int8_t   *data;
     const glyph_t *glyph;
 
     if(charCode == STD_NOCHAR) {

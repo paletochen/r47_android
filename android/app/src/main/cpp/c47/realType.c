@@ -106,15 +106,21 @@ void realSetOne(real_t *r) {
 
 void realSetNaN(real_t *r) {
   r->bits     = DECNAN;
+  r->exponent = 0;
   r->digits   = 1;
+  r->lsu[0]   = 0;
 }
 
 void realSetPlusInfinity(real_t *r) {
   r->bits     = DECINF;
+  r->exponent = 0;
   r->digits   = 1;
+  r->lsu[0]   = 0;
 }
 
 void realSetMinusInfinity(real_t *r) {
   r->bits     = DECINF | DECNEG;
+  r->exponent = 0;
   r->digits   = 1;
+  r->lsu[0]   = 0;
 }

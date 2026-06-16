@@ -177,11 +177,8 @@ uint8_t DXR = 0, DYR = 0, DXI = 0, DYI = 0;
                                   #endif // STATDEBUG
     calcRegister_t regStats = regStatsXY;
     if(!isStatsMatrixN(&rows, regStats)) {
-      regStats = allocateNamedMatrix(plotStatMx, 1, 2);
+      regStats = allocateNamedMatrix(plotStatMx, 1, 2);   // bugfix was here. it already creates preps the 1x2 register matrix, no need to realMatrixInit a linked copy as that was never stored back nor freed
       regStatsXY = regStats;
-      real34Matrix_t stats;
-      linkToRealMatrixRegister(regStats, &stats);
-      realMatrixInit(&stats, 1, 2);
     }
     else {
       if(appendRowAtMatrixRegister(regStats)) {

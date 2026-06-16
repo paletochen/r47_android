@@ -1071,6 +1071,14 @@ typedef struct {
     #endif //DEBUG_XFN
 
 
+    //Step 6: drop T, A, B for a successful dyadic function
+    if(lastErrorCode == 0 && functionType == FT_DYADIC) {
+      fnDropT(NOPARAM);
+      fnDropT(NOPARAM);
+      fnDropT(NOPARAM);
+    }
+
+
     #if defined(DEBUG_XFN) || defined(DEBUGRESULT_ONLY_XFN)
       REAL_T_PTR(aa, 1071);
       REAL_T_PTR(tt, 1071);
