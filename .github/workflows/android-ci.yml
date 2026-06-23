@@ -234,7 +234,6 @@ jobs:
 
           # RESTORE local Android-specific fixes that were overwritten by upstream sync
           git checkout HEAD -- \
-            android/app/src/main/cpp/c47/keyboard.c \
             src/c47/programming/input.c \
             src/c47/programming/lblGtoXeq.c \
             src/c47/screen.c \
@@ -517,7 +516,6 @@ jobs:
 
           # RESTORE local Android-specific fixes that were overwritten by upstream sync
           git checkout HEAD -- \
-            android/app/src/main/cpp/c47/keyboard.c \
             src/c47/programming/input.c \
             src/c47/programming/lblGtoXeq.c \
             src/c47/screen.c \
