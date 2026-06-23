@@ -6,6 +6,7 @@
 #include "c47Extensions/addons.h"
 #include "longIntegerType.h"
 #include "saveRestoreCalcState.h"
+#include "saveRestoreBackup.h"
 #include "statusBar.h"
 
 //#define JMSHOWCODES
@@ -30,6 +31,7 @@ char                  lastTemp[16];
   bool_t              swapCtrlCode = false;
 #endif // PC_BUILD
 
+bool_t                headlessMode = false;
 bool_t                loadTestPrograms = false;
 bool_t                loadTestData = false;
 const font_t          *fontForShortInteger;
@@ -146,6 +148,7 @@ uint16_t               lastCenturyHighUsed = 0;
 uint8_t               *lcd_buffer;
 uint8_t                numScreensStandardFont;
 uint8_t                numScreensNumericFont;
+uint8_t                numScreensNumericFontBold;
 uint8_t                numScreensTinyFont;
 uint8_t                currentAsnScr;
 uint8_t                currentFntScr;
@@ -171,6 +174,7 @@ uint8_t                displayStack;
 uint8_t                cachedDisplayStack;
 uint8_t                alphaCase;
 uint8_t                numLinesNumericFont;
+uint8_t                numLinesNumericFontBold;
 uint8_t                numLinesStandardFont;
 uint8_t                numLinesTinyFont;
 uint8_t                cursorEnabled;

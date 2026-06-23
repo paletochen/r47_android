@@ -7,6 +7,7 @@ project('gmp', 'c',
 env = environment()
 env.append('CFLAGS',
   '-Os',
+  '-std=gnu17',
   separator : ' ')
 
 env.set('CC', 'arm-none-eabi-gcc')

@@ -326,10 +326,10 @@
 #define ITM_STtoKG                   307
 #define ITM_FZUStoTBSPC              308
 #define ITM_FZUStoTSPC               309
-#define ITM_KGtoTON                  310
+#define ITM_KGtoLT                   310
 #define ITM_KGtoLIANG                311
 #define ITM_MLtoCUPC                 312
-#define ITM_TONtoKG                  313
+#define ITM_LTtoKG                   313
 #define ITM_LIANGtoKG                314
 #define ITM_MLtoCUPUK                315
 #define ITM_GtoTRZ                   316
@@ -489,70 +489,69 @@
 
 // System flags
 #define SFL_TDM24                    463 // This label is used to identify the first in the list of flags
-#define SFL_YMD                      464 // The SFL item names are not used
-#define SFL_DMY                      465 // The SFL item names are not used
-#define SFL_MDY                      466 // The SFL item names are not used
-#define SFL_CPXRES                   467 // The SFL item names are not used
-#define SFL_CPXj                     468 // The SFL item names are not used
-#define SFL_POLAR                    469 // The SFL item names are not used
-#define SFL_FRACT                    470 // The SFL item names are not used
-#define SFL_PROPFR                   471 // The SFL item names are not used
-#define SFL_DENANY                   472 // The SFL item names are not used
-#define SFL_DENFIX                   473 // The SFL item names are not used
-#define SFL_CARRY                    474 // The SFL item names are not used
-#define SFL_OVERFLOW                 475 // The SFL item names are not used
-#define SFL_LEAD0                    476 // The SFL item names are not used
-#define SFL_ALPHA                    477 // The SFL item names are not used
-#define SFL_alphaCAP                 478 // The SFL item names are not used
-#define SFL_RUNTIM                   479 // The SFL item names are not used
-#define SFL_AMORT_HP12C              480 // The SFL item names are not used
-#define SFL_spare                    481 // The SFL item names are not used
-#define SFL_TRACE                    482 // The SFL item names are not used
-#define SFL_USER                     483 // The SFL item names are not used
-#define SFL_LOWBAT                   484 // The SFL item names are not used
-#define SFL_SLOW                     485 // The SFL item names are not used
-#define SFL_SPCRES                   486 // The SFL item names are not used
-#define SFL_SSIZE8                   487 // The SFL item names are not used
-#define SFL_QUIET                    488 // The SFL item names are not used
-#define SFL_WRAPEND                  489 // The SFL item names are not used
-#define SFL_MULTx                    490 // The SFL item names are not used
-#define SFL_ENGOVR                   491 // The SFL item names are not used
-#define SFL_GROW                     492 // The SFL item names are not used
-#define SFL_AUTOFF                   493 // The SFL item names are not used
-#define SFL_AUTXEQ                   494 // The SFL item names are not used
-#define SFL_PRTACT                   495 // The SFL item names are not used
-#define SFL_NUMIN                    496 // The SFL item names are not used
-#define SFL_ALPIN                    497 // The SFL item names are not used
-#define SFL_ASLIFT                   498 // The SFL item names are not used
-#define SFL_IGN1ER                   499 // The SFL item names are not used
-#define SFL_INTING                   500 // The SFL item names are not used
-#define SFL_SOLVING                  501 // The SFL item names are not used
-#define SFL_VMDISP                   502 // The SFL item names are not used
-#define SFL_USB                      503 // The SFL item names are not used
-#define SFL_ENDPMT                   504 // The SFL item names are not used
-#define SFL_FRCSRN                   505 // The SFL item names are not used
-#define SFL_HPRP                     506 // The SFL item names are not used
-#define SFL_SBdate                   507 // The SFL item names are not used
-#define SFL_SBtime                   508 // The SFL item names are not used
-#define SFL_SBcr                     509 // The SFL item names are not used
-#define SFL_SBcpx                    510 // The SFL item names are not used
-#define SFL_SBang                    511 // The SFL item names are not used
-#define SFL_SBfrac                   512 // The SFL item names are not used
-#define SFL_SBint                    513 // The SFL item names are not used
-#define SFL_SBmx                     514 // The SFL item names are not used
-#define SFL_SBtvm                    515 // The SFL item names are not used
-#define SFL_SBoc                     516 // The SFL item names are not used
-#define SFL_SBss                     517 // The SFL item names are not used
-#define SFL_SBstpw                   518 // The SFL item names are not used
-#define SFL_SBser                    519 // The SFL item names are not used
-#define SFL_SBprn                    520 // The SFL item names are not used
-#define SFL_SBbatV                   521 // The SFL item names are not used
-#define SFL_SBshfR                   522 // The SFL item names are not used
-#define SFL_HPBASE                   523 // The SFL item names are not used
-#define SFL_2TO10                    524 // The SFL item names are not used
-#define SFL_SH_LONGPRESS             525 // The SFL item names are not used
-#define SFL_WRAPEDG                  526 // The SFL item names are not used
-
+#define SFL_YMD                      464
+#define SFL_DMY                      465
+#define SFL_MDY                      466
+#define SFL_CPXRES                   467
+#define SFL_CPXj                     468
+#define SFL_POLAR                    469
+#define SFL_FRACT                    470
+#define SFL_PROPFR                   471
+#define SFL_DENANY                   472
+#define SFL_DENFIX                   473
+#define SFL_CARRY                    474
+#define SFL_OVERFLOW                 475
+#define SFL_LEAD0                    476
+#define SFL_ALPHA                    477
+#define SFL_alphaCAP                 478
+#define SFL_RUNTIM                   479
+#define SFL_AMORT_HP12C              480
+#define SFL_spare                    481
+#define SFL_TRACE                    482
+#define SFL_USER                     483
+#define SFL_LOWBAT                   484
+#define SFL_SLOW                     485
+#define SFL_SPCRES                   486
+#define SFL_SSIZE8                   487
+#define SFL_QUIET                    488
+#define SFL_WRAPEND                  489
+#define SFL_MULTx                    490
+#define SFL_ENGOVR                   491
+#define SFL_GROW                     492
+#define SFL_AUTOFF                   493
+#define SFL_AUTXEQ                   494
+#define SFL_PRTACT                   495
+#define SFL_NUMIN                    496
+#define SFL_ALPIN                    497
+#define SFL_ASLIFT                   498
+#define SFL_IGN1ER                   499
+#define SFL_INTING                   500
+#define SFL_SOLVING                  501
+#define SFL_VMDISP                   502
+#define SFL_USB                      503
+#define SFL_ENDPMT                   504
+#define SFL_FRCSRN                   505
+#define SFL_HPRP                     506
+#define SFL_SBdate                   507
+#define SFL_SBtime                   508
+#define SFL_SBcr                     509
+#define SFL_SBcpx                    510
+#define SFL_SBang                    511
+#define SFL_SBfrac                   512
+#define SFL_SBint                    513
+#define SFL_SBmx                     514
+#define SFL_SBtvm                    515
+#define SFL_SBoc                     516
+#define SFL_SBss                     517
+#define SFL_SBstpw                   518
+#define SFL_SBser                    519
+#define SFL_SBprn                    520
+#define SFL_SBbatV                   521
+#define SFL_SBshfR                   522
+#define SFL_HPBASE                   523
+#define SFL_2TO10                    524
+#define SFL_SH_LONGPRESS             525
+#define SFL_WRAPEDG                  526
 
 // Bufferized items
 #define ITM_REG_X                    527
@@ -2101,8 +2100,8 @@
 #define MNU_CONVTEMP                2047
 #define ITM_2048                    2048  //blank
 #define ITM_2049                    2049  //blank
-#define ITM_2050                    2050  //blank
-#define ITM_2051                    2051  //blank
+#define ITM_SIGZEROS                2050
+#define ITM_BOLD                    2051
 #define ITM_AMORT_HP12C             2052
 #define ITM_2TO10                   2053
 #define ITM_USER_HRESET             2054
@@ -2305,69 +2304,69 @@
 
 // 64 more system flags
 #define SFL_MONIT                   2251 // This label is used to identify the first in the list of flags
-#define SFL_FRCYC                   2252 // The SFL item names are not used
-#define SFL_HPCONV                  2253 // The SFL item names are not used
-#define SFL_NUMLOCK                 2254 // The SFL item names are not used
-#define SFL_CPXMULT                 2255 // The SFL item names are not used
-#define SFL_ERPN                    2256 // The SFL item names are not used
-#define SFL_dLrgLI                  2257 // The SFL item names are not used
-#define SFL_IRFRAC                  2258 // The SFL item names are not used
-#define SFL_IRFRQ                   2259 // The SFL item names are not used
-#define SFL_PFX_ALL                 2260 // The SFL item names are not used
-#define SFL_DREAL                   2261 // The SFL item names are not used
-#define SFL_CPXPLOT                 2262 // The SFL item names are not used
-#define SFL_SHOWX                   2263 // The SFL item names are not used
-#define SFL_SHOWY                   2264 // The SFL item names are not used
-#define SFL_PBOX                    2265 // The SFL item names are not used
-#define SFL_PCROS                   2266 // The SFL item names are not used
-#define SFL_PPLUS                   2267 // The SFL item names are not used
-#define SFL_PLINE                   2268 // The SFL item names are not used
-#define SFL_SCALE                   2269 // The SFL item names are not used
-#define SFL_VECT                    2270 // The SFL item names are not used
-#define SFL_NVECT                   2271 // The SFL item names are not used
-#define SFL_US                      2272 // The SFL item names are not used
-#define SFL_MNUp1                   2273 // The SFL item names are not used
-#define SFL_SBwoy                   2274 // The SFL item names are not used
-#define SFL_TOPHEX                  2275 // The SFL item names are not used
-#define SFL_BCD                     2276 // The SFL item names are not used
-#define SFL_PCURVE                  2277 // The SFL item names are not used
-#define SFL_CLX_DROP                2278 // The SFL item names are not used
-#define SFL_BASE_MYM                2279 // The SFL item names are not used
-#define SFL_G_DOUBLETAP             2280 // The SFL item names are not used
-#define SFL_BASE_HOME               2281 // The SFL item names are not used
-#define SFL_MYM_TRIPLE              2282 // The SFL item names are not used
-#define SFL_HOME_TRIPLE             2283 // The SFL item names are not used
-#define SFL_SHFT_4s                 2284 // The SFL item names are not used
-#define SFL_FGLNLIM                 2285 // The SFL item names are not used
-#define SFL_FGLNFUL                 2286 // The SFL item names are not used
-#define SFL_FGGR                    2287 // The SFL item names are not used
-#define SFL_3DPHYS                  2288 // The SFL item names are not used
-#define SFL_3DXYZ                   2289 // The SFL item names are not used
-#define SFL_PRTEN                   2290 // The SFL item names are not used
-#define SFL_NORM                    2291 // The SFL item names are not used
-#define SFL_2292                    2292 // The SFL item names are not used
-#define SFL_2293                    2293 // The SFL item names are not used
-#define SFL_2294                    2294 // The SFL item names are not used
-#define SFL_2295                    2295 // The SFL item names are not used
-#define SFL_2296                    2296 // The SFL item names are not used
-#define SFL_2297                    2297 // The SFL item names are not used
-#define SFL_2298                    2298 // The SFL item names are not used
-#define SFL_2299                    2299 // The SFL item names are not used
-#define SFL_2300                    2300 // The SFL item names are not used
-#define SFL_2301                    2301 // The SFL item names are not used
-#define SFL_2302                    2302 // The SFL item names are not used
-#define SFL_2303                    2303 // The SFL item names are not used
-#define SFL_2304                    2304 // The SFL item names are not used
-#define SFL_2305                    2305 // The SFL item names are not used
-#define SFL_2306                    2306 // The SFL item names are not used
-#define SFL_2307                    2307 // The SFL item names are not used
-#define SFL_2308                    2308 // The SFL item names are not used
-#define SFL_2309                    2309 // The SFL item names are not used
-#define SFL_2310                    2310 // The SFL item names are not used
-#define SFL_2311                    2311 // The SFL item names are not used
-#define SFL_2312                    2312 // The SFL item names are not used
-#define SFL_2313                    2313 // The SFL item names are not used
-#define SFL_2314                    2314 // The SFL item names are not used
+#define SFL_FRCYC                   2252
+#define SFL_HPCONV                  2253
+#define SFL_NUMLOCK                 2254
+#define SFL_CPXMULT                 2255
+#define SFL_ERPN                    2256
+#define SFL_dLrgLI                  2257
+#define SFL_IRFRAC                  2258
+#define SFL_IRFRQ                   2259
+#define SFL_PFX_ALL                 2260
+#define SFL_DREAL                   2261
+#define SFL_CPXPLOT                 2262
+#define SFL_SHOWX                   2263
+#define SFL_SHOWY                   2264
+#define SFL_PBOX                    2265
+#define SFL_PCROS                   2266
+#define SFL_PPLUS                   2267
+#define SFL_PLINE                   2268
+#define SFL_SCALE                   2269
+#define SFL_VECT                    2270
+#define SFL_NVECT                   2271
+#define SFL_US                      2272
+#define SFL_MNUp1                   2273
+#define SFL_SBwoy                   2274
+#define SFL_TOPHEX                  2275
+#define SFL_BCD                     2276
+#define SFL_PCURVE                  2277
+#define SFL_CLX_DROP                2278
+#define SFL_BASE_MYM                2279
+#define SFL_G_DOUBLETAP             2280
+#define SFL_BASE_HOME               2281
+#define SFL_MYM_TRIPLE              2282
+#define SFL_HOME_TRIPLE             2283
+#define SFL_SHFT_4s                 2284
+#define SFL_FGLNLIM                 2285
+#define SFL_FGLNFUL                 2286
+#define SFL_FGGR                    2287
+#define SFL_3DPHYS                  2288
+#define SFL_3DXYZ                   2289
+#define SFL_PRTEN                   2290
+#define SFL_NORM                    2291
+#define SFL_BOLD                    2292
+#define SFL_SIGZEROS                   2293
+#define SFL_2294                    2294
+#define SFL_2295                    2295
+#define SFL_2296                    2296
+#define SFL_2297                    2297
+#define SFL_2298                    2298
+#define SFL_2299                    2299
+#define SFL_2300                    2300
+#define SFL_2301                    2301
+#define SFL_2302                    2302
+#define SFL_2303                    2303
+#define SFL_2304                    2304
+#define SFL_2305                    2305
+#define SFL_2306                    2306
+#define SFL_2307                    2307
+#define SFL_2308                    2308
+#define SFL_2309                    2309
+#define SFL_2310                    2310
+#define SFL_2311                    2311
+#define SFL_2312                    2312
+#define SFL_2313                    2313
+#define SFL_2314                    2314
 
 #define MNU_SHOW                    2315
 
@@ -2856,12 +2855,12 @@
 #define ITM_KGtoTONNE               2754
 #define ITM_2755                    2755
 #define ITM_2756                    2756
-#define ITM_2757                    2757
-#define ITM_2758                    2758
-#define ITM_2759                    2759
-#define ITM_2760                    2760
-#define ITM_2761                    2761
-#define ITM_2762                    2762
+#define ITM_XEXPORT                 2757
+#define ITM_EXPATOW                 2758
+#define ITM_EXPSTK                  2759
+#define ITM_EXPNREG                 2760
+#define ITM_EXPX                    2761
+#define ITM_IMPREGS                 2762
 
 #define ITM_GET_ADM                 2763 // VAR_NO_ADM
 #define ITM_SET_ADM                 2764 // VAR_NO_ADM
@@ -2904,7 +2903,61 @@
 #define ITM_42PROMPT                2798
 #define ITM_2799                    2799 //spares for 42s compatibility functions
 
-#define LAST_ITEM                   2800
+#define ITM_LBSFT2toPA              2800
+#define ITM_PAtoLBSFT2              2801
+#define ITM_INLBStoNM               2802
+#define ITM_NMtoINLBS               2803
+#define ITM_LBSFTtoNPM              2804
+#define ITM_NPMtoLBSFT              2805
+#define ITM_KGFtoN                  2806
+#define ITM_NtoKGF                  2807
+#define ITM_MS2toFTS2               2808
+#define ITM_FTS2toMS2               2809
+#define ITM_MS2toINS2               2810
+#define ITM_INS2toMS2               2811
+#define ITM_KSItoMPA                2812
+#define ITM_MPAtoKSI                2813
+#define ITM_LBSIN3toBLOBIN3         2814
+#define ITM_BLOBIN3toLBSIN3         2815
+#define ITM_LBSIN3toTMM3            2816
+#define ITM_TMM3toLBSIN3            2817
+#define ITM_LBSIN3toKGM3            2818
+#define ITM_KGM3toLBSIN3            2819
+#define ITM_KGM3toBLOBIN3           2820
+#define ITM_BLOBIN3toKGM3           2821
+#define ITM_KGM3toTMM3              2822
+#define ITM_TMM3toKGM3              2823
+#define ITM_LBFTtoKGM               2824
+#define ITM_KGMtoLBFT               2825
+#define ITM_IN3toMM3                2826
+#define ITM_MM3toIN3                2827
+#define ITM_IN2toMM2                2828
+#define ITM_MM2toIN2                2829
+#define ITM_IN4toMM4                2830
+#define ITM_MM4toIN4                2831
+#define ITM_IN6toMM6                2832
+#define ITM_MM6toIN6                2833
+
+#define ITM_KGFPMtoNPM              2834
+#define ITM_NPMtoKGFPM              2835
+#define ITM_KGFtoLBF                2836
+#define ITM_LBFtoKGF                2837
+#define ITM_UNSLUGtoKG              2838
+#define ITM_KGtoUNSLUG              2839
+#define ITM_UNSLINCHtoKG            2840
+#define ITM_KGtoUNSLINCH            2841
+#define ITM_2842                    2842
+#define ITM_2843                    2843 // CONV Spares
+
+#define MNU_CONV_SECTION            2844
+#define MNU_CONV_MATERL             2845
+#define MNU_CONV_F_LOAD             2846
+#define MNU_CONV_M_LOAD             2847
+#define MNU_CONV_P_LOAD             2848 
+#define MNU_STRUCT                  2849
+
+
+#define LAST_ITEM                   2850
 
 #define SCREENDUMP                    9875 // Used to signal screen dump operated (not to be confused with SNAP)
 #define NOPARAM                       9876 // Item for function who don't need an item

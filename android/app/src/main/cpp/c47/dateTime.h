@@ -145,6 +145,7 @@
   void fnYYDflt                (uint16_t tmp);
   void fnYYFollow              (uint16_t unusedButMandatoryParameter);
   void fnXToDate               (uint16_t unusedButMandatoryParameter);
+  void fnXToDateRegister       (calcRegister_t regist);
   void fnYear                  (uint16_t unusedButMandatoryParameter);
   void fnMonth                 (uint16_t unusedButMandatoryParameter);
   void fnDay                   (uint16_t unusedButMandatoryParameter);

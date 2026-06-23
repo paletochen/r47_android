@@ -872,6 +872,7 @@ static void doFnEvPFacts (uint16_t param) {
     longIntegerFree(z);
     longIntegerFree(y);
     longIntegerFree(x);
+    realMatrixFree(&xx);
   }
   else {
     /* process M_SIGMA_0, M_SIGMA_1, M_SIGMA_k */

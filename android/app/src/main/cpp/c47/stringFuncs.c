@@ -219,7 +219,7 @@ static void _doXToAlpha(uint16_t regist) {
 
   longIntegerFree(lgInt);
 
-  if (regist != REGISTER_X) {
+  if(regist != REGISTER_X) {
     _readDestinationRegister(regist);
   }
   else {
@@ -286,7 +286,7 @@ void fnXToAlpha(uint16_t regist) {   // new version, similar to the hp-42s ATOX 
     }
 
     case dtReal34Matrix: {
-      if (regist != REGISTER_X) {
+      if(regist != REGISTER_X) {
         elementwiseRema_UInt16(_doXToAlpha, regist);
       }
       else {                                 // if X is the destination register, just return in X a string composed of the character codes from the matrux in X
@@ -356,6 +356,7 @@ void fnXToAlphaOld(uint16_t unusedButMandatoryParameter) {   // deprecated versi
       sprintf(errorMessage, "for x" STD_RIGHT_ARROW STD_alpha ", X must be < 32768. Here X = %" PRIu32, (uint32_t)lgInt->_mp_d[0]); // OK for 32 and 64 bit limbs
       moreInfoOnError("In function fnXToAlpha:", errorMessage, NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+    longIntegerFree(lgInt);
     return;
   }
 
@@ -435,7 +436,7 @@ void fnAlphaPos(uint16_t regist) {
         int32ToLongInteger(i, lgInt);
         break;
       }
-	}
+    }
   }
 
 

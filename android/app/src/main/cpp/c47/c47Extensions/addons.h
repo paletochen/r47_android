@@ -11,6 +11,7 @@ void fnCFGsettings  (uint16_t unusedButMandatoryParameter);
 void fnShoiXRepeats (uint16_t numberOfRepeats);
 void fnTo_ms        (uint16_t unusedButMandatoryParameter);
 void fnFrom_ms      (uint16_t unusedButMandatoryParameter);
+void fnFrom_msRegister(calcRegister_t regist);
 void fnMultiplySI   (uint16_t multiplier);
 void fn_cnst_op_j   (uint16_t unusedButMandatoryParameter);
 void fn_cnst_op_j_pol(uint16_t unusedButMandatoryParameter);

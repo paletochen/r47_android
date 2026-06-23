@@ -1022,7 +1022,7 @@ void fnEdit (uint16_t unusedParamButMandatory) {
               tamProcessInput(ITM_NOP);                 // to insert the resulting string in program
               break;
             }
-            
+
             case PARAM_KEYG_KEYX: {                            // Key Goto or Key eXecute
               if(func == ITM_KEY) {
                 func = (opParam2 == ITM_GTO ? ITM_KEYG : ITM_KEYX);
@@ -1200,17 +1200,17 @@ void fnFrom_ymd(uint16_t unusedButMandatoryParameter){
 //=-=-=-=-=-=-==-=-
 //input is time or DMS
 //output is sexagesima coded decimal ddd.mmsssssss in the form of a normal decimal
-void fnFrom_ms(uint16_t unusedButMandatoryParameter){
+void fnFrom_msRegister(calcRegister_t regist){
     char tmpString100[100];
     char tmpString100_OUT[100];
     tmpString100[0] = 0;
     tmpString100_OUT[0] = 0;
 
-    if(getRegisterDataType(REGISTER_X) == dtTime) {
+    if(getRegisterDataType(regist) == dtTime) {
       temporaryInformation = TI_FROM_MS_TIME;
     }
-    else if(getRegisterDataType(REGISTER_X) == dtReal34 && getRegisterAngularMode(REGISTER_X) != amNone) {
-      if(getRegisterAngularMode(REGISTER_X) != amDMS) {
+    else if(getRegisterDataType(regist) == dtReal34 && getRegisterAngularMode(regist) != amNone) {
+      if(getRegisterAngularMode(regist) != amDMS) {
         fnAngularModeJM(amDMS);
       }
       temporaryInformation = TI_FROM_MS_DEG;
@@ -1221,10 +1221,10 @@ void fnFrom_ms(uint16_t unusedButMandatoryParameter){
 
     if(temporaryInformation != TI_NO_INFO) {
       if(temporaryInformation == TI_FROM_MS_TIME) {
-        copyRegisterToClipboardString2(REGISTER_X, tmpString100);
+        timeToDisplayString(regist, tmpString100, true);
       }
       if(temporaryInformation == TI_FROM_MS_DEG) {
-        real34ToDisplayString(REGISTER_REAL34_DATA(REGISTER_X), getRegisterAngularMode(REGISTER_X), tmpString100, &standardFont, SCREEN_WIDTH, NUMBER_OF_DISPLAY_DIGITS, !LIMITEXP, FRONTSPACE, NOIRFRAC);
+        real34ToDisplayString(REGISTER_REAL34_DATA(regist), getRegisterAngularMode(regist), tmpString100, &standardFont, SCREEN_WIDTH, NUMBER_OF_DISPLAY_DIGITS, !LIMITEXP, FRONTSPACE, NOIRFRAC);
         int16_t tmp_i = 0;
         while(tmpString100[tmp_i] != 0 && tmpString100[tmp_i+1] != 0) { //pre-condition the dd.mmssss to replaxce spaces with zeroes
           //printf("%c %d", tmpString100[tmp_i], tmpString100[tmp_i]);
@@ -1288,8 +1288,8 @@ void fnFrom_ms(uint16_t unusedButMandatoryParameter){
       }
 
       if(tmpString100_OUT[0] != 0) {
-        reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-        stringToReal34(tmpString100_OUT, REGISTER_REAL34_DATA(REGISTER_X));
+        reallocateRegister(regist, dtReal34, 0, amNone);
+        stringToReal34(tmpString100_OUT, REGISTER_REAL34_DATA(regist));
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           printf("\n ------- 003 >>>%s<<<\n", tmpString100_OUT);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -1297,6 +1297,11 @@ void fnFrom_ms(uint16_t unusedButMandatoryParameter){
     }
 
     //stringToReal(tmpString100, &value, &ctxtReal39);
+}
+
+
+void fnFrom_ms(uint16_t unusedButMandatoryParameter){
+  fnFrom_msRegister(REGISTER_X);
 }
 
 

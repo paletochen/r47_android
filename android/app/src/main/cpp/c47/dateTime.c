@@ -607,23 +607,23 @@ void fnYYDflt(uint16_t tmp) {
 }
 
 
-void fnXToDate(uint16_t unusedButMandatoryParameter) {
+void fnXToDateRegister(calcRegister_t regist) {
   if(!saveLastX()) {
     return;
   }
 
   #pragma GCC diagnostic push
   #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
-  switch(getRegisterDataType(REGISTER_X)) {
+  switch(getRegisterDataType(regist)) {
     case dtDate: {
       /* already in date: do nothing */
       break;
     }
 
     case dtReal34: {
-      if(getRegisterAngularMode(REGISTER_X) == amNone) {
-        convertReal34RegisterToDateRegister(REGISTER_X, REGISTER_X, false);     //no !YYsystem needed here; //change this "false" to "YYSystem" to make [x->D] respect YY
-        checkDateRange(REGISTER_REAL34_DATA(REGISTER_X));
+      if(getRegisterAngularMode(regist) == amNone) {
+        convertReal34RegisterToDateRegister(regist, regist, false);     //no !YYsystem needed here; //change this "false" to "YYSystem" to make [x->D] respect YY
+        checkDateRange(REGISTER_REAL34_DATA(regist));
         temporaryInformation = TI_DAY_OF_WEEK;
         if(lastErrorCode != 0) {
           undo();
@@ -634,9 +634,9 @@ void fnXToDate(uint16_t unusedButMandatoryParameter) {
     }
 
     default: {
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, regist);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-        sprintf(errorMessage, "data type %s cannot be converted to date!", getRegisterDataTypeName(REGISTER_X, false, false));
+        sprintf(errorMessage, "data type %s cannot be converted to date!", getRegisterDataTypeName(regist, false, false));
         moreInfoOnError("In function fnXToDate:", errorMessage, NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
       return;
@@ -645,6 +645,10 @@ void fnXToDate(uint16_t unusedButMandatoryParameter) {
   #pragma GCC diagnostic pop
 }
 
+
+void fnXToDate(uint16_t unusedButMandatoryParameter) {
+  fnXToDateRegister(REGISTER_X);
+}
 
 void fnYear(uint16_t unusedButMandatoryParameter) {
   real34_t y, m, d, j;

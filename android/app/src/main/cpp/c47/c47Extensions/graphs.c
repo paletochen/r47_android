@@ -1363,7 +1363,7 @@ void graph_plotmem(void) {
                 int16_t yNintg= screen_window_y(y_min, inty, y_max);
                 int16_t xAvg  = ((xN0+xN1) >> 1);
 
-                if(abs((int16_t)(xN1-xN0)>=6)) {
+                if(abs((int16_t)(xN1-xN0)) >= 6) {
                   plotint( xAvg, yNintg );
                 }
                 else {
@@ -1371,11 +1371,11 @@ void graph_plotmem(void) {
                   plotrect(xAvg-1, yNintg-1, xAvg+1, yNintg+1);
                 }
 
-                if(abs((int16_t)(xN1-xN0) >= 6)) {
+                if(abs((int16_t)(xN1-xN0)) >= 6) {
                   plotline1(xN1,    yNintg, xAvg+2, yNintg);
                   plotline1(xAvg-2, yNintg, xN0,    yNintg);
                 }
-                else if(abs((int16_t)(xN1-xN0) >= 4)) {
+                else if(abs((int16_t)(xN1-xN0)) >= 4) {
                   plotline1(xN1,    yNintg, xAvg+2, yNintg);
                   plotline1(xAvg-2, yNintg, xN0,    yNintg);
                 }
@@ -1384,7 +1384,7 @@ void graph_plotmem(void) {
                   int16_t yNoff = screen_window_y(y_min, 0, y_max);
                   plotrect(xN0, yN0,   xN1, yN1);
                   plotrect(xN0, yNoff, xN1, yN0);
-                  if(abs((int16_t)(xN1-xN0) >= 6)) {
+                  if(abs((int16_t)(xN1-xN0)) >= 6) {
                     plotline1(xN0, yN0,   xN1, yN1);
                   }
                 }

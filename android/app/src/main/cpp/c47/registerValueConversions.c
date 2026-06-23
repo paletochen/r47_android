@@ -1209,7 +1209,6 @@ int getRegisterAsLongIntQuiet(calcRegister_t reg, longInteger_t val, bool_t *fra
   real_t rval;
   bool_t frac = false;
 
-  longIntegerInit(val);
   switch(getRegisterDataType(reg)) {
     case dtLongInteger:
       convertLongIntegerRegisterToLongInteger(reg, val);
@@ -1222,6 +1221,7 @@ int getRegisterAsLongIntQuiet(calcRegister_t reg, longInteger_t val, bool_t *fra
     case dtComplex34:
     case dtReal34:
       if(getRegisterAsReal(reg, &rval)) {
+        longIntegerInit(val); // convertRealToLongInteger expects an initialised val
         if(realIsSpecial(&rval)) {
           return ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN;
         }
@@ -1235,6 +1235,7 @@ int getRegisterAsLongIntQuiet(calcRegister_t reg, longInteger_t val, bool_t *fra
       /* fall through */
 
     default:
+      longIntegerInit(val);
       return ERROR_INVALID_DATA_TYPE_FOR_OP;
   }
   if(fractional != NULL) {

@@ -203,6 +203,7 @@ c47_src = files(
   'recall.c',
   'registerValueConversions.c',
   'registers.c',
+  'saveRestoreBackup.c',
   'saveRestoreCalcState.c',
   'saveRestorePrograms.c',
   'screen.c',

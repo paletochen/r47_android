@@ -757,6 +757,12 @@ void updateAssignTamBuffer(void) {
   else if(itemToBeAssigned <= ASSIGN_USER_MENU) {
     tbPtr = stringCopy(tbPtr, userMenus[-(itemToBeAssigned - ASSIGN_USER_MENU)].menuName);
   }
+  else if(isItemConversion(itemToBeAssigned)) {
+    char tb[64];
+    fullConvSoftMenuItemNameInclHPCONV(itemToBeAssigned, tb);
+    expandAbbreviations(tb);
+    tbPtr = stringCopy(tbPtr, tb);
+  }
   else if(itemToBeAssigned < 0) {
     tbPtr = stringCopy(tbPtr, indexOfItems[-itemToBeAssigned].itemCatalogName);
   }

@@ -1380,6 +1380,25 @@ endReturnTrue:
 
                 runFunction(item);
 
+
+                // Double execution when a custom conversion: additional to the runfunction which operated the 'normal' conversion
+                if(!(programRunStop == PGM_RUNNING || programRunStop == PGM_PAUSED) && calcMode != CM_PEM && item > 0 && isItemConversion(item)) {
+                  int16_t itemNrPair;
+                  executionConversionPartner(item, &itemNrPair, NULL);
+                  if(itemNrPair != 0) {                                                                                                            // non-zero = custom non-standard pair needing the round-trip via SI
+                    if(!getSystemFlag(FLAG_HPCONV)) { //normal CONV_HP clear
+                      runConversionToSI(item);
+                      runConversionFromSI(itemNrPair);
+                    } else { //flipped CONV_HP set
+                      runFunction(conversionPartner(item, NULL, NULL, NULL));
+                      runConversionToSI(itemNrPair);
+                      runConversionFromSI(conversionPartner(item, NULL, NULL, NULL));
+                    }
+                    temporaryInformation = TI_CONV_MENU_STR;
+                  }
+                }
+
+
                 if(calcMode == CM_EIM && !tam.mode) {
                   if(isAlphaSubmenu(0)) {
                     while(currentMenu() != -MNU_EQ_EDIT) {
@@ -1851,7 +1870,7 @@ bool_t nimWhenButtonPressed = false;                  //PHM eRPN 2021-07
             screenUpdatingMode &= !(SCRUPD_MANUAL_STATUSBAR | SCRUPD_SKIP_STATUSBAR_ONE_TIME);
             programRunStop = PGM_WAITING;
             showFunctionNameItem = 0;
-            #if defined(IR_PRINTING) 
+            #if defined(IR_PRINTING)
               #if defined(PC_BUILD) && defined(MONITOR_IRPRINT)
                 printf("**[DL]** STOP program\n");
                 fflush(stdout);
@@ -4803,7 +4822,7 @@ void fnKeyDown(uint16_t unusedButMandatoryParameter) {
       }
 
       case CM_FONT_BROWSER: {
-        if(currentFntScr < numScreensNumericFont + numScreensStandardFont + numScreensTinyFont) {
+        if(currentFntScr < numScreensNumericFont + numScreensNumericFontBold + numScreensStandardFont + numScreensTinyFont) {
           currentFntScr++;
         }
         break;

@@ -769,14 +769,8 @@ void pemAlpha(int16_t item) {
       item = 0;
     }
     else if(aimFunc == ITM_REM)   { // REM
-      if(aimFunc == ITM_REM) {
-        xcopy(aimBuffer, tmpString + 6, ll);        //purposely overshoot aimbuffer, as there is sufficient space
-        aimBuffer[ll - 2 - 6] = 0;
-      }
-      else {
-        xcopy(aimBuffer, tmpString + 7, ll);        //purposely overshoot aimbuffer, as there is sufficient space
-        aimBuffer[ll - 2 - 7] = 0;
-      }
+      xcopy(aimBuffer, tmpString + 6, ll);        //purposely overshoot aimbuffer, as there is sufficient space
+      aimBuffer[ll - 2 - 6] = 0;
       T_cursorPos = stringLastGlyph(aimBuffer) + 1;
       deleteStepsFromTo(currentStep, findNextStep(currentStep));
       tam.function = aimFunc;

@@ -190,23 +190,9 @@
 // **
 // ******************************************************
 
-
-  const bool_t user1071Flag = true;
-
-
-  #if defined(TESTSUITE_BUILD)
-    const bool_t use1071 = true;
-  #else
-    #if (defined(DMCP_BUILD) && (HARDWARE_MODEL) && (HARDWARE_MODEL == HWM_DM42n)) || defined(PC_BUILD)
-      #define HIMEMORY true
-    #else
-      #define HIMEMORY false
-    #endif //(HARDWARE_MODEL) && (HARDWARE_MODEL == HWM_DM42n)) || defined(DMCP_BUILD)
-    const bool_t use1071 = HIMEMORY && user1071Flag;
-  #endif //TESTSUITE_BUILD
-
-  #define maxAllowedDigits  (use1071 ? 1000 : 68)
-  #define maxContextDigits  (use1071 ? 1071 : 75)
+const bool_t use1071 = true;
+#define maxAllowedDigits  (use1071 ? 1000 : 68)
+#define maxContextDigits  (use1071 ? 1071 : 75)
 
 
 
@@ -285,11 +271,6 @@ returnUnity:
 }
 
 
-  #define XFN_NOTFOUND 99
-  #define FT_NILADIC  100  //this controls the reading and dropping of the stack
-  #define FT_MONADIC  101
-  #define FT_DYADIC   102
-  #define FT_SINGLEX  103
 
   #define NOANG       200
   #define FORCEANG    201
@@ -384,7 +365,7 @@ typedef struct {
   }
 
   //true only if an angle is tagged; false for longinteger angle; false and error for invalid
-  static bool_t getAngleModeForRegister3r(int registerNo, angularMode_t *angleMode ) {
+  bool_t getAngleModeForRegister3r(calcRegister_t registerNo, angularMode_t *angleMode ) {
     if(isXFNregisterValid3r(registerNo)) {
       if(getRegisterDataType(registerNo) == dtLongInteger) {
         *angleMode = amNone;
@@ -515,6 +496,28 @@ typedef struct {
   }
 
 
+static void replaceSeparatorWithFigureSpace(char *displayString) {                  //to reduce the total string width to display due to wide seps
+  int sepLen = (SEPARATOR_RIGHT[0] != 1) ? (SEPARATOR_RIGHT[1] != 1 ? 2 : 1) : 0;
+  if(sepLen == 0) {
+    return;
+  }
+  char *tmp = tmpString;
+  int s = 0, d = 0;
+  while(displayString[s] != 0) {
+    if(displayString[s] == SEPARATOR_RIGHT[0] && (sepLen == 1 || displayString[s+1] == SEPARATOR_RIGHT[1])) {
+      tmp[d++] = STD_SPACE_FIGURE[0];
+      tmp[d++] = STD_SPACE_FIGURE[1];
+      s += sepLen;
+    }
+    else {
+      tmp[d++] = displayString[s++];
+    }
+  }
+  tmp[d] = 0;
+  xcopy(displayString, tmp, d + 1);
+}
+
+
   bool_t registerFMAOutputString(calcRegister_t regist, char* prefix, char *displayString) {
     angularMode_t angle;
     REAL_T_PTR(tmp1, 1071);
@@ -525,7 +528,36 @@ typedef struct {
     if(getCombinedParameter(1, regist, tmp1, tmp2, &angle, &c)) {   //use the angle of the 1st param only, if set
       // realPlus(tmp1, tmp1, &c);
       strcpy(displayString, prefix);
-      realToSci(tmp1, displayString + stringByteLength(displayString));
+      realSCIToDisplayString(tmp1, displayString + stringByteLength(displayString), 1000, !FRONTSPACE, (uint8_t *)tmpString, 2560);
+      if(realGetExponent(tmp1) > 672 || tmp1->digits > 672) {
+        replaceSeparatorWithFigureSpace(displayString);
+      }
+      return true;
+    }
+    return false;
+  }
+
+
+  bool_t registerFMAOutputPlainString(calcRegister_t regist, char* prefix, char *displayString) {
+    angularMode_t angle;
+    REAL_T_PTR(tmp1, 1071);
+    REAL_T_PTR(tmp2, 1071);
+    realContext_t c = ctxtReal75;
+    c.digits = 1034;
+    c.round = DEC_ROUND_HALF_UP;
+    if(getCombinedParameter(1, regist, tmp1, tmp2, &angle, &c)) {   //use the angle of the 1st param only, if set
+      // realPlus(tmp1, tmp1, &c);
+      strcpy(displayString, prefix);
+      if(realIsNaN(tmp1) || realIsInfinite(tmp1) || realIsZero(tmp1)) {                  // DecNumber leaves an integer as integer and keeps trailing zeros. This method, after many iterations, drop the trailing zeros and forces the mantissa display WITHOUT venturing into the string based SCI creation in the rest of the 47 system.
+        realToString(tmp1, displayString + stringByteLength(displayString));             //   zero, infinity and NaN have no coefficient/exponent split, so print them untouched
+      }
+      else {
+        decNumberReduce(tmp1, tmp1, &c);                                                 //   discard trailing zeros: I want the significant digits only, not the stored precision
+        int32_t sciExp = tmp1->exponent + tmp1->digits - 1;                              //   decNumber holds a value as coefficient x 10^exponent, so the leading digit sits at exponent + (digitcount - 1), that power we show
+        tmp1->exponent = 1 - tmp1->digits;                                               //   move the point so the coefficient becomes one digit, a point, then the rest; with this non-positive exponent decNumber prints it plainly instead of in its own E-form, requiring still the exponent
+        realToString(tmp1, displayString + stringByteLength(displayString));             //   mantissa only: "1", "1.2345", "1.0001"
+        sprintf(displayString + stringByteLength(displayString), "E%+ld", (long)sciExp); //   exponent emulating decNumber standard style: E, explicit sign, no leading zeros
+      }
       return true;
     }
     return false;
@@ -679,6 +711,105 @@ typedef struct {
   }
 
 
+  void processResultantLongReal(uint16_t registerNo, int function, int functionType, real_t *paramX, real_t *paramY, real_t *paramTemp, angularMode_t *angleMode, angularMode_t *tmpAngle) {
+    real_t tmpR;
+
+    realContext_t c = ctxtReal75;
+    c.digits = maxContextDigits;           // Automatic change over to 75 digits for DM42 hardware, and 1071 digits for DM42n and simulator
+
+    //Test code to force a specific output to check
+    // real_t aaaa;
+    // stringToReal("1E-1200", &aaaa, &c);
+    // stringToReal("1E-1000", paramX, &c);
+    // realAdd  (paramX, &aaaa, paramX, &c);
+    // stringToReal("1E-2030", &aaaa, &c);
+    // realAdd  (paramX, &aaaa, paramX, &c);
+    //****************
+
+//--------//--------//-- Clip to 1034 digits                               --//--------//--------//--------
+
+    realContext_t cc = ctxtReal75;
+    cc.digits = maxAllowedDigits + 34;
+    cc.round = DEC_ROUND_HALF_UP;
+    realPlus(paramX, paramX, &cc);
+
+    #if defined(DEBUG_XFN)
+      printRegisterToConsole(REGISTER_X, "\nX:", "\n");
+      realToString(paramX, tmpString);
+      tmpString[debugLongNumberLimit]=0;
+      printf("Output: %s\n", tmpString);
+    #endif //DEBUG_XFN
+
+
+//--------//--------//-- Processing stack output with paramX as the output --//--------//--------//--------
+
+
+    //Step 1: Send a 0 addition term to the stack output (Form only, will be rewritten later)
+    setSystemFlag(FLAG_ASLIFT);
+    liftStack();
+    reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
+    realSetZero(&tmpR);
+    convertRealToReal34ResultRegister(&tmpR, REGISTER_X);
+    adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
+
+
+    //Step 2: Send integer part to stack output
+    setSystemFlag(FLAG_ASLIFT);
+    liftStack();
+    longInteger_t integerOutput;
+    longIntegerInit(integerOutput);
+    decomposeReal(paramX, integerOutput, paramY, &c);
+    convertLongIntegerToLongIntegerRegister(integerOutput, REGISTER_X);
+    longIntegerFree(integerOutput);
+
+
+    //Step 3: Send real multiplier to the stack output
+    setSystemFlag(FLAG_ASLIFT);
+    liftStack();
+    realPlus(paramY, &tmpR, &ctxtReal75);
+    convertRealToResultRegister(&tmpR, REGISTER_X, *angleMode);
+    adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
+
+
+    //Step 4: update difference term;         re-using paramY
+    if(functionType == FT_NILADIC || functionType == FT_MONADIC || functionType == FT_DYADIC || functionType == FT_EXTERNAL) {
+      if(!getCombinedParameter(1, REGISTER_X, paramY, paramTemp, tmpAngle, &c)) {   //ignore angle
+        ; //should be errored already in getCombinedParameter
+        return;
+      }
+      realSubtract(paramX, paramY, paramY, &c);
+      realPlus(paramY, &tmpR, &ctxtReal75);
+      convertRealToResultRegister(&tmpR, REGISTER_Z, amNone);
+    }
+
+
+    //Step 5: debug stack output
+    #if defined(DEBUG_XFN)
+      printRegisterToConsole(REGISTER_Z, "\nZ:", "\n");
+      printRegisterToConsole(REGISTER_Y, "\nY:", "\n");
+      printRegisterToConsole(REGISTER_X, "\nX:", "\n");
+    #endif //DEBUG_XFN
+
+
+    //Step 6: drop T, A, B for a successful dyadic function
+    if(lastErrorCode == 0 && functionType == FT_DYADIC) {
+      fnDropT(NOPARAM);
+      fnDropT(NOPARAM);
+      fnDropT(NOPARAM);
+    }
+
+
+    #if defined(DEBUG_XFN) || defined(DEBUGRESULT_ONLY_XFN)
+      REAL_T_PTR(aa, 1071);
+      REAL_T_PTR(tt, 1071);
+      readThreeRegisters(registerNo, aa, tt, &c);
+      realToString(aa, tmpString);
+      printf("\nAfter Step4, combined register: =%s|...%d\n", tmpString, aa->digits);
+    #endif //DEBUG_XFN
+
+  }
+
+
 
   static void doXfn(uint16_t registerNo, int function, int functionType, int functionAngle, int functionParam, int ErrorLocation) {
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -700,7 +831,6 @@ typedef struct {
     REAL_T_PTR(paramY, 1071);
     REAL_T_PTR(paramTemp, 1071);
     realSetZero(paramX);
-    real_t tmpR;
 
     realContext_t c = ctxtReal75;
     c.digits = maxContextDigits;           // Automatic change over to 75 digits for DM42 hardware, and 1071 digits for DM42n and simulator
@@ -955,32 +1085,6 @@ typedef struct {
       }
     }
 
-    //Test code to force a specific output to check
-    // real_t aaaa;
-    // stringToReal("1E-1200", &aaaa, &c);
-    // stringToReal("1E-1000", paramX, &c);
-    // realAdd  (paramX, &aaaa, paramX, &c);
-    // stringToReal("1E-2030", &aaaa, &c);
-    // realAdd  (paramX, &aaaa, paramX, &c);
-    //****************
-
-//--------//--------//-- Clip to 1034 digits                               --//--------//--------//--------
-
-    realContext_t cc = ctxtReal75;
-    cc.digits = maxAllowedDigits + 34;
-    cc.round = DEC_ROUND_HALF_UP;
-    realPlus(paramX, paramX, &cc);
-
-    #if defined(DEBUG_XFN)
-      printRegisterToConsole(REGISTER_X, "\nX:", "\n");
-      realToString(paramX, tmpString);
-      tmpString[debugLongNumberLimit]=0;
-      printf("Output: %s\n", tmpString);
-    #endif //DEBUG_XFN
-
-
-//--------//--------//-- Processing stack output with paramX as the output --//--------//--------//--------
-
 
     //Step 00: Handle the angle
     switch(function) {      //will always be the deemed angle
@@ -1024,69 +1128,7 @@ typedef struct {
       fnDrop(NOPARAM);
     }
 
-    //Step 1: Send a 0 addition term to the stack output (Form only, will be rewritten later)
-    setSystemFlag(FLAG_ASLIFT);
-    liftStack();
-    reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-    realSetZero(&tmpR);
-    convertRealToReal34ResultRegister(&tmpR, REGISTER_X);
-    adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-
-
-    //Step 2: Send integer part to stack output
-    setSystemFlag(FLAG_ASLIFT);
-    liftStack();
-    longInteger_t integerOutput;
-    longIntegerInit(integerOutput);
-    decomposeReal(paramX, integerOutput, paramY, &c);
-    convertLongIntegerToLongIntegerRegister(integerOutput, REGISTER_X);
-    longIntegerFree(integerOutput);
-
-
-    //Step 3: Send real multiplier to the stack output
-    setSystemFlag(FLAG_ASLIFT);
-    liftStack();
-    realPlus(paramY, &tmpR, &ctxtReal75);
-    convertRealToResultRegister(&tmpR, REGISTER_X, angleMode);
-    adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-
-
-    //Step 4: update difference term;         re-using paramY
-    if(functionType == FT_NILADIC || functionType == FT_MONADIC || functionType == FT_DYADIC) {
-      if(!getCombinedParameter(1, REGISTER_X, paramY, paramTemp, &tmpAngle, &c)) {   //ignore angle
-        ; //should be errored already in getCombinedParameter
-        return;
-      }
-      realSubtract(paramX, paramY, paramY, &c);
-      realPlus(paramY, &tmpR, &ctxtReal75);
-      convertRealToResultRegister(&tmpR, REGISTER_Z, amNone);
-    }
-
-
-    //Step 5: debug stack output
-    #if defined(DEBUG_XFN)
-      printRegisterToConsole(REGISTER_Z, "\nZ:", "\n");
-      printRegisterToConsole(REGISTER_Y, "\nY:", "\n");
-      printRegisterToConsole(REGISTER_X, "\nX:", "\n");
-    #endif //DEBUG_XFN
-
-
-    //Step 6: drop T, A, B for a successful dyadic function
-    if(lastErrorCode == 0 && functionType == FT_DYADIC) {
-      fnDropT(NOPARAM);
-      fnDropT(NOPARAM);
-      fnDropT(NOPARAM);
-    }
-
-
-    #if defined(DEBUG_XFN) || defined(DEBUGRESULT_ONLY_XFN)
-      REAL_T_PTR(aa, 1071);
-      REAL_T_PTR(tt, 1071);
-      readThreeRegisters(registerNo, aa, tt, &c);
-      realToString(aa, tmpString);
-      printf("\nAfter Step4, combined register: =%s|...%d\n", tmpString, aa->digits);
-    #endif //DEBUG_XFN
-
+    processResultantLongReal(registerNo, function, functionType, paramX, paramY, paramTemp, &angleMode, &tmpAngle);
 
 
     return;

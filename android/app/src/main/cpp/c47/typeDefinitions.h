@@ -44,6 +44,15 @@ typedef enum {
 
 
 /**
+ * \struct fInMim_t
+ * Item s allowed in bufferize, for MIMentry function tables.
+ */
+typedef struct {
+  uint16_t itemNr;
+} fInMim_t;
+
+
+/**
  * \struct calcKey_t
    * Structure keeping the informations for one key.
    */

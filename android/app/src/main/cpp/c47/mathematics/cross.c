@@ -66,6 +66,7 @@ static void crossRemaRema(void) {
   else {
     crossRealVectors(&y, &x, &res);
     convertReal34MatrixToReal34MatrixRegister(&res, REGISTER_X);
+    realMatrixFree(&res);
   }
 }
 
@@ -93,6 +94,7 @@ static void crossCpmaCpma(void) {
   else {
     crossComplexVectors(&y, &x, &res);
     convertComplex34MatrixToComplex34MatrixRegister(&res, REGISTER_X);
+    complexMatrixFree(&res);
   }
 }
 

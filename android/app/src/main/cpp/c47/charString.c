@@ -128,7 +128,7 @@ void expandConversionName(char *msg1) {   // 2x16+1 character limit, rounded up 
   xcopy(inStr, msg1, min(50, stringByteLength(msg1)+1));
   inStr[50] = 0;
   msg1[0] = 0;
-  while(inStr[i] != 0) { //replace /U with /kWh; U/ with kWh/; hkm with 100km
+  while(inStr[i] != 0) { //replace /E with /kWh; E/ with kWh/; hkm with 100km
     if('h' == inStr[i] && 'k' == inStr[i+1] && 'm' == inStr[i+2]) {    //test beyond end of string is ok, it will not test positive
       msg1[jj++] = '1';
       i++;
@@ -163,6 +163,43 @@ void expandConversionName(char *msg1) {   // 2x16+1 character limit, rounded up 
 }
 
 
+static bool_t compressBinary(const char *in, char *out, int16_t *jjPtr) {
+  if('1' == in[0] && '0' == in[1] && '0' == in[2] && ('k' == in[3] || 'm' == in[3])) {
+    int16_t jj = *jjPtr;
+    out[jj++] = STD_BINARY_ONE[0];
+    out[jj++] = STD_BINARY_ONE[1];
+    out[jj++] = STD_BINARY_ZERO[0];
+    out[jj++] = STD_BINARY_ZERO[1];
+    out[jj++] = STD_BINARY_ZERO[0];
+    out[jj++] = STD_BINARY_ZERO[1];
+    out[jj++] = in[3];          //k or m for km or mile
+    *jjPtr = jj;
+    return true;
+  }
+  return false;
+}
+
+
+void expandAbbreviations(char *msg1) {
+  expandConversionName(msg1);
+  int16_t i = 0;
+  int16_t jj = 0;
+  char inStr[51];
+  xcopy(inStr, msg1, min(50, stringByteLength(msg1)+1));
+  inStr[50] = 0;
+  msg1[0] = 0;
+  while(inStr[i] != 0) { //replace 100k with |ook; 100m with |oom
+    if(compressBinary(inStr + i, msg1, &jj)) {    //test beyond end of string is ok, it will not test positive
+      i += 4;
+    }
+    else {
+      msg1[jj++] = inStr[i++];
+    }
+  }
+  msg1[jj++] = 0;
+}
+
+
 void compressConversionName(char *msg1) {   // 2x16+1 character limit, rounded up to 50
   int16_t i = 0;
   int16_t jj = 0;
@@ -171,14 +208,7 @@ void compressConversionName(char *msg1) {   // 2x16+1 character limit, rounded u
   inStr[50] = 0;
   msg1[0] = 0;
   while(inStr[i] != 0) { //replace 100k with |ook; 100m with |oom; /kWh with /U; kWh/ with U/
-    if('1' == inStr[i] && '0' == inStr[i+1] && '0' == inStr[i+2] && ('k' == inStr[i+3] || 'm' == inStr[i+3])) {    //test beyond end of string is ok, it will not test positive
-      msg1[jj++] = STD_BINARY_ONE[0];
-      msg1[jj++] = STD_BINARY_ONE[1];
-      msg1[jj++] = STD_BINARY_ZERO[0];
-      msg1[jj++] = STD_BINARY_ZERO[1];
-      msg1[jj++] = STD_BINARY_ZERO[0];
-      msg1[jj++] = STD_BINARY_ZERO[1];
-      msg1[jj++] = inStr[i+3];          //k or m for km or mile
+    if(compressBinary(inStr + i, msg1, &jj)) {    //test beyond end of string is ok, it will not test positive
       i += 4;
     }
     else if('/' == inStr[i] && 'k' == inStr[i+1] && 'W' == inStr[i+2] && 'h' == inStr[i+3]) {
@@ -1079,7 +1109,7 @@ void stringToASCII(const char *str, char *ascii) {
 }
 
 
-// distinctQuotes == 0 preserves the legacy mapping `"` -> `'` (used by --dumpMenus1/2). distinctQuotes == 1 maps `"` -> `''` so 
+// distinctQuotes == 0 preserves the legacy mapping `"` -> `'` (used by --dumpMenus1/2). distinctQuotes == 1 maps `"` -> `''` so
 // that MNU_1STDERIV ("f'") and MNU_2NDDERIV ("f\"") yield distinct filenames `f'` and `f''` under --dumpMenusAll (RefDB47 superset).
 void stringToFileNameChars(const char *str, char *ascii, uint8_t distinctQuotes) {
   int16_t len;
@@ -1207,4 +1237,26 @@ bool_t findTwoChars(const char *tmpString, uint8_t char1, uint8_t char2, uint16_
     }
   }
   return false;
+}
+
+
+void truncateAtString(char *label, const char *search) {
+  int16_t i = 0;
+  while(label[i+1] != 0) {
+    if(search[0] == label[i] && search[1] == label[i+1]) {
+      label[i] = 0;
+      break;
+    }
+    i++;
+  }
+}
+
+void truncateAtArrow(char *label) {
+  char sample[4];
+
+  stringCopy(sample, STD_RIGHT_ARROW);
+  truncateAtString(label, sample);
+
+  stringCopy(sample, STD_LEFT_ARROW);
+  truncateAtString(label, sample);
 }

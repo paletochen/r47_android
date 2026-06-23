@@ -29,10 +29,25 @@
     }
     //printf(">>>> @@ numeric font screens %i\n", numScreensNumericFont);
 
+    numLinesNumericFontBold  = 0;
+    for(g=0; g<numericFontBold.numberOfGlyphs;) {
+      glyphRow[numLinesNumericFont + numLinesNumericFontBold] = numericFontBold.glyphs[g].charCode & 0xfff0;
+      while(g<numericFontBold.numberOfGlyphs && ((numericFontBold.glyphs[g].charCode&0xfff0) == glyphRow[numLinesNumericFont + numLinesNumericFontBold])) {
+        g++;
+      }
+      numLinesNumericFontBold++;
+    }
+
+    numScreensNumericFontBold = numLinesNumericFontBold / NUMBER_OF_NUMERIC_FONT_LINES_PER_SCREEN;
+    if(numLinesNumericFontBold % NUMBER_OF_NUMERIC_FONT_LINES_PER_SCREEN != 0) {
+      numScreensNumericFontBold++;
+    }
+    //printf(">>>> @@ numeric font bold screens %i\n", numScreensNumericFontBold);
+
     numLinesStandardFont  = 0;
     for(g=0; g<standardFont.numberOfGlyphs;) {
-      glyphRow[numLinesNumericFont + numLinesStandardFont] = standardFont.glyphs[g].charCode & 0xfff0;
-      while(g<standardFont.numberOfGlyphs && ((standardFont.glyphs[g].charCode&0xfff0) == glyphRow[numLinesNumericFont + numLinesStandardFont])) {
+      glyphRow[numLinesNumericFont + numLinesNumericFontBold + numLinesStandardFont] = standardFont.glyphs[g].charCode & 0xfff0;
+      while(g<standardFont.numberOfGlyphs && ((standardFont.glyphs[g].charCode&0xfff0) == glyphRow[numLinesNumericFont + numLinesNumericFontBold + numLinesStandardFont])) {
         g++;
       }
       numLinesStandardFont++;
@@ -46,8 +61,8 @@
 
     numLinesTinyFont  = 0;
     for(g=0; g<tinyFont.numberOfGlyphs;) {
-      glyphRow[numLinesNumericFont + numLinesStandardFont + numLinesTinyFont] = tinyFont.glyphs[g].charCode & 0xfff0;
-      while(g<tinyFont.numberOfGlyphs && ((tinyFont.glyphs[g].charCode&0xfff0) == glyphRow[numLinesNumericFont + numLinesStandardFont + numLinesTinyFont])) {
+      glyphRow[numLinesNumericFont + numLinesNumericFontBold + numLinesStandardFont + numLinesTinyFont] = tinyFont.glyphs[g].charCode & 0xfff0;
+      while(g<tinyFont.numberOfGlyphs && ((tinyFont.glyphs[g].charCode&0xfff0) == glyphRow[numLinesNumericFont + numLinesNumericFontBold + numLinesStandardFont + numLinesTinyFont])) {
         g++;
       }
       numLinesTinyFont++;
@@ -62,8 +77,8 @@
     currentFntScr = 1;
 
     #if defined(PC_BUILD)
-      if(numLinesNumericFont + numLinesStandardFont + numLinesTinyFont > NUMBER_OF_GLYPH_ROWS) {
-        printf("In file defines.h NUMBER_OF_GLYPH_ROWS must be increased from %d to %d\n", NUMBER_OF_GLYPH_ROWS, numLinesNumericFont + numLinesStandardFont + numLinesTinyFont);
+      if(numLinesNumericFont + numLinesNumericFontBold + numLinesStandardFont + numLinesTinyFont > NUMBER_OF_GLYPH_ROWS) {
+        printf("In file defines.h NUMBER_OF_GLYPH_ROWS must be increased from %d to %d\n", NUMBER_OF_GLYPH_ROWS, numLinesNumericFont + numLinesNumericFontBold + numLinesStandardFont + numLinesTinyFont);
         exit(-1);
       }
     #endif // PC_BUILD
@@ -90,7 +105,7 @@
       return;
     }
 
-    if(currentFntScr>=1 && currentFntScr<=numScreensNumericFont) { // Numeric font
+    if(currentFntScr >= 1 && currentFntScr <= numScreensNumericFont) { // Numeric font
       //printf("Numeric  font currentFntScr=%2u\n", currentFntScr);
       for(x=0; x<=9; x++) {
         showGlyphCode('0'+x, &standardFont, 50+20*x,     20, vmNormal, false, false, false);
@@ -99,6 +114,8 @@
         showGlyphCode('A'+x, &standardFont, 50+200+20*x, 20, vmNormal, false, false, false);
       }
 
+      bool_t mem = getSystemFlag(FLAG_BOLD); //Prevent system BOLD setting to override normal Numeric font to Bold
+      clearSystemFlag(FLAG_BOLD);
       first = (currentFntScr-1) * NUMBER_OF_NUMERIC_FONT_LINES_PER_SCREEN;
       for(y=first; y<min(currentFntScr * NUMBER_OF_NUMERIC_FONT_LINES_PER_SCREEN, numLinesNumericFont); y++) {
         sprintf(tmpString, "%04X", glyphRow[y]<0x8000 ? glyphRow[y] : glyphRow[y]-0x8000);
@@ -106,6 +123,9 @@
         for(x=0; x<=15; x++) {
           showGlyphCode(glyphRow[y]+x, &numericFont, 46+20*x, NUMERIC_FONT_HEIGHT*(y-first)+40, vmNormal, false, false, false);
         }
+      }
+      if(mem) {
+        setSystemFlag(FLAG_BOLD);
       }
 
       if(currentFntScr == 1) {
@@ -115,11 +135,49 @@
         showString("Numeric font. Press " STD_UP_ARROW ", " STD_DOWN_ARROW " or EXIT", &standardFont, 5, 220, vmNormal, false, false);
       }
 
-      sprintf(tmpString, "%d/%d", currentFntScr, numScreensNumericFont+numScreensStandardFont+numScreensTinyFont);
+
+      sprintf(tmpString, "%d/%d", currentFntScr, numScreensNumericFont + numScreensNumericFontBold + numScreensStandardFont + numScreensTinyFont);
+
       showString(tmpString, &standardFont, SCREEN_WIDTH - stringWidth(tmpString, &standardFont, false, true), 220, vmNormal, false, true);
     }
 
-    else if(currentFntScr>numScreensNumericFont && currentFntScr<=numScreensNumericFont+numScreensStandardFont) { // Standard font
+
+
+
+    else if(currentFntScr > numScreensNumericFont && currentFntScr <= numScreensNumericFont + numScreensNumericFontBold) { // Numeric font bold
+      //printf("Numeric  font bold currentFntScr=%2u\n", currentFntScr);
+      for(x=0; x<=9; x++) {
+        showGlyphCode('0'+x, &standardFont, 50+20*x,     20, vmNormal, false, false, false);
+      }
+      for(x=0; x<=5; x++) {
+        showGlyphCode('A'+x, &standardFont, 50+200+20*x, 20, vmNormal, false, false, false);
+      }
+
+      first = numLinesNumericFont + (currentFntScr - numScreensNumericFont - 1) * NUMBER_OF_NUMERIC_FONT_LINES_PER_SCREEN;
+      for(y=first; y<min(numLinesNumericFont + (currentFntScr - numScreensNumericFont) * NUMBER_OF_NUMERIC_FONT_LINES_PER_SCREEN, numLinesNumericFont + numLinesNumericFontBold); y++) {
+        sprintf(tmpString, "%04X", glyphRow[y]<0x8000 ? glyphRow[y] : glyphRow[y]-0x8000);
+        showString(tmpString, &standardFont, 5, NUMERIC_FONT_HEIGHT*(y-first)+43, vmNormal, false, false);
+        for(x=0; x<=15; x++) {
+          showGlyphCode(glyphRow[y]+x, &numericFontBold, 46+20*x, NUMERIC_FONT_HEIGHT*(y-first)+40, vmNormal, false, false, false);
+        }
+      }
+
+      if(currentFntScr == 1) {
+        showString("Numeric font bold. Press " STD_DOWN_ARROW " or EXIT", &standardFont, 5, 220, vmNormal, false, false);
+      }
+      else {
+        showString("Numeric font bold. Press " STD_UP_ARROW ", " STD_DOWN_ARROW " or EXIT", &standardFont, 5, 220, vmNormal, false, false);
+      }
+
+      sprintf(tmpString, "%d/%d", currentFntScr, numScreensNumericFont + numScreensNumericFontBold + numScreensStandardFont + numScreensTinyFont);
+      showString(tmpString, &standardFont, SCREEN_WIDTH - stringWidth(tmpString, &standardFont, false, true), 220, vmNormal, false, true);
+    }
+
+
+
+
+
+    else if(currentFntScr > numScreensNumericFont + numScreensNumericFontBold && currentFntScr <= numScreensNumericFont + numScreensNumericFontBold + numScreensStandardFont) { // Standard font
       //printf("Standard font currentFntScr=%2u\n", currentFntScr);
       for(x=0; x<=9; x++) {
         showGlyphCode('0'+x, &standardFont, 50+20*x,     20, vmNormal, false, false, false);
@@ -128,8 +186,8 @@
         showGlyphCode('A'+x, &standardFont, 50+200+20*x, 20, vmNormal, false, false, false);
       }
 
-      first = numLinesNumericFont + (currentFntScr-numScreensNumericFont-1) * NUMBER_OF_STANDARD_FONT_LINES_PER_SCREEN;
-      for(y=first; y<min(numLinesNumericFont + (currentFntScr-numScreensNumericFont) * NUMBER_OF_STANDARD_FONT_LINES_PER_SCREEN, numLinesNumericFont+numLinesStandardFont); y++) {
+      first = numLinesNumericFont + numLinesNumericFontBold + (currentFntScr - numScreensNumericFont - numScreensNumericFontBold - 1) * NUMBER_OF_STANDARD_FONT_LINES_PER_SCREEN;
+      for(y=first; y<min(numLinesNumericFont + numLinesNumericFontBold + (currentFntScr - numScreensNumericFont - numScreensNumericFontBold) * NUMBER_OF_STANDARD_FONT_LINES_PER_SCREEN, numLinesNumericFont + numLinesNumericFontBold + numLinesStandardFont); y++) {
         sprintf(tmpString, "%04X", glyphRow[y]<0x8000 ? glyphRow[y] : glyphRow[y]-0x8000);
         showString(tmpString, &standardFont, 5, STANDARD_FONT_HEIGHT*(y-first)+40, vmNormal, false, false);
         for(x=0; x<=15; x++) {
@@ -144,11 +202,13 @@
         showString("Standard font. Press " STD_UP_ARROW ", " STD_DOWN_ARROW " or EXIT", &standardFont, 5, 220, vmNormal, false, false);
       }
 
-      sprintf(tmpString, "%d/%d", currentFntScr, numScreensNumericFont+numScreensStandardFont+numScreensTinyFont);
+      sprintf(tmpString, "%d/%d", currentFntScr, numScreensNumericFont + numScreensNumericFontBold + numScreensStandardFont + numScreensTinyFont);
       showString(tmpString, &standardFont, SCREEN_WIDTH-stringWidth(tmpString, &standardFont, false, true), 220, vmNormal, false, true);
     }
 
-    else if(currentFntScr>numScreensNumericFont+numScreensStandardFont && currentFntScr<=numScreensNumericFont+numScreensStandardFont+numScreensTinyFont) { // Tiny font
+
+
+    else if(currentFntScr > numScreensNumericFont + numScreensNumericFontBold + numScreensStandardFont && currentFntScr <= numScreensNumericFont + numScreensNumericFontBold + numScreensStandardFont + numScreensTinyFont) { // Tiny font
       //printf("Tiny     font currentFntScr=%2u\n", currentFntScr);
       for(x=0; x<=9; x++) {
         showGlyphCode('0'+x, &standardFont, 50+20*x,     20, vmNormal, false, false, false);
@@ -157,8 +217,8 @@
         showGlyphCode('A'+x, &standardFont, 50+200+20*x, 20, vmNormal, false, false, false);
       }
 
-      first = numLinesNumericFont + numLinesStandardFont + (currentFntScr-numScreensNumericFont-numScreensStandardFont-1) * NUMBER_OF_STANDARD_FONT_LINES_PER_SCREEN;
-      for(y=first; y<min(numLinesNumericFont + numLinesStandardFont + (currentFntScr-numScreensNumericFont-numScreensStandardFont) * NUMBER_OF_STANDARD_FONT_LINES_PER_SCREEN, numLinesNumericFont+numLinesStandardFont+numLinesTinyFont); y++) {
+      first = numLinesNumericFont + numLinesNumericFontBold + numLinesStandardFont + (currentFntScr - numScreensNumericFont - numScreensNumericFontBold - numScreensStandardFont - 1) * NUMBER_OF_STANDARD_FONT_LINES_PER_SCREEN;
+      for(y=first; y<min(numLinesNumericFont + numLinesNumericFontBold + numLinesStandardFont + (currentFntScr - numScreensNumericFont - numScreensNumericFontBold - numScreensStandardFont) * NUMBER_OF_STANDARD_FONT_LINES_PER_SCREEN, numLinesNumericFont + numLinesNumericFontBold + numLinesStandardFont + numLinesTinyFont); y++) {
         sprintf(tmpString, "%04X", glyphRow[y]<0x8000 ? glyphRow[y] : glyphRow[y]-0x8000);
         showString(tmpString, &standardFont, 5, STANDARD_FONT_HEIGHT*(y-first)+40, vmNormal, false, false);
         for(x=0; x<=15; x++) {
@@ -166,14 +226,14 @@
         }
       }
 
-      if(currentFntScr == numScreensNumericFont+numScreensStandardFont+numScreensTinyFont) {
+      if(currentFntScr == numScreensNumericFont + numScreensNumericFontBold + numScreensStandardFont + numScreensTinyFont) {
         showString("Tiny font. Press " STD_UP_ARROW " or EXIT", &standardFont, 5, 220, vmNormal, false, false);
       }
       else {
         showString("Tiny font. Press " STD_UP_ARROW ", " STD_DOWN_ARROW " or EXIT", &standardFont, 5, 220, vmNormal, false, false);
       }
 
-      sprintf(tmpString, "%d/%d", currentFntScr, numScreensNumericFont+numScreensStandardFont+numScreensTinyFont);
+      sprintf(tmpString, "%d/%d", currentFntScr, numScreensNumericFont + numScreensNumericFontBold + numScreensStandardFont + numScreensTinyFont);
       showString(tmpString, &standardFont, SCREEN_WIDTH-stringWidth(tmpString, &standardFont, false, true), 220, vmNormal, false, true);
     }
 

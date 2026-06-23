@@ -111,6 +111,7 @@
     #include "registers.h"
     #include "registerValueConversions.h"
     #include "saveRestoreCalcState.h"
+    #include "saveRestoreBackup.h"
     #include "saveRestorePrograms.h"
     #include "screen.h"
     #include "softmenus.h"
@@ -236,6 +237,7 @@
     extern int                  currentBezel; // 0=normal, 1=AIM, 2=TAM
   #endif //PC_BUILD
 
+  extern bool_t                headlessMode;
   extern bool_t                loadTestPrograms;
   extern bool_t                loadTestData;
 
@@ -272,7 +274,7 @@
     extern const calcKey_t                 kbd_std_E47[37];
     extern const calcKey_t                 kbd_std_N47[37];
   #endif // PC_BUILD
-  extern const font_t                    standardFont, numericFont, tinyFont;
+  extern const font_t                    standardFont, numericFont, numericFontBold, tinyFont;
   extern const font_t                   *fontForShortInteger;
   extern const font_t                   *cursorFont;
   extern const char                      baseDigits[63];
@@ -397,6 +399,7 @@
   extern uint16_t               lastCenturyHighUsed;
   extern uint8_t                numScreensStandardFont;
   extern uint8_t                numScreensNumericFont;
+  extern uint8_t                numScreensNumericFontBold;
   extern uint8_t                numScreensTinyFont;
   extern uint8_t                currentAsnScr;
   extern uint8_t                currentFntScr;
@@ -424,6 +427,7 @@
   extern uint8_t                scrLock;
   extern uint8_t                alphaCase;
   extern uint8_t                numLinesNumericFont;
+  extern uint8_t                numLinesNumericFontBold;
   extern uint8_t                numLinesStandardFont;
   extern uint8_t                numLinesTinyFont;
   extern uint8_t                cursorEnabled;
@@ -621,7 +625,7 @@
     extern const martelFont24_t   martelFont24;
     extern uint16_t               printerColumn;
   //#endif //IR_PRINTING
-  
+
   extern uint16_t               alphaRegister;
   extern bool_t                 varMenu42;
 

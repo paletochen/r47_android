@@ -43,6 +43,7 @@ void realToSci(real_t* num, char* dispString);
 void shortIntegerToDisplayString       (calcRegister_t regist, char *displayString, bool_t determineFont, uint8_t baseOverride);
 #define toRemoveTrailingRadix true
 void longIntegerRegisterToRealDisplayString     (calcRegister_t regist, char *displayString, int32_t strLg, int16_t maxWidth, int32_t minimum, bool_t removeTrailingRadix);
+void realSCIToDisplayString            (const real_t *work, char *displayString, int16_t digitsToDisplay, bool_t frontSpace, uint8_t *bcd, int16_t maxDigits);
 void longIntegerToDisplayString        (longInteger_t lgInt, char *displayString, int32_t strLg, int16_t max_Width, int16_t maxExp, bool_t allowLARGELI);     //JM mod max_Width;   //JM added last parameter: Allow LARGELI
 void longIntegerToHexDisplayString     (calcRegister_t regist, char *displayString, bool_t determineFont, uint8_t baseOverride, int32_t width);
 void longIntegerRegisterToDisplayString(calcRegister_t regist, char *displayString, int32_t strLg, int16_t maxWidth, int16_t maxExp, bool_t allowLARGELI);    //JM added last parameter: Allow LARGELI

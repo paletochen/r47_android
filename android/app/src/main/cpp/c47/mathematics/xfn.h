@@ -4,6 +4,13 @@
 #if !defined(XFN_H)
 #define XFN_H
 
+  #define XFN_NOTFOUND 99
+  #define FT_NILADIC  100  //this controls the reading and dropping of the stack
+  #define FT_MONADIC  101
+  #define FT_DYADIC   102
+  #define FT_SINGLEX  103
+  #define FT_EXTERNAL 104
+
 bool_t  exitKeyWaiting(void);
 #define DISPLAY_WAIT_FOR_RELEASE true
 int     C47PopKeyNoBuffer(bool_t displayWaitForRelease);
@@ -13,6 +20,10 @@ void C47Cvt2RadSinCosTan2(real_t *an, angularMode_t angularMode, real_t *sinOut,
 void C47radSinCosTanTaylor(real_t *an, bool_t swapTemp, real_t *sinOut, real_t *cosOut, real_t *tanOut, realContext_t *realContext, int accNumberDigits);
 
 bool_t registerFMAOutputString(calcRegister_t regist, char* prefix, char *displayString);
+bool_t registerFMAOutputPlainString(calcRegister_t regist, char* prefix, char *displayString);
+bool_t getAngleModeForRegister3r(calcRegister_t registerNo, angularMode_t *angleMode );
+void   processResultantLongReal(uint16_t registerNo, int function, int functionType, real_t *paramX, real_t *paramY, real_t *paramTemp, angularMode_t *angleMode, angularMode_t *tmpAngle);
+
 void fnXXfn         (uint16_t function);
 void fnXXfn_ToDEG   (uint16_t registerNo);
 void fnXXfn_ToRAD   (uint16_t registerNo);

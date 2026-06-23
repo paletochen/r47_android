@@ -149,7 +149,7 @@ static void _setCaption(uint16_t keyNum) {
   uint16_t stringRegister;
   if(1 <= keyNum && keyNum <= 18) {
     char *ts = tmpString;
-    stringRegister = (lastFuncNo() == ITM_KEY)? REGISTER_X : alphaRegister;
+    stringRegister = (lastFuncNo() == ITM_KEY) ? REGISTER_X : alphaRegister;
     switch(getRegisterDataType(stringRegister)) {
       case dtString: {
         COPY_REGISTER_STRING_TO(tmpString, stringRegister);

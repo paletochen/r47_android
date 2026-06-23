@@ -102,7 +102,7 @@ enum {
     KEYPAD_SCENE_FLAG_DOTTED_ROW = 1 << 11,
 };
 
-extern void changeSoftKey(int16_t menuNr, int16_t itemNr, char *itemName,
+extern void changeSoftKey(int16_t itemNr, char *itemName,
                           videoMode_t *vm, int8_t *showCb,
                           int16_t *showValue, char *showText);
 extern char *figlabel(const char *label, const char *showText,
@@ -702,7 +702,7 @@ static void resolveSoftkeyScene(int16_t fnKeyIndex, keypadSoftkeyScene_t *scene,
         scene->sceneFlags |= KEYPAD_SCENE_FLAG_REVERSE_VIDEO |
                              KEYPAD_SCENE_FLAG_MENU;
       } else if (userMenuItems[visibleIndex].argumentName[0] == 0) {
-        changeSoftKey(softmenu[softmenuId].menuItem, sceneItem, itemName, &videoMode,
+        changeSoftKey(sceneItem, itemName, &videoMode,
                       &showCb, &showValue, showText);
         if (shouldComposeSoftkeyLabel(softmenu[softmenuId].menuItem,
                                       showText,
@@ -743,7 +743,7 @@ static void resolveSoftkeyScene(int16_t fnKeyIndex, keypadSoftkeyScene_t *scene,
                              KEYPAD_SCENE_FLAG_MENU;
       } else if (safeGetUserMenuArgumentName(currentUserMenu, visibleIndex)[0] == 0) {
 
-        changeSoftKey(softmenu[softmenuId].menuItem, sceneItem, itemName, &videoMode,
+        changeSoftKey(sceneItem, itemName, &videoMode,
                       &showCb, &showValue, showText);
         if (shouldComposeSoftkeyLabel(softmenu[softmenuId].menuItem,
                                       showText,
@@ -835,7 +835,7 @@ static void resolveSoftkeyScene(int16_t fnKeyIndex, keypadSoftkeyScene_t *scene,
       char showText[16] = {0};
       char itemName[32] = {0};
 
-      changeSoftKey(softmenu[softmenuId].menuItem, item, itemName, &videoMode,
+      changeSoftKey(item, itemName, &videoMode,
                     &showCb, &showValue, showText);
       if (shouldComposeSoftkeyLabel(softmenu[softmenuId].menuItem,
                                     showText,

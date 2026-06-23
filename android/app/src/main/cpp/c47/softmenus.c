@@ -61,7 +61,7 @@ TO_QSPI const int16_t menu_DISP[]        = { ITM_FIX,                       ITM_
 
                                              ITM_LARGELI,                   ITM_DREAL,                  ITM_DSTACK,               ITM_SHOIREP,           ITM_BASENR,                  ITM_CLKp2,
                                              ITM_CPXI,                      ITM_CPXJ,                   ITM_NULL,                 ITM_CPXMULT,           ITM_MULTCR,                  ITM_MULTDOT,
-                                             ITM_SCIOVR,                    ITM_ENGOVR,                 ITM_NULL,                 ITM_NULL,              ITM_RNG,                     ITM_HIDE,
+                                             ITM_SCIOVR,                    ITM_ENGOVR,                 ITM_SIGZEROS,             ITM_NULL,              ITM_RNG,                     ITM_HIDE,
 
                                              ITM_SETCHN,                    ITM_SETEUR,                 ITM_SETIND,               ITM_SETJPN,            ITM_SETUK,                   ITM_SETUSA,
                                              ITM_NULL,                      ITM_NULL,                   ITM_NULL,                 ITM_NULL,              ITM_NULL,                    ITM_SETDFLT,
@@ -515,7 +515,7 @@ TO_QSPI const int16_t menu_AngleConv_43S[]= {ITM_DEG2,                      ITM_
 TO_QSPI const int16_t menu_UnitConv[]        = {
                                                     -MNU_CONVE,               -MNU_CONVM,               -MNU_CONVTEMP,            -MNU_CONVX,               -MNU_CONVA,               -MNU_CONVV,
                                                     -MNU_CONVP,               -MNU_CONVYMMV,            -MNU_CONVANG,             -MNU_CONVS,               -MNU_CONVFP,              -MNU_CONVCHEF,
-                                                    -MNU_MISC,                ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 -MNU_CONVHUM};
+                                                    -MNU_MISC,                -MNU_STRUCT,              ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 -MNU_CONVHUM};
 TO_QSPI const int16_t menu_ConvA[]        = {
                                                     ITM_ACtoHA,               ITM_HAtoAC,               ITM_HECTAREtoM2,          ITM_M2toHECTARE,          ITM_MI2toKM2,             ITM_KM2toMI2,
                                                     ITM_ACUStoHA,             ITM_HAtoACUS,             ITM_MUtoM2,               ITM_M2toMU,               ITM_NMI2toKM2,            ITM_KM2toNMI2,
@@ -531,10 +531,10 @@ TO_QSPI const int16_t menu_ConvFP[]        = {
 TO_QSPI const int16_t menu_ConvM[]        = {
                                                     ITM_LBStoKG,              ITM_KGtoLBS,              ITM_CWTtoKG,              ITM_KGtoCWT,              ITM_OZtoG,                ITM_GtoOZ,
                                                     ITM_STOtoKG,              ITM_KGtoSTO,              ITM_SCWtoKG,              ITM_KGtoSCW,              ITM_TRZtoG,               ITM_GtoTRZ,
-                                                    ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,
-                                                    ITM_TONtoKG,              ITM_KGtoTON,              ITM_STtoKG,               ITM_KGtoST,               ITM_CARATtoG,             ITM_GtoCARAT,
-                                                    ITM_JINtoKG,              ITM_KGtoJIN,              ITM_LIANGtoKG,            ITM_KGtoLIANG,            ITM_NULL,                 ITM_NULL,
-                                                    ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL};
+                                                    ITM_SLUGtoKG,             ITM_KGtoSLUG,             ITM_SLINCHtoKG,           ITM_KGtoSLINCH,           ITM_BLOBtoKG,             ITM_KGtoBLOB,
+                                                    ITM_LTtoKG,               ITM_KGtoLT,               ITM_STtoKG,               ITM_KGtoST,               ITM_TONNEtoKG,            ITM_KGtoTONNE,
+                                                    ITM_CARATtoG,             ITM_GtoCARAT,             ITM_JINtoKG,              ITM_KGtoJIN,              ITM_LIANGtoKG,            ITM_KGtoLIANG,
+                                                    ITM_UNSLUGtoKG,           ITM_KGtoUNSLUG,           ITM_UNSLINCHtoKG,         ITM_KGtoUNSLINCH,         ITM_UNSLINCHtoKG,         ITM_KGtoUNSLINCH};
 TO_QSPI const int16_t menu_Misc[]        = {
                                                     ITM_HMStoHR,              ITM_HRtoHMS,              ITM_NMtoLBFFT,            ITM_LBFFTtoNM,            ITM_FRtoDB,               ITM_DBtoFR,
                                                     ITM_YEARtoS,              ITM_StoYEAR,              ITM_NULL,                 ITM_NULL,                 ITM_PRtoDB,               ITM_DBtoPR,
@@ -564,12 +564,13 @@ TO_QSPI const int16_t menu_ConvV[]        = {
                                                    ITM_FZUStoGLUS,            ITM_GLUStoFZUS,           ITM_BARRELtoM3,           ITM_M3toBARREL,           ITM_QTUStoL,              ITM_LtoQTUS               };
 
 TO_QSPI const int16_t menu_ConvS[]        = {
-                                                    ITM_KNOTtoKMH,            ITM_KMHtoKNOT,            ITM_KMHtoMPS,             ITM_MPStoKMH,             ITM_RPMtoDEGPS,           ITM_DEGPStoRPM,
-                                                    ITM_MPHtoKMH,             ITM_KMHtoMPH,             ITM_MPHtoMPS,             ITM_MPStoMPH,             ITM_RPMtoRADPS,           ITM_RADPStoRPM,
-                                                    ITM_FPStoKMH,             ITM_KMHtoFPS,             ITM_FPStoMPS,             ITM_MPStoFPS,             ITM_NULL,                 ITM_NULL};
+                                                    ITM_KNOTtoKMH,            ITM_KMHtoKNOT,            ITM_KMHtoMPS,             ITM_MPStoKMH,             ITM_MPHtoKMH,             ITM_KMHtoMPH,
+                                                    ITM_MPHtoMPS,             ITM_MPStoMPH,             ITM_FPStoKMH,             ITM_KMHtoFPS,             ITM_FPStoMPS,             ITM_MPStoFPS,
+                                                    ITM_KNOTtoMPS,            ITM_MPStoKNOT,            ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL};
+
 TO_QSPI const int16_t menu_ConvAng[]        = {
                                                     ITM_DEGtoRAD,             ITM_RADtoDEG,             ITM_DEGtoGRAD,            ITM_GRADtoDEG,            ITM_GRADtoRAD,            ITM_RADtoGRAD,
-                                                    ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,
+                                                    ITM_RPMtoDEGPS,           ITM_DEGPStoRPM,           ITM_RPMtoRADPS,           ITM_RADPStoRPM,           ITM_DEGPStoRADPS,         ITM_RADPStoDEGPS,
                                                     ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL};
 
 TO_QSPI const int16_t menu_ConvHum[]        = {
@@ -597,6 +598,43 @@ TO_QSPI const int16_t menu_ConvTemp[]       = {
                                                     ITM_CtoF,                 ITM_FtoC,                 ITM_CtoK,                 ITM_KtoC,                 ITM_FtoK,                 ITM_KtoF,
                                                     ITM_RAtoF,                ITM_FtoRA,                ITM_RAtoK,                ITM_KtoRA,                ITM_EVKBtoK,              ITM_KtoEVKB,
                                                     ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL                        };
+ 
+TO_QSPI const int16_t menu_ConvStruct[]     = {
+                                                    // Screen 1 — Navigation index
+                                                    -MNU_CONV_SECTION,        -MNU_CONV_MATERL,         -MNU_CONV_F_LOAD,         -MNU_CONV_M_LOAD,         -MNU_CONV_P_LOAD,         -MNU_CONVM,
+                                                    ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,
+                                                    ITM_FIX,                  ITM_SCI,                  ITM_ENG,                  ITM_UNIT,                 ITM_SIGFIG,               ITM_ALL};
+
+TO_QSPI const int16_t menu_ConvSection[]     = {
+                                                    // Screen 2 — SECTION (bottom row first)
+                                                    ITM_LBFTtoKGM,            ITM_KGMtoLBFT,            ITM_INCHtoMM,             ITM_MMtoINCH,             ITM_SI_m,                 ITM_SI_k,
+                                                    ITM_NULL,                 ITM_NULL,                 ITM_IN2toMM2,             ITM_MM2toIN2,             ITM_IN4toMM4,             ITM_MM4toIN4,
+                                                    -MNU_STRUCT,              -MNU_CONV_SECTION,        ITM_IN3toMM3,             ITM_MM3toIN3,             ITM_IN6toMM6,             ITM_MM6toIN6};
+
+TO_QSPI const int16_t menu_ConvMaterial[]     = {
+                                                    // Screen 3 — MATERL
+                                                    ITM_PSItoPA,              ITM_PAtoPSI,              ITM_LBSIN3toKGM3,         ITM_KGM3toLBSIN3,         ITM_SI_m,                 ITM_SI_k,
+                                                    ITM_KSItoMPA,             ITM_MPAtoKSI,             ITM_LBSIN3toTMM3,         ITM_TMM3toLBSIN3,         ITM_KGM3toTMM3,           ITM_TMM3toKGM3,
+                                                    -MNU_STRUCT,              -MNU_CONV_MATERL,         ITM_LBSIN3toBLOBIN3,      ITM_BLOBIN3toLBSIN3,      ITM_KGM3toBLOBIN3,        ITM_BLOBIN3toKGM3};
+
+TO_QSPI const int16_t menu_CONV_FLoad[]     = {
+                                                    // Screen 4 — F LOAD
+                                                    ITM_LBSFTtoNPM,           ITM_NPMtoLBSFT,           ITM_LBFtoN,               ITM_NtoLBF,               ITM_SI_m,                 ITM_SI_k,
+                                                    ITM_KGFPMtoNPM,           ITM_NPMtoKGFPM,           ITM_LBFtoKGF,             ITM_KGFtoLBF,             ITM_MS2toINS2,            ITM_INS2toMS2,
+                                                    -MNU_STRUCT,              -MNU_CONV_F_LOAD,         ITM_KGFtoN,               ITM_NtoKGF,               ITM_MS2toFTS2,            ITM_FTS2toMS2};
+
+TO_QSPI const int16_t menu_CONV_MLoad[]     = {
+                                                    // Screen 5 — M LOAD
+                                                    ITM_LBFFTtoNM,            ITM_NMtoLBFFT,            ITM_INLBStoNM,            ITM_NMtoINLBS,            ITM_SI_m,                 ITM_SI_k,
+                                                    ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,
+                                                    -MNU_STRUCT,              -MNU_CONV_M_LOAD,         ITM_FIX,                  ITM_SCI,                  ITM_ENG,                  ITM_UNIT};
+
+TO_QSPI const int16_t menu_CONV_PLoad[]     = {
+                                                    // Screen 6 — P LOAD
+                                                    ITM_LBSFT2toPA,           ITM_PAtoLBSFT2,           ITM_PSItoPA,              ITM_PAtoPSI,              ITM_SI_m,                 ITM_SI_k,
+                                                    ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,
+                                                    -MNU_STRUCT,              -MNU_CONV_P_LOAD,         ITM_FIX,                  ITM_SCI,                  ITM_ENG,                  ITM_UNIT};
+
 
 //---------//---------//---------//---------//---------
 
@@ -706,7 +744,8 @@ TO_QSPI const int16_t menu_AUDIO[]       = { ITM_BEEP,                      ITM_
 
 TO_QSPI const int16_t menu_IO[]          = { ITM_WRITEP,                    ITM_SAVEST,                   ITM_SAVE,                    ITM_LOADP,                     ITM_LOADR,                    ITM_LOADV,
                                              ITM_READP,                     ITM_LOADST,                   ITM_LOAD,                    ITM_LOADSIGMA,                 ITM_LOADSS,                  -MNU_PRINT,
-                                             ITM_EXPORTP,                   ITM_WRXPALL,                  ITM_SAVEAUT,                 ITM_NULL,                      ITM_SNAP,                    -MNU_AUDIO                 };
+                                             ITM_EXPORTP,                   ITM_WRXPALL,                  ITM_SAVEAUT,                 ITM_NULL,                      ITM_SNAP,                    -MNU_AUDIO,
+                                             ITM_EXPX,                      ITM_EXPSTK,                   ITM_EXPATOW,                 ITM_EXPNREG,                   ITM_XEXPORT,                  ITM_IMPREGS               };
 
 #if defined(PC_BUILD)
   #define PAT  ITM_PRINT_ALL_ITEMS
@@ -1116,7 +1155,7 @@ TO_QSPI const softmenu_t softmenu[] = {
 /* 135 */  {.menuItem = -MNU_GAP_RX,        .numItems = sizeof(menu_GAP_RX        )/sizeof(int16_t), .softkeyItem = menu_GAP_RX         },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references. 2024-02-21 jm
 /* 136 */  {.menuItem = -MNU_GAP_R,         .numItems = sizeof(menu_GAP_R         )/sizeof(int16_t), .softkeyItem = menu_GAP_R          },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references. 2024-02-21 jm
 /* 137 */  {.menuItem = -MNU_PREFIX,        .numItems = sizeof(menu_PREFIX        )/sizeof(int16_t), .softkeyItem = menu_PREFIX         },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references. 2024-02-21 jm
-/* 138 */  {.menuItem = -MNU_2233,          .numItems = 0,                                           .softkeyItem = NULL        },       // NOTE Next menu to use!
+/* 138 */  {.menuItem = -MNU_STRUCT,        .numItems = sizeof(menu_ConvStruct    )/sizeof(int16_t), .softkeyItem = menu_ConvStruct     },
 /* 139 */  {.menuItem = -MNU_RESETS,        .numItems = sizeof(menu_RESETS        )/sizeof(int16_t), .softkeyItem = menu_RESETS         },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references. 2024-02-21 jm
 /* 140 */  {.menuItem = -MNU_RIBBONS,       .numItems = sizeof(menu_RIBBONS       )/sizeof(int16_t), .softkeyItem = menu_RIBBONS        },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references. 2024-02-21 jm
 /* 141 */  {.menuItem = -MNU_INL_TST,       .numItems = sizeof(menu_Inl_Tst       )/sizeof(int16_t), .softkeyItem = menu_Inl_Tst        },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references. 2024-02-21 jm
@@ -1158,8 +1197,13 @@ TO_QSPI const softmenu_t softmenu[] = {
 /* 177 */  {.menuItem = -MNU_TAMNORM,       .numItems = sizeof(menu_TamNorm       )/sizeof(int16_t), .softkeyItem = menu_TamNorm        },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references. 2024-02-21 jm
 /* 178 */  {.menuItem = -MNU_BASE2,         .numItems = sizeof(menu_Base2         )/sizeof(int16_t), .softkeyItem = menu_Base2          },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references. 2024-02-21 jm
 /* 179 */  {.menuItem = -MNU_42,            .numItems = sizeof(menu_42            )/sizeof(int16_t), .softkeyItem = menu_42             },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references. 2024-02-21 jm
+/* 180 */  {.menuItem = -MNU_CONV_SECTION,  .numItems = sizeof(menu_ConvSection   )/sizeof(int16_t), .softkeyItem = menu_ConvSection    },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references. 2024-02-21 jm
+/* 181 */  {.menuItem = -MNU_CONV_MATERL,   .numItems = sizeof(menu_ConvMaterial  )/sizeof(int16_t), .softkeyItem = menu_ConvMaterial   },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references. 2024-02-21 jm
+/* 182 */  {.menuItem = -MNU_CONV_F_LOAD,   .numItems = sizeof(menu_CONV_FLoad    )/sizeof(int16_t), .softkeyItem = menu_CONV_FLoad     },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references. 2024-02-21 jm
+/* 183 */  {.menuItem = -MNU_CONV_M_LOAD,   .numItems = sizeof(menu_CONV_MLoad    )/sizeof(int16_t), .softkeyItem = menu_CONV_MLoad     },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references. 2024-02-21 jm
+/* 184 */  {.menuItem = -MNU_CONV_P_LOAD,   .numItems = sizeof(menu_CONV_PLoad    )/sizeof(int16_t), .softkeyItem = menu_CONV_PLoad     },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references. 2024-02-21 jm
 
-/* 180 */  {.menuItem =  0,                 .numItems = 0,                                           .softkeyItem = NULL                }
+/* 185 */  {.menuItem =  0,                 .numItems = 0,                                           .softkeyItem = NULL                }
 
 
 };
@@ -1790,7 +1834,7 @@ static void _dynmenuConstructMVarsFromPgm(uint16_t label, uint16_t *numberOfByte
   }
 
 
-static void showKey2(const char *label0, const char *label1, int16_t x1, int16_t x2, int16_t y1, int16_t y2, videoMode_t videoMode, bool_t topLine, bool_t bottomLine, int8_t showCb, int16_t showValue, const char *showText);
+static void showKey2(const char *label0, const char *label1, int16_t x1, int16_t x2, int16_t y1, int16_t y2, videoMode_t videoMode, bool_t topLine, bool_t bottomLine, int8_t showCb, int16_t showValue, const char *showText, bool_t doubleMidLine);
 char label0[30];
 int16_t xx1;
 
@@ -1813,7 +1857,6 @@ bool_t maxfgLines(int16_t y) {
   /********************************************//**
    * \brief Displays one softkey: helpers
    ***********************************************/
-  #define greyout true
   static bool_t initSoftkeyCoordinates(const char *label, int16_t xSoftkey, int16_t ySoftKey, int16_t *x1, int16_t *x2, int16_t *y1, int16_t *y2) {
     if(label[0] !=0 ) {
       if(ySoftKey==1) {
@@ -1848,26 +1891,6 @@ bool_t maxfgLines(int16_t y) {
     return true;
   }
 
-  static void truncateAtString(char *label, const char *search) {
-    int16_t i = 0;
-    while(label[i+1] != 0) {
-      if(search[0] == label[i] && search[1] == label[i+1]) {
-        label[i] = 0;
-        break;
-      }
-      i++;
-    }
-  }
-
-  static void truncateAtArrow(char *label) {
-    char sample[4];
-
-    stringCopy(sample, STD_RIGHT_ARROW);
-    truncateAtString(label, sample);
-
-    stringCopy(sample, STD_LEFT_ARROW);
-    truncateAtString(label, sample);
-  }
 
   void greyRect(int16_t x, int16_t y, int16_t dx, int16_t dy) {
     int16_t col, row;
@@ -1878,6 +1901,15 @@ bool_t maxfgLines(int16_t y) {
     }
   }
 
+
+  static void buildConversionLabel(char *dst, const char *src) {
+    dst[0] = 0;
+    stringCopy(dst, src);
+    compressConversionName(dst);
+  }
+
+
+
   /********************************************//**
    * \brief Displays one softkey
    *
@@ -1885,7 +1917,7 @@ bool_t maxfgLines(int16_t y) {
    * \param[in] xSoftkey int16_t      x location of softkey: from 0 (left) to 5 (right)
    * \param[in] ySoftKey int16_t      y location of softkey: from 0 (bottom) to 2 (top)
    * \param[in] videoMode videoMode_t Video mode normal or reverse
-   * \param[in] topLineDotted bool_t  Is the item's top line dotted
+   * \param[in] topLineDotted bool_t  Is the item top line dotted
    * \param[in] topLine bool_t        Draw a top line
    * \param[in] bottomLine bool_t     Draw a bottom line
    * \return void
@@ -1898,26 +1930,32 @@ bool_t maxfgLines(int16_t y) {
     showKey(label, x1, x2, y1, y2, videoMode, topLine, bottomLine, showCb, showValue, showText);
   }
 
-  static void showSoftkey2(const char *labelSM1, int16_t xSoftkey, int16_t ySoftKey, videoMode_t videoMode, bool_t topLine, bool_t bottomLine, int8_t showCb, int16_t showValue, const char *showText) {
+
+  /********************************************//**
+   * \brief showSoftkey2 displays a combined softkey, and needs two passed, first the left even nmber 0 2 4, then the right odd number 1 3 5)
+   ***********************************************/
+  static void showSoftkey2(bool_t valid, const char *labelSM1, int16_t xSoftkey, int16_t ySoftKey, videoMode_t videoMode, bool_t topLine, bool_t bottomLine, int8_t showCb, int16_t showValue, const char *showText, bool_t doubleMidLine) {
+    //printC47ShortStringToConsole(labelSM1,"A:","\n");
     int16_t x1, y1, x2, y2;
     if(!initSoftkeyCoordinates(labelSM1, xSoftkey, ySoftKey, &x1, &x2, &y1, &y2)) {
       return;
     }
   char label1[30];
-  if(xSoftkey == 0 || xSoftkey == 2 || xSoftkey == 4) {
+  if((xSoftkey & 1) == 0) { // softKey even 0, 2, 4
     xx1 = x1;
-    label0[0]=0;
-    stringCopy(label0 + stringByteLength(label0), labelSM1);
-    compressConversionName(label0);
+    buildConversionLabel(label0, labelSM1);
   }
-  truncateAtArrow(label0);
+  truncateAtArrow(label0); //cut off to prevent label overrun to next slot
 
-  if(xSoftkey == 1 || xSoftkey == 3 || xSoftkey == 5) {
-    label1[0]=0;
-    stringCopy(label1 + stringByteLength(label1), labelSM1);
-    compressConversionName(label1);
+  if((xSoftkey & 1) != 0 && valid) { // softKey odd 1, 3, 5
+    buildConversionLabel(label1, labelSM1);
     truncateAtArrow(label1);
-    showKey2(label0, label1, xx1, x2, y1, y2, videoMode, topLine, bottomLine, showCb, showValue, showText);
+    showKey2(label0, label1, xx1, x2, y1, y2, videoMode, topLine, bottomLine, showCb, showValue, showText, doubleMidLine);
+    //printC47ShortStringToConsole(label0,"    ","  ");
+    //printC47ShortStringToConsole(label1,"","\n");
+
+//  } else {
+//    showKey(labelSM1, x1, x2, y1, y2, videoMode, topLine, bottomLine, showCb, showValue, showText);
   }
 }
 
@@ -1932,7 +1970,37 @@ static inline void drawKeyFrame(int16_t x1, int16_t x2, int16_t y1, int16_t y2, 
 
 
 
-static void showKey2(const char *label0, const char *label1, int16_t x1, int16_t x2, int16_t y1, int16_t y2, videoMode_t videoMode, bool_t topLine, bool_t bottomLine, int8_t showCb, int16_t showValue, const char *showText) {
+//Show a 'panelled' view of softkeys if a menu is assignable
+static void showPanelledView(int16_t x1, int16_t x2, int16_t y1, videoMode_t videoMode) {
+  //printf("currentMenu()=%d\n",currentMenu());
+  #define _off 1 // function parameter: +1 is favoured
+  if(calcMode == CM_ASSIGN && itemToBeAssigned != 0 &&
+     (currentMenu() == -MNU_HOME ||
+      currentMenu() == -MNU_MyMenu ||
+      currentMenu() == -MNU_MyAlpha ||
+      currentMenu() == -MNU_PFN ||
+      currentMenu() == -MNU_DYNAMIC)) {
+    int16_t xs[4], ys[4], ws[4], hs[4];
+    if(_off == 2) { //inner doubling of softkey box
+      xs[0] = max(0, x1)+1;         ys[0] = y1;                         ws[0] = 1; hs[0] = SOFTMENU_HEIGHT;
+      xs[1] = x2-1;                 ys[1] = y1;                         ws[1] = 1; hs[1] = SOFTMENU_HEIGHT;
+      xs[2] = max(0, x1)+1;         ys[2] = y1+1;                       ws[2] = min(x2, SCREEN_WIDTH)-max(0, x1)-2; hs[2] = 1;
+      xs[3] = max(0, x1)+1;         ys[3] = y1+SOFTMENU_HEIGHT-1;       ws[3] = min(x2, SCREEN_WIDTH)-max(0, x1)-2; hs[3] = 1;
+    }
+    else { //positioning of nails or rivets
+      xs[0] = max(0, x1)+2+_off;    ys[0] = y1+1+_off;                  ws[0] = 3; hs[0] = 2;
+      xs[1] = max(0, x1)+2+_off;    ys[1] = y1+SOFTMENU_HEIGHT-2-_off;  ws[1] = 3; hs[1] = 2;
+      xs[2] = x2-1-3-_off;          ys[2] = y1+1+_off;                  ws[2] = 3; hs[2] = 2;
+      xs[3] = x2-1-3-_off;          ys[3] = y1+SOFTMENU_HEIGHT-2-_off;  ws[3] = 3; hs[3] = 2;
+    }
+    for(int i=0; i<4; i++) {
+      lcd_fill_rect(xs[i], ys[i], ws[i], hs[i], (videoMode == vmNormal ? LCD_EMPTY_VALUE : LCD_SET_VALUE));
+    }
+  }
+}
+
+
+static void showKey2(const char *label0, const char *label1, int16_t x1, int16_t x2, int16_t y1, int16_t y2, videoMode_t videoMode, bool_t topLine, bool_t bottomLine, int8_t showCb, int16_t showValue, const char *showText, bool_t doubleMidLine) {
   #define YY -100
   int16_t Text0   ;
   int16_t Arr0    ;
@@ -1949,7 +2017,7 @@ static void showKey2(const char *label0, const char *label1, int16_t x1, int16_t
   int16_t arrowSpace;
   const char *w[4];
 
-  if(getSystemFlag(FLAG_HPCONV)) {
+  if(getSystemFlag(FLAG_HPCONV) /*&& calcMode != CM_ASSIGN*/) { //select this to auto-swap to CF CONV_hp, for the duration of an assign
     t[0] = label1;
     t[1] = STD_LEFT_ARROW;
     t[2] = label0;
@@ -1969,7 +2037,7 @@ static void showKey2(const char *label0, const char *label1, int16_t x1, int16_t
     w[1] = STD_RIGHT_ARROW;
     w[2] = STD_LEFT_ARROW;
     w[3] = label1;
-    arrowSpace = 10;
+    arrowSpace = 4;
   }
   for(int i=0; i<4; i++) {
     widths[i] = showStringEnhanced(w[i], &standardFont, 0, y1+YY, videoMode, false, false, DO_compress, NO_raise, NO_Show, NO_Bold, NO_LF);
@@ -1990,7 +2058,7 @@ static void showKey2(const char *label0, const char *label1, int16_t x1, int16_t
     space    = ((x2 - x1) - widths[0] - widths[1] - widths[2] - widths[3]) / 7.0f;
     Text0    = x1 + space;
     midpoint = 3.5 * space + widths[0] + widths[1];
-    if(getSystemFlag(FLAG_HPCONV)) {
+    if(getSystemFlag(FLAG_HPCONV) /*&& calcMode != CM_ASSIGN*/) {  //select this to auto-swap to CF CONV_hp, for the duration of an assign
       Arr0     = x1 + midpoint - arrowSpace - widths[1];
       Arr1   = x1 + midpoint + arrowSpace;
     }
@@ -2012,43 +2080,142 @@ static void showKey2(const char *label0, const char *label1, int16_t x1, int16_t
   for(int i=0; i<4; i++) {
     showStringEnhanced(t[i], &standardFont, x[i], y1 + 1, videoMode, false, false, DO_compress, NO_raise, DO_Show, NO_Bold, NO_LF);
   }
+
   // Mid vertical line, unchanged
+  if(!doubleMidLine) {
     lcd_fill_rect(x1 + midpoint, y1 + 5, 1, min(y2, SCREEN_HEIGHT - 1) + 1 - y1 - 2*5, (videoMode == vmNormal ? LCD_EMPTY_VALUE : LCD_SET_VALUE));
+  } else {
+    lcd_fill_rect(x1 + midpoint-1, y1 + 5, 1, min(y2, SCREEN_HEIGHT - 1) + 1 - y1 - 2*5, (videoMode == vmNormal ? LCD_EMPTY_VALUE : LCD_SET_VALUE));
+    lcd_fill_rect(x1 + midpoint+1, y1 + 5, 1, min(y2, SCREEN_HEIGHT - 1) + 1 - y1 - 2*5, (videoMode == vmNormal ? LCD_EMPTY_VALUE : LCD_SET_VALUE));
+  }
+
+showPanelledView(x1, x2, y1, videoMode);
 }
+
+
+// // Trim the soft-key label from the right, one glyph at a time, until its width fits the soft-key slot (<=67 px) or only 1 len
+// static uint32_t trimSoftKeyName(uint16_t lim, char *l, int mode, int comp, bool_t withLeadingEmptyRows, bool_t withEndingEmptyRows) {
+//   uint32_t w = stringWidthC47(l, mode, comp, withLeadingEmptyRows, withEndingEmptyRows);
+//   if(w > lim) {                                                                   // fits already? leave alone
+//     char *cut = stringAfterPixelsC47(l, mode, comp, lim, withLeadingEmptyRows, withEndingEmptyRows);
+//     if(cut == l) {                                                               // first glyph alone too wide
+//       cut = l + stringNextGlyph(l, 0);                                           // keep one glyph anyway
+//     }
+//     *cut = 0;                                                                    // truncate in place
+//     w = stringWidthC47(l, mode, comp, withLeadingEmptyRows, withEndingEmptyRows);// remeasure for return
+//   }
+//   return w;
+// }
+
+
+// Trim the soft-key label from the right, one glyph at a time, until its width fits the soft-key slot (<=lim px) or only 1 len.
+//   If the natural cut would consume an arrow, the cut is moved to just past the arrow so it is preserved (same trade-off as the left-trim).
+static uint32_t trimSoftKeyName(uint16_t lim, char *l, int mode, int comp, bool_t withLeadingEmptyRows, bool_t withEndingEmptyRows) {
+  uint32_t w = stringWidthC47(l, mode, comp, withLeadingEmptyRows, withEndingEmptyRows);
+  if(w >= lim) {                                                                   // fits already? leave alone
+    int16_t arrowEnd = -1;                                                        // byte index just past first arrow, or -1 if none
+    for(int16_t i = 0; l[i] != 0 && l[i+1] != 0; i++) {
+      if((STD_RIGHT_ARROW[0] == l[i] && STD_RIGHT_ARROW[1] == l[i+1]) ||
+         (STD_LEFT_ARROW[0]  == l[i] && STD_LEFT_ARROW[1]  == l[i+1])) {
+        arrowEnd = i + 2;
+        break;
+      }
+    }
+    char *cut = stringAfterPixelsC47(l, mode, comp, lim, withLeadingEmptyRows, withEndingEmptyRows);
+    if(cut == l) {                                                                // first glyph alone too wide
+      cut = l + stringNextGlyph(l, 0);                                            // keep one glyph anyway
+    }
+    if(arrowEnd > 0 && cut < l + arrowEnd) {                                      // would the cut eat the arrow?
+      cut = l + arrowEnd;                                                         // push cut to just past the arrow
+    }
+    *cut = 0;                                                                     // truncate in place
+    w = stringWidthC47(l, mode, comp, withLeadingEmptyRows, withEndingEmptyRows); // remeasure for return
+  }
+  return w;
+}
+
+
+
+// Trim the soft-key label from the left, one glyph at a time, by shifting the remaining text down in place, until the width fits the slot or the arrow is
+// reached. The arrow itself is preserved.
+static uint32_t trimSoftKeyNameFromLeft(uint16_t lim, char *l, int mode, int comp, bool_t withLeadingEmptyRows, bool_t withEndingEmptyRows) {
+  uint32_t w = stringWidthC47(l, mode, comp, withLeadingEmptyRows, withEndingEmptyRows);
+  while(w >= lim && l[0] != 0 && l[1] != 0) {
+    if((STD_RIGHT_ARROW[0] == l[0] && STD_RIGHT_ARROW[1] == l[1]) ||
+       (STD_LEFT_ARROW[0]  == l[0] && STD_LEFT_ARROW[1]  == l[1])) {
+      break;
+    }
+    int16_t step = stringNextGlyph(l, 0);
+    if(step == 0) {
+      break;
+    }
+    int16_t k = 0;
+    while(l[step + k] != 0) {
+      l[k] = l[step + k];
+      k++;
+    }
+    l[k] = 0;
+    w = stringWidthC47(l, mode, comp, withLeadingEmptyRows, withEndingEmptyRows);
+  }
+  return w;
+}
+
+
+// Trim the correct side, depending if an odd or even softkey. Trim to the arrow, and if still too wide, trim from the other side as well.
+static uint32_t trimKey(char* itemName, int x) {
+  uint16_t lim = (x == 5) ? 65 : 66;
+  uint32_t w;
+  if((x & 1) == 0) { //even
+    w = trimSoftKeyName(lim, itemName, stdNoEnlarge, 1, false, false);
+    if(w >= lim) {
+      trimSoftKeyNameFromLeft(lim, itemName, stdNoEnlarge, 1, false, false);
+    }
+  }
+  else {
+    w = trimSoftKeyNameFromLeft(lim, itemName, stdNoEnlarge, 1, false, false);
+    if(w >= lim) {
+      trimSoftKeyName(lim, itemName, stdNoEnlarge, 1, false, false);
+    }
+  }
+  return w;
+}
+
 
 
 void showKey(const char *label, int16_t x1, int16_t x2, int16_t y1, int16_t y2, videoMode_t videoMode, bool_t topLine, bool_t bottomLine, int8_t showCb, int16_t showValue, const char *showText) {
     int16_t w;
-    char l[16];
+    char l[50];
+    char ll[50];
 
     drawKeyFrame(x1, x2, y1, y2, videoMode, topLine, bottomLine);
 
     xcopy(l, label, stringByteLength(label) + 1);
-    //    char *lw = stringAfterPixels(l, &standardFont, (rightMostSlot ? 65 : 66), false, false);
-    //    *lw = 0;
-    //continue with trimmed label
-    w = stringWidthC47(figlabel(l, showText, showValue), stdNoEnlarge, 0, false, false);
-    if((showCb >= 0) || (w >= ((min(x2, SCREEN_WIDTH) - max(0, x1))*3)/4 )) {
-      w = stringWidthC47(figlabel(l, showText, showValue), stdNoEnlarge, 1, false, false);
-      if(showCb >= 0) { w = w + 8; }
-      //    char *lw = stringAfterPixelsC47(l, stdNoEnlarge, compressString, rightMostSlot ? 65 : 66, false, false);
-      //    *lw = 0;
-    compressString = 1;       //JM compressString
-    showString(figlabel(l, showText, showValue), &standardFont, (x1 + x2 - w)/2, y1 + 2, videoMode, false, false);
-    compressString = 0;       //JM compressString
-  }
-  else {
-     //clearly short enough so no trimming was needed anyway
-     showString(figlabel(l, showText, showValue), &standardFont, (x1 + x2 - w)/2, y1 + 2, videoMode, false, false);
-  }                                                                                              //JM & dr ^^
 
-#if defined(JM_LINE2_DRAW)
-  if(showCb >= 0) {
-    if(videoMode == vmNormal) {
-      JM_LINE2(x2, y2);
+    //continue with trimmed label
+    strcpy(ll, figlabel(l, showText, showValue));
+    w = trimKey(ll, 0);
+  //w = trimSoftKeyName(x2-x1-1, l, stdNoEnlarge, 0, false, false);                           // trim label to fit slot, returns final width
+
+    if((showCb >= 0) || (w >= ((min(x2, SCREEN_WIDTH) - max(0, x1))*3)/4 )) {
+      w = stringWidthC47(ll, stdNoEnlarge, 1, false, false);
+      if(showCb >= 0) {
+        w = w + 8;
+      }
+      compressString = 1;       //JM compressString
+      showString(ll, &standardFont, (x1 + x2 - w)/2, y1 + 2, videoMode, false, false);
+      compressString = 0;       //JM compressString
+    } else {
+      //clearly short enough so no trimming was needed anyway
+      showString(ll, &standardFont, (x1 + x2 - w)/2, y1 + 2, videoMode, false, false);
+    }                                                                                              //JM & dr ^^
+
+    #if defined(JM_LINE2_DRAW)
+    if(showCb >= 0) {
+      if(videoMode == vmNormal) {
+        JM_LINE2(x2, y2);
+      }
     }
-  }
-#endif // JM_LINE2_DRAW
+    #endif // JM_LINE2_DRAW
 
   //EXTRA DRAWINGS FOR RADIO_BUTTON AND CHECK_BOX
   if(showCb >= 0) {
@@ -2073,35 +2240,7 @@ void showKey(const char *label, int16_t x1, int16_t x2, int16_t y1, int16_t y2, 
       }
     }
   }
-
-
-//Show a 'panelled' view of softkeys if a menu is assignable
-//printf("currentMenu()=%d\n",currentMenu());
-  #define _off 1 // function parameter: +1 is favoured
-  if(calcMode == CM_ASSIGN && itemToBeAssigned != 0 &&
-     (currentMenu() == -MNU_HOME ||
-      currentMenu() == -MNU_MyMenu ||
-      currentMenu() == -MNU_MyAlpha ||
-      currentMenu() == -MNU_PFN ||
-      currentMenu() == -MNU_DYNAMIC)) {
-
-    int16_t xs[4], ys[4], ws[4], hs[4];
-    if(_off == 2) { //inner doubling of softkey box
-      xs[0] = max(0, x1)+1;         ys[0] = y1;                         ws[0] = 1; hs[0] = SOFTMENU_HEIGHT;
-      xs[1] = x2-1;                 ys[1] = y1;                         ws[1] = 1; hs[1] = SOFTMENU_HEIGHT;
-      xs[2] = max(0, x1)+1;         ys[2] = y1+1;                       ws[2] = min(x2, SCREEN_WIDTH)-max(0, x1)-2; hs[2] = 1;
-      xs[3] = max(0, x1)+1;         ys[3] = y1+SOFTMENU_HEIGHT-1;       ws[3] = min(x2, SCREEN_WIDTH)-max(0, x1)-2; hs[3] = 1;
-    }
-    else { //positioning of nails or rivets
-      xs[0] = max(0, x1)+2+_off;    ys[0] = y1+1+_off;                  ws[0] = 3; hs[0] = 2;
-      xs[1] = max(0, x1)+2+_off;    ys[1] = y1+SOFTMENU_HEIGHT-2-_off;  ws[1] = 3; hs[1] = 2;
-      xs[2] = x2-1-3-_off;          ys[2] = y1+1+_off;                  ws[2] = 3; hs[2] = 2;
-      xs[3] = x2-1-3-_off;          ys[3] = y1+SOFTMENU_HEIGHT-2-_off;  ws[3] = 3; hs[3] = 2;
-    }
-    for(int i=0; i<4; i++) {
-      lcd_fill_rect(xs[i], ys[i], ws[i], hs[i], (videoMode == vmNormal ? LCD_EMPTY_VALUE : LCD_SET_VALUE));
-    }
-  }
+showPanelledView(x1, x2, y1, videoMode);
 }
 
 
@@ -2238,7 +2377,7 @@ static void placeSubscript(int16_t itemNr, bool_t flt, float tmpF, char *itemNam
 }
 
 
-void changeSoftKey(int16_t menuNr, int16_t itemNr, char * itemName, videoMode_t * vm, int8_t * showCb, int16_t * showValue, char * showText) {
+void changeSoftKey(int16_t itemNr, char * itemName, videoMode_t * vm, int8_t * showCb, int16_t * showValue, char * showText) {
   float tmpF = 0;
   char tmpS[30], tmpSS[20];
   real_t tmpR;
@@ -2664,16 +2803,16 @@ bool_t savedspace(int16_t itemNr) {  //strike out all SAVED_SPACE items
 
     #if defined(SAVE_SPACE_DM42_17)
       case -MNU_F: case -MNU_BINOM: case -MNU_HYPER: case -MNU_POISS: case -MNU_GEOM:
-      case ITM_FPX   :     case ITM_FX   :      case ITM_FUX   :     case ITM_FM1P:
-      case ITM_BINOMP:     case ITM_BINOM:      case ITM_BINOMU:     case ITM_BINOMM1:
-      case ITM_NBINP :     case ITM_NBIN :      case ITM_NBINU :     case ITM_NBINM1 :
-      case ITM_HYPERP:     case ITM_HYPER:      case ITM_HYPERU:     case ITM_HYPERM1:
-      case ITM_POISSP:     case ITM_POISS:      case ITM_POISSU:     case ITM_POISSM1:
-      case ITM_GEOMP :     case ITM_GEOM :      case ITM_GEOMU :     case ITM_GEOMM1 :
+      case ITM_FPX:      case ITM_FX:      case ITM_FUX:      case ITM_FM1P:
+      case ITM_BINOMP:   case ITM_BINOM:   case ITM_BINOMU:   case ITM_BINOMM1:
+      case ITM_NBINP:    case ITM_NBIN:    case ITM_NBINU:    case ITM_NBINM1 :
+      case ITM_HYPERP:   case ITM_HYPER:   case ITM_HYPERU:   case ITM_HYPERM1:
+      case ITM_POISSP:   case ITM_POISS:   case ITM_POISSU:   case ITM_POISSM1:
+      case ITM_GEOMP:    case ITM_GEOM:    case ITM_GEOMU:    case ITM_GEOMM1 :
     #endif // SAVE_SPACE_DM42_17
 
-      case 9999       : return true; break;
-    default           : return false; break;
+    case 9999: return true;  break;
+    default:   return false; break;
   }
 }
 
@@ -2734,6 +2873,20 @@ void fnStrikeThroughIfNA(int16_t itemNr, int16_t x, int16_t y) {
     strokeStrike(typeStrikeThrough, itemNr > 0, &xStroke, &yStroke, x, y);
   }
 }
+
+
+void diagonalsOnTop(int16_t x1, int16_t x2, int16_t y1, int16_t y2, videoMode_t vm) {  // diagonals pattern
+  for(int16_t line = y1 + 3; line < y2 - 2; line += 1){
+    for(int16_t col = x1 + 3 + line%6; col < x2 - 2; col += 6) {
+      if(vm == vmNormal) {
+        setBlackPixel(col, line);
+      } else {
+        setWhitePixel(col, line);
+      }
+    }
+  }
+}
+
 
 
 typedef enum {
@@ -2874,7 +3027,7 @@ void showSoftmenuCurrentPart(void) {
       }
     }
 
-    char itemName[16];
+    char itemName[50];
     itemName[0] = 0;
     char showText[16];
     showText[0] = 0;
@@ -2882,6 +3035,8 @@ void showSoftmenuCurrentPart(void) {
     int8_t showCb = NOVAL;
     int16_t showValue = NOVAL;
     showText[0] = 0;
+    int16_t oddNrPartnerForEven = 0;
+    bool_t convUserMenu = false;
 
     if(m < NUMBER_OF_DYNAMIC_SOFTMENUS) { // Dynamic softmenu
       #if defined(PC_BUILD)
@@ -2899,6 +3054,9 @@ void showSoftmenuCurrentPart(void) {
         uint8_t *ptr = getNthString(dynamicSoftmenu[m].menuContent, currentFirstItem);
         for(y=0; y<3; y++) {
           for(x=0; x<6; x++) {
+            if((x & 1) == 0) {
+              oddNrPartnerForEven = 0;
+            }
             if(x + 6*y + currentFirstItem < numberOfItems) {
               if(*ptr != 0) {
                 vm = vmNormal;
@@ -2920,8 +3078,9 @@ void showSoftmenuCurrentPart(void) {
                      vm = vmReverse;       //No item name changes available for menu names
                     }
                     else {
+                      convUserMenu = true;
                       if(userMenuItems[x + 6*y].argumentName[0] == 0) {
-                        changeSoftKey(softmenu[m].menuItem, itemNr, itemName, &vm, &showCb, &showValue, showText);
+                        changeSoftKey(itemNr, itemName, &vm, &showCb, &showValue, showText);
                       }
                     }
                     break;
@@ -2932,13 +3091,15 @@ void showSoftmenuCurrentPart(void) {
                     break;
                   }
                   case MNU_DYNAMIC: {
+                    //printf(">>>> User Menu: %i %s : %s\n",itemNr, itemName, userMenuItems[x + 6*y].argumentName);
                     itemNr = userMenus[currentUserMenu].menuItem[x + 6*y].item;
                     if(itemNr < 0) {
                      vm = vmReverse;       //No item name changes available for menu names
                     }
                     else {
+                      convUserMenu = true;
                       if(userMenus[currentUserMenu].menuItem[x + 6*y].argumentName[0] == 0) {
-                        changeSoftKey(softmenu[m].menuItem, itemNr, itemName, &vm, &showCb, &showValue, showText);
+                        changeSoftKey(itemNr, itemName, &vm, &showCb, &showValue, showText);
                       }
                     }
                     break;
@@ -2992,10 +3153,62 @@ void showSoftmenuCurrentPart(void) {
                     break;
                   }
                 }
-                showSoftkey(itemName, x, y, vm, true, true, showCb, showValue, showText);
+
+
+
+
+                if(convUserMenu) {                                                                 // user menus
+                // Activate the CONVERT magic to swap the arrows and move the midpoint
+                const int16_t softKeyIx  = (x^1) + 6*y;
+                const int16_t curMenu    = -softmenu[m].menuItem;
+                const int16_t itemNrPair = (curMenu == MNU_MyMenu)  ? userMenuItems[softKeyIx].item
+                                         : (curMenu == MNU_DYNAMIC) ? userMenus[currentUserMenu].menuItem[softKeyIx].item
+                                         : 0;
+                isOneOfAConvertPair(x, itemNr, &oddNrPartnerForEven);                            // side-effect: sets oddNrPartnerForEven
+                const bool_t  bothConfigurable = areBothConvertConfigurable(itemNr, itemNrPair);
+                const bool_t  standardPair     = isStandardPair(itemNr, itemNrPair);             // fixed table pair: direct conversion, plain rendering
+                const bool_t  areBothConv = bothConfigurable || standardPair;                    // draw as a pair: same configurable type, or genuine fixed partner (covers UT_NOT_CONFIGURABLE)
+                const bool_t  flag        = bothConfigurable && !standardPair;                   // configured (non-canonical) pair: magic; canonical fixed pair: plain
+                const bool_t  cond        = flag || ((x & 1) == 0) || (itemNr == oddNrPartnerForEven);
+                //printf(">>> softkey x=%d y=%d itemNr=%d menu=%d itemNrPair=%d areBothConv=%d flag=%d cond=%d odd=%d\n",x, y, itemNr, curMenu , itemNrPair, areBothConv, flag, cond, oddNrPartnerForEven);
+
+                if(areBothConv) {                                                                // CONV magic on softkey
+                  if(getSystemFlag(FLAG_HPCONV)) { //swapped
+                    //printf("SWAPPED DISPLAY\n");
+                    changeSoftKey(conversionPartner(itemNrPair, NULL, NULL, NULL), itemName, &vm, &showCb, &showValue, showText);
+                  }
+                  showSoftkey2(cond, itemName, x, y, vm, true, true, showCb, showValue, showText, flag);
+                }
+
+                else {
+                    //This section is for a single softkey on a user menu
+                    if(isItemConversion(itemNr)) {                                                 // It is definately a single here
+                      char s1[64];
+                      strcpy(s1, indexOfItems[conversionPartner(itemNr, NULL, NULL, NULL)].itemSoftmenuName);
+                      truncateAtArrow(s1);
+                      char s2[64];
+                      strcpy(s2, indexOfItems[itemNr].itemSoftmenuName);
+                      truncateAtArrow(s2);
+                      strcpy(itemName, s2);
+                      strcat(itemName, STD_RIGHT_ARROW);
+                      strcat(itemName, s1);
+                      // expandAbbreviations(itemName); // expand all
+                      compressConversionName(itemName); // keep E compressed
+                      trimKey(itemName, getSystemFlag(FLAG_HPCONV)); // trim the combined key from the less important side relating to HPCONV, that is let the unit normally on the face of the key dominate
+                    }
+                    showSoftkey(itemName, x, y, vm, true, true, showCb, showValue, showText);
+                  }
+                } 
+
+                else {                                                                            // fall through for non-user menus
+                  showSoftkey(itemName, x, y, vm, true, true, showCb, showValue, showText);
+                }
+
                 fnStrikeOutIfNotCoded(itemNr, x, y);
                 fnStrikeThroughIfNA(itemNr, x, y);
               }
+
+
               ptr += stringByteLength((char *)ptr) + 1;
             }
           }
@@ -3016,7 +3229,7 @@ void showSoftmenuCurrentPart(void) {
           else {
             item = softkeyItem[x];
           }
-          changeSoftKey(softmenu[m].menuItem, item, itemName, &vm, &showCb, &showValue, showText);
+          changeSoftKey(item, itemName, &vm, &showCb, &showValue, showText);
 
 
           if(item < 0) { // item is softmenu name
@@ -3063,9 +3276,17 @@ void showSoftmenuCurrentPart(void) {
                 }
                 else {
               #endif // INLINE_TEST
-              //MAIN SOFTMENU DISPLAY
+
+              // ********* MAIN SOFTMENU DISPLAY
               showSoftkey(indexOfItems[-softmenu[menu].menuItem].itemSoftmenuName, x, y-currentFirstItem/6, vmReverse, true, true, NOVAL, NOVAL, NOTEXT);
+
+              // Indicate a 'heading' by using a self-referring menu name, i.e. MODE in gG# of MODE will make it greyed out
+              //if(currentMenu() == item) {
+              //  diagonalsOnTop(KEY_X[x], KEY_X[x+1], 217 - SOFTMENU_HEIGHT * y, 217 - SOFTMENU_HEIGHT * y + SOFTMENU_HEIGHT, vmReverse);
+              //}
+
               #if defined(INLINE_TEST)
+
                 }
               #endif // INLINE_TEST
 
@@ -3097,15 +3318,15 @@ void showSoftmenuCurrentPart(void) {
             //        +20000 -> no bottom line
             //        +30000 -> neither top nor bottom line
 
-            if(softmenu[m].menuItem  == -MNU_CONVS    || softmenu[m].menuItem  == -MNU_CONVANG  ||
-               softmenu[m].menuItem  == -MNU_CONVE    || softmenu[m].menuItem  == -MNU_CONVP    ||
-               softmenu[m].menuItem  == -MNU_CONVFP   || softmenu[m].menuItem  == -MNU_CONVM    ||
-               softmenu[m].menuItem  == -MNU_CONVX    || softmenu[m].menuItem  == -MNU_CONVV    ||
-               softmenu[m].menuItem  == -MNU_CONVA    || softmenu[m].menuItem  == -MNU_UNITCONV ||
-               softmenu[m].menuItem  == -MNU_MISC     || softmenu[m].menuItem  == -MNU_CONVHUM  ||
-               softmenu[m].menuItem  == -MNU_CONVYMMV || softmenu[m].menuItem  == -MNU_CONVCHEF ||
-               softmenu[m].menuItem  == -MNU_CONVTEMP ) {
-              showSoftkey2(indexOfItems[item%10000].itemSoftmenuName, x, y-currentFirstItem/6, vmNormal, (item/10000)==0 || (item/10000)==2, (item/10000)==0 || (item/10000)==1, showCb, showValue, showText);
+            if( isItemConversion(item)) {
+              char www[64];
+              //This section is for the softkey text for fixed menu pairs in the CONV menu including the magic
+              fullConvSoftMenuItemNameInclHPCONV(item, www);
+              //expandAbbreviations(www); //full expansion
+              //showSoftkey2 includes a call to compressConversionName() keep E compressed
+              showSoftkey2(true, www, x, y-currentFirstItem/6, vmNormal, (item/10000)==0 || (item/10000)==2, (item/10000)==0 || (item/10000)==1, showCb, showValue, showText, false);
+              //The old system using indexOfItems[] directly, not working anymore since the second text part is removed to save bytes
+              //showSoftkey2(true, indexOfItems[/*getSystemFlag(FLAG_HPCONV) ? conversionPartner(item, NULL, NULL, NULL) : */item].itemSoftmenuName, x, y-currentFirstItem/6, vmNormal, (item/10000)==0 || (item/10000)==2, (item/10000)==0 || (item/10000)==1, showCb, showValue, showText, false);
             }
 
             else {
@@ -3145,12 +3366,7 @@ void showSoftmenuCurrentPart(void) {
             int16_t x1, y1, x2, y2;
             initSoftkeyCoordinates(tmpq, x, 2, &x1, &x2, &y1, &y2);
             showKey(tmpq, x1, x2, y1, y2, vmNormal, false, true, NOVAL, NOVAL, tmpp);
-            // diagonals pattern
-            for(int16_t line = y1 + 3; line < y2 - 2; line += 1){
-              for(int16_t col = x1 + 3 + line%6; col < x2 - 2; col += 6) {
-                  setBlackPixel(col, line);
-              }
-            }
+            diagonalsOnTop(x1, x2, y1, y2, vmNormal);
           }
 
           fnStrikeOutIfNotCoded(item%10000, x, y-currentFirstItem/6);
@@ -3392,7 +3608,7 @@ void showSoftmenuCurrentPart(void) {
         return false;
       }
     }
-    #if defined(PC_BUILD) && defined (VERBOSE_MINIMUM)
+    #if defined(PC_BUILD) && defined(VERBOSE_MINIMUM)
       printf("----------- ############################ CREATING HOME #########################\n");
     #endif // PC_BUILD
     for(uint16_t ii=0; ii<18; ii++) {
@@ -3422,7 +3638,7 @@ void showSoftmenuCurrentPart(void) {
         return false;
       }
     }
-    #if defined(PC_BUILD) && defined (VERBOSE_MINIMUM)
+    #if defined(PC_BUILD) && defined(VERBOSE_MINIMUM)
       printf("----------- ############################ CREATING PFN #########################\n");
     #endif // PC_BUILD
     for(uint16_t ii=0; ii<18; ii++) {
@@ -4029,7 +4245,7 @@ void fnDumpMenus(uint16_t newFilenameformat, const char *path) {
           case MNU_2NDDERIV :
           case MNU_Sf       :
           case MNU_Solver   :
-          case MNU_Grapher   :
+          case MNU_Grapher  :
           case MNU_SHOW     :
             break;
           default:

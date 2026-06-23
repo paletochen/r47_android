@@ -17,6 +17,7 @@
    *   * -1 when not found in the standard font
    *   * -2 when not found in the numeric font
    */
+  int16_t findGlyphExact       (const font_t *font, uint16_t charCode);
   int16_t findGlyph            (const font_t *font, uint16_t charCode);
 
   /**

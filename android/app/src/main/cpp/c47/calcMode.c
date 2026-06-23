@@ -23,7 +23,9 @@
       }
       }
       saveCalc();
-      gtk_main_quit();
+      if(!headlessMode) {
+        gtk_main_quit();
+      }
     #endif // PC_BUILD
 
     #if defined(DMCP_BUILD)

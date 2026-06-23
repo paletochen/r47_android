@@ -37,7 +37,7 @@ TO_QSPI const char hexaFont[] = "\x69\x99\x99\x60"  // 0
  *                 * -1 when not found in the standard font
  *                 * -2 when not found in the numeric font
  ***********************************************/
-int16_t findGlyph(const font_t *font, uint16_t charCode) {
+int16_t findGlyphExact(const font_t *font, uint16_t charCode) {        // the single binary-search core: exact charCode match, returns the index or -1 on a miss, with no id-based fallback so a miss can never be mistaken for a valid index 0
   int16_t first, middle, last;
 
   first = 0;
@@ -61,7 +61,14 @@ int16_t findGlyph(const font_t *font, uint16_t charCode) {
   if(font->glyphs[last].charCode == charCode) {
     return last;
   }
+  return -1;
+}
 
+int16_t findGlyph(const font_t *font, uint16_t charCode) {            // public wrapper, behaviour identical to before: index on a hit, then the original id-based not-found codes for every existing caller
+  int16_t id = findGlyphExact(font, charCode);
+  if(id >= 0) {
+    return id;
+  }
   if(font->id == 1) {
     return -1;
   }

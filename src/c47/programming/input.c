@@ -325,8 +325,10 @@ void fnKey(uint16_t regist) {
   if(lastKeyCode == 0) {
     temporaryInformation = TI_TRUE;
     #if defined(PC_BUILD)
-      while(gtk_events_pending()) {
-        gtk_main_iteration();
+      if(!headlessMode) {
+        while(gtk_events_pending()) {
+          gtk_main_iteration();
+        }
       }
     #elif defined(DMCP_BUILD)
       dmcpResetAutoOff(); //prevent auto off occurring within a GTO loop with KEY?, which causes an unrecoverable sleep and impossibility to switch calculator back on

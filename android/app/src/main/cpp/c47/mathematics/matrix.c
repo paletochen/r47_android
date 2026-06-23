@@ -1679,6 +1679,7 @@ void fnEigenvalues(uint16_t unusedParamButMandatory) {
       linkToRealMatrixRegister(REGISTER_Y, &x);
       ires.header.matrixRows = ires.header.matrixColumns = 0;
       ires.matrixElements = NULL;
+      res.matrixElements = NULL;
       realEigenvalues(&x, &res, &ires);
       if(lastErrorCode == ERROR_NONE || lastErrorCode == ERROR_SOLVER_ABORT) {
         if(ires.matrixElements) {
@@ -1728,6 +1729,14 @@ void fnEigenvalues(uint16_t unusedParamButMandatory) {
 
         }
         realMatrixFree(&res);
+      }
+      // When the solver leaves an error code other than ERROR_NONE or ERROR_SOLVER_ABORT (e.g. complex eigenvalues with FL_CPXRES clear), the
+      // block above is skipped, but realEigenvalues already allocated res and ires. Release them here; on the handled paths they are already freed and NULL, so these are no-ops.
+      if(res.matrixElements)  {
+        realMatrixFree(&res);
+      }
+      if(ires.matrixElements) {
+        realMatrixFree(&ires);
       }
     }
     goto Success;
@@ -2839,8 +2848,7 @@ static void addSubRealMatrices(const real34Matrix_t *y, const real34Matrix_t *x,
   int32_t i;
 
   if((y->header.matrixColumns != x->header.matrixColumns) || (y->header.matrixRows != x->header.matrixRows)) {
-    res->matrixElements = NULL; // Matrix mismatch
-    res->header.matrixRows = res->header.matrixColumns = 0;
+    realMatrixFree(res); // Matrix mismatch: res aliases an owned operand, so free it (this also clears matrixElements and the dimensions)
     return;
   }
 
@@ -2881,8 +2889,7 @@ static void addSubComplexMatrices(const complex34Matrix_t *y, const complex34Mat
   int32_t i;
 
   if((y->header.matrixColumns != x->header.matrixColumns) || (y->header.matrixRows != x->header.matrixRows)) {
-    res->matrixElements = NULL; // Matrix mismatch
-    res->header.matrixRows = res->header.matrixColumns = 0;
+    complexMatrixFree(res); // Matrix mismatch: res aliases an owned operand, so free it (this also clears matrixElements and the dimensions)
     return;
   }
 
@@ -3432,6 +3439,7 @@ void WP34S_LU_decomposition(const real34Matrix_t *matrix, real34Matrix_t *lu, ui
         realCopy(&tmpMat[k * n + k], &t);
         if(realIsZero(&t)) {
           realMatrixFree(lu);
+          freeC47Blocks(tmpMat, m * n * REAL_SIZE_IN_BLOCKS(75));
           return;
         }
 

@@ -49,18 +49,18 @@ bool_t isMemoryBlockAvailable(size_t sizeInBlocks, uint16_t numBlocks, float ext
         // This block holds a number of block(s) plus the extra space
         haveExtraBlock = true;
       }
-      if (countOfBlocksOfSize > numBlocks) {
+      if(countOfBlocksOfSize > numBlocks) {
         // We've got enough blocks and one over for the extra space
         return true;
       }
-      if (countOfBlocksOfSize == numBlocks && haveExtraBlock) {
+      if(countOfBlocksOfSize == numBlocks && haveExtraBlock) {
         // We've found enough large blocks and already have the extra space
         return true;
       }
     }
     else if(thisBlockSize >= extraSize) {
       haveExtraBlock = true;
-      if (countOfBlocksOfSize >= numBlocks) {
+      if(countOfBlocksOfSize >= numBlocks) {
         // We've found enough large blocks and now have the extra space
         return true;
       }

@@ -11,6 +11,9 @@
 #define STATE_DIR      "STATE"
 #define STATE_EXT      ".s47"
 
+#define DATA_DIR      "DATA"
+#define DATA_EXT      ".d47"
+
 #define PROGRAMS_DIR       "PROGRAMS"
 #define ALLPROGRAMS_SUBDIR "ALLPGMS"
 
@@ -59,6 +62,8 @@
     ioPathLoadProgram           = 11, ///< program file used in READP function
     ioPathSaveAllPrograms      = 12, ///< program file used in write all programs
     ioPathExportRTFAllPrograms = 13, ///< program file used in export all programs, target RTF
+    ioPathRegImport            = 14, ///< register data import aka aparse
+    ioPathRegExport            = 15, ///< register data export
   } ioFilePath_t;
 
   /**
@@ -182,6 +187,30 @@
    * \return MRET_LOADSTATE
    */
   int load_programfile(const char * fpath, const char * fname, void * data);
+
+   /**
+   * Callback function for Save Data File selected file.
+   * Called from the DMCP file_selection_screen() dialog.
+   *
+   * \param[in] path file selected
+   * \param[in] file name selected
+   * \param[in] data - unsused
+   * \param[out] set tmpFileName with the path file selected
+   * \return MRET_SAVESTATE
+   */
+  int save_datafile(const char * fpath, const char * fname, void * data);
+
+   /**
+   * Callback function for Load Data File selected file.
+   * Called from the DMCP file_selection_screen() dialog.
+   *
+   * \param[in] path file selected
+   * \param[in] file name selected
+   * \param[in] data - unsused
+   * \param[out] set tmpFileName with the path file selected
+   * \return MRET_LOADSTATE
+   */
+  int load_datafile(const char * fpath, const char * fname, void * data);
 
    /**
    * Warning dialog.

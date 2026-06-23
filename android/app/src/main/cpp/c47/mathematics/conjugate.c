@@ -17,6 +17,7 @@ static void conjRema(void) {
     }
   }
   convertComplex34MatrixToComplex34MatrixRegister(&cMat, REGISTER_X);
+  complexMatrixFree(&cMat);
 }
 
 static void conjCxma(void) {

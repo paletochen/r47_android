@@ -86,7 +86,7 @@ void dblDivide(bool_t remainder_mode) {
 
   if(remainder_mode) {
     if(!saveLastX()) {
-      return;
+      goto cleanup;
     }
     convertLongIntegerToShortIntegerRegister(y, base, REGISTER_X);
   }
@@ -106,7 +106,7 @@ void dblDivide(bool_t remainder_mode) {
     }
 
     if(!saveLastX()) {
-      return;
+      goto cleanup;
     }
     convertLongIntegerToShortIntegerRegister(z, base, REGISTER_X);
 

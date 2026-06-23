@@ -15,9 +15,6 @@
   #define manualSave 4
   #define stateSave  5
 
-  void     saveCalc      (void);
-  void     restoreCalc   (void);
-
   void     fnSave        (uint16_t unusedButMandatoryParameter);
   void     fnLoad        (uint16_t loadMode);
   void     fnSaveAuto    (uint16_t unusedButMandatoryParameter);
@@ -41,5 +38,19 @@
   void     doLoad        (uint16_t loadMode, uint16_t s, uint16_t n, uint16_t d, uint16_t loadType);
 
   void     fnDeleteBackup(uint16_t confirmation);
+
+  // Shared with saveRestoreBackup.c
+  void     save          (const void *buffer, uint32_t size);
+  void     _updateConstantsInEquations(void);
+  uint8_t  convert001090400T001090500(uint8_t parameter, uint8_t offset);
+
+  void     fnSaveStackRegisters(uint16_t unusedButMandatoryParameter);
+  void     fnSaveXFNRegister   (uint16_t unusedButMandatoryParameter);
+  void     fnSaveLetteredRegisters(uint16_t unusedButMandatoryParameter);
+  void     fnSaveNRegisters    (uint16_t N);
+  void     fnSaveRegister      (uint16_t unusedButMandatoryParameter);
+  void     fnLoadRegisters     (uint16_t unusedButMandatoryParameter);
+
+
 
 #endif // !SAVERESTORECALCSTATE_H
