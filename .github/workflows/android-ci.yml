@@ -243,7 +243,9 @@ jobs:
             src/c47/registerValueConversions.c \
             src/c47/mathematics/matrix.c \
             src/c47/registers.c \
-            src/c47/registers.h
+            src/c47/registers.h \
+            src/c47/softmenus.c \
+            src/c47/timer.c
 
           git checkout -- \
             .gitignore \
@@ -524,7 +526,9 @@ jobs:
             src/c47/registerValueConversions.c \
             src/c47/mathematics/matrix.c \
             src/c47/registers.c \
-            src/c47/registers.h
+            src/c47/registers.h \
+            src/c47/softmenus.c \
+            src/c47/timer.c
 
           git checkout -- \
             .gitignore \
