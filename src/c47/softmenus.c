@@ -3541,7 +3541,7 @@ void showSoftmenuCurrentPart(void) {
       softmenuStack[0].softmenuId = 0; // MyMenu
     }
     if(softmenuStack[0].softmenuId == 0 && getSystemFlag(FLAG_BASE_HOME) && calcMode != CM_AIM) {
-      changeToHOME();
+      showSoftmenu(-MNU_HOME); // must PUSH HOME to base here; not changeToHOME() which only re-points
     }
     else if(softmenuStack[0].softmenuId == 0 && getSystemFlag(FLAG_BASE_MYM) && calcMode != CM_AIM) {
       //softmenuStack[0].softmenuId = 0;                                                       //already 0, not needed to change
@@ -3733,7 +3733,7 @@ void showSoftmenuCurrentPart(void) {
       }
     }
     if(softmenuStack[0].softmenuId == 0 && getSystemFlag(FLAG_BASE_HOME) && calcMode != CM_AIM) {
-      changeToHOME();
+      showSoftmenu(-MNU_HOME); // must PUSH HOME to base here; not changeToHOME() which only re-points
     }
   }
 

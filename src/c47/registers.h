@@ -233,10 +233,11 @@
    */
   int16_t        indirectAddressing              (calcRegister_t regist, uint16_t parameterType, int16_t minValue, int16_t maxValue, bool_t tryAllocate);
 
-  void           reallocateRegister              (calcRegister_t regist, uint32_t dataType, uint32_t dataSizeWithoutDataLenBlocks, uint32_t tag);
+  void           reallocateRegister              (calcRegister_t regist, uint32_t dataType, uint16_t dataSizeWithoutDataLenBlocks, uint32_t tag);
   void           fnToReal                        (uint16_t unusedButMandatoryParameter);
 
   void           printStringToConsole            (const char *str, const char *before, const char *after);
+  void           printC47ShortStringToConsole    (const char *s, const char *prefix, const char *suffix);
   void           printReal34ToConsole            (const real34_t *value, const char *before, const char *after);
   void           printRealToConsole              (const real_t *value, const char *before, const char *after);
   void           printRealInfoToConsole          (const real_t *value, const char *name);

@@ -693,7 +693,7 @@ bool_t validateName(const char *name) {
   if(                                          compareChar(name, STD_DIVIDE              ) ==0) {
     return false;
   }
-  if(compareChar(name, STD_z_CARON    ) > 0 && compareChar(name, STD_iota_DIALYTIKA_TONOS) < 0) {     //   \x81\x7e   \x83\x90 
+  if(compareChar(name, STD_z_CARON    ) > 0 && compareChar(name, STD_iota_DIALYTIKA_TONOS) < 0) {     //   \x81\x7e   \x83\x90
     return false;
   }
   if(compareChar(name, STD_sampi      ) > 0 && compareChar(name, STD_SUB_alpha           ) < 0) {
@@ -1817,6 +1817,48 @@ int16_t indirectAddressing(calcRegister_t regist, uint16_t parameterType, int16_
   }
 
 
+  // A single byte less than 0x80 is a single ASCII character. A byte of 0x80 or more is the first of a 2-byte character: 
+  //   Mask off the high bit and the two bytes give the Unicode code point as 16-bit value. Example: 0xA1 0x92 -> 0x21 0x92 -> U+2192 (right arrow).
+  void printC47ShortStringToConsole(const char *s, const char *prefix, const char *suffix) {
+    #if defined(PC_BUILD)
+      const uint8_t *p = (const uint8_t *)s;
+      int cp = 0;
+      int n;
+      char text[80];
+      char hex[256];
+      int tx = 0;
+      int hx = 0;
+
+      // Readable representation: printable ASCII as-is, anything else as '.'
+      text[tx++] = '"';
+      while(*p && cp < 30) {
+        uint8_t b = *p;
+        n = (b & 0x80) ? 2 : 1;
+        if(n == 2 && p[1] == 0) {
+          n = 1;
+        }
+        text[tx++] = (n == 1 && b >= 0x20 && b < 0x7F) ? (char)b : '.';
+        for(int j = 0; j < n; j++) {
+          hx += sprintf(hex + hx, "%02X", p[j]);
+        }
+        hex[hx++] = ' ';
+        p += n;
+        cp++;
+      }
+      text[tx++] = '"';
+      text[tx] = 0;
+      hex[hx] = 0;
+
+      if(prefix) {
+        printf("%s", prefix);
+      }
+      printf("%-20s  %-60s  (%2d cp, %2d bytes)", text, hex, cp, (int)((const char *)p - s));
+      if(suffix) {
+        printf("%s", suffix);
+      }
+    #endif // PC_BUILD
+  }
+
 
   void printReal34ToConsole(const real34_t *value, const char *before, const char *after) {
     char str[100];
@@ -1918,7 +1960,7 @@ int16_t indirectAddressing(calcRegister_t regist, uint16_t parameterType, int16_
 
 
 
-void reallocateRegister(calcRegister_t regist, uint32_t dataType, uint32_t dataSizeWithoutDataLenBlocks, uint32_t tag) { // dataSize without data length in blocks, this includes the trailing 0 for strings
+void reallocateRegister(calcRegister_t regist, uint32_t dataType, uint16_t dataSizeWithoutDataLenBlocks, uint32_t tag) { // dataSize without data length in blocks, this includes the trailing 0 for strings
   switch(dataType) {
     case dtComplex34:       dataSizeWithoutDataLenBlocks = COMPLEX34_SIZE_IN_BLOCKS;     break;
 
@@ -1932,7 +1974,7 @@ void reallocateRegister(calcRegister_t regist, uint32_t dataType, uint32_t dataS
     default: ;
   }
 
-  uint32_t dataSizeWithDataLenBlocks = dataSizeWithoutDataLenBlocks;
+  uint16_t dataSizeWithDataLenBlocks = dataSizeWithoutDataLenBlocks;
 
   //printf("reallocateRegister: %d to %s tag=%u (%u bytes excluding maxSize) begin\n", regist, getDataTypeName(dataType, false, false), tag, dataSizeWithoutDataLenBlocks);
   if(dataType == dtString) {
@@ -1948,15 +1990,6 @@ void reallocateRegister(calcRegister_t regist, uint32_t dataType, uint32_t dataS
     dataSizeWithDataLenBlocks = dataSizeWithoutDataLenBlocks + TO_BLOCKS(sizeof(strLgIntHeader_t));
   }
 
-  if (dataSizeWithDataLenBlocks > 65535) {
-    #if defined(PC_BUILD)
-      printf("In function reallocateRegister: required %" PRIu32 " blocks for register #%" PRId16 " exceeds maximum memory size (65535)!\n", dataSizeWithDataLenBlocks, regist);
-      fflush(stdout);
-    #endif // PC_BUILD
-    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, regist);
-    return;
-  }
-
   if(getRegisterDataType(regist) != dataType || ((getRegisterDataType(regist) == dtString || getRegisterDataType(regist) == dtLongInteger || getRegisterDataType(regist) == dtReal34Matrix || getRegisterDataType(regist) == dtComplex34Matrix) && getRegisterMaxDataLengthInBlocks(regist) != dataSizeWithoutDataLenBlocks)) {
     if(!isMemoryBlockAvailable(dataSizeWithDataLenBlocks, 2, 0.1f)) {
       #if defined(PC_BUILD)
@@ -1967,22 +2000,7 @@ void reallocateRegister(calcRegister_t regist, uint32_t dataType, uint32_t dataS
       return;
     }
     freeRegisterData(regist);
-    void *newMem = allocC47Blocks(dataSizeWithDataLenBlocks);
-    if (newMem == NULL) {
-      // Fallback to a safe dtReal34 zero to avoid NULL pointer dereferences in drawing code
-      newMem = allocC47Blocks(REAL34_SIZE_IN_BLOCKS);
-      if (newMem != NULL) {
-        setRegisterDataPointer(regist, newMem);
-        setRegisterDataType(regist, dtReal34, amNone);
-        real34SetZero(REGISTER_REAL34_DATA(regist));
-      } else {
-        setRegisterDataPointer(regist, NULL);
-        setRegisterDataType(regist, 15, 0); // dtNumbers (fallback representation)
-      }
-      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, regist);
-      return;
-    }
-    setRegisterDataPointer(regist, newMem);
+    setRegisterDataPointer(regist, allocC47Blocks(dataSizeWithDataLenBlocks));
     setRegisterDataType(regist, dataType, tag);
 
     // After reallocating a register to a matrix, you MUST set
