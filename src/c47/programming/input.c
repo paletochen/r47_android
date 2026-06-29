@@ -27,17 +27,45 @@ void fnInput(uint16_t regist) {
 
 
 
+static bool_t _isVarMenu(uint16_t label) {
+    uint8_t *step;
+    step = labelList[label - FIRST_LABEL].instructionPointer;
+    while(checkOpCodeOfStep(step, ITM_REM)) {
+      step = findNextStep(step);
+    }
+    return (checkOpCodeOfStep(step, ITM_MVAR));
+}
+
+
 void fnVarMnu(uint16_t label) {
-  currentMvarLabel = label;
-  varMenu42 = false;
-  showSoftmenu(-MNU_MVAR);
+  if(!_isVarMenu(label)) {
+    displayCalcErrorMessage(ERROR_NO_MVAR_FOUND, ERR_REGISTER_LINE, REGISTER_X);
+    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+      sprintf(errorMessage, "No MVAR menu variable instruction after the label");
+      moreInfoOnError("In function fnVarMnu:", errorMessage, NULL, NULL);
+    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1
+  }
+  else {
+    currentMvarLabel = label;
+    varMenu42 = false;
+    showSoftmenu(-MNU_MVAR);
+  }
 }
 
 
 void fn42VarMnu(uint16_t label) {
-  currentMvarLabel = label;
-  varMenu42 = true;
-  showSoftmenu(-MNU_MVAR);
+  if(!_isVarMenu(label)) {
+    displayCalcErrorMessage(ERROR_NO_MVAR_FOUND, ERR_REGISTER_LINE, REGISTER_X);
+    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+      sprintf(errorMessage, "No MVAR menu variable instruction after the label");
+      moreInfoOnError("In function fn42VarMnu:", errorMessage, NULL, NULL);
+    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1
+  }
+  else {
+    currentMvarLabel = label;
+    varMenu42 = true;
+    showSoftmenu(-MNU_MVAR);
+  }
 }
 
 

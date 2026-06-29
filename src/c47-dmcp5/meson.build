@@ -6,6 +6,7 @@ dmcp_cargs = [
   '-fno-exceptions',                 # added in symmetry with DM42
   '-fno-unwind-tables',              # added in symmetry with DM42
   '-fno-asynchronous-unwind-tables', # added in symmetry with DM42
+  '-flto',
 ]
 
 dmcp_linkargs = [
@@ -19,8 +20,10 @@ dmcp_linkargs = [
   '-Wl,--gc-sections',
   '-Wl,--wrap=_malloc_r',
   '-Wl,-Map=' + meson.current_build_dir() + '/C47.map,--cref',
-  '-T' + meson.current_source_dir() + '/stm32_program.ld'
+  '-T' + meson.current_source_dir() + '/stm32_program.ld',
 #  '-Wl,--strip-all',
+  '-Wl,-u,prog_info',
+  '-flto',
 ]
 
 gmp_build_dir = meson.project_build_root() / 'subprojects' / 'gmp-6.2.1' / 'build'

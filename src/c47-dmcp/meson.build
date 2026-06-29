@@ -1,12 +1,13 @@
 dmcp_cargs = [
   '-D__weak="__attribute__((weak))"',
   '-D__packed="__attribute__((__packed__))"',
+  '-DDM42_QSPI_BIN=' + (meson.project_source_root() / 'src/c47-dmcp/DM42_qspi_3.x.bin'),
   '-DOLD_HW',
   '-Wno-unused-parameter',
   '-fno-exceptions',                 # Added this line
   '-fno-unwind-tables',              # Added this line
   '-fno-asynchronous-unwind-tables', # Added this line
-  '-IC:/msys64/home/didie/c43/build.dmcp/subprojects/gmp-6.2.1/dist/msys64/mingw64/include',  # Added this line for absolute path support
+  '-flto',
 ]
 
 dmcp_linkargs = [
@@ -22,7 +23,8 @@ dmcp_linkargs = [
   '-Wl,-Map=' + meson.current_build_dir() + '/C47.map,--cref',
   '-T' + meson.current_source_dir() + '/stm32_program.ld',
 #  '-Wl,--strip-all',                 # Add this line, try to reduce target size, more options to try later
-  '-LC:/msys64/home/didie/c43/build.dmcp/subprojects/gmp-6.2.1/dist/msys64/mingw64/lib',  # Added this line for absolute path support
+  '-Wl,-u,prog_info',
+  '-flto',
 ]
 
 gmp_build_dir = meson.project_build_root() / 'subprojects' / 'gmp-6.2.1' / 'build'

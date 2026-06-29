@@ -642,7 +642,7 @@ TO_QSPI const int16_t menu_CONV_PLoad[]     = {
 
 TO_QSPI const int16_t menu_alphaFN[]     = { ITM_FBR,                       ITM_ALPHAtoX,                 ITM_XtoALPHA,                 ITM_ALPHALENG,                ITM_ALPHAPOS,                ITM_XPARSE,
                                              ITM_ALPHASL,                   ITM_ALPHASR,                  ITM_ALPHARL,                  ITM_ALPHARR,                  ITM_ALPHALOWER,              ITM_ALPHAUPPER,
-                                             ITM_ALPHALTRIM,                ITM_ALPHARTRIM,               ITM_ALPHAIP,                  ITM_ALPHAMID,                 ITM_ALPHALEFT,               ITM_ALPHARIGHT                };
+                                             ITM_ALPHATRIM,                 ITM_ALPHAREV,                 ITM_ALPHAIP,                  ITM_ALPHAMID,                 ITM_ALPHALEFT,               ITM_ALPHARIGHT                };
 
 
 
@@ -699,7 +699,8 @@ TO_QSPI const int16_t menu_alphaMisc[]    ={ ITM_CR,                        ITM_
                                              ITM_CYCLIC,                    ITM_USB_SYMBOL,               ITM_SUB_SUN,                  ITM_SUB_EARTH,                ITM_US,                       ITM_UK,
                                              ITM_litre,                     ITM_LEFT_DOUBLE_QUOTE,        ITM_RIGHT_DOUBLE_QUOTE,       ITM_DIRECT_CURRENT,           ITM_ALTERN_CURRENT,           ITM_POWER_SYMBOL,
 
-                                             ITM_CB_OFF,                    ITM_CB_ON,                    ITM_RB_OFF,                   ITM_RB_ON,                    ITM_DIA_OFF,                  ITM_DIA_ON };
+                                             ITM_CB_OFF,                    ITM_CB_ON,                    ITM_RB_OFF,                   ITM_RB_ON,                    ITM_DIA_OFF,                  ITM_DIA_ON,
+                                             ITM_LF_PIC,                    ITM_SMALL_SQUARE,             ITM_NULL,                     ITM_NULL,                     ITM_NULL,                     ITM_NULL                  };
 
 
 TO_QSPI const int16_t menu_EQN[]         = { ITM_EQ_NEW,                    ITM_EQ_EDI,                  -MNU_2NDDERIV,                -MNU_1STDERIV,                -MNU_Sf,                      -MNU_Solver,
@@ -1835,6 +1836,7 @@ static void _dynmenuConstructMVarsFromPgm(uint16_t label, uint16_t *numberOfByte
 
 
 static void showKey2(const char *label0, const char *label1, int16_t x1, int16_t x2, int16_t y1, int16_t y2, videoMode_t videoMode, bool_t topLine, bool_t bottomLine, int8_t showCb, int16_t showValue, const char *showText, bool_t doubleMidLine);
+static uint32_t trimSoftKeyName(uint16_t lim, char *l, int mode, int comp, bool_t withLeadingEmptyRows, bool_t withEndingEmptyRows);
 char label0[30];
 int16_t xx1;
 
@@ -2017,6 +2019,26 @@ static void showKey2(const char *label0, const char *label1, int16_t x1, int16_t
   int16_t arrowSpace;
   const char *w[4];
 
+  // Combined key = two slots with a floating mid-divider; the two names share the width the arrows leave behind. Only clip
+  // when the pair together overflows, and let a short partner donate its slack so a long name opposite it is kept whole.
+  char lab0[50], lab1[50];
+  xcopy(lab0, label0, stringByteLength(label0) + 1);
+  xcopy(lab1, label1, stringByteLength(label1) + 1);
+  int16_t arrowR = showStringEnhanced(STD_RIGHT_ARROW, &standardFont, 0, y1 + YY, videoMode, false, false, DO_compress, NO_raise, NO_Show, NO_Bold, NO_LF);
+  int16_t arrowL = showStringEnhanced(STD_LEFT_ARROW,  &standardFont, 0, y1 + YY, videoMode, false, false, DO_compress, NO_raise, NO_Show, NO_Bold, NO_LF);
+  int16_t w0     = stringWidthC47(lab0, stdNoEnlarge, DO_compress, false, false);
+  int16_t w1     = stringWidthC47(lab1, stdNoEnlarge, DO_compress, false, false);
+  int16_t avail  = max(16, (x2 - x1) - arrowR - arrowL - 7);          // px for both names once both arrows and minimal gaps are reserved
+  if(w0 + w1 > avail) {                                               // only intervene when the pair really overflows
+    int16_t  half = avail / 2;
+    uint16_t b0   = (w1 < half) ? (avail - w1) : half;               // short partner donates its slack to the long side
+    uint16_t b1   = (w0 < half) ? (avail - w0) : half;
+    trimSoftKeyName(b0, lab0, stdNoEnlarge, DO_compress, false, false);
+    trimSoftKeyName(b1, lab1, stdNoEnlarge, DO_compress, false, false);
+  }
+  label0 = lab0;
+  label1 = lab1;
+
   if(getSystemFlag(FLAG_HPCONV) /*&& calcMode != CM_ASSIGN*/) { //select this to auto-swap to CF CONV_hp, for the duration of an assign
     t[0] = label1;
     t[1] = STD_LEFT_ARROW;
@@ -2193,7 +2215,8 @@ void showKey(const char *label, int16_t x1, int16_t x2, int16_t y1, int16_t y2, 
 
     //continue with trimmed label
     strcpy(ll, figlabel(l, showText, showValue));
-    w = trimKey(ll, 0);
+    trimKey(ll, 0);                                                                          // truncate only if it won't fit even when compressed
+    w = stringWidthC47(ll, stdNoEnlarge, 0, false, false);                                   // uncompressed width drives the compress decision (else wide labels print uncompressed)
   //w = trimSoftKeyName(x2-x1-1, l, stdNoEnlarge, 0, false, false);                           // trim label to fit slot, returns final width
 
     if((showCb >= 0) || (w >= ((min(x2, SCREEN_WIDTH) - max(0, x1))*3)/4 )) {
