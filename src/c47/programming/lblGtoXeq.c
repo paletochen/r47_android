@@ -294,12 +294,6 @@ void fnStopProgram(uint16_t unusedButMandatoryParameter) {
 
 
 
-static void _getStringLabelOrVariableName(uint8_t *stringAddress) {
-  uint8_t stringLength = *(uint8_t *)(stringAddress++);
-  xcopy(tmpStringLabelOrVariableName, stringAddress, stringLength);
-  tmpStringLabelOrVariableName[stringLength] = 0;
-}
-
 static void _executeWithIndirectRegister(uint8_t *paramAddress, uint16_t op) {
   uint8_t opParam = *(uint8_t *)paramAddress;
   bool_t  tryAllocate = isFunctionAllowingNewVariable(op);
@@ -317,7 +311,7 @@ static void _executeWithIndirectRegister(uint8_t *paramAddress, uint16_t op) {
 static void _executeWithIndirectVariable(uint8_t *stringAddress, uint16_t op) {
   calcRegister_t regist;
   bool_t  tryAllocate = isFunctionAllowingNewVariable(op);
-  _getStringLabelOrVariableName(stringAddress);
+  getStringLabelOrVariableName(stringAddress);
   regist = findNamedVariable(tmpStringLabelOrVariableName);
   if(regist != INVALID_VARIABLE) {
       int16_t realParam = indirectAddressing(regist, indirectionType(op), indexOfItems[op].tamMinMax >> TAM_MAX_BITS, indexOfItems[op].tamMinMax & TAM_MAX_MASK, tryAllocate);
@@ -349,7 +343,7 @@ static void _executeOp(uint8_t *paramAddress, uint16_t op, uint16_t paramMode) {
         reallyRunFunction(op, opParam);
       }
       else if(opParam == STRING_LABEL_VARIABLE) {
-        _getStringLabelOrVariableName(paramAddress);
+        getStringLabelOrVariableName(paramAddress);
         calcRegister_t label = findNamedLabel(tmpStringLabelOrVariableName);
         if(label != INVALID_VARIABLE || op == ITM_LBLQ) {
           reallyRunFunction(op, label);
@@ -462,7 +456,7 @@ static void _executeOp(uint8_t *paramAddress, uint16_t op, uint16_t paramMode) {
         }
       }
       else if(opParam == STRING_LABEL_VARIABLE) {
-        _getStringLabelOrVariableName(paramAddress);
+        getStringLabelOrVariableName(paramAddress);
         calcRegister_t regist = findNamedVariable(tmpStringLabelOrVariableName);
         if(tryAllocate) {
           reallyRunFunction(op, findOrAllocateNamedVariable(tmpStringLabelOrVariableName));
@@ -502,7 +496,7 @@ static void _executeOp(uint8_t *paramAddress, uint16_t op, uint16_t paramMode) {
 
     case PARAM_MENU: {
       if(opParam == STRING_LABEL_VARIABLE) {
-        _getStringLabelOrVariableName(paramAddress);
+        getStringLabelOrVariableName(paramAddress);
         int16_t menu_id = findMenu(tmpStringLabelOrVariableName);
         if(tryAllocate) {
           reallyRunFunction(op, findOrAllocateNamedVariable(tmpStringLabelOrVariableName));
@@ -590,7 +584,7 @@ static void _putLiteral(uint8_t *literalAddress) {
         longInteger_t val;
         longIntegerInit(val);
 
-        _getStringLabelOrVariableName(literalAddress + 1);
+        getStringLabelOrVariableName(literalAddress + 1);
         stringToLongInteger(tmpStringLabelOrVariableName, base, val);
         liftStack();
         setSystemFlag(FLAG_ASLIFT);
@@ -604,7 +598,7 @@ static void _putLiteral(uint8_t *literalAddress) {
         longInteger_t val;
         longIntegerInit(val);
 
-        _getStringLabelOrVariableName(literalAddress);
+        getStringLabelOrVariableName(literalAddress);
         stringToLongInteger(tmpStringLabelOrVariableName, 10, val);
         liftStack();
         setSystemFlag(FLAG_ASLIFT);
@@ -615,7 +609,7 @@ static void _putLiteral(uint8_t *literalAddress) {
       }
 
       case STRING_REAL34: {
-      _getStringLabelOrVariableName(literalAddress);
+      getStringLabelOrVariableName(literalAddress);
       liftStack();
       setSystemFlag(FLAG_ASLIFT);
       reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
@@ -629,7 +623,7 @@ static void _putLiteral(uint8_t *literalAddress) {
       case STRING_ANGLE_GRAD:
       case STRING_ANGLE_DEGREE:
       case STRING_ANGLE_MULTPI: {
-        _getStringLabelOrVariableName(literalAddress);
+        getStringLabelOrVariableName(literalAddress);
         liftStack();
         setSystemFlag(FLAG_ASLIFT);
         reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
@@ -649,7 +643,7 @@ static void _putLiteral(uint8_t *literalAddress) {
 
       case STRING_COMPLEX34: {
         char *imag = tmpStringLabelOrVariableName;
-        _getStringLabelOrVariableName(literalAddress);
+        getStringLabelOrVariableName(literalAddress);
         while(*imag != 'i' && *imag != 0) {
           ++imag;
         }
@@ -676,7 +670,7 @@ static void _putLiteral(uint8_t *literalAddress) {
       }
 
       case STRING_LABEL_VARIABLE: {
-      _getStringLabelOrVariableName(literalAddress);
+      getStringLabelOrVariableName(literalAddress);
       liftStack();
       setSystemFlag(FLAG_ASLIFT);
       reallocateRegister(REGISTER_X, dtString, TO_BLOCKS(stringByteLength(tmpStringLabelOrVariableName) + 1), amNone);
@@ -685,7 +679,7 @@ static void _putLiteral(uint8_t *literalAddress) {
       }
 
       case STRING_DATE: {
-      _getStringLabelOrVariableName(literalAddress);
+      getStringLabelOrVariableName(literalAddress);
       liftStack();
       setSystemFlag(FLAG_ASLIFT);
       reallocateRegister(REGISTER_X, dtDate, 0, amNone);
@@ -695,7 +689,7 @@ static void _putLiteral(uint8_t *literalAddress) {
       }
 
       case STRING_TIME: {
-      _getStringLabelOrVariableName(literalAddress);
+      getStringLabelOrVariableName(literalAddress);
       liftStack();
       setSystemFlag(FLAG_ASLIFT);
       reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
@@ -705,7 +699,7 @@ static void _putLiteral(uint8_t *literalAddress) {
       }
 
       case STRING_ANGLE_DMS: {
-      _getStringLabelOrVariableName(literalAddress);
+      getStringLabelOrVariableName(literalAddress);
       liftStack();
       setSystemFlag(FLAG_ASLIFT);
       reallocateRegister(REGISTER_X, dtReal34, 0, amDMS);
@@ -808,7 +802,7 @@ int16_t executeOneStep(uint8_t *step) {
         case PTP_REM: {
           if(op == ITM_42STRING) {
             if(*step++ == STRING_LABEL_VARIABLE) {
-              _getStringLabelOrVariableName(step);
+              getStringLabelOrVariableName(step);
               fn42Alpha(NOPARAM);
             }
           }
@@ -822,7 +816,7 @@ int16_t executeOneStep(uint8_t *step) {
                 #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
                 return 0;
               }
-              _getStringLabelOrVariableName(step);
+              getStringLabelOrVariableName(step);
               fn42Append(NOPARAM);
             }
           }

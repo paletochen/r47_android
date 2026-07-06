@@ -7,6 +7,8 @@ dmcp_cargs = [
   '-fno-exceptions',                 # Added this line
   '-fno-unwind-tables',              # Added this line
   '-fno-asynchronous-unwind-tables', # Added this line
+  '-ffunction-sections',             # needed so prog_info lands in .rodata.prog_info (KEEP'd at offset 0); LTO otherwise merges .rodata and breaks the loader magic
+  '-fdata-sections',                 # ditto - matches the DMCP SDK reference build flags
   '-flto',
 ]
 
@@ -24,6 +26,8 @@ dmcp_linkargs = [
   '-T' + meson.current_source_dir() + '/stm32_program.ld',
 #  '-Wl,--strip-all',                 # Add this line, try to reduce target size, more options to try later
   '-Wl,-u,prog_info',
+  '-ffunction-sections',             # passed at link too so the LTO code-gen (LTRANS) pass emits per-symbol sections
+  '-fdata-sections',
   '-flto',
 ]
 

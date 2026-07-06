@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WP43 and C47 Authors
 
 #include "c47.h"
+#include <locale.h>
 
 static float fnRealToFloat(const real_t *r);
 
@@ -869,6 +870,20 @@ void realToFloat(const real_t *vv, float *v) {
 }
 
 
+// Locale-free parse: accepts '.' or ',' regardless of the locale, so decNumber output (always '.') and files written under any region setting parse correctly. Buffer sized for a full 75-digit real string with exponent.
+double stringToDouble(const char *str) {
+  char buf[120];
+  const char radix = *localeconv()->decimal_point;
+  uint32_t i = 0;
+  while(str[i] != 0 && i < sizeof(buf) - 1) {
+    buf[i] = (str[i] == '.' || str[i] == ',') ? radix : str[i];
+    i++;
+  }
+  buf[i] = 0;
+  return strtod(buf, NULL);
+}
+
+
 static double fnRealToDouble(const real_t *r) {
   char buffer[100];
   if(realIsSpecial(r)) {
@@ -881,7 +896,7 @@ static double fnRealToDouble(const real_t *r) {
     return realIsPositive(r) ? 0.0 : -0.0;
   }
   decNumberToString((decNumber*)r, buffer);
-  return strtod(buffer, NULL);
+  return stringToDouble(buffer);
 }
 
 

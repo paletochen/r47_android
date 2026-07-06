@@ -6375,38 +6375,47 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
 
   static int32_t _getPositionFromRegister(calcRegister_t regist, int16_t maxValuePlusOne) {
     int32_t value;
+    real_t x;
 
     if(getRegisterDataType(regist) == dtReal34) {
       real34_t maxValue34;
+      real34_t minValue34;
 
       int32ToReal34(maxValuePlusOne, &maxValue34);
-      if(real34CompareLessThan(REGISTER_REAL34_DATA(regist), const34_0) || real34CompareLessEqual(&maxValue34, REGISTER_REAL34_DATA(regist))) {
+      int32ToReal34(-maxValuePlusOne, &minValue34);
+      if(real34CompareLessThan(REGISTER_REAL34_DATA(regist), &minValue34) || real34CompareLessEqual(&maxValue34, REGISTER_REAL34_DATA(regist))) {
         displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           real34ToString(REGISTER_REAL34_DATA(regist), errorMessage);
           sprintf(tmpString, "x %" PRId16 " = %s:", regist, errorMessage);
-          moreInfoOnError("In function _getPositionFromRegister:", tmpString, "this value is negative or too big!", NULL);
+          moreInfoOnError("In function _getPositionFromRegister:", tmpString, "this value is too big!", NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
         return -1;
       }
-      value = real34ToInt32(REGISTER_REAL34_DATA(regist));
+      real34ToReal(REGISTER_REAL34_DATA(regist), &x);
+      if(realIsNegative(&x) && realIsZero(&x)) {    // for -0. return -maxValuePlusOne as there is no -0 for int32_t
+        value = -maxValuePlusOne;
+      }
+      else {
+        value = real34ToInt32(REGISTER_REAL34_DATA(regist));
+      }
     }
 
     else if(getRegisterDataType(regist) == dtLongInteger) {
       longInteger_t lgInt;
 
       convertLongIntegerRegisterToLongInteger(regist, lgInt);
-      if(longIntegerCompareUInt(lgInt, 0) < 0 || longIntegerCompareUInt(lgInt, maxValuePlusOne) >= 0) {
+      if(longIntegerCompareInt(lgInt, -maxValuePlusOne) < 0 || longIntegerCompareInt(lgInt, maxValuePlusOne) >= 0) {
         displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           longIntegerToAllocatedString(lgInt, errorMessage, ERROR_MESSAGE_LENGTH);
           sprintf(tmpString, "register %" PRId16 " = %s:", regist, errorMessage);
-          moreInfoOnError("In function _getPositionFromRegister:", tmpString, "this value is negative or too big!", NULL);
+          moreInfoOnError("In function _getPositionFromRegister:", tmpString, "this value is too big!", NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
         longIntegerFree(lgInt);
         return -1;
       }
-      longIntegerToUInt32(lgInt, value);
+      longIntegerToInt32(lgInt, value);
       longIntegerFree(lgInt);
     }
 
@@ -6431,6 +6440,8 @@ void fnClLcd(uint16_t clear_mode) {
     int32_t x, y;
     if(clear_mode == CLLCD_XY) {
       getPixelPos(&x, &y);
+      x= abs(x);
+      y= abs(y);
     }
     else {
       x = 0;
@@ -6460,22 +6471,48 @@ void fnPixel(uint16_t unusedButMandatoryParameter) {
     getPixelPos(&x, &y);
     if(lastErrorCode == ERROR_NONE) {
       screenUpdatingMode |= SCRUPD_MANUAL_STACK | SCRUPD_MANUAL_MENU | SCRUPD_MANUAL_SHIFT_STATUS;
-        if((SCREEN_HEIGHT - y - 1) <= Y_POSITION_OF_REGISTER_T_LINE) {
-          screenUpdatingMode |= SCRUPD_MANUAL_STATUSBAR;
-        }
-      setBlackPixel(x, SCREEN_HEIGHT - y - 1);
+      if((SCREEN_HEIGHT - abs(y) - 1) <= Y_POSITION_OF_REGISTER_T_LINE) {
+        screenUpdatingMode |= SCRUPD_MANUAL_STATUSBAR;
+      }
+
+      if((x >= 0) && (y >= 0)) {   // Set pixel at (x,y)
+        setBlackPixel(x, SCREEN_HEIGHT - y - 1);
+      }
+      if(x < 0) {                  // Draw a vertical line at |x|
+        x = (x > -SCREEN_WIDTH ? -x : 0);   // -400 is mapped to x=0
+        lcd_fill_rect(x, 0, 1, SCREEN_HEIGHT, LCD_EMPTY_VALUE);
+      }
+      if(y < 0) {                  // Draw a horizontal line at |y|
+        y = (y > -SCREEN_HEIGHT ? -y : 0);   // -240 is mapped to y=0
+        lcd_fill_rect(0, SCREEN_HEIGHT - y -1, SCREEN_WIDTH, 1, LCD_EMPTY_VALUE);
+      }
     }
 }
 
 void fnPoint(uint16_t unusedButMandatoryParameter) {
-    int32_t x, y;
+    int32_t x, y, a, b;
     getPixelPos(&x, &y);
     if(lastErrorCode == ERROR_NONE) {
       screenUpdatingMode |= SCRUPD_MANUAL_STACK | SCRUPD_MANUAL_MENU | SCRUPD_MANUAL_SHIFT_STATUS;
       if((SCREEN_HEIGHT - y - 2) <= Y_POSITION_OF_REGISTER_T_LINE) {
         screenUpdatingMode |= SCRUPD_MANUAL_STATUSBAR;
       }
-      lcd_fill_rect(x - 1, SCREEN_HEIGHT - y - 2, 3, 3, LCD_EMPTY_VALUE);
+
+      if((x >= 0) && (y >= 0)) {   // Set point at (x,y)
+        lcd_fill_rect(x - 1, SCREEN_HEIGHT - y - 2, 3, 3, LCD_EMPTY_VALUE);
+      }
+      if(x < 0) {                  // Draw a vertical line at |x|
+        x = (x > -SCREEN_WIDTH ? -x : 0);       // -400 is mapped to x=0
+        a = (x == 0 ? 0 : 1);                   // to clip x
+        b = (x == 0 ? 0 : (x == 399 ? 0 : 1));  // to clip width on borders
+        lcd_fill_rect(x - a, 0, 2 + b, SCREEN_HEIGHT, LCD_EMPTY_VALUE);
+      }
+      if(y < 0) {                  // Draw a horizontal line at |y|
+        y = (y > -SCREEN_HEIGHT ? -y : 0);      // -240 is mapped to y=0
+        a = (y == 239 ? 1 : 2);                 // to clip y
+        b = (y == 0 ? 0 : (y == 239 ? 0 : 1));  // to clip width on borders
+        lcd_fill_rect(0, SCREEN_HEIGHT - y - a, SCREEN_WIDTH, 2 + b, LCD_EMPTY_VALUE);
+      }
     }
 }
 
@@ -6484,6 +6521,8 @@ void fnAGraph(uint16_t regist) {
     uint32_t gramod;
     longInteger_t liGramod;
     getPixelPos(&x, &y);
+    x= abs(x);
+    y= abs(y);
     convertLongIntegerRegisterToLongInteger(RESERVED_VARIABLE_GRAMOD, liGramod);
     longIntegerToUInt32(liGramod, gramod);
     longIntegerFree(liGramod);
