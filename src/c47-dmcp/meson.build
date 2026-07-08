@@ -15,7 +15,7 @@ dmcp_cargs = [
 dmcp_linkargs = [
   '--specs=nano.specs',              # Reduces target size
   '--specs=nosys.specs',
-  '-u', '_printf_float',             # Enable float printf
+#  '-u', '_printf_float',             # Enable float printf
 #  '-u', '_scanf_float',              # Enable float scanf
   '-lc',                             # Link C standard library
   '-lm',                             # Link math library (needed for float ops)

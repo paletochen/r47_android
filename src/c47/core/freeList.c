@@ -3,10 +3,6 @@
 
 #include "c47.h"
 
-  #if !defined(DMCP_BUILD) && !defined(WIN32)
-    #include <execinfo.h>
-  #endif // !DMCP_BUILD
-
 void *freeListAlloc(size_t sizeInBlocks) {
   uint16_t minSizeInBlocks = 65535u, minBlock = C47_NULL;
   int i;

@@ -14,7 +14,7 @@ dmcp_cargs = [
 dmcp_linkargs = [
   '--specs=nano.specs',              # can remove full math later to save space
   '--specs=nosys.specs',
-  '-u', '_printf_float',             # added in symmetry with DM42 - Enable printf
+#  '-u', '_printf_float',             # added in symmetry with DM42 - Enable printf
 #  '-u', '_scanf_float',              # added in symmetry with DM42 - Enable float scanf
   '-lc',                             # added in symmetry with DM42 - Link C standard library
   '-lm',                             # added in symmetry with DM42 - Link math library (needed for float ops)

@@ -1817,7 +1817,7 @@ int16_t indirectAddressing(calcRegister_t regist, uint16_t parameterType, int16_
   }
 
 
-  // A single byte less than 0x80 is a single ASCII character. A byte of 0x80 or more is the first of a 2-byte character: 
+  // A single byte less than 0x80 is a single ASCII character. A byte of 0x80 or more is the first of a 2-byte character:
   //   Mask off the high bit and the two bytes give the Unicode code point as 16-bit value. Example: 0xA1 0x92 -> 0x21 0x92 -> U+2192 (right arrow).
   void printC47ShortStringToConsole(const char *s, const char *prefix, const char *suffix) {
     #if defined(PC_BUILD)
@@ -2368,6 +2368,7 @@ bool_t isFunctionAllowingNewVariable(uint16_t op) {
     case ITM_M_DIM:
     case ITM_MVAR:
     case ITM_SOLVE:
+    case ITM_PLTf:
     case ITM_STOCFG:
     case ITM_STOMAX:
     case ITM_STOMIN:
@@ -2377,6 +2378,7 @@ bool_t isFunctionAllowingNewVariable(uint16_t op) {
     case ITM_Zex:
     case ITM_Tex:
     case ITM_INTEGRAL:
+    case ITM_INTEGRAL_YX:
       return true;
 
     default:

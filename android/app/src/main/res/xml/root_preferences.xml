@@ -123,7 +123,7 @@
         <Preference
             app:key="about_version"
             app:title="Version"
-            app:summary="R47 Android Port (a3dbfa30)" />
+            app:summary="R47 Android Port (9183f009)" />
         <Preference
             app:key="view_gpl_license"
             app:title="@string/about_gpl_license_title"

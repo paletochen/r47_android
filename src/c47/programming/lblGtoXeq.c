@@ -853,7 +853,7 @@ void runProgram(bool_t singleStep, uint16_t menuLabel) {
   lastErrorCode = ERROR_NONE;
   hourGlassIconEnabled = true;
   programRunStop = PGM_RUNNING;
-  if(!getSystemFlag(FLAG_INTING) && !getSystemFlag(FLAG_SOLVING)) {
+  if(!getSystemFlag(FLAG_INTING) && !getSystemFlag(FLAG_SOLVING) && !graphAccActive) {
     showHideHourGlass();
     screenUpdatingMode = SCRUPD_AUTO;
     screenUpdatingMode |= SCRUPD_SKIP_STATUSBAR_ONE_TIME;
@@ -953,10 +953,13 @@ stopProgram:
   if(programRunStop != PGM_RUNNING) {
     entryStatus &= 0xfe;
   }
-  if(!getSystemFlag(FLAG_INTING) && !getSystemFlag(FLAG_SOLVING)) {
+  if(!getSystemFlag(FLAG_INTING) && !getSystemFlag(FLAG_SOLVING) && !graphAccActive) {
     showHideHourGlass();
     if(temporaryInformation == TI_VIEW_REGISTER) {
       screenUpdatingMode |= SCRUPD_SKIP_STACK_ONE_TIME;
+    }
+    if(graphToRemainOnScreen && calcMode == CM_NORMAL) {
+      calcMode = CM_GRAPH;
     }
     if(screenUpdatingMode == SCRUPD_AUTO && !singleStep) {
       refreshScreen(4);
@@ -971,7 +974,7 @@ void execProgram(uint16_t label) {
   uint16_t origLocalStepNumber = currentLocalStepNumber;
   uint8_t *origStep = currentStep;
   fnExecute(label);
-  if(programRunStop == PGM_RUNNING && (getSystemFlag(FLAG_INTING) || getSystemFlag(FLAG_SOLVING))) {
+  if(programRunStop == PGM_RUNNING && (getSystemFlag(FLAG_INTING) || getSystemFlag(FLAG_SOLVING) || (currentSolverStatus & SOLVER_STATUS_RPN_GRAPHER))) {
     runProgram(false, INVALID_VARIABLE);
     currentLocalStepNumber = origLocalStepNumber;
     currentStep = origStep;

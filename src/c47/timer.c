@@ -639,7 +639,6 @@ void fnUpdateTimerApp(void) {
 }
 
 void fnRegAddTimerApp(uint16_t unusedButMandatoryParameter) {  //ENTER
-printf("fnRegAddTimerApp\n");
   #if !defined(SAVE_SPACE_DM42_20_TIMER)
   if(rbr1stDigit) {
     real_t tmp;
@@ -660,7 +659,6 @@ printf("fnRegAddTimerApp\n");
 }
 
 void fnRegAddLapTimerApp(uint16_t unusedButMandatoryParameter) {   //dot
-printf("fnRegAddLapTimerApp\n");
   #if !defined(SAVE_SPACE_DM42_20_TIMER)
   const uint32_t msec = _getTimerValue();
   real_t tmp;
@@ -688,7 +686,6 @@ printf("fnRegAddLapTimerApp\n");
 
 
 void fnAddTimerApp(uint16_t unusedButMandatoryParameter) {           //Send TIM to STATS
-  printf("fnAddTimerApp\n");
   real_t tmp;
 
   uInt32ToReal(_getTimerValue() / 100u, &tmp);
@@ -712,7 +709,6 @@ void fnAddTimerApp(uint16_t unusedButMandatoryParameter) {           //Send TIM 
 
 
 void fnAddLapTimerApp(uint16_t unusedButMandatoryParameter) {
-printf("fnAddLapTimerApp\n");
   #if !defined(SAVE_SPACE_DM42_20_TIMER)
   const uint32_t msec = _getTimerValue();
   real_t tmp;
