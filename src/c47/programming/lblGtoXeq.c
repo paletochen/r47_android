@@ -8,6 +8,9 @@
 
 #include "c47.h"
 
+// Drop stale interrupt keys at top-level program start (a leftover key prior to pgm run can trip us). 1 = on, 0 = off.
+#define CLEAR_KEYS_ON_PGM_START 0
+
 void fnGoto(uint16_t label) {
   if(tam.mode || calcMode != CM_PEM) {
     if(dynamicMenuItem >= 0) {
@@ -254,7 +257,22 @@ void fnReturn(uint16_t skip) {
 
   /* Not in a subroutine */
   else {
-    goToPgmStep(currentProgramNumber, 1);
+    #if PGMPTR_TO_NEXT_AFTER_RTN
+      // Rest one step past this RTN, staying inside the current main program.
+      if(isAtEndOfProgram(currentStep)            || isAtEndOfPrograms(currentStep)              // ended via END (the main program terminator)
+      || isAtEndOfProgram(findNextStep(currentStep)) || isAtEndOfPrograms(findNextStep(currentStep))) {   // or the RTN's next step is that END
+        goToPgmStep(currentProgramNumber, 1);   // wrap to the start of the active main program (never cross into the next one)
+      }
+      else {
+        int32_t rtnGlobalStep = 1;
+        for(uint8_t *stepScan = beginOfProgramMemory; stepScan != NULL && stepScan < currentStep; stepScan = findNextStep(stepScan)) {
+          rtnGlobalStep++;
+        }
+        goToGlobalStep(rtnGlobalStep + 1);   // rest on the instruction after the RTN (next routine in the same main program)
+      }
+    #else
+      goToPgmStep(currentProgramNumber, 1);
+    #endif
     if(currentNumberOfLocalRegisters > 0) {
       allocateLocalRegisters(0);
     }
@@ -767,6 +785,9 @@ int16_t executeOneStep(uint8_t *step) {
       currentSolverStatus &= ~SOLVER_STATUS_USES_FORMULA;
       _executeOp(step, op, PARAM_REGISTER);
       if(temporaryInformation == TI_SOLVER_FAILED) {
+        if(lastErrorCode == ERROR_SOLVER_ABORT) {   // abort: keep the error so the loop halts on the SOLVE step (like INT); no not-found skip
+          return 0;
+        }
         lastErrorCode = ERROR_NONE;
         return 2;
       }
@@ -850,6 +871,12 @@ int16_t executeOneStep(uint8_t *step) {
 void runProgram(bool_t singleStep, uint16_t menuLabel) {
   bool_t nestedEngine = (programRunStop == PGM_RUNNING);
   uint16_t startingSubLevel = (nestedEngine && menuLabel == INVALID_VARIABLE) ? currentSubroutineLevel : 0;
+  #if defined(DMCP_BUILD) && CLEAR_KEYS_ON_PGM_START
+    if(!nestedEngine && !singleStep) {   // top-level run start: drop stale keys so the per-step keys buffers start clean
+      key_pop_all();
+      clearKeyBuffer();
+    }
+  #endif
   lastErrorCode = ERROR_NONE;
   hourGlassIconEnabled = true;
   programRunStop = PGM_RUNNING;
@@ -972,11 +999,13 @@ stopProgram:
 
 void execProgram(uint16_t label) {
   uint16_t origLocalStepNumber = currentLocalStepNumber;
+  uint16_t origProgramNumber = currentProgramNumber;   // the nested run repoints to the function's program; restore it too so the caller (and the final return to the system) stays in the right program
   uint8_t *origStep = currentStep;
   fnExecute(label);
   if(programRunStop == PGM_RUNNING && (getSystemFlag(FLAG_INTING) || getSystemFlag(FLAG_SOLVING) || (currentSolverStatus & SOLVER_STATUS_RPN_GRAPHER))) {
     runProgram(false, INVALID_VARIABLE);
     currentLocalStepNumber = origLocalStepNumber;
+    currentProgramNumber = origProgramNumber;
     currentStep = origStep;
   }
 }
