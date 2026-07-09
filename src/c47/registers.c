@@ -1960,7 +1960,7 @@ int16_t indirectAddressing(calcRegister_t regist, uint16_t parameterType, int16_
 
 
 
-void reallocateRegister(calcRegister_t regist, uint32_t dataType, uint16_t dataSizeWithoutDataLenBlocks, uint32_t tag) { // dataSize without data length in blocks, this includes the trailing 0 for strings
+void reallocateRegister(calcRegister_t regist, uint32_t dataType, uint32_t dataSizeWithoutDataLenBlocks, uint32_t tag) { // dataSize without data length in blocks, this includes the trailing 0 for strings
   switch(dataType) {
     case dtComplex34:       dataSizeWithoutDataLenBlocks = COMPLEX34_SIZE_IN_BLOCKS;     break;
 
@@ -1974,7 +1974,7 @@ void reallocateRegister(calcRegister_t regist, uint32_t dataType, uint16_t dataS
     default: ;
   }
 
-  uint16_t dataSizeWithDataLenBlocks = dataSizeWithoutDataLenBlocks;
+  uint32_t dataSizeWithDataLenBlocks = dataSizeWithoutDataLenBlocks;
 
   //printf("reallocateRegister: %d to %s tag=%u (%u bytes excluding maxSize) begin\n", regist, getDataTypeName(dataType, false, false), tag, dataSizeWithoutDataLenBlocks);
   if(dataType == dtString) {
@@ -1989,11 +1989,20 @@ void reallocateRegister(calcRegister_t regist, uint32_t dataType, uint16_t dataS
     }
     dataSizeWithDataLenBlocks = dataSizeWithoutDataLenBlocks + TO_BLOCKS(sizeof(strLgIntHeader_t));
   }
+ 
+  if (dataSizeWithDataLenBlocks > 65535) {
+    #if defined(PC_BUILD)
+      printf("DEBUG: reallocateRegister size limit exceeded: %u blocks (dataType=%u, regist=%u)\n", dataSizeWithDataLenBlocks, dataType, regist);
+      fflush(stdout);
+    #endif
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+    return;
+  }
 
   if(getRegisterDataType(regist) != dataType || ((getRegisterDataType(regist) == dtString || getRegisterDataType(regist) == dtLongInteger || getRegisterDataType(regist) == dtReal34Matrix || getRegisterDataType(regist) == dtComplex34Matrix) && getRegisterMaxDataLengthInBlocks(regist) != dataSizeWithoutDataLenBlocks)) {
     if(!isMemoryBlockAvailable(dataSizeWithDataLenBlocks, 2, 0.1f)) {
       #if defined(PC_BUILD)
-        printf("In function reallocateRegister: required %" PRIu16 " blocks for register #%" PRId16 " but no data blocks with enough size are available!\n", dataSizeWithoutDataLenBlocks, regist);
+        printf("In function reallocateRegister: required %" PRIu32 " blocks for register #%" PRId16 " but no data blocks with enough size are available!\n", dataSizeWithoutDataLenBlocks, regist);
         fflush(stdout);
       #endif // PC_BUILD
       displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
