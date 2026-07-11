@@ -93,6 +93,7 @@ subdir('src/ttf2RasterFonts')
 subdir('src/generateConstants')
 subdir('src/generateCatalogs')
 subdir('src/generateTestPgms')
+subdir('src/generateTests')
 subdir('src/testSuite')
 subdir('src/t47')
 

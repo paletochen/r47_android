@@ -1580,8 +1580,10 @@ int16_t indirectAddressing(calcRegister_t regist, uint16_t parameterType, int16_
   }
 
   else if(getRegisterDataType(regist) == dtString && parameterType == INDPM_LABEL) {
-    value = findNamedLabel(REGISTER_STRING_DATA(regist));
+    value = findNamedLabel(REGISTER_STRING_DATA(regist), ALL_LABELS);
     isValidAlpha = true;
+  /* [DL] remove error here to allow INVARIABLE_VARIABLE to be passed to LBL?
+          INVARIABLE_VARIABLE error is handled in the LBL, GTO, XEQ ...  
     if(value == INVALID_VARIABLE) {
       displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -1590,6 +1592,7 @@ int16_t indirectAddressing(calcRegister_t regist, uint16_t parameterType, int16_
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
       return FAILED_INDIRECTION;
     }
+*/
   }
 
   else if(getRegisterDataType(regist) == dtString && parameterType == INDPM_MENU) {

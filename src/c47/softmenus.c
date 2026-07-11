@@ -563,6 +563,15 @@ TO_QSPI const int16_t menu_ConvV[]        = {
                                                    ITM_FZUStoML,              ITM_MLtoFZUS,             ITM_GalUStoFT3,           ITM_FT3toGalUS,           ITM_GLUStoL,              ITM_LtoGLUS,
                                                    ITM_FZUStoGLUS,            ITM_GLUStoFZUS,           ITM_BARRELtoM3,           ITM_M3toBARREL,           ITM_QTUStoL,              ITM_LtoQTUS               };
 
+//==============================================================================
+         // CONV step 6/6 of ADDING to CONV    [grep for "add conversion items to CONV menu"]
+         // =================================================================================
+         // Add both new items adjacent in the matching menu_Conv* array (6 softkeys per row, ITM_NULL fills unused slots, always odd/even).
+         // The "do not add menus here, add at the end" rule in the softmenu registry applies to new MENUS only, not to items within a menu.
+         // The testSuite build creates conversions.txt and conversionsSI.txt their git diff must show ONLY the new tests.
+         // The same build also runs the constants audit (constantsCheck.py): a new constant without an independent-source REF entry fails the build as UNREFERENCED (see CONV step 1/6).
+//==============================================================================
+
 TO_QSPI const int16_t menu_ConvS[]        = {
                                                     ITM_MPStoKMH,             ITM_KMHtoMPS,             ITM_KMHtoMPH,             ITM_MPHtoKMH,             ITM_MPHtoMPS,             ITM_MPStoMPH,
                                                     ITM_FPStoKMH,             ITM_KMHtoFPS,             ITM_FPStoMPH,             ITM_MPHtoFPS,             ITM_FPStoMPS,             ITM_MPStoFPS,
@@ -598,7 +607,7 @@ TO_QSPI const int16_t menu_ConvTemp[]       = {
                                                     ITM_CtoF,                 ITM_FtoC,                 ITM_CtoK,                 ITM_KtoC,                 ITM_FtoK,                 ITM_KtoF,
                                                     ITM_RAtoF,                ITM_FtoRA,                ITM_RAtoK,                ITM_KtoRA,                ITM_EVKBtoK,              ITM_KtoEVKB,
                                                     ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL                        };
- 
+
 TO_QSPI const int16_t menu_ConvStruct[]     = {
                                                     // Screen 1 — Navigation index
                                                     -MNU_CONV_SECTION,        -MNU_CONV_MATERL,         -MNU_CONV_F_LOAD,         -MNU_CONV_M_LOAD,         -MNU_CONV_P_LOAD,         -MNU_CONVM,
@@ -828,13 +837,15 @@ TO_QSPI const int16_t menu_TamRclTVM[]   = { ITM_STORCL_NPPER,              ITM_
 
 TO_QSPI const int16_t menu_TamShuffle[]  = { ITM_NULL,                      ITM_NULL,                   ITM_REG_X,                ITM_REG_Y,             ITM_REG_Z,                   ITM_REG_T                     };
 
-TO_QSPI const int16_t menu_TamLabel[]    = { ITM_INDIRECTION,               -MNU_PROG,                  ITM_REG_C,                ITM_REG_D,             ITM_REG_E,                   ITM_REG_F,
+TO_QSPI const int16_t menu_TamLabel[]    = { ITM_INDIRECTION,               -MNU_PROG,                  ITM_COLON,                ITM_REG_D,             ITM_REG_E,                   ITM_REG_F,
                                              ITM_a,                         ITM_b,                      ITM_c,                    ITM_d,                 ITM_e,                       ITM_f,
                                              ITM_g,                         ITM_h,                      ITM_i,                    ITM_j,                 ITM_k,                       ITM_l                         };
 
+TO_QSPI const int16_t menu_TamLocalLabel[]= { ITM_NULL,                     -MNU_PROG,                  ITM_alpha,                ITM_NULL,              ITM_NULL,                    ITM_NULL                      };
+
 TO_QSPI const int16_t menu_TamMenu []    = { ITM_INDIRECTION,               -MNU_MENU,                  ITM_INDIRECT_X,           ITM_INDIRECT_Y,        ITM_INDIRECT_Z,              ITM_INDIRECT_T                };
 
-TO_QSPI const int16_t menu_TamLabelOnly[]= { ITM_INDIRECTION,               -MNU_PROG,                  ITM_NULL,                 ITM_NULL,              ITM_NULL,                    ITM_NULL                      };
+TO_QSPI const int16_t menu_TamLabelOnly[]= { ITM_INDIRECTION,               -MNU_PROG,                  ITM_COLON,                ITM_NULL,              ITM_NULL,                    ITM_NULL                      };
 
 
 TO_QSPI const int16_t menu_Eim[]         = {
@@ -960,6 +971,8 @@ TO_QSPI const int16_t menu_HOME[]        = { ITM_op_j,                      ITM_
 TO_QSPI const int16_t menu_PREFIX[]      = { ITM_SI_k,                      ITM_SI_M,                   ITM_SI_G,                 ITM_SI_T,              ITM_SI_P,                    ITM_DSPCYCLE,
                                              ITM_SI_m,                      ITM_SI_u,                   ITM_SI_n,                 ITM_SI_p,              ITM_SI_f,                    ITM_DSP,
                                              ITM_SI_Ki,                     ITM_SI_Mi,                  ITM_SI_Gi,                ITM_SI_Ti,             ITM_SI_Pi,                   ITM_2TO10             };                //JM HOME
+
+
 
 TO_QSPI const int16_t menu_PLOTFUNC[]    = {  VAR_LX,                       VAR_UX,                     ITM_NULL,                 ITM_NULL,              ITM_NULL,                    ITM_NULL,
                                               ITM_SCALE,                    ITM_PLOTRST,                ITM_NULL,                 ITM_NULL,              ITM_NULL,                    ITM_NULL,                           //JM GRAPH
@@ -1201,8 +1214,9 @@ TO_QSPI const softmenu_t softmenu[] = {
 /* 182 */  {.menuItem = -MNU_CONV_F_LOAD,   .numItems = sizeof(menu_CONV_FLoad    )/sizeof(int16_t), .softkeyItem = menu_CONV_FLoad     },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references. 2024-02-21 jm
 /* 183 */  {.menuItem = -MNU_CONV_M_LOAD,   .numItems = sizeof(menu_CONV_MLoad    )/sizeof(int16_t), .softkeyItem = menu_CONV_MLoad     },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references. 2024-02-21 jm
 /* 184 */  {.menuItem = -MNU_CONV_P_LOAD,   .numItems = sizeof(menu_CONV_PLoad    )/sizeof(int16_t), .softkeyItem = menu_CONV_PLoad     },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references. 2024-02-21 jm
+/* 185 */  {.menuItem = -MNU_TAMLOCALLABEL, .numItems = sizeof(menu_TamLocalLabel )/sizeof(int16_t), .softkeyItem = menu_TamLocalLabel  },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references. 2024-02-21 jm
 
-/* 185 */  {.menuItem =  0,                 .numItems = 0,                                           .softkeyItem = NULL                }
+/* 186 */  {.menuItem =  0,                 .numItems = 0,                                           .softkeyItem = NULL                }
 
 
 };
@@ -1643,12 +1657,21 @@ static void _dynmenuConstructMVarsFromPgm(uint16_t label, uint16_t *numberOfByte
     dynamicSoftmenu[menu].numItems = (numberOfBytes <= 19) ? 0 : 18;
   }
 
+  static int16_t _removeDuplicateLabels(int16_t n) {
+    if (n == 0) return 0;
 
+    int16_t j = 0;
+    for (int16_t i = 1; i < n; i++) {
+      if(strcmp(tmpString + 15 * i, tmpString + 15 * j) != 0) {
+        xcopy(tmpString + 15 * ++j, tmpString + 15 * i, 15);
+      }
+    }
+    return j + 1;
+  }
 
   static void initVariableSoftmenu(int16_t menu) {
     int16_t i, numberOfBytes, numberOfGlobalLabels;
     uint8_t *ptr;
-
     #if defined(PC_BUILD)
       //printf("initvariableSoftMenu (cachedDynamicMenu=%i)",cachedDynamicMenu);
     #endif // PC_BUILD
@@ -1676,8 +1699,8 @@ static void _dynmenuConstructMVarsFromPgm(uint16_t label, uint16_t *numberOfByte
         numberOfGlobalLabels = 0;
         memset(tmpString, 0, TMP_STR_LENGTH);
         for(i=0; i<numberOfLabels; i++) {
-          if(labelList[i].step > 0) { // Global label
-            uint8_t lblNameLen = labelList[i].labelPointer[0];
+          if((!tam.colon && (labelList[i].step > 0)) || (tam.colon && labelList[i].program == currentProgramNumber && (*(labelList[i].labelPointer-1) == LOCAL_LABEL_VARIABLE))) { // Global label or local named label
+           uint8_t lblNameLen = labelList[i].labelPointer[0];
             if(lblNameLen > 14) { // this menu lays each name out in a fixed 15-byte slot
               lblNameLen = 14;
             }
@@ -1689,6 +1712,9 @@ static void _dynmenuConstructMVarsFromPgm(uint16_t label, uint16_t *numberOfByte
 
         if(numberOfGlobalLabels != 0) {
           qsort(tmpString, numberOfGlobalLabels, 15, sortMenu);
+          if (tam.colon) {  // Don't show duplicates for local named labels which use the scan forward search method
+            numberOfGlobalLabels = _removeDuplicateLabels(numberOfGlobalLabels);
+          }
         }
 
         ptr = malloc(numberOfBytes);
@@ -3231,7 +3257,7 @@ void showSoftmenuCurrentPart(void) {
                 const bool_t  bothConfigurable = areBothConvertConfigurable(itemNr, itemNrPair);
                 const bool_t  standardPair     = isStandardPair(itemNr, itemNrPair);             // fixed table pair: direct conversion, plain rendering
                 const bool_t  areBothConv = bothConfigurable || standardPair;                    // draw as a pair: same configurable type, or genuine fixed partner (covers UT_NOT_CONFIGURABLE)
-                const bool_t  flag        = bothConfigurable && !standardPair;                   // configured (non-canonical) pair: magic; canonical fixed pair: plain
+                const bool_t  flag        = bothConfigurable && !standardPair;                   // configured (non-standard) pair: magic; standard fixed pair: plain
                 const bool_t  cond        = flag || ((x & 1) == 0) || (itemNr == oddNrPartnerForEven);
                 //printf(">>> softkey x=%d y=%d itemNr=%d menu=%d itemNrPair=%d areBothConv=%d flag=%d cond=%d odd=%d\n",x, y, itemNr, curMenu , itemNrPair, areBothConv, flag, cond, oddNrPartnerForEven);
 
@@ -3261,7 +3287,7 @@ void showSoftmenuCurrentPart(void) {
                     }
                     showSoftkey(itemName, x, y, vm, true, true, showCb, showValue, showText);
                   }
-                } 
+                }
 
                 else {                                                                            // fall through for non-user menus
                   showSoftkey(itemName, x, y, vm, true, true, showCb, showValue, showText);
@@ -3339,8 +3365,7 @@ void showSoftmenuCurrentPart(void) {
                 }
                 else {
               #endif // INLINE_TEST
-
-              // ********* MAIN SOFTMENU DISPLAY
+              //MAIN SOFTMENU DISPLAY
               showSoftkey(indexOfItems[-softmenu[menu].menuItem].itemSoftmenuName, x, y-currentFirstItem/6, vmReverse, true, true, NOVAL, NOVAL, NOTEXT);
 
               // Indicate a 'heading' by using a self-referring menu name, i.e. MODE in gG# of MODE will make it greyed out
@@ -3349,7 +3374,6 @@ void showSoftmenuCurrentPart(void) {
               //}
 
               #if defined(INLINE_TEST)
-
                 }
               #endif // INLINE_TEST
 

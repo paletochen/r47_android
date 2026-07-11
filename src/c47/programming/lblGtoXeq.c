@@ -20,18 +20,41 @@ void fnGoto(uint16_t label) {
 
     // Local Label 00 to 99 and A to l
     if(label <= LAST_LOCAL_LABEL) {
-      // Search for local label
-      for(uint16_t lbl=0; lbl<numberOfLabels; lbl++) {
-        if(labelList[lbl].program == currentProgramNumber && labelList[lbl].step < 0 && *(labelList[lbl].labelPointer) == label) { // Is in the current program and is a local label and is the searched label
-          if(programRunStop == PGM_RUNNING) {
-            currentLocalStepNumber = (-labelList[lbl].step) - programList[currentProgramNumber - 1].step + 1;
-            currentStep = labelList[lbl].labelPointer - 1;
-          }
-          else {
-            goToGlobalStep(-labelList[lbl].step);
-          }
-          return;
+      // Search forwward for the the local label in the current program
+      bool_t labelFound = false;
+      uint16_t firstLabel = 0;
+      uint16_t nextLabel = 0;
+      uint16_t lbl;
+
+      for(lbl=0; lbl<numberOfLabels; lbl++) {
+        if(labelList[lbl].program > currentProgramNumber) {   // After the current program
+          break;
         }
+        if(labelList[lbl].program == currentProgramNumber) { // Within the current progrm
+          if(labelList[lbl].step < 0 && *(labelList[lbl].labelPointer) == label &&  *(labelList[lbl].labelPointer - 1) == ITM_LBL) { // Is a local label and is the searched label
+            if(!labelFound) {    // First label occurence in the current program
+              firstLabel = lbl;
+              labelFound = true;
+            }
+            uint16_t labelLocalStepNumber = (-labelList[lbl].step) - programList[currentProgramNumber - 1].step + 1;
+            if(labelLocalStepNumber > currentLocalStepNumber) {
+                nextLabel = lbl;  // First label occurence after the current program step
+                break;
+            }
+          }
+        }
+      }
+      // Goto local label found, if any
+      if(labelFound) {   // If a local label found in the program
+        lbl = (nextLabel != 0 ? nextLabel : firstLabel); // Will goto the first found label label after current program step or the first found label in teh program
+        if(programRunStop == PGM_RUNNING) {
+          currentLocalStepNumber = (-labelList[lbl].step) - programList[currentProgramNumber - 1].step + 1;
+          currentStep = labelList[lbl].labelPointer - 1;
+        }
+        else {
+          goToGlobalStep(-labelList[lbl].step);
+        }
+        return;
       }
 
       displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
@@ -45,9 +68,9 @@ void fnGoto(uint16_t label) {
         moreInfoOnError("In function fnGoto:", errorMessage, NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
     }
-    else if(label >= FIRST_LABEL && label <= LAST_LABEL) { // Global named label
+    else if(label >= FIRST_LABEL && label <= LAST_LABEL) { // Global or local named label
       if((label - FIRST_LABEL) < numberOfLabels) {
-        goToGlobalStep((int16_t)labelList[label - FIRST_LABEL].step);
+        goToGlobalStep(abs((int16_t)labelList[label - FIRST_LABEL].step));
         return;
       }
       else {
@@ -76,7 +99,8 @@ void fnGoto(uint16_t label) {
 void goToGlobalStep(int32_t step) {
   if(dynamicMenuItem >= 0) {
     int16_t dupNum = 0;
-    uint8_t *labelName = (uint8_t *)dynmenuGetLabelWithDup(dynamicMenuItem, &dupNum);
+    bool_t localLabel = (softmenu[softmenuStack[1].softmenuId].menuItem == -MNU_TAMLOCALLABEL);
+    char *labelName = (char *)dynmenuGetLabelWithDup(dynamicMenuItem, &dupNum);
 
     if(*labelName == 0) {
       return;
@@ -84,28 +108,11 @@ void goToGlobalStep(int32_t step) {
     if((softmenu[softmenuStack[0].softmenuId].menuItem != -MNU_PROG) && (softmenu[softmenuStack[0].softmenuId].menuItem != -MNU_PROGS)) {  // Don't apply the dupNum logic in configurable menus
       dupNum = 0;
     }
-
-    int16_t c, len = stringByteLength((char *)labelName);
-    for(uint16_t lbl=0; lbl<numberOfLabels; lbl++) {
-      uint8_t *lblPtr;
-      lblPtr = labelList[lbl].labelPointer;
-      if(labelList[lbl].step > 0 && *lblPtr == len) { // It's a global label and the length is OK
-        for(c=0; c<len; c++) {
-          if(labelName[c] != lblPtr[c + 1]) {
-            break;
-          }
-        }
-        if(c == len) {
-          if(dupNum <= 0) {
-            step = labelList[lbl].step;
-            break;
-          }
-          else {
-            --dupNum;
-          }
-        }
-      }
+    uint16_t lbl = findNamedLabelWithDuplicate(labelName, dupNum, (localLabel ? LOCAL_LABELS : GLOBAL_LABELS));
+    if(lbl == INVALID_VARIABLE) {
+      return;
     }
+    step = abs(labelList[lbl - FIRST_LABEL].step);
   }
 
   defineCurrentProgramFromGlobalStepNumber(step);
@@ -262,6 +269,7 @@ void fnReturn(uint16_t skip) {
       if(isAtEndOfProgram(currentStep)            || isAtEndOfPrograms(currentStep)              // ended via END (the main program terminator)
       || isAtEndOfProgram(findNextStep(currentStep)) || isAtEndOfPrograms(findNextStep(currentStep))) {   // or the RTN's next step is that END
         goToPgmStep(currentProgramNumber, 1);   // wrap to the start of the active main program (never cross into the next one)
+        pemCursorIsZerothStep = true;
       }
       else {
         int32_t rtnGlobalStep = 1;
@@ -272,7 +280,13 @@ void fnReturn(uint16_t skip) {
       }
     #else
       goToPgmStep(currentProgramNumber, 1);
+      pemCursorIsZerothStep = true;
     #endif
+    cleanLocalFlagsAndRegisters();
+  }
+}
+
+void cleanLocalFlagsAndRegisters() {
     if(currentNumberOfLocalRegisters > 0) {
       allocateLocalRegisters(0);
     }
@@ -284,11 +298,7 @@ void fnReturn(uint16_t skip) {
     }
     currentLocalFlags = NULL;
     currentLocalRegisters = NULL;
-    pemCursorIsZerothStep = true;
-  }
 }
-
-
 
 void fnRunProgram(uint16_t unusedButMandatoryParameter) {
   if(currentInputVariable != INVALID_VARIABLE) {
@@ -360,9 +370,9 @@ static void _executeOp(uint8_t *paramAddress, uint16_t op, uint16_t paramMode) {
       if(opParam <= LAST_LOCAL_LABEL) { // Local label from 00 to 99 or from A to l
         reallyRunFunction(op, opParam);
       }
-      else if(opParam == STRING_LABEL_VARIABLE) {
+      else if((opParam == STRING_LABEL_VARIABLE) || (opParam == LOCAL_LABEL_VARIABLE)) {
         getStringLabelOrVariableName(paramAddress);
-        calcRegister_t label = findNamedLabel(tmpStringLabelOrVariableName);
+        calcRegister_t label = findNamedLabel(tmpStringLabelOrVariableName,opParam);
         if(label != INVALID_VARIABLE || op == ITM_LBLQ) {
           reallyRunFunction(op, label);
         }
@@ -1014,14 +1024,14 @@ void execProgram(uint16_t label) {
 
 void fnCheckLabel(uint16_t label) {
   if(dynamicMenuItem >= 0) {
-    label = findNamedLabel(dynmenuGetLabel(dynamicMenuItem));
+    label = findNamedLabel(dynmenuGetLabel(dynamicMenuItem),ALL_LABELS);
   }
-
+  
   // Local Label 00 to 99 and A to l
   if(label <= LAST_LOCAL_LABEL) {
     // Search for local label
     for(uint16_t lbl=0; lbl<numberOfLabels; lbl++) {
-      if(labelList[lbl].program == currentProgramNumber && labelList[lbl].step < 0 && *(labelList[lbl].labelPointer) == label) { // Is in the current program and is a local label and is the searched label
+      if(labelList[lbl].program == currentProgramNumber && labelList[lbl].step < 0 && *(labelList[lbl].labelPointer) == label &&  *(labelList[lbl].labelPointer - 1) == ITM_LBL) { // Is in the current program and is a local label and is the searched label
         temporaryInformation = TI_TRUE;
         return;
       }

@@ -119,3 +119,12 @@ android/build_output.txt
 
 # --- 10. Configuration Secrets ---
 .google_env
+
+# --- 11. Test Suite Outputs ---
+/backupTest.cfg
+/c47Test.sav
+/c47programTest.bin
+/c47programTest.rtf
+/c47programsTest.bin
+/c47programsTest.rtf
+/c47regsTest.txt

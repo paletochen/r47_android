@@ -809,7 +809,7 @@ void execTimerApp(uint16_t timerType) {
       }
     }
     else if(item == ITM_XEQ && getSystemFlag(FLAG_USER) && funcParam[0] != 0) {
-      calcRegister_t label = findNamedLabel(funcParam);
+      calcRegister_t label = findNamedLabel(funcParam, GLOBAL_LABELS);
       if(label != INVALID_VARIABLE) {
         if(calcMode == CM_PEM) {  // Insert user program call in program
           insertUserItemInProgram(item, funcParam);
