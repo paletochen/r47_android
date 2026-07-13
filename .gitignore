@@ -128,3 +128,5 @@ android/build_output.txt
 /c47programsTest.bin
 /c47programsTest.rtf
 /c47regsTest.txt
+/c47plotTest*.bmp
+/c47stateTest.bin
