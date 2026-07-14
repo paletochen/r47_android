@@ -3973,7 +3973,9 @@ void showSoftmenuCurrentPart(void) {
         }
       }
       else {
-        parseEquation(currentFormula, EQUATION_PARSER_MVAR, aimBuffer, tmpString);
+        // MVAR: Use the scratch area at the end of tmpString (as per _dynmenuConstructMVars) to leave aimBuffer be, as it interferes with PEM
+        //   where it holds the pending step entry, and a leftover aimBuffer token there makes the next insert delete the current step.
+        parseEquation(currentFormula, EQUATION_PARSER_MVAR, tmpString + TMP_STR_LENGTH - AIM_BUFFER_LENGTH, tmpString);
         varList = (uint8_t *)tmpString;
       }
 

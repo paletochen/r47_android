@@ -14,6 +14,7 @@
    * \return Data type
    */
   uint32_t       getRegisterDataType             (calcRegister_t regist);
+  void           clampShortIntegerRegistersToWordSize(void);
 
   /**
    * Returns the data pointer of a register.

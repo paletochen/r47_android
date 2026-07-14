@@ -184,6 +184,28 @@ uint32_t getRegisterDataType(calcRegister_t regist) {
 
 
 
+void clampShortIntegerRegistersToWordSize(void) {
+  // Mask every short-integer register down to the current word size. Used after a restore so short integers written by an older build -
+  // one that let a bit escape the word - or raw bytes reloaded without checking cannot keep out-of-range bits. Covers all register classes that can hold a
+  // short integer: the whole global block (numbered, stack, stat, spare, saved-stack, temp) plus the allocated named variables and local registers.
+  for(calcRegister_t regist = FIRST_GLOBAL_REGISTER; regist <= LAST_GLOBAL_REGISTER; regist++) {
+    if(getRegisterDataType(regist) == dtShortInteger) {
+      *(REGISTER_SHORT_INTEGER_DATA(regist)) &= shortIntegerMask;
+    }
+  }
+  for(uint16_t i = 0; i < numberOfNamedVariables; i++) {
+    const calcRegister_t regist = FIRST_NAMED_VARIABLE + i;
+    if(getRegisterDataType(regist) == dtShortInteger) {
+      *(REGISTER_SHORT_INTEGER_DATA(regist)) &= shortIntegerMask;
+    }
+  }
+  for(uint8_t i = 0; i < currentNumberOfLocalRegisters; i++) {
+    const calcRegister_t regist = FIRST_LOCAL_REGISTER + i;
+    if(getRegisterDataType(regist) == dtShortInteger) {
+      *(REGISTER_SHORT_INTEGER_DATA(regist)) &= shortIntegerMask;
+    }
+  }
+}
 void *getRegisterDataPointer(calcRegister_t regist) {
   if(regist <= LAST_GLOBAL_REGISTER) { // Global register
     return TO_PCMEMPTR(globalRegister[regist].pointerToRegisterData);
@@ -1735,8 +1757,8 @@ int16_t indirectAddressing(calcRegister_t regist, uint16_t parameterType, int16_
         for(c = 0; c < mat.header.matrixColumns; ++c) {
           real_t tmpr;
           char str[100];
-          uint32_t offset = (r * mat.header.matrixRows + c) * 2;
-          real34ToReal(mat.matrixElements + offset, &tmpr);
+          complex34_t *element = mat.matrixElements + (r * mat.header.matrixColumns + c);
+          real34ToReal(VARIABLE_REAL34_DATA(element), &tmpr);
           realPlus(&tmpr, &tmpr, &ctxtReal4);       // Real part
           if(realGetExponent(&tmpr) < -50) {
             printf("[≈0 ");
@@ -1758,7 +1780,7 @@ int16_t indirectAddressing(calcRegister_t regist, uint16_t parameterType, int16_
             }
             printf("[%s", str);
           }
-          real34ToReal(mat.matrixElements + offset + 1, &tmpr);
+          real34ToReal(VARIABLE_IMAG34_DATA(element), &tmpr);
           realPlus(&tmpr, &tmpr, &ctxtReal4);       // Imag part
           if(realGetExponent(&tmpr) < -50) {
             printf(" i≈0] ");
