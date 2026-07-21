@@ -1,0 +1,42 @@
+LBL ‘BMARITH’
+  1.5
+  STO R10
+  2.5
+  STO R11
+  TICKS
+  STO R98
+  10
+  STO R95
+
+  LBL 01
+    VIEW R95
+    300
+    STO R99
+
+    LBL 00
+      RCL R10
+      RCL R11
+      +
+      RCL R11
+      ×
+      RCL R11
+      ÷
+      √𝑥
+      RCL R10
+      RCL R11
+      +
+      RCL R11
+      ×
+      RCL R11
+      ÷
+      √𝑥
+      DSZ R99
+        GTO 00
+      DSZ R95
+        GTO 01
+      TICKS
+      RCL R98
+      -
+      STO R97
+      RTN
+  END

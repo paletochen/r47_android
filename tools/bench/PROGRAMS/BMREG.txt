@@ -1,0 +1,34 @@
+LBL ‘BMREG’
+  1.5
+  STO R10
+  TICKS
+  STO R98
+  10
+  STO R95
+
+  LBL 01
+    VIEW R95
+    1000
+    STO R99
+
+    LBL 00
+      RCL R10
+      STO R11
+      RCL R10
+      STO R11
+      RCL R10
+      STO R11
+      RCL R10
+      STO R11
+      RCL R10
+      STO R11
+      DSZ R99
+        GTO 00
+      DSZ R95
+        GTO 01
+      TICKS
+      RCL R98
+      -
+      STO R97
+      RTN
+  END

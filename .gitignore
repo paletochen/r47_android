@@ -15,9 +15,11 @@
 
 # --- 2. Meson / Build Artifacts ---
 /build/
-/build.sim/
+/build.sim*/
 /build.dmcp*/
 /build.rel*/
+/t47bench/
+/bench-results.csv
 /meson-logs/
 /meson-private/
 build.ninja

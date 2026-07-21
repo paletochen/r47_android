@@ -594,7 +594,7 @@ void allocateLocalRegisters(uint16_t numberOfRegistersToAllocate) {
         if(initLocalRegisters(r)) {
           // Not enough memory!
           for(uint16_t rr = FIRST_LOCAL_REGISTER; rr < r; rr++) {
-            freeRegisterData(FIRST_LOCAL_REGISTER + rr);
+            freeRegisterData(rr); // rr already is the register number; do not add FIRST_LOCAL_REGISTER again
           }
           reduceC47Blocks(currentSubroutineLevelData,
                           TO_BLOCKS(sizeof(subroutineLevelHeader_t) + sizeof(localFlags_t) + numberOfRegistersToAllocate*sizeof(registerHeader_t)),
@@ -635,7 +635,7 @@ void allocateLocalRegisters(uint16_t numberOfRegistersToAllocate) {
           if(initLocalRegisters(r)) {
             // Not enough memory!
             for(uint16_t rr = FIRST_LOCAL_REGISTER + oldNumberOfLocalRegisters; rr < r; rr++) {
-              freeRegisterData(FIRST_LOCAL_REGISTER + rr);
+              freeRegisterData(rr); // rr already is the register number; do not add FIRST_LOCAL_REGISTER again
             }
             reduceC47Blocks(currentSubroutineLevelData,
                             TO_BLOCKS(sizeof(subroutineLevelHeader_t) + sizeof(localFlags_t) + numberOfRegistersToAllocate*sizeof(registerHeader_t)),

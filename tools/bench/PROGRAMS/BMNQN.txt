@@ -1,0 +1,18 @@
+LBL ‘BMNQN’
+  TICKS
+  STO R98
+  2
+  STO R95
+
+  LBL 01
+    VIEW R95
+    8
+    XEQ ‘NQ’
+    DSZ R95
+      GTO 01
+    TICKS
+    RCL R98
+    -
+    STO R97
+    RTN
+  END

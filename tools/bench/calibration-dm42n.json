@@ -1,0 +1,83 @@
+{
+  "device": "DM42n (STM32U575)",
+  "firmware": "C47 00.109.03.03b0",
+  "local_host": "Darwin arm64, build.sim.t47.bench (-Os, LTO)",
+  "profiles": {
+    "usb-160mhz": {
+      "power": "USB (160MHz)",
+      "date": "2026-07-19",
+      "benchmarks": {
+        "BMGTO": {
+          "hw_ticks": 212,
+          "local_s": 0.062666
+        },
+        "BMREG": {
+          "hw_ticks": 384,
+          "local_s": 0.104016
+        },
+        "BMVAR": {
+          "hw_ticks": 291,
+          "local_s": 0.142603
+        },
+        "BMRSV": {
+          "hw_ticks": 426,
+          "local_s": 0.140973
+        },
+        "BMARITH": {
+          "hw_ticks": 193,
+          "local_s": 0.062057
+        },
+        "BMTRIG": {
+          "hw_ticks": 147,
+          "local_s": 0.180625
+        },
+        "BMNQN": {
+          "hw_ticks": 246,
+          "local_s": 0.124281
+        },
+        "BMDISP": {
+          "hw_ticks": 116,
+          "local_s": 0.032744
+        }
+      }
+    },
+    "battery-80mhz": {
+      "power": "battery (80MHz)",
+      "date": "2026-07-19",
+      "benchmarks": {
+        "BMGTO": {
+          "hw_ticks": 412,
+          "local_s": 0.062967
+        },
+        "BMREG": {
+          "hw_ticks": 731,
+          "local_s": 0.10388
+        },
+        "BMVAR": {
+          "hw_ticks": 745,
+          "local_s": 0.142615
+        },
+        "BMRSV": {
+          "hw_ticks": 912,
+          "local_s": 0.141099
+        },
+        "BMARITH": {
+          "hw_ticks": 379,
+          "local_s": 0.061787
+        },
+        "BMTRIG": {
+          "hw_ticks": 473,
+          "local_s": 0.179346
+        },
+        "BMNQN": {
+          "hw_ticks": 567,
+          "local_s": 0.129411
+        },
+        "BMDISP": {
+          "hw_ticks": 216,
+          "local_s": 0.031689
+        }
+      }
+    }
+  }
+}

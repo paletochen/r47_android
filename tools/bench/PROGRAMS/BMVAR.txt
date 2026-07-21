@@ -1,0 +1,44 @@
+LBL ‘BMVAR’
+  1.5
+  STO ‘AA’
+  STO ‘AB’
+  STO ‘AC’
+  STO ‘AD’
+  STO ‘AE’
+  STO ‘AF’
+  STO ‘AG’
+  STO ‘AH’
+  STO ‘AI’
+  STO ‘AJ’
+  STO ‘VV’
+  TICKS
+  STO R98
+  10
+  STO R95
+
+  LBL 01
+    VIEW R95
+    500
+    STO R99
+
+    LBL 00
+      RCL ‘VV’
+      STO ‘VV’
+      RCL ‘VV’
+      STO ‘VV’
+      RCL ‘VV’
+      STO ‘VV’
+      RCL ‘VV’
+      STO ‘VV’
+      RCL ‘VV’
+      STO ‘VV’
+      DSZ R99
+        GTO 00
+      DSZ R95
+        GTO 01
+      TICKS
+      RCL R98
+      -
+      STO R97
+      RTN
+  END

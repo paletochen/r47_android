@@ -1,0 +1,89 @@
+{
+  "device": "DM42 (STM32L476)",
+  "firmware": "C47 00.109.03.03b0 (c2dd21e3)",
+  "local_host": "Darwin arm64, build.sim.t47.bench (-Os, LTO)",
+  "note": "Cross-device prediction against calibration-dm42n.json is only valid at matched USB power; on battery the DM42/DM42n ratio spreads 2.26x to 4.61x. Note also that the DM42 does not scale with its clock on battery: the clock drops 3.33x but most benchmarks slow only about 2.1x, so do not derive battery timings from USB ones by clock ratio.",
+  "profiles": {
+    "usb": {
+      "power": "USB (80 MHz)",
+      "date": "2026-07-20",
+      "benchmarks": {
+        "BMGTO": {
+          "hw_ticks": 520,
+          "local_s": 0.063
+        },
+        "BMREG": {
+          "hw_ticks": 927,
+          "local_s": 0.1039
+        },
+        "BMVAR": {
+          "hw_ticks": 811,
+          "local_s": 0.1426
+        },
+        "BMRSV": {
+          "hw_ticks": 1082,
+          "local_s": 0.1411
+        },
+        "BMARITH": {
+          "hw_ticks": 464,
+          "local_s": 0.0618
+        },
+        "BMTRIG": {
+          "hw_ticks": 346,
+          "local_s": 0.1793
+        },
+        "BMNQN": {
+          "hw_ticks": 656,
+          "local_s": 0.1294
+        },
+        "BMDISP": {
+          "hw_ticks": 274,
+          "local_s": 0.0317
+        }
+      }
+    },
+    "battery": {
+      "power": "battery (24 MHz)",
+      "date": "2026-07-20",
+      "benchmarks": {
+        "BMGTO": {
+          "hw_ticks": 1105,
+          "local_s": 0.063
+        },
+        "BMREG": {
+          "hw_ticks": 1926,
+          "local_s": 0.1039
+        },
+        "BMVAR": {
+          "hw_ticks": 3432,
+          "local_s": 0.1426
+        },
+        "BMRSV": {
+          "hw_ticks": 3175,
+          "local_s": 0.1411
+        },
+        "BMARITH": {
+          "hw_ticks": 1007,
+          "local_s": 0.0618
+        },
+        "BMTRIG": {
+          "hw_ticks": 1070,
+          "local_s": 0.1793
+        },
+        "BMNQN": {
+          "hw_ticks": 2126,
+          "local_s": 0.1294
+        },
+        "BMDISP": {
+          "hw_ticks": 575,
+          "local_s": 0.0317
+        }
+      }
+    }
+  },
+  "clocks": {
+    "usb": "80 MHz",
+    "battery": "24 MHz",
+    "source": "SwissMicros DM42 user manual; full speed only on USB to bound battery draw"
+  }
+}

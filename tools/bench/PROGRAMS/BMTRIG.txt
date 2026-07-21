@@ -1,0 +1,32 @@
+LBL ‘BMTRIG’
+  0.7
+  STO R12
+  TICKS
+  STO R98
+  10
+  STO R95
+
+  LBL 01
+    VIEW R95
+    50
+    STO R99
+
+    LBL 00
+      RCL R12
+      sin(𝑥)
+      ln(𝑥)
+      𝑒ˣ
+      RCL R12
+      sin(𝑥)
+      ln(𝑥)
+      𝑒ˣ
+      DSZ R99
+        GTO 00
+      DSZ R95
+        GTO 01
+      TICKS
+      RCL R98
+      -
+      STO R97
+      RTN
+  END

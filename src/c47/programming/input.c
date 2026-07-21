@@ -19,9 +19,9 @@ void fnInput(uint16_t regist) {
     #else // !DMCP_BUILD
       refreshLcd(NULL);
     #endif // DMCP_BUILD
-    #if defined(IR_PRINTING)
+    #if defined(OPTION_IR_PRINTING)
       printInputPrompt(ITM_INPUT, regist);
-    #endif //IR_PRINTING
+    #endif //OPTION_IR_PRINTING
   }
 }
 

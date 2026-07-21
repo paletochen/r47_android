@@ -1,0 +1,37 @@
+C47 benchmark suite results
+===========================
+
+date      : 2026-07-19
+device    : DM42n (STM32U575)
+firmware  : C47 00.109.03.03b0 (c2dd21e39)
+host      : macOS arm64, build.sim.t47.bench (-Os, LTO)
+suite     : iteration counts as frozen in tools/bench/genbench.py
+
+Hardware results are the TICKS values read from R80..R87 after XEQ BENCH,
+converted to seconds (1 tick = 0.1 s). Host values are the median of five
+repetitions in the optimized headless simulator.
+
+benchmark   iterations   USB 160MHz s   battery 80MHz s   host s
+BMGTO            20000           21.2              41.2   0.0630
+BMREG            10000           38.4              73.1   0.1039
+BMVAR             5000           29.1              74.5   0.1426
+BMRSV            10000           42.6              91.2   0.1411
+BMARITH           3000           19.3              37.9   0.0618
+BMTRIG             500           14.7              47.3   0.1793
+BMNQN                2           24.6              56.7   0.1294
+BMDISP            2000           11.6              21.6   0.0317
+
+Suite total: 201.5 s on USB, 443.5 s on battery, plus 8 s of name banners.
+
+Observations from this run:
+- The hardware-tax factor (hardware s / host s) spans 81x (BMTRIG, where
+  decNumber compute dominates) to 369x (BMREG, nearly all per-step
+  interpreter dispatch) on USB power. For ordinary program loops the cost
+  a hardware user feels is fixed per-step overhead, not arithmetic.
+- Battery is not a uniform 2x of USB despite the halved clock: BMREG and
+  BMDISP scale at 1.9x, BMVAR at 2.6x, BMTRIG at 3.2x. Compute-bound
+  paths lose more than the clock ratio on battery.
+- The lookup diagnostic (BMVAR - BMREG) / (BMRSV - BMREG) is 4.7x on USB,
+  4.2x on battery, 4.9x on the host: the linear user-variable scan costs
+  about five times the hashed reserved-variable path per access, in every
+  environment (upstream issue #555).

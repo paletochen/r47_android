@@ -360,7 +360,7 @@ static uint32_t _getTimerValue(void) {
 //#endif // PC_BUILD
 
 void fnItemTimerApp(uint16_t unusedButMandatoryParameter) {
-#if !defined(SAVE_SPACE_DM42_20_TIMER)
+#if defined(OPTION_STOPWATCH)
   calcMode = CM_TIMER;
   rbr1stDigit = true;
   if(timerStartTime != TIMER_APP_STOPPED) {
@@ -369,7 +369,7 @@ void fnItemTimerApp(uint16_t unusedButMandatoryParameter) {
       //  gdk_threads_add_timeout(100, _updateTimer, NULL);
       //#endif // PC_BUILD
   }
-  #endif // !SAVE_SPACE_DM42_20_TIMER
+  #endif // !OPTION_STOPWATCH
 }
 
 void fnDecisecondTimerApp(uint16_t unusedButMandatoryParameter) {
@@ -485,7 +485,7 @@ void fnResetTimerApp(uint16_t unusedButMandatoryParameter) {
 }
 
 void fnStartStopTimerApp(uint16_t unusedButMandatoryParameter) {
-  #if !defined(SAVE_SPACE_DM42_20_TIMER)
+  #if defined(OPTION_STOPWATCH)
   if(timerStartTime == TIMER_APP_STOPPED) {
     setSystemFlag(FLAG_RUNTIM);
     timerStartTime = _currentTime();
@@ -498,11 +498,11 @@ void fnStartStopTimerApp(uint16_t unusedButMandatoryParameter) {
     fnStopTimerApp();
   }
   rbr1stDigit = true;
-#endif // !SAVE_SPACE_DM42_20_TIMER
+#endif // !OPTION_STOPWATCH
 }
 
 void fnStopTimerApp(void) {
-  #if !defined(SAVE_SPACE_DM42_20_TIMER)
+  #if defined(OPTION_STOPWATCH)
   if(timerStartTime != TIMER_APP_STOPPED) {
     const uint32_t msec = _currentTime();
     timerValue += msec - timerStartTime;
@@ -517,11 +517,11 @@ void fnStopTimerApp(void) {
     setSystemFlagChanged(SETTING_WATCHICON);
     watchIconEnabled = false;
   }
-#endif // !SAVE_SPACE_DM42_20_TIMER
+#endif // !OPTION_STOPWATCH
 }
 
 void fnShowTimerApp(void) {
-  #if !defined(SAVE_SPACE_DM42_20_TIMER)
+  #if defined(OPTION_STOPWATCH)
   if(calcMode == CM_TIMER) {
     const uint32_t msec = _getTimerValue();
     clearRegisterLine(REGISTER_T, true, true);
@@ -601,11 +601,11 @@ void fnShowTimerApp(void) {
         calcModeNormalGui();
       }
     }
-  #endif // !SAVE_SPACE_DM42_20_TIMER
+  #endif // !OPTION_STOPWATCH
 }
 
 void fnUpdateTimerApp(void) {
-  #if !defined(SAVE_SPACE_DM42_20_TIMER)
+  #if defined(OPTION_STOPWATCH)
   if(calcMode == CM_TIMER) {
     fnShowTimerApp();
     displayShiftAndTamBuffer();
@@ -616,11 +616,11 @@ void fnUpdateTimerApp(void) {
       refreshLcd(NULL);
     #endif // DMCP_BUILD
   }
-  #endif // !SAVE_SPACE_DM42_20_TIMER
+  #endif // !OPTION_STOPWATCH
 }
 
 void fnRegAddTimerApp(uint16_t unusedButMandatoryParameter) {  //ENTER
-  #if !defined(SAVE_SPACE_DM42_20_TIMER)
+  #if defined(OPTION_STOPWATCH)
   if(rbr1stDigit) {
     real_t tmp;
     uInt32ToReal(_getTimerValue() / 100u, &tmp);
@@ -636,11 +636,11 @@ void fnRegAddTimerApp(uint16_t unusedButMandatoryParameter) {  //ENTER
     timerCraAndDeciseconds = (timerCraAndDeciseconds & 0x80u) + (uint8_t)(aimBuffer[AIM_BUFFER_LENGTH / 2] - '0');
     rbr1stDigit = true;
   }
-  #endif // !SAVE_SPACE_DM42_20_TIMER
+  #endif // !OPTION_STOPWATCH
 }
 
 void fnRegAddLapTimerApp(uint16_t unusedButMandatoryParameter) {   //dot
-  #if !defined(SAVE_SPACE_DM42_20_TIMER)
+  #if defined(OPTION_STOPWATCH)
   const uint32_t msec = _getTimerValue();
   real_t tmp;
 
@@ -662,7 +662,7 @@ void fnRegAddLapTimerApp(uint16_t unusedButMandatoryParameter) {   //dot
     timerStartTime = _currentTime();
     fnTimerStart(TO_TIMER_APP, TO_TIMER_APP, TIMER_APP_PERIOD);
   }
-  #endif // !SAVE_SPACE_DM42_20_TIMER
+  #endif // !OPTION_STOPWATCH
 }
 
 
@@ -690,7 +690,7 @@ void fnAddTimerApp(uint16_t unusedButMandatoryParameter) {           //Send TIM 
 
 
 void fnAddLapTimerApp(uint16_t unusedButMandatoryParameter) {
-  #if !defined(SAVE_SPACE_DM42_20_TIMER)
+  #if defined(OPTION_STOPWATCH)
   const uint32_t msec = _getTimerValue();
   real_t tmp;
 
@@ -727,12 +727,12 @@ void fnAddLapTimerApp(uint16_t unusedButMandatoryParameter) {
   }
 
   refreshScreen(31);
-  #endif // !SAVE_SPACE_DM42_20_TIMER
+  #endif // !OPTION_STOPWATCH
 }
 
 
 void fnUpTimerApp(void) {
-  #if !defined(SAVE_SPACE_DM42_20_TIMER)
+  #if defined(OPTION_STOPWATCH)
   if((timerCraAndDeciseconds & 0x7fu) >= 99u) {
     timerCraAndDeciseconds &= 0x80u;
   }
@@ -740,7 +740,7 @@ void fnUpTimerApp(void) {
     ++timerCraAndDeciseconds;
   }
   rbr1stDigit = true;
-  #endif // !SAVE_SPACE_DM42_20_TIMER
+  #endif // !OPTION_STOPWATCH
 }
 
 void fnDownTimerApp(void) {
@@ -754,7 +754,7 @@ void fnDownTimerApp(void) {
 }
 
 void fnDigitKeyTimerApp(uint16_t digit) {
-  #if !defined(SAVE_SPACE_DM42_20_TIMER)
+  #if defined(OPTION_STOPWATCH)
   if(rbr1stDigit || aimBuffer[AIM_BUFFER_LENGTH / 2] == 0) {
     aimBuffer[AIM_BUFFER_LENGTH / 2    ] = digit + '0';
     aimBuffer[AIM_BUFFER_LENGTH / 2 + 1] = 0;
@@ -764,7 +764,7 @@ void fnDigitKeyTimerApp(uint16_t digit) {
     timerCraAndDeciseconds = (timerCraAndDeciseconds & 0x80u) + (uint8_t)(aimBuffer[AIM_BUFFER_LENGTH / 2] - '0') * 10u + digit;
     rbr1stDigit = true;
   }
-  #endif // !SAVE_SPACE_DM42_20_TIMER
+  #endif // !OPTION_STOPWATCH
 }
 
 

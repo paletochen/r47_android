@@ -769,7 +769,7 @@ void execTimerApp(uint16_t timerType) {
   }
 
 
-#if defined(LONGPRESS_CFG)   // only when allowed by LONGPRESS_CFG
+#if defined(OPTION_LONGPRESS_CFG)   // only when allowed by OPTION_LONGPRESS_CFG
   static void _assignLongPressKey(int keyCode) {
     char kc[4] = {};
     kc[0] = (keyCode / 10) + '0';
@@ -830,7 +830,7 @@ void execTimerApp(uint16_t timerType) {
       runFunction(item);
     }
   }
-#endif // LONGPRESS_CFG
+#endif // OPTION_LONGPRESS_CFG
 
 
   static void clearShiftTemporaryIndications(bool_t condition) {
@@ -847,7 +847,7 @@ void execTimerApp(uint16_t timerType) {
         Shft_LongPress_f_g = false;
         fnTimerStop(TO_3S_CTFF);
         fnTimerStop(TO_FG_LONG);
-      #if defined(LONGPRESS_CFG)   // only when allowed by LONGPRESS_CFG
+      #if defined(OPTION_LONGPRESS_CFG)   // only when allowed by OPTION_LONGPRESS_CFG
         int keyCode;
 
         int16_t item;
@@ -945,7 +945,7 @@ void execTimerApp(uint16_t timerType) {
           screenUpdatingMode = SCRUPD_AUTO;
           refreshScreen(23);
         }
-      #endif // LONGPRESS_CFG
+      #endif // OPTION_LONGPRESS_CFG
         shiftF = 0;
         shiftG = 0;
         showShiftState();
@@ -973,13 +973,13 @@ void execTimerApp(uint16_t timerType) {
           Shft_timeouts = false;
           resetShiftState();                                       //force into no shift state, i.e. to wait
           if((calcMode == CM_ASSIGN) && (itemToBeAssigned !=0)) {
-            #if defined(LONGPRESS_CFG)   // only when allowed by LONGPRESS_CFG
+            #if defined(OPTION_LONGPRESS_CFG)   // only when allowed by OPTION_LONGPRESS_CFG
               int keyCode = (calcModel == USER_R47bk_fg) ? 11 : (calcModel == USER_R47fg_bk || calcModel == USER_R47fg_g) ? 10 : (calcModel == USER_C47 || calcModel == USER_DM42) ? 27 : 9999;
               //shiftF = 1;
               if(previousCalcMode != CM_AIM) {   // No long press assignments in AIM
                 _assignLongPressKey(keyCode);
               }
-            #endif // LONGPRESS_CFG
+            #endif // OPTION_LONGPRESS_CFG
             shiftF = 0;
             shiftG = 0;
             screenUpdatingMode = SCRUPD_AUTO;
@@ -3257,7 +3257,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
           }
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             sprintf(errorMessage, "BestF is set, but will not work until REAL data points are used.");
-            moreInfoOnError("In function _refreshRegisterLine:", errorMessage, errorMessages[ERROR_INVALID_DATA_TYPE_FOR_OP], NULL);
+            moreInfoOnError("In function _refreshRegisterLine:", errorMessage, errorMessageOf(ERROR_INVALID_DATA_TYPE_FOR_OP), NULL);
           #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
           w = stringWidth(tmpString, &standardFont, true, true);
           showString(tmpString, &standardFont, SCREEN_WIDTH - w, Y_POSITION_OF_REGISTER_X_LINE + 6, vmNormal, true, true);
@@ -3353,7 +3353,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
       }
 
       else if(temporaryInformation == TI_RESET && regist == REGISTER_X) {
-        sprintf(tmpString, "%s", errorMessages[TI_All_data_prgms_cleared]);
+        sprintf(tmpString, "%s", errorMessageOf(TI_All_data_prgms_cleared));
         w = stringWidth(tmpString, &standardFont, true, true);
         showString(tmpString, &standardFont, SCREEN_WIDTH - w, Y_POSITION_OF_REGISTER_X_LINE + 6, vmNormal, true, true);
       }
@@ -3363,57 +3363,57 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
         displayTemporaryInformationOnX(prefix);
       }
 
-    #if defined(IR_PRINTING)
+    #if defined(OPTION_IR_PRINTING)
       else if(temporaryInformation == TI_PRINT_COMPLETE && regist == REGISTER_X) {
         sprintf(prefix, "Print completed");
         displayTemporaryInformationOnX(prefix);
       }
-    #endif //IR_PRINTING
+    #endif //OPTION_IR_PRINTING
 
       else if(temporaryInformation == TI_DEL_ALL_PRGMS && regist == REGISTER_X) {
-        sprintf(tmpString, "%s", errorMessages[TI_All_user_prgms_deleted]);
+        sprintf(tmpString, "%s", errorMessageOf(TI_All_user_prgms_deleted));
         w = stringWidth(tmpString, &standardFont, true, true);
         showString(tmpString, &standardFont, SCREEN_WIDTH - w, Y_POSITION_OF_REGISTER_X_LINE + 6, vmNormal, true, true);
       }
 
       else if(temporaryInformation == TI_CLEAR_ALL_FLAGS && regist == REGISTER_X) {
-        sprintf(tmpString, "%s", errorMessages[TI_All_user_flags_cleared]);
+        sprintf(tmpString, "%s", errorMessageOf(TI_All_user_flags_cleared));
         w = stringWidth(tmpString, &standardFont, true, true);
         showString(tmpString, &standardFont, SCREEN_WIDTH - w, Y_POSITION_OF_REGISTER_X_LINE + 6, vmNormal, true, true);
       }
 
       else if(temporaryInformation == TI_CLEAR_ALL_MENUS && regist == REGISTER_X) {
-        sprintf(tmpString, "%s", errorMessages[TI_All_user_menus_cleared]);
+        sprintf(tmpString, "%s", errorMessageOf(TI_All_user_menus_cleared));
         w = stringWidth(tmpString, &standardFont, true, true);
         showString(tmpString, &standardFont, SCREEN_WIDTH - w, Y_POSITION_OF_REGISTER_X_LINE + 6, vmNormal, true, true);
       }
 
       else if(temporaryInformation == TI_CLEAR_ALL_VARIABLES && regist == REGISTER_X) {
-        sprintf(tmpString, "%s", errorMessages[TI_All_user_vars_cleared]);
+        sprintf(tmpString, "%s", errorMessageOf(TI_All_user_vars_cleared));
         w = stringWidth(tmpString, &standardFont, true, true);
         showString(tmpString, &standardFont, SCREEN_WIDTH - w, Y_POSITION_OF_REGISTER_X_LINE + 6, vmNormal, true, true);
       }
 
       else if(temporaryInformation == TI_DEL_ALL_MENUS && regist == REGISTER_X) {
-        sprintf(tmpString, "%s", errorMessages[TI_All_user_menus_deleted]);
+        sprintf(tmpString, "%s", errorMessageOf(TI_All_user_menus_deleted));
         w = stringWidth(tmpString, &standardFont, true, true);
         showString(tmpString, &standardFont, SCREEN_WIDTH - w, Y_POSITION_OF_REGISTER_X_LINE + 6, vmNormal, true, true);
       }
 
       else if(temporaryInformation == TI_DEL_ALL_VARIABLES && regist == REGISTER_X) {
-        sprintf(tmpString, "%s", errorMessages[TI_All_user_vars_deleted]);
+        sprintf(tmpString, "%s", errorMessageOf(TI_All_user_vars_deleted));
         w = stringWidth(tmpString, &standardFont, true, true);
         showString(tmpString, &standardFont, SCREEN_WIDTH - w, Y_POSITION_OF_REGISTER_X_LINE + 6, vmNormal, true, true);
       }
 
       #if defined(PC_BUILD)
       else if(temporaryInformation == TI_NOT_AVAILABLE && regist == REGISTER_X) {
-        sprintf(prefix, "%s", errorMessages[TI_Not_on_simulator]);
+        sprintf(prefix, "%s", errorMessageOf(TI_Not_on_simulator));
         displayTemporaryInformationOnX(prefix);
       }
       #elif defined(DMCP_BUILD)
       else if(temporaryInformation == TI_NOT_AVAILABLE && regist == REGISTER_X) {
-        sprintf(prefix, "%s", errorMessages[TI_Only_on_simulator]);
+        sprintf(prefix, "%s", errorMessageOf(TI_Only_on_simulator));
         displayTemporaryInformationOnX(prefix);
       }
       #endif // PC_BUILD/DMCP_BUILD
@@ -3423,67 +3423,67 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
         clearRegisterLine(REGISTER_Y, true, true);
         clearRegisterLine(REGISTER_Z, true, true);
         clearRegisterLine(REGISTER_T, true, true);
-        showString(errorMessages[TI_Backup_restored], &standardFont, 1, Y_POSITION_OF_REGISTER_Z_LINE + 6, vmNormal, true, true);
+        showString(errorMessageOf(TI_Backup_restored), &standardFont, 1, Y_POSITION_OF_REGISTER_Z_LINE + 6, vmNormal, true, true);
         showStringEnhanced(versionStr,  &standardFont, 1, Y_POSITION_OF_REGISTER_X_LINE + 6, vmNormal, true, true, NO_compress, NO_raise, DO_Show, NO_Bold, DO_LF);
         sprintf(prefix, "%s%s", versionStr2, versionDateStr);
         showStringEnhanced(prefix,      &standardFont, 1, Y_POSITION_OF_REGISTER_Y_LINE + 6, vmNormal, true, true, NO_compress, NO_raise, DO_Show, NO_Bold, DO_LF);
       }
 
       else if(temporaryInformation == TI_STATEFILE_RESTORED && regist == REGISTER_X) {
-        sprintf(prefix, "%s", errorMessages[TI_State_file_restored]);
+        sprintf(prefix, "%s", errorMessageOf(TI_State_file_restored));
         displayTemporaryInformationOnX(prefix);
       }
 
       else if(temporaryInformation == TI_PROGRAMS_RESTORED && regist == REGISTER_X) {
         sprintf(prefix, "                                ");
         displayTemporaryInformationOnX(prefix);
-        sprintf(prefix, "%s", errorMessages[TI_Saved_programs_and_equations]);
+        sprintf(prefix, "%s", errorMessageOf(TI_Saved_programs_and_equations));
         showString(prefix, &standardFont, 1, Y_POSITION_OF_REGISTER_X_LINE - 3, vmNormal, true, true);
-        sprintf(prefix, "%s", errorMessages[TI_appended]);
+        sprintf(prefix, "%s", errorMessageOf(TI_appended));
         showString(prefix, &standardFont, 1, Y_POSITION_OF_REGISTER_X_LINE + 17, vmNormal, true, true);
      }
 
       else if(temporaryInformation == TI_REGISTERS_RESTORED && regist == REGISTER_X) {
         sprintf(prefix, "                                  ");
         displayTemporaryInformationOnX(prefix);
-        sprintf(prefix, "%s", errorMessages[TI_Saved_global_and_local_registers]);
+        sprintf(prefix, "%s", errorMessageOf(TI_Saved_global_and_local_registers));
         showString(prefix, &standardFont, 1, Y_POSITION_OF_REGISTER_X_LINE - 3, vmNormal, true, true);
-        sprintf(prefix, "%s", errorMessages[TI_w_local_flags_restored]);
+        sprintf(prefix, "%s", errorMessageOf(TI_w_local_flags_restored));
         showString(prefix, &standardFont, 1, Y_POSITION_OF_REGISTER_X_LINE + 17, vmNormal, true, true);
       }
 
       else if(temporaryInformation == TI_SETTINGS_RESTORED && regist == REGISTER_X) {
-        sprintf(prefix, "%s", errorMessages[TI_Saved_system_settings_restored]);
+        sprintf(prefix, "%s", errorMessageOf(TI_Saved_system_settings_restored));
         displayTemporaryInformationOnX(prefix);
       }
 
       else if(temporaryInformation == TI_SUMS_RESTORED && regist == REGISTER_X) {
-        sprintf(prefix, "%s", errorMessages[TI_Saved_statistic_data_restored]);
+        sprintf(prefix, "%s", errorMessageOf(TI_Saved_statistic_data_restored));
         displayTemporaryInformationOnX(prefix);
       }
 
       else if(temporaryInformation == TI_VARIABLES_RESTORED && regist == REGISTER_X) {
-        sprintf(prefix, "%s", errorMessages[TI_Saved_user_variables_restored]);
+        sprintf(prefix, "%s", errorMessageOf(TI_Saved_user_variables_restored));
         displayTemporaryInformationOnX(prefix);
       }
 
       else if(temporaryInformation == TI_PROGRAM_LOADED && regist == REGISTER_X) {
-        sprintf(prefix, "%s", errorMessages[TI_Program_file_loaded]);
+        sprintf(prefix, "%s", errorMessageOf(TI_Program_file_loaded));
         displayTemporaryInformationOnX(prefix);
       }
 
       else if(temporaryInformation == TI_DATA_SAVED && regist == REGISTER_X) {
-        sprintf(prefix, "%s", errorMessages[TI_Data_file_saved]);
+        sprintf(prefix, "%s", errorMessageOf(TI_Data_file_saved));
         displayTemporaryInformationOnX(prefix);
       }
 
       else if(temporaryInformation == TI_DATA_LOADED && regist == REGISTER_X) {
-        sprintf(prefix, "%s", errorMessages[TI_Data_file_loaded]);
+        sprintf(prefix, "%s", errorMessageOf(TI_Data_file_loaded));
         displayTemporaryInformationOnX(prefix);
       }
 
       else if(temporaryInformation == TI_UNDO_DISABLED && regist == REGISTER_X) {
-        showString(errorMessages[ERROR_TI_UNDO_FAILED], &standardFont, 1, Y_POSITION_OF_REGISTER_X_LINE + 6, vmNormal, true, true);
+        showString(errorMessageOf(ERROR_TI_UNDO_FAILED), &standardFont, 1, Y_POSITION_OF_REGISTER_X_LINE + 6, vmNormal, true, true);
       }
 
 
@@ -3694,7 +3694,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
                 tmpString[0] = 0;
                 real34ToDisplayString(&tmp3, angle, tmpString, &standardFont, SCREEN_WIDTH - (isShiftOffset ? 20 : 0) - xx, 34, LIMITEXP, FRONTSPACE, NOIRFRAC);
               } else {
-                sprintf(tmpString, "%s ", errorMessages[ERROR_INVALID_TYPE_XFN]);
+                sprintf(tmpString, "%s ", errorMessageOf(ERROR_INVALID_TYPE_XFN));
               }
               showString(tmpString, &standardFont, SCREEN_WIDTH - stringWidth(tmpString, &standardFont, false, true), tmpY + FMA_X, vmNormal, false, true);
           }
@@ -3705,7 +3705,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
                 tmpString[0] = 0;
                 real34ToDisplayString(&tmp3, angle, tmpString, &standardFont, SCREEN_WIDTH - (isShiftOffset ? 20 : 0) - xx, 34, LIMITEXP, FRONTSPACE, NOIRFRAC);
               } else {
-                sprintf(tmpString, "%s ", errorMessages[ERROR_INVALID_TYPE_XFN]);
+                sprintf(tmpString, "%s ", errorMessageOf(ERROR_INVALID_TYPE_XFN));
               }
               showString(tmpString, &standardFont, SCREEN_WIDTH - stringWidth(tmpString, &standardFont, false, true), tmpY + FMA_T , vmNormal, false, true);
           }
@@ -3725,20 +3725,20 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
 
 
         if(lastErrorCode != 0 && regist == errorMessageRegisterLine) {
-          if(stringWidth(errorMessages[lastErrorCode], &standardFont, true, true) <= SCREEN_WIDTH - 1) {
+          if(stringWidth(errorMessageOf(lastErrorCode), &standardFont, true, true) <= SCREEN_WIDTH - 1) {
             if(lastErrorCode == ERROR_RESERVED_VARIABLE_NAME) {
-              sprintf(tmpString, "%s: %s", errorMessages[lastErrorCode], errorMessage);
+              sprintf(tmpString, "%s: %s", errorMessageOf(lastErrorCode), errorMessage);
 
               showString(tmpString, &standardFont, 1, Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(regist - REGISTER_X) + 6, vmNormal, true, true);
             }
             else {
-              showString(errorMessages[lastErrorCode], &standardFont, 1, Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(regist - REGISTER_X) + 6, vmNormal, true, true);
+              showString(errorMessageOf(lastErrorCode), &standardFont, 1, Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(regist - REGISTER_X) + 6, vmNormal, true, true);
             }
           }
           else {
             #if (EXTRA_INFO_ON_CALC_ERROR == 1)
               sprintf(errorMessage, "Error message %" PRIu8 " is too wide!", lastErrorCode);
-              moreInfoOnError("In function _refreshRegisterLine:", errorMessage, errorMessages[lastErrorCode], NULL);
+              moreInfoOnError("In function _refreshRegisterLine:", errorMessage, errorMessageOf(lastErrorCode), NULL);
             #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
             sprintf(tmpString, "Error message %" PRIu8 " is too wide!", lastErrorCode);
             w = stringWidth(tmpString, &standardFont, true, true);

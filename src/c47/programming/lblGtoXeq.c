@@ -757,9 +757,9 @@ int16_t executeOneStep(uint8_t *step) {
     op |= *(step++);
   }
 
-  #if defined(IR_PRINTING)
+  #if defined(OPTION_IR_PRINTING)
     printTrace(op, NOPARAM);
-  #endif //IR_PRINTING
+  #endif //OPTION_IR_PRINTING
 
     #if defined(PC_BUILD) && defined(DEBUG_EXECUTE)
       printf("   >>>  executeOneStep: §%i§%s§%s§\n", op, indexOfItems[(op)].itemCatalogName, indexOfItems[(op)].itemSoftmenuName);
@@ -866,11 +866,11 @@ int16_t executeOneStep(uint8_t *step) {
           _executeOp(step, op, (indexOfItems[op].status & PTP_STATUS) >> 9);
         }
       }
-      #if defined(IR_PRINTING)
+      #if defined(OPTION_IR_PRINTING)
       //  if(getSystemFlag(FLAG_TRACE) && (indexOfItems[op].status & RESULT_IN_X)) {  // Trace X if function returns result in X
       //    printTraceX(LINE_FULL);
       //  }
-      #endif //IR_PRINTING
+      #endif //OPTION_IR_PRINTING
       return temporaryInformation == TI_FALSE ? 2 : 1;
     }
   }

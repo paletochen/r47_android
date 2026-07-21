@@ -9,7 +9,6 @@ dmcp_cargs = [
   '-fno-asynchronous-unwind-tables', # Added this line
   '-ffunction-sections',             # needed so prog_info lands in .rodata.prog_info (KEEP'd at offset 0); LTO otherwise merges .rodata and breaks the loader magic
   '-fdata-sections',                 # ditto - matches the DMCP SDK reference build flags
-  '-flto',
 ]
 
 dmcp_linkargs = [
@@ -29,8 +28,14 @@ dmcp_linkargs = [
   '-Wl,-u,prog_info',
   '-ffunction-sections',             # passed at link too so the LTO code-gen (LTRANS) pass emits per-symbol sections
   '-fdata-sections',
-  '-flto',
 ]
+
+# -flto = link-time optimisation (smaller shipped binary). Normal builds keep it on.
+# Mem=1 (meson -Dmem=true) disables it so per-feature FLASH/QSPI sizes read true: LTO otherwise re-optimises the whole program and masks the saving of removing one option.
+if not get_option('mem')
+  dmcp_cargs    += '-flto'
+  dmcp_linkargs += '-flto'
+endif
 
 gmp_build_dir = meson.project_build_root() / 'subprojects' / 'gmp-6.2.1' / 'build'
 gmp_lib_dir = meson.project_build_root() / 'subprojects' / 'gmp-6.2.1' / 'build' / '.libs'

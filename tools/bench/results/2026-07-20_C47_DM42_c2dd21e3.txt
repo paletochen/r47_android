@@ -1,0 +1,64 @@
+C47 benchmark suite results
+===========================
+
+date      : 2026-07-20
+device    : DM42 (STM32L476, 80 MHz on USB, 24 MHz on battery)
+firmware  : C47 00.109.03.03b0 (c2dd21e3)
+host      : macOS arm64, build.sim.t47.bench (-Os, LTO)
+suite     : iteration counts as frozen in tools/bench/genbench.py
+
+Same firmware commit as the DM42n run of 2026-07-19, deliberately, so
+that device differences are not mixed with interpreter changes. Host
+values are carried over from that record; they are a property of the
+build, not of the calculator.
+
+Hardware results are the TICKS values read from R80..R87 after XEQ BENCH,
+converted to seconds (1 tick = 0.1 s).
+
+benchmark   iterations   USB s   battery s   host s
+BMGTO            20000    52.0       110.5   0.0630
+BMREG            10000    92.7       192.6   0.1039
+BMVAR             5000    81.1       343.2   0.1426
+BMRSV            10000   108.2       317.5   0.1411
+BMARITH           3000    46.4       100.7   0.0618
+BMTRIG             500    34.6       107.0   0.1793
+BMNQN                2    65.6       212.6   0.1294
+BMDISP            2000    27.4        57.5   0.0317
+
+Suite total: 508.0 s on USB, 1441.6 s on battery,
+plus 8 s of name banners.
+
+Observations from this run:
+- Against the DM42n at matched USB power the DM42 is a near uniform 2.5x
+  slower: every benchmark lands between 2.35x and 2.79x, a spread of only
+  1.19x. A single scalar therefore relates the two devices on USB, which
+  is what makes the host simulator usable as a stand-in for either.
+- That scalar does NOT survive the move to battery. On battery the same
+  device ratio spreads from 2.26x to 4.61x. Cross-device predictions
+  should be made at matched USB power only.
+- The DM42's own battery penalty is markedly non-uniform, 2.08x to 4.23x,
+  and wider than the DM42n's 1.86x to 3.22x. BMVAR is the outlier at
+  4.23x: the linear user-variable scan is the most memory-bound work in
+  the suite and it suffers most when the clock drops.
+- The inflation is not an artefact of the cell sagging over a 24 minute
+  run. Correlation between a benchmark's battery/USB ratio and its
+  position in the suite is +0.05, i.e. none; BMDISP runs last and has one
+  of the lowest ratios.
+- The lookup diagnostic (BMVAR - BMREG) / (BMRSV - BMREG), per iteration,
+  is 4.48x on USB and 3.95x on battery here, against 4.71x and 4.19x on
+  the DM42n and 4.87x on the host. The linear scan costs about five times
+  the hashed path in every environment measured so far (upstream #555).
+- The battery clock is 24 MHz against 80 MHz on USB, a ratio of 3.33x, but
+  the suite only slows by about 2.1x on most benchmarks. Per clock the CPU
+  does roughly 1.55x more work at 24 MHz (median over the suite). The DM42n
+  shows no such effect going 160 MHz to 80 MHz, where the median is 1.02,
+  i.e. it scales almost exactly with the clock. Consistent with flash wait
+  states: the L476 needs 4 of them at 80 MHz and 1 at 24 MHz, and the ART
+  accelerator only partly hides that at full speed. Stated as inference
+  about the mechanism; the effect itself is measured.
+- BMVAR is the exception on both devices, slowing 4.23x on the DM42 and
+  2.56x on the DM42n against clock ratios of 3.33x and 2.00x. It is the one
+  benchmark bound by RAM data access rather than instruction fetch, so it
+  gets no wait-state benefit and simply pays the clock drop.
+- Practical consequence: a DM42 on battery is a good deal less bad than the
+  3.33x clock drop suggests, unless the work is a variable scan.
