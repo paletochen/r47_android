@@ -2535,7 +2535,7 @@ void insRowRealMatrix(real34Matrix_t *matrix, uint16_t beforeRowNo, bool_t add) 
       real34Copy(matrix->matrixElements + i, newMat.matrixElements + i);
     }
     for(i = 0; i < cols; ++i) {
-      real34Copy(const34_0, newMat.matrixElements + (beforeRowNo * cols + i));
+      real34SetZero(newMat.matrixElements + (beforeRowNo * cols + i));
     }
     for(i = beforeRowNo * cols; i < cols * rows; ++i) {
       real34Copy(matrix->matrixElements + i, newMat.matrixElements + (i + cols));
@@ -2572,7 +2572,7 @@ void insColRealMatrix(real34Matrix_t *matrix, uint16_t beforeColNo, bool_t add) 
       }
     }
     for(i = 0; i < rows; ++i) {
-      real34Copy(const34_0, newMat.matrixElements + (beforeColNo + i*(cols+1)));
+      real34SetZero(newMat.matrixElements + (beforeColNo + i*(cols+1)));
     }
     for(j = beforeColNo; j < cols; ++j) {
       for( i = 0; i < rows; i++) {
@@ -2609,8 +2609,8 @@ void insRowComplexMatrix(complex34Matrix_t *matrix, uint16_t beforeRowNo, bool_t
       complex34Copy(matrix->matrixElements + i, newMat.matrixElements + i);
     }
     for(i = 0; i < cols; ++i) {
-      real34Copy(const34_0, VARIABLE_REAL34_DATA(newMat.matrixElements + (beforeRowNo * cols + i)));
-      real34Copy(const34_0, VARIABLE_IMAG34_DATA(newMat.matrixElements + (beforeRowNo * cols + i)));
+      real34SetZero(VARIABLE_REAL34_DATA(newMat.matrixElements + (beforeRowNo * cols + i)));
+      real34SetZero(VARIABLE_IMAG34_DATA(newMat.matrixElements + (beforeRowNo * cols + i)));
     }
     for(i = beforeRowNo * cols; i < cols * rows; ++i) {
       complex34Copy(matrix->matrixElements + i, newMat.matrixElements + (i + cols));
@@ -2647,8 +2647,8 @@ void insColComplexMatrix(complex34Matrix_t *matrix, uint16_t beforeColNo, bool_t
       }
     }
     for(i = 0; i < rows; ++i) {
-      real34Copy(const34_0, VARIABLE_REAL34_DATA(newMat.matrixElements + (beforeColNo + i*(cols+1))));
-      real34Copy(const34_0, VARIABLE_IMAG34_DATA(newMat.matrixElements + (beforeColNo + i*(cols+1))));
+      real34SetZero(VARIABLE_REAL34_DATA(newMat.matrixElements + (beforeColNo + i*(cols+1))));
+      real34SetZero(VARIABLE_IMAG34_DATA(newMat.matrixElements + (beforeColNo + i*(cols+1))));
     }
     for(j = beforeColNo; j < cols; ++j) {
       for( i = 0; i < rows; i++) {

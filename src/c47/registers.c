@@ -901,8 +901,14 @@ calcRegister_t findNamedVariable(const char *variableName) {
     printStatus(0, "findNamedVariable", force);
   #endif //VERBOSE_REGISTERS
   //printf("|%20s|%20s|\n",(char *)(allNamedVariables[0].variableName + 1), variableName);
+  // Exact-bytes fast path first; the second compare treats sub- and superscript glyphs as their plain form.
+  const size_t nameByteLength = stringByteLength(variableName);
+  uint16_t foldedName[7];
+  const int32_t foldedLength = foldNameToCharCodes(variableName, foldedName, 7); // 1..7 glyphs checked at entry; on overflow (-1) no candidate compares equal
   for(int i = 0; i < numberOfNamedVariables; i++) {
-    if(compareString((char *)(allNamedVariables[i].variableName + 1), variableName, CMP_NAME) == 0) {
+    const uint8_t *storedName = allNamedVariables[i].variableName;
+    if((storedName[0] == nameByteLength && memcmp(storedName + 1, variableName, nameByteLength) == 0)
+        || nameEqualsPrefolded((const char *)(storedName + 1), foldedName, foldedLength)) {
       regist = i + FIRST_NAMED_VARIABLE;
       break;
     }
@@ -915,14 +921,28 @@ calcRegister_t findNamedVariable(const char *variableName) {
 
 
 
-calcRegister_t findOrAllocateNamedVariable(const char *variableName) {
+// Whether regist is the named variable STATS, the register findNamedVariable("STATS") returns, decided from regist alone without a list scan.
+bool_t namedVariableIsStats(calcRegister_t regist) {
+  if(regist < FIRST_NAMED_VARIABLE || regist >= (FIRST_NAMED_VARIABLE + numberOfNamedVariables)) {
+    return false;
+  }
+  const uint8_t *storedName = allNamedVariables[regist - FIRST_NAMED_VARIABLE].variableName;
+  uint16_t foldedName[5];
+  const int32_t foldedLength = foldNameToCharCodes("STATS", foldedName, 5);
+  return (storedName[0] == 5 && memcmp(storedName + 1, "STATS", 5) == 0)
+      || nameEqualsPrefolded((const char *)(storedName + 1), foldedName, foldedLength);
+}
+
+
+
+// Allocate half of findOrAllocateNamedVariable(); call only after findNamedVariable() returned INVALID_VARIABLE.
+calcRegister_t allocateNamedVariableOnMiss(const char *variableName) {
   calcRegister_t regist = INVALID_VARIABLE;
   uint8_t len = stringGlyphLength(variableName);
   if(len < 1 || len > 7) {
     return regist;
   }
-  regist = findNamedVariable(variableName);
-  if(regist == INVALID_VARIABLE && numberOfNamedVariables <= (LAST_NAMED_VARIABLE - FIRST_NAMED_VARIABLE)) {
+  if(numberOfNamedVariables <= (LAST_NAMED_VARIABLE - FIRST_NAMED_VARIABLE)) {
     allocateNamedVariable(variableName, dtReal34, REAL34_SIZE_IN_BLOCKS);
     if(lastErrorCode == ERROR_NONE) {
       // New variables are zero by default - although this might be immediately overridden, it might require an
@@ -935,6 +955,16 @@ calcRegister_t findOrAllocateNamedVariable(const char *variableName) {
       // It is impossible to reach the limitation of number of named variables.
       return INVALID_VARIABLE;
     }
+  }
+  return regist;
+}
+
+
+
+calcRegister_t findOrAllocateNamedVariable(const char *variableName) {
+  calcRegister_t regist = findNamedVariable(variableName);
+  if(regist == INVALID_VARIABLE) {
+    regist = allocateNamedVariableOnMiss(variableName);
   }
   return regist;
 }
@@ -956,6 +986,19 @@ void fnDeleteVariable(uint16_t regist) {
     allNamedVariables[numberOfNamedVariables - 1].variableName[1] = 0;
     reduceC47Blocks(allNamedVariables, TO_BLOCKS(sizeof(namedVariableHeader_t) * numberOfNamedVariables), TO_BLOCKS(sizeof(namedVariableHeader_t) * (numberOfNamedVariables - 1)));
     numberOfNamedVariables -= 1;
+    // The table compacted: re-anchor the cached solver/plot variable so it keeps tracking the same variable.
+    if(currentSolverVariable == regist) {
+      currentSolverVariable = INVALID_VARIABLE;
+    }
+    else if(currentSolverVariable > regist && currentSolverVariable <= LAST_NAMED_VARIABLE) {
+      currentSolverVariable -= 1;
+    }
+    if(graphVariabl1 == regist) {
+      graphVariabl1 = 0;
+    }
+    else if(graphVariabl1 > regist && graphVariabl1 <= LAST_NAMED_VARIABLE) {
+      graphVariabl1 -= 1;
+    }
   }
   else if(regist >= FIRST_NAMED_VARIABLE && regist < LAST_NAMED_VARIABLE) {
     displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
@@ -994,11 +1037,11 @@ void fnClearAllVariables(uint16_t confirmation) {
   }
   else {
     for(uint16_t i = numberOfNamedVariables; i > 0; i--) {  // Clear all user variables
-      if((compareString((char *)(allNamedVariables[i].variableName + 1), "STATS", CMP_NAME) != 0) &&
-         (compareString((char *)(allNamedVariables[i].variableName + 1), "HISTO", CMP_NAME) != 0) &&
-         (compareString((char *)(allNamedVariables[i].variableName + 1), "Mat_A", CMP_NAME) != 0) &&
-         (compareString((char *)(allNamedVariables[i].variableName + 1), "Mat_B", CMP_NAME) != 0) &&
-         (compareString((char *)(allNamedVariables[i].variableName + 1), "Mat_X", CMP_NAME) != 0))
+      if((compareString((char *)(allNamedVariables[i-1].variableName + 1), "STATS", CMP_NAME) != 0) &&
+         (compareString((char *)(allNamedVariables[i-1].variableName + 1), "HISTO", CMP_NAME) != 0) &&
+         (compareString((char *)(allNamedVariables[i-1].variableName + 1), "Mat_A", CMP_NAME) != 0) &&
+         (compareString((char *)(allNamedVariables[i-1].variableName + 1), "Mat_B", CMP_NAME) != 0) &&
+         (compareString((char *)(allNamedVariables[i-1].variableName + 1), "Mat_X", CMP_NAME) != 0))
       clearRegister(FIRST_NAMED_VARIABLE + i -1);
     }
     fnClSigma(CONFIRMED);                // Clear and release the memory of all statistical sums

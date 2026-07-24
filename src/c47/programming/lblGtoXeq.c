@@ -487,7 +487,11 @@ static void _executeOp(uint8_t *paramAddress, uint16_t op, uint16_t paramMode) {
         getStringLabelOrVariableName(paramAddress);
         calcRegister_t regist = findNamedVariable(tmpStringLabelOrVariableName);
         if(tryAllocate) {
-          reallyRunFunction(op, findOrAllocateNamedVariable(tmpStringLabelOrVariableName));
+          // Reuses the regist from findNamedVariable above; on a failed allocation regist stays INVALID_VARIABLE and is passed on.
+          if(regist == INVALID_VARIABLE) {
+            regist = allocateNamedVariableOnMiss(tmpStringLabelOrVariableName);
+          }
+          reallyRunFunction(op, regist);
         }
         else if(regist != INVALID_VARIABLE) {
           reallyRunFunction(op, regist);
@@ -757,6 +761,12 @@ int16_t executeOneStep(uint8_t *step) {
     op |= *(step++);
   }
 
+  // Stop before the trace below and the switch, both of which index indexOfItems[op].
+  if(op >= LAST_ITEM && op != 0x7fff) { // 0x7fff is .END., handled by its own case
+    displayCalcErrorMessage(ERROR_UNDEFINED_OPCODE, ERR_REGISTER_LINE, REGISTER_X);
+    return 0;
+  }
+
   #if defined(OPTION_IR_PRINTING)
     printTrace(op, NOPARAM);
   #endif //OPTION_IR_PRINTING
@@ -989,6 +999,12 @@ stopProgram:
   }
   if(programRunStop != PGM_RUNNING) {
     entryStatus &= 0xfe;
+  }
+  if(!nestedEngine) {
+    // Force a full statusbar repaint on every halt path and clear the one-time skip bit so the bar is current despite the cadence throttling in reallyRunFunction().
+    // A program-set manual statusbar mode is left as is.
+    forceSBupdate();
+    screenUpdatingMode &= ~SCRUPD_SKIP_STATUSBAR_ONE_TIME;
   }
   if(!getSystemFlag(FLAG_INTING) && !getSystemFlag(FLAG_SOLVING) && !graphAccActive) {
     showHideHourGlass();

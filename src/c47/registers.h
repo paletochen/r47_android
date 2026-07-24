@@ -149,6 +149,14 @@
   calcRegister_t findNamedVariable               (const char *variableName);
 
   /**
+   * Whether regist is the named variable STATS, matching findNamedVariable("STATS") on the single register without scanning the list.
+   *
+   * \param[in] regist Register number
+   * \return true when regist is the STATS matrix variable
+   */
+  bool_t         namedVariableIsStats            (calcRegister_t regist);
+
+  /**
    * Retrieves the register number for the named variable, allocating it if it doesn't exist.
    *
    * \param[in] variableName Register name
@@ -156,6 +164,14 @@
    *         if not possible to allocate (all named variables defined)
    */
   calcRegister_t findOrAllocateNamedVariable     (const char *variableName);
+
+  /********************************************//**
+   * \brief Allocates a new named variable; call only after findNamedVariable() returned INVALID_VARIABLE. The new variable is a real34 zero.
+   *
+   * \param[in] variableName const char* name of the variable
+   * \return calcRegister_t the new register, or INVALID_VARIABLE
+   ***********************************************/
+  calcRegister_t allocateNamedVariableOnMiss     (const char *variableName);
 
   /**
    * Returns the full data size of a register in blocks.

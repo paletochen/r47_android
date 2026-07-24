@@ -8,6 +8,13 @@ ifeq ($(OS),Windows_NT)
   EXE = .exe
 endif
 
+# Silence meson reconfigure output, except on Windows/MSYS2 where
+# redirecting to /dev/null deadlocks the gmp external subproject.
+DEVNULL = >/dev/null
+ifeq ($(OS),Windows_NT)
+  DEVNULL =
+endif
+
 BUILD_PC = build.sim
 DIST_DIR_PC = build.sim
 XVFB =
@@ -134,7 +141,7 @@ t47:
 endif
 
 dmcp: build.dmcp
-	meson setup --reconfigure build.dmcp.p$(DMCP_PACKAGE) -Dmem=$(if $(filter-out 0,$(Mem)),true,false) >/dev/null
+	meson setup --reconfigure build.dmcp.p$(DMCP_PACKAGE) -Dmem=$(if $(filter-out 0,$(Mem)),true,false) $(DEVNULL)
 	cd build.dmcp.p$(DMCP_PACKAGE) && ninja dmcp
 
 dmcpr47: build.dmcp
@@ -350,7 +357,7 @@ build.dmcp.p$(PKG):
 	  -Dmem=$(if $(filter-out 0,$(Mem)),true,false)
 
 dmcp_pkg$(PKG): build.dmcp.p$(PKG)
-	meson setup --reconfigure build.dmcp.p$(PKG) -Dmem=$(if $(filter-out 0,$(Mem)),true,false) >/dev/null
+	meson setup --reconfigure build.dmcp.p$(PKG) -Dmem=$(if $(filter-out 0,$(Mem)),true,false) $(DEVNULL)
 	cd build.dmcp.p$(PKG) && ninja dmcp
 
 dist_dmcp_pkg$(PKG): dmcp_pkg$(PKG)

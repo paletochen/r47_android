@@ -178,6 +178,9 @@ void fnPause(uint16_t dur) {
   }
 
     uint8_t previousProgramRunStop = programRunStop;
+    if(previousProgramRunStop == PGM_RUNNING) {
+      refreshStatusBar();               // the run-mode statusbar cadence can leave the bar stale; paint it once so the pause shows the current state
+    }
     programRunStop = PGM_PAUSED;
 
 
