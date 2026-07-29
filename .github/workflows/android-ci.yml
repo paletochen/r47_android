@@ -36,7 +36,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
+          git config --global http.version HTTP/1.1
           upstream_commit=$(git ls-remote --exit-code "$UPSTREAM_URL" refs/heads/master | awk 'NR == 1 { print $1 }')
           if [[ -z "$upstream_commit" ]]; then
             echo "Failed to resolve upstream master." >&2
@@ -116,6 +116,7 @@ jobs:
           set -euo pipefail
           git config --global init.defaultBranch main
           git config --global advice.defaultBranchName false
+          git config --global http.version HTTP/1.1
 
       - name: Check out repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -301,6 +302,7 @@ jobs:
           set -euo pipefail
           git config --global init.defaultBranch main
           git config --global advice.defaultBranchName false
+          git config --global http.version HTTP/1.1
 
       - name: Check out repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
