@@ -900,6 +900,13 @@ void runProgram(bool_t singleStep, uint16_t menuLabel) {
   lastErrorCode = ERROR_NONE;
   hourGlassIconEnabled = true;
   programRunStop = PGM_RUNNING;
+  #if defined(DMCP_BUILD)
+    // a top level run start is a fresh load step, so the first dispatches sample undelayed; solver and grapher evaluations re-enter per evaluation and keep the schedule
+    if(!nestedEngine && !singleStep && !getSystemFlag(FLAG_INTING) && !getSystemFlag(FLAG_SOLVING) && !graphAccActive) {
+      resetVbatSampleSchedule();
+    }
+  #endif // DMCP_BUILD
+
   if(!getSystemFlag(FLAG_INTING) && !getSystemFlag(FLAG_SOLVING) && !graphAccActive) {
     showHideHourGlass();
     screenUpdatingMode = SCRUPD_AUTO;
@@ -961,25 +968,33 @@ void runProgram(bool_t singleStep, uint16_t menuLabel) {
       break;
     }
     #if defined(DMCP_BUILD)
-      if(!nestedEngine) {
+      static uint32_t keyPollUptimeSlot = 0; // probe the key buffer when the ~128 ms uptime slot changes: the ~1500-cycle probe is skipped in fast loops for a
+      // ~94-cycle uptime read, heavy steps keep per-step R/S response, and long operations self-poll via exitKeyWaiting(); the full 32-bit slot compare costs the
+      // same as a one-bit flip test (the M4 barrel shifter folds the >>7 into the compare) and has no alias period: a one-bit test goes blind on any step near an
+      // even multiple of 256 ms (a 256/512/1024 ms step never flips bit 7) and then never probes at all
+      if(!nestedEngine) { // only the outermost engine polls the keyboard; nested engines skip the poll and the uptime read
+        const uint32_t uptimeSlot = getUptimeMs() >> 7;
+        if(uptimeSlot != keyPollUptimeSlot) {
+          keyPollUptimeSlot = uptimeSlot;
           int key = C47PopKeyNoBuffer(DISPLAY_WAIT_FOR_RELEASE) + 1;
 //        int key = key_pop();
 //        key = convertKeyCode(key);
-        if(key == 36 || key == 33 ) {  //JM R/S or EXIT
-          programRunStop = PGM_WAITING;
-          screenUpdatingMode = SCRUPD_AUTO;
-          if(getSystemFlag(FLAG_INTING) || getSystemFlag(FLAG_SOLVING)) {
-            displayCalcErrorMessage(ERROR_SOLVER_ABORT, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+          if(key == 36 || key == 33 ) {  //JM R/S or EXIT
+            programRunStop = PGM_WAITING;
+            screenUpdatingMode = SCRUPD_AUTO;
+            if(getSystemFlag(FLAG_INTING) || getSystemFlag(FLAG_SOLVING)) {
+              displayCalcErrorMessage(ERROR_SOLVER_ABORT, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+            }
+            refreshScreen(1);
+            lcd_refresh();
+            fnTimerStart(TO_KB_ACTV, TO_KB_ACTV, PROGRAM_KB_ACTV);
+            wait_for_key_release(0);
+            key_pop();
+            break;
           }
-          refreshScreen(1);
-          lcd_refresh();
-          fnTimerStart(TO_KB_ACTV, TO_KB_ACTV, PROGRAM_KB_ACTV);
-          wait_for_key_release(0);
-          key_pop();
-          break;
-        }
-        else if(key > 0) {
-          setLastKeyCode(key);
+          else if(key > 0) {
+            setLastKeyCode(key);
+          }
         }
       }
     #endif // DMCP_BUILD

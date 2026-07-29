@@ -1565,7 +1565,7 @@ void fnGetMenu(uint16_t funusedButMandatoryParameter) {
 static void _dynmenuConstructMVarsFromPgm(uint16_t label, uint16_t *numberOfBytes, uint16_t *numberOfVars) {
     uint8_t *step;
     step = labelList[label].instructionPointer;
-    while(*numberOfVars < 18) {
+    while(*numberOfVars < MAX_MVAR_DECLARATIONS) {
       // Skip any user REM to not stop the MVAR count. REM before an MVAR is transparent. Otherwise REM and all others still quite the MVAR count. Also before an .END.
       while(checkOpCodeOfStep(step, ITM_REM)) {
         step = findNextStep(step);
@@ -1608,8 +1608,9 @@ static void _dynmenuConstructMVarsFromPgm(uint16_t label, uint16_t *numberOfByte
       _dynmenuConstructMVarsFromPgm(currentSolverProgram, &numberOfBytes, &numberOfVars);
     }
 
-    dynamicSoftmenu[menu].menuContent = malloc(numberOfBytes);
+    dynamicSoftmenu[menu].menuContent = malloc(numberOfBytes + 1);          // +1 for the terminator showSoftmenu writes after the last name; avoids malloc(0)
     xcopy(dynamicSoftmenu[menu].menuContent, tmpString, numberOfBytes);
+    dynamicSoftmenu[menu].menuContent[numberOfBytes] = 0;
     dynamicSoftmenu[menu].numItems = numberOfVars;
   }
 
@@ -4003,7 +4004,9 @@ void showSoftmenuCurrentPart(void) {
           if(softmenu[m].menuItem == -MNU_MVAR) {
             initVariableSoftmenu(m);
             varList = dynamicSoftmenu[m].menuContent;
-            (getNthString(varList, dynamicSoftmenu[m].numItems))[0] = 0;
+            if(varList != NULL) {
+              (getNthString(varList, dynamicSoftmenu[m].numItems))[0] = 0;  // lands in the extra byte _dynmenuConstructMVars allocates
+            }
             break;
           }
         }

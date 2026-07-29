@@ -7,7 +7,7 @@ dmcp_cargs = [
   '-fno-exceptions',                 # Added this line
   '-fno-unwind-tables',              # Added this line
   '-fno-asynchronous-unwind-tables', # Added this line
-  '-ffunction-sections',             # needed so prog_info lands in .rodata.prog_info (KEEP'd at offset 0); LTO otherwise merges .rodata and breaks the loader magic
+  '-ffunction-sections',             # needed so prog_info lands in .rodata.prog_info (KEEP'd at offset 0)
   '-fdata-sections',                 # ditto - matches the DMCP SDK reference build flags
 ]
 
@@ -26,16 +26,12 @@ dmcp_linkargs = [
   '-T' + meson.current_source_dir() + '/stm32_program.ld',
 #  '-Wl,--strip-all',                 # Add this line, try to reduce target size, more options to try later
   '-Wl,-u,prog_info',
-  '-ffunction-sections',             # passed at link too so the LTO code-gen (LTRANS) pass emits per-symbol sections
+  '-ffunction-sections',             # passed at link too so the linker emits per-symbol sections
   '-fdata-sections',
 ]
 
-# -flto = link-time optimisation (smaller shipped binary). Normal builds keep it on.
-# Mem=1 (meson -Dmem=true) disables it so per-feature FLASH/QSPI sizes read true: LTO otherwise re-optimises the whole program and masks the saving of removing one option.
-if not get_option('mem')
-  dmcp_cargs    += '-flto'
-  dmcp_linkargs += '-flto'
-endif
+# -flto is not used. Link time optimisation re-optimises the whole program, which costs about 14 kB more FLASH to drop but makes per-feature sizes readable and keeps the
+# generated code close to the source. get_option('mem') is left in place and now changes nothing here.
 
 gmp_build_dir = meson.project_build_root() / 'subprojects' / 'gmp-6.2.1' / 'build'
 gmp_lib_dir = meson.project_build_root() / 'subprojects' / 'gmp-6.2.1' / 'build' / '.libs'

@@ -1,0 +1,237 @@
+diff --git a/src/c47/c47.c b/src/c47/c47.c
+index fc8c61e9c..80132b125 100644
+--- a/src/c47/c47.c
++++ b/src/c47/c47.c
+@@ -1233,6 +1233,9 @@ int convertKeyCode(int key) {
+                             powerMarkerMsF(5, 4000);
+                           #endif //DM42_POWERMARK_KEYPRESS
+       }
++      #if defined(MONITOR_VBAT_SCHEDULE)
++        monitorVbatDriverTick();                            // after the timer jobs so a driver wakeup it schedules survives the recompute
++      #endif // MONITOR_VBAT_SCHEDULE
+       now = sys_current_ms();
+       if(nextScreenRefresh <= now) {
+         nextScreenRefresh += SCREEN_REFRESH_PERIOD;
+diff --git a/src/c47/config.c b/src/c47/config.c
+index 98e179a1a..c9ca4d2d4 100644
+--- a/src/c47/config.c
++++ b/src/c47/config.c
+@@ -1982,6 +1982,139 @@ void doFnReset(uint16_t confirmation, bool_t autoSav) {
+     vbatScheduleIdx = 0;
+   }
+ 
++  #if defined(MONITOR_VBAT_SCHEDULE)
++    // Hardware proof harness for the vbatSampleDelay walk (MR !1611). Records every real ADC conversion (schedule index, ms since the previous conversion, vbat)
++    // and every schedule reset, self-drives MON_VBAT_CYCLES program run cycles by injecting R/S key presses through the DMCP key buffer (the full physical key path),
++    // and appends the buffered events to VBATWALK.CSV on the FAT root at every run stop, between cycles, so the file cost never sits inside a measured gate.
++    // Proof criterion: per cycle the delta column reproduces the vbatSampleDelay table entry by entry and the index saturates on the last entry.
++    // The buffer holds one cycle (~22 events) and the strings are named arrays so they stay in internal flash: the harness adds nothing to the QSPI image and
++    // only ~0.4 KB to SRAM2, keeping the memory layout at the clean build's proven footprint. Zero footprint when MONITOR_VBAT_SCHEDULE is undefined.
++    #define MON_VBAT_MAX_EVENTS 48                                                      // one cycle plus 2x headroom; flushed at every stop
++    #define MON_VBAT_CYCLES     20
++    typedef struct {
++      uint32_t t;                                                                       // sys_current_ms() at the event
++      uint16_t delta;                                                                   // ms since the previous conversion, clamped to 65535; 0 for resets and the first ever sample
++      uint8_t  kindIdx;                                                                 // kind << 5 | vbatScheduleIdx; kind: 0 = sample, 1 = run start reset, 2 = USB to battery reset, 3 = minute pulse sample (gate bypassed by design)
++      uint8_t  vbat8;                                                                   // (vbat - 1500) / 8, clamped; 8 mV resolution is ample for the surge shape
++    } monVbatEvent_t;
++    static monVbatEvent_t monVbatEvents[MON_VBAT_MAX_EVENTS];
++    static uint16_t monVbatCount       = 0;
++    static uint16_t monVbatTotal       = 0;                                             // events written across all flushes, for the trailer
++    static uint16_t monVbatDropped     = 0;
++    static uint16_t monVbatIoErrors    = 0;                                             // failed CSV opens; reported in the trailer, IOERR marker if the final open fails
++    static uint8_t  monVbatRuns        = 0;                                             // run start resets seen = cycle number; cycle 1 is the manual XEQ
++    static uint8_t  monVbatFlushedRuns = 0;                                             // last run number whose events were flushed; runs ahead of this while idle = that run has ended
++    static uint32_t monVbatStopAt      = 0;                                             // ms timestamp of the last flush after a run stop; 0 = injection already issued or no stop pending
++    static uint32_t monVbatInjectAt    = 0;                                             // ms timestamp of the last injected R/S, for the lost-key retry
++    static bool_t   monVbatFileStarted = false;
++    static bool_t   monVbatDumped      = false;
++
++    static const char monVbatCsvName[]  = "/VBATWALK.CSV";                              // rooted: file selection screens move the FatFS cwd, a bare name would land in the last browsed dir
++    static const char monVbatCsvHdr[]   = "t_ms,event,idx,delta_ms,vbat\n";             // named arrays land in .rodata.<name> sections, which the DM42 ld script routes to
++    static const char monVbatFmtRow[]   = "%lu,%s,%u,%u,%u\n";                          //   internal flash; bare literals would join .rodata.str1.1 in QSPI and shift its layout
++    static const char monVbatFmtTrail[] = "# events=%u dropped=%u runs=%u ioerrors=%u\n";
++    static const char monVbatEvSample[] = "sample";
++    static const char monVbatEvRun[]    = "reset_runstart";
++    static const char monVbatEvUsb[]    = "reset_usb";
++    static const char monVbatEvMin[]    = "sample_minute";
++    static const char * const monVbatKindName[4] = {monVbatEvSample, monVbatEvRun, monVbatEvUsb, monVbatEvMin};
++    static const char monVbatDoneStr[]  = "BWALK DONE";
++    static const char monVbatIoErrStr[] = "BWALK IOERR";
++
++    static void monVbatLog(uint8_t kind, uint8_t idx, uint32_t t, uint32_t delta, int vbat) {
++      if(monVbatCount >= MON_VBAT_MAX_EVENTS) {
++        monVbatDropped++;
++        return;
++      }
++      monVbatEvent_t *e = &monVbatEvents[monVbatCount++];
++      int v = vbat - 1500;
++      e->t       = t;
++      e->delta   = delta > 0xffff ? 0xffff : (uint16_t)delta;
++      e->kindIdx = (uint8_t)((kind << 5) | (idx & 0x1f));
++      e->vbat8   = (uint8_t)(v < 0 ? 0 : (v > 2040 ? 255 : v / 8));
++    }
++
++    void monitorVbatLogReset(uint8_t source) {                                          // 1 = run start (lblGtoXeq.c), 2 = USB to battery change over (checkBattery)
++      monVbatLog(source, 0, (uint32_t)sys_current_ms(), 0, 0);
++      if(source == 1 && monVbatRuns < 255) {
++        monVbatRuns++;
++      }
++    }
++
++    static void monVbatFlush(bool_t final) {
++      UINT bw;
++      char line[64];
++      bool_t opened;
++      sys_disk_write_enable(1);
++      opened = (f_open(ppgm_fp, monVbatCsvName, monVbatFileStarted ? (FA_WRITE | FA_OPEN_APPEND) : (FA_CREATE_ALWAYS | FA_WRITE)) == FR_OK);
++      if(opened) {
++        if(!monVbatFileStarted) {
++          monVbatFileStarted = true;
++          f_write(ppgm_fp, monVbatCsvHdr, strlen(monVbatCsvHdr), &bw);
++        }
++        for(uint16_t i = 0; i < monVbatCount; i++) {
++          const monVbatEvent_t *e = &monVbatEvents[i];
++          const uint8_t kind = e->kindIdx >> 5;
++          sprintf(line, monVbatFmtRow, (unsigned long)e->t,
++                  monVbatKindName[kind & 3], (unsigned)(e->kindIdx & 0x1f), (unsigned)e->delta,
++                  (kind == 0 || kind == 3) ? 1500 + (unsigned)e->vbat8 * 8 : 0);
++          f_write(ppgm_fp, line, strlen(line), &bw);
++        }
++        monVbatTotal += monVbatCount;
++        monVbatCount  = 0;                                                              // cleared only after a successful open, so a failed flush retries at the next stop
++        if(final) {
++          sprintf(line, monVbatFmtTrail, (unsigned)monVbatTotal, (unsigned)monVbatDropped, (unsigned)monVbatRuns, (unsigned)monVbatIoErrors);
++          f_write(ppgm_fp, line, strlen(line), &bw);
++        }
++        f_close(ppgm_fp);
++      }
++      else {
++        monVbatIoErrors++;
++      }
++      sys_disk_write_enable(0);
++      if(final) {
++        liftStack();                                                                    // bench convention: end marker in X, survives the periodic screen refresh
++        const char *marker = opened ? monVbatDoneStr : monVbatIoErrStr;
++        reallocateRegister(REGISTER_X, dtString, TO_BLOCKS(12), amNone);
++        xcopy(REGISTER_STRING_DATA(REGISTER_X), marker, strlen(marker) + 1);
++      }
++    }
++
++    void monitorVbatDriverTick(void) {
++      // Called once per main loop pass (c47.c). A program run executes entirely inside the key handler, so the main loop never iterates while PGM_RUNNING
++      // and a running->stopped transition can never be observed here (the same starvation that keeps checkBattery() out of a run). Instead the run counter,
++      // incremented by the run start reset hook on the real runProgram() path, is compared against the flushed counter: idle with runs ahead means the run
++      // that started since the last flush has ended.
++      if(programRunStop == PGM_RUNNING || monVbatRuns == 0 || monVbatDumped) {
++        return;
++      }
++      if(monVbatRuns > monVbatFlushedRuns) {
++        monVbatFlush(monVbatRuns >= MON_VBAT_CYCLES);                                   // flush between cycles; the delta of the first sample after resume spans this and carries no gate
++        monVbatFlushedRuns = monVbatRuns;
++        if(monVbatRuns >= MON_VBAT_CYCLES) {
++          monVbatDumped = true;
++          return;
++        }
++        monVbatStopAt    = (uint32_t)sys_current_ms();                                  // idle gap starts after the flush
++        monVbatInjectAt  = 0;
++      }
++      const uint32_t now = (uint32_t)sys_current_ms();
++      nextTimerRefresh = now + 100;                                                     // keep the main loop waking at the screen refresh cadence through the idle gap
++      static const uint16_t idleGap[3] = {500, 2000, 5000};                             // varied gaps also sample the idle cadence between cycles
++      if(monVbatStopAt != 0 && now - monVbatStopAt >= idleGap[monVbatRuns % 3]) {
++        monVbatStopAt   = 0;                                                            // one injection per stop
++        monVbatInjectAt = now;
++        key_push(KEY_RUN);                                                              // R/S press + release through the DMCP key buffer, resumes at the step after STOP
++        key_push(0);
++      }
++      else if(monVbatStopAt == 0 && monVbatInjectAt != 0 && now - monVbatInjectAt >= 10000) {
++        monVbatInjectAt = now;                                                          // still idle 10 s after injecting: the key was lost, push it again
++        key_push(KEY_RUN);
++        key_push(0);
++      }
++    }
++  #endif // MONITOR_VBAT_SCHEDULE
++
+   int updateVbatIntegrated(bool_t minutePulse) {
+     // The minute pulse always converts, keeping the integrator creep cadence; every other caller follows vbatSampleDelay. Vbat is measured on USB power too,
+     // so BATT? and the integrator stay live while plugged; checkBattery() and the items.c stop both skip USB power, so USB never trips LOWBAT.
+@@ -1989,12 +2122,18 @@ void doFnReset(uint16_t confirmation, bool_t autoSav) {
+     if(!minutePulse && vbatSampledAt != 0 && (now - vbatSampledAt) < vbatSampleDelay[vbatScheduleIdx]) {
+       return vbatSample;
+     }
++    #if defined(MONITOR_VBAT_SCHEDULE)
++      const uint32_t monPrevSampledAt = vbatSampledAt;
++    #endif // MONITOR_VBAT_SCHEDULE
+     if(vbatScheduleIdx < nbrOfElements(vbatSampleDelay) - 1) {
+       vbatScheduleIdx++;
+     }
+     vbatSampledAt = now;
+ 
+     int tmpVbat = get_vbat();
++    #if defined(MONITOR_VBAT_SCHEDULE)
++      monVbatLog(minutePulse ? 3 : 0, vbatScheduleIdx, now, monPrevSampledAt == 0 ? 0 : now - monPrevSampledAt, tmpVbat);  // kind 3: minute pulse conversions bypass the gate by design
++    #endif // MONITOR_VBAT_SCHEDULE
+     vbatSample = tmpVbat;
+     if(tmpVbat > 1500 && tmpVbat < 3100) {
+       if(tmpVbat < vbatVIntegrated) {
+@@ -2052,6 +2191,9 @@ void doFnReset(uint16_t confirmation, bool_t autoSav) {
+         clearSystemFlag(FLAG_USB);
+         showHideUsbLowBattery();
+         resetVbatSampleSchedule();                                                       // the change over to battery is a fresh load step; resample undelayed
++        #if defined(MONITOR_VBAT_SCHEDULE)
++          monitorVbatLogReset(2);
++        #endif // MONITOR_VBAT_SCHEDULE
+       }
+ 
+       int tmpVbat = updateVbatIntegrated(false);
+diff --git a/src/c47/config.h b/src/c47/config.h
+index f3d24f16c..59dc9262d 100644
+--- a/src/c47/config.h
++++ b/src/c47/config.h
+@@ -184,6 +184,10 @@ uint16_t getConfirmationTiId          (void);
+ void     dmcpResetAutoOff             (void);
+ int      updateVbatIntegrated         (bool_t minutePulse);
+ void     resetVbatSampleSchedule      (void);
++#if defined(MONITOR_VBAT_SCHEDULE)
++void     monitorVbatLogReset          (uint8_t source);
++void     monitorVbatDriverTick        (void);
++#endif // MONITOR_VBAT_SCHEDULE
+ void     checkBattery                 (void);
+ void     fnClAll                      (uint16_t confirmation);
+ void     backToSystem                 (uint16_t confirmation);
+diff --git a/src/c47/defines.h b/src/c47/defines.h
+index a96c9d0df..f9e9528da 100755
+--- a/src/c47/defines.h
++++ b/src/c47/defines.h
+@@ -330,6 +330,8 @@
+   #undef     BATTERYTEST
+   #define    MONITOR_VOLTAGE_INTEGRATOR
+   #undef     MONITOR_VOLTAGE_INTEGRATOR
++  #define    MONITOR_VBAT_SCHEDULE      //Hardware proof harness for the vbatSampleDelay walk: logs every ADC conversion and schedule reset, self-drives R/S run cycles, dumps VBATWALK.CSV. See tools/hwtest/vbat-walk.
++//#undef     MONITOR_VBAT_SCHEDULE      //uncomment to disable the harness while the patch stays applied
+ 
+ 
+ //Debug showFunctionName
+@@ -434,6 +436,7 @@
+   #undef  CLICK_REFRESHSCR
+   #undef  BATTERYTEST
+   #undef  MONITOR_VOLTAGE_INTEGRATOR
++  #undef  MONITOR_VBAT_SCHEDULE
+   #undef  DEBUG_SHOWNAME
+   #undef  DEBUGSFN
+   #define DEBUGSFN false
+diff --git a/src/c47/programming/lblGtoXeq.c b/src/c47/programming/lblGtoXeq.c
+index 9a4d3fec7..40d50545f 100755
+--- a/src/c47/programming/lblGtoXeq.c
++++ b/src/c47/programming/lblGtoXeq.c
+@@ -904,6 +904,9 @@ void runProgram(bool_t singleStep, uint16_t menuLabel) {
+     // a top level run start is a fresh load step, so the first dispatches sample undelayed; solver and grapher evaluations re-enter per evaluation and keep the schedule
+     if(!nestedEngine && !singleStep && !getSystemFlag(FLAG_INTING) && !getSystemFlag(FLAG_SOLVING) && !graphAccActive) {
+       resetVbatSampleSchedule();
++      #if defined(MONITOR_VBAT_SCHEDULE)
++        monitorVbatLogReset(1);
++      #endif // MONITOR_VBAT_SCHEDULE
+     }
+   #endif // DMCP_BUILD
+ 

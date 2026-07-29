@@ -1322,8 +1322,15 @@ static void longIntegerAngleReduction(calcRegister_t regist, angularMode_t angul
       }
       case amRadian: {
         //incoming longInteger, converted via tempString to real6147, modulus 2pi into real6147, convert to real75
-        REAL_T_PTR(reducedAngleTmp, 2139); // This cannot be increased to 6147 further. 6147 overruns the stack even if we just have the type in here also when using 2139 digits below.
-        REAL_T_PTR(reducedAngleTmp2, 2139);
+        // The two 2139 digit buffers are 1436 bytes each, 2872 of this function's 2936 byte frame. From the heap the frame falls to 64 bytes.
+        REAL_T_ALLOC(reducedAngleTmp,  2139); // This cannot be increased to 6147 further. 6147 overruns the stack even if we just have the type in here also when using 2139 digits below.
+        REAL_T_ALLOC(reducedAngleTmp2, 2139);
+        if(reducedAngleTmp == NULL || reducedAngleTmp2 == NULL) {
+          REAL_T_FREE(reducedAngleTmp,  2139);
+          REAL_T_FREE(reducedAngleTmp2, 2139);
+          displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, REGISTER_X);
+          return;
+        }
         realContext_t c = ctxtReal75;
         c.digits = 2139;                               // Cannot be increased further. It works well on 1071, worked for a few tests already on 2139 but crashes if this goes to 6147 (together with the real_xxx above)
                                                        // The minimum required for 1000 digits input reduction is slightly less than double, so 1071 is maybe ok for 99.99% cases, but 2139 is preferred as theoretically you will not have a case where 2139 will not work.
@@ -1335,6 +1342,8 @@ static void longIntegerAngleReduction(calcRegister_t regist, angularMode_t angul
             moreInfoOnError("In function longIntegerAngleReduction:", "Invalid integer size for angle reduction in radians: exponent too large.", NULL, NULL);
           #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
           longIntegerFree(angle);
+          REAL_T_FREE(reducedAngleTmp,  2139);
+          REAL_T_FREE(reducedAngleTmp2, 2139);
           return;
         }
 
@@ -1343,6 +1352,8 @@ static void longIntegerAngleReduction(calcRegister_t regist, angularMode_t angul
         WP34S_Mod(reducedAngleTmp, const6147_2pi, reducedAngleTmp2, &c);
         realPlus(reducedAngleTmp2, reducedAngle, &ctxtReal75);
         longIntegerFree(angle);
+        REAL_T_FREE(reducedAngleTmp,  2139);
+        REAL_T_FREE(reducedAngleTmp2, 2139);
         return;
       }
       default: { //amNone
@@ -1406,6 +1417,52 @@ bool_t getRegisterAsRealAngle(calcRegister_t reg, real_t *val, angularMode_t *xA
   return true;
 }
 
+void saveRegisterSnapshot(calcRegister_t reg, snap_t *s) {
+  switch(s->t = getRegisterDataType(reg)) {
+    case dtComplex34:
+      real34Copy(REGISTER_REAL34_DATA(reg), &s->r);
+      real34Copy(REGISTER_IMAG34_DATA(reg), &s->i);
+      break;
+    case dtReal34:
+    case dtTime:
+      real34Copy(REGISTER_REAL34_DATA(reg), &s->r);
+      real34SetZero(&s->i);
+      break;
+    case dtLongInteger:
+      getRegisterAsLongInt(reg, s->li, NULL);
+      break;
+    case dtShortInteger:
+      getRegisterAsRawShortInt(reg, &s->siVal, &s->siBase);
+      break;
+  }
+  s->tag = getRegisterTag(reg);
+}
+
+// reg may hold a different type (hence allocation size) than the snapshot, so reallocate to s->t before writing back
+void restoreRegisterSnapshot(calcRegister_t reg, snap_t *s) {
+  switch(s->t) {
+    case dtComplex34:
+      reallocateRegister(reg, dtComplex34, COMPLEX34_SIZE_IN_BLOCKS, s->tag);
+      real34Copy(&s->i, REGISTER_IMAG34_DATA(reg));
+      real34Copy(&s->r, REGISTER_REAL34_DATA(reg));
+      break;
+    case dtReal34:
+    case dtTime:
+      reallocateRegister(reg, s->t, REAL34_SIZE_IN_BLOCKS, s->tag);
+      real34Copy(&s->r, REGISTER_REAL34_DATA(reg));
+      break;
+    case dtLongInteger:
+      convertLongIntegerToLongIntegerRegister(s->li, reg);
+      longIntegerFree(s->li);
+      break;
+    case dtShortInteger:
+      reallocateRegister(reg, dtShortInteger, SHORT_INTEGER_SIZE_IN_BLOCKS, s->siBase);
+      *(REGISTER_SHORT_INTEGER_DATA(reg))=s->siVal;
+      setRegisterShortIntegerBase(reg, s->siBase);
+      break;
+  }
+  setRegisterDataType(reg, s->t, s->tag);
+}
 void processRealComplexMonadicFunction(void (*realf)(void), void (*complexf)(void)) {
   processIntRealComplexMonadicFunction(realf, complexf, NULL, NULL);
 }

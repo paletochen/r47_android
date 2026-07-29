@@ -177,7 +177,11 @@ TO_QSPI static const char *nameOfWday_pt[8] = {"dia inv" STD_a_ACUTE "lido da se
     longInteger_t lgInt;
     int16_t base, sign, n;
     uint64_t shortInt;
-    char string[CLIPSTR];
+    char *string = malloc(CLIPSTR);                           // off the stack: this runs under stackregister_csv_out, and the pair overran the DM42 stack grant
+    if(string == NULL) {
+      clipboardString[0] = 0;
+      return;
+    }
 
     switch(getRegisterDataType(regist)) {
       case dtLongInteger:
@@ -358,6 +362,7 @@ TO_QSPI static const char *nameOfWday_pt[8] = {"dia inv" STD_a_ACUTE "lido da se
     else {
       stringToUtf8(string, (uint8_t *)clipboardString);
     }
+    free(string);
   }
 #endif // PC_BUILD || DMCP_BUILD                              //JMCSV
 
@@ -1795,17 +1800,29 @@ return res;
 
 #define blockForcedRefreshes false
 
+  // 1.024 s slot anchors, owned by the three functions below; RESET zeroes them through resetHalfSecTicks()
+  static uint32_t secTick1 = 0;
+  static uint32_t halfSecTick2 = 0;
+  static uint32_t halfSecTick3 = 0;
+
+  void resetHalfSecTicks(void) {
+    secTick1 = 0;
+    halfSecTick2 = 0;
+    halfSecTick3 = 0;
+  }
   static bool_t _force_refresh(uint8_t mode) {
     #if defined(ANALYSE_REFRESH) && defined(PC_BUILD)
       printf("# force = %i", mode == force);
     #endif //ANALYSE_REFRESH
-    uint16_t now = 0;
+    uint32_t nowMs = 0;
     bool_t itIsTime = false;
     if(mode != force || blockForcedRefreshes) {
-      now = (uint16_t)(getUptimeMs() >> 4);           // ms/16
-      itIsTime = ((now >> 6) & 0x0001) == secTick1;     // ms/1024, that is every second, flips secTick1
+      nowMs = getUptimeMs();
+      // the 32-bit slot compare costs the same as the old one-bit flip test (the M4 barrel shifter folds the >>10 into the compare) and has no alias period:
+      // the bit test went blind on any loop body near an even multiple of 2048 ms and then never fired
+      itIsTime = (nowMs >> 10) != secTick1;             // ms/1024 slot number, any change is a crossing, so a slot skipped is still caught
       if(itIsTime) {
-        secTick1 = !secTick1;
+        secTick1 = nowMs >> 10;
       }
     }
 
@@ -1818,7 +1835,7 @@ return res;
 
     else {
       #if defined(ANALYSE_REFRESH) && defined(PC_BUILD)
-        printf("not updated =%i %i\n", now, itIsTime);
+        printf("not updated =%i %i\n", (uint16_t)(nowMs >> 4), itIsTime);
       #endif //ANALYSE_REFRESH
     }
     return false;
@@ -1872,8 +1889,10 @@ return res;
     char tmps[100];
     bool_t ret_value = false;
 
-    if((mode != timed && !blockForcedRefreshes) || ((((uint16_t)(getUptimeMs()) >> 10) & 0x0001)) == halfSecTick3) { //1.024 second refresh interval
-      halfSecTick3 = !halfSecTick3;
+    // the 32-bit slot compare costs the same as the old one-bit flip test (the M4 barrel shifter folds the >>10 into the compare) and has no alias period:
+    // the bit test went blind on any loop body near an even multiple of 2048 ms and then never fired
+    if((mode != timed && !blockForcedRefreshes) || (getUptimeMs() >> 10) != halfSecTick3) { //1.024 second refresh interval; slot compare catches skipped slots
+      halfSecTick3 = getUptimeMs() >> 10;
       ret_value = true;
       #if defined(DMCP_BUILD)
         dmcpResetAutoOff();
@@ -1923,8 +1942,11 @@ return res;
     if(!getSystemFlag(FLAG_MONIT)) {
       return false;
     }
-    if(((((uint16_t)(getUptimeMs()) >> 10) & 0x0001)) == halfSecTick2) { //1.024 second refresh interval
-      halfSecTick2 = !halfSecTick2;
+    // the 32-bit slot compare costs the same as the old one-bit flip test (the M4 barrel shifter folds the >>10 into the compare) and has no alias period:
+    // the bit test went blind on any loop body near an even multiple of 2048 ms and then never fired
+    const uint32_t halfSecSlot = getUptimeMs() >> 10;
+    if(halfSecSlot != halfSecTick2) { //1.024 second refresh interval; slot compare catches skipped slots
+      halfSecTick2 = halfSecSlot;
       #if defined(DMCP_BUILD)
         dmcpResetAutoOff();
       #endif //DMCP_BUILD
@@ -6376,6 +6398,7 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
     fwrite(&uint32, 1, 4, bmp);     // Offset 0x6e  ???
     fwrite(&uint32, 1, 4, bmp);     // Offset 0x72  ???
     fwrite(&uint32, 1, 4, bmp);     // Offset 0x76  ???
+
     uint32 = 0x00dff5cc; // light green
     fwrite(&uint32, 1, 4, bmp);     // Offset 0x7a  RGB color for 0
 

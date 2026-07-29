@@ -174,6 +174,13 @@
   calcRegister_t allocateNamedVariableOnMiss     (const char *variableName);
 
   /**
+   * Drops the scan hits findNamedVariable() remembers. Call it from anything that removes a named variable or rebuilds the
+   * whole table, so a remembered index cannot outlive the entry it named. Appending a variable, and changing a variable's
+   * value or type, leave every index describing the same variable and need no call.
+   */
+  void           invalidateNamedVariableCache    (void);
+
+  /**
    * Returns the full data size of a register in blocks.
    *
    * \param[in] regist Register number

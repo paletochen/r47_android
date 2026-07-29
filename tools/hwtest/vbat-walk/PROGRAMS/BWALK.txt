@@ -1,0 +1,9 @@
+LBL 'BWALK'
+  10000
+  STO R99
+  LBL 00
+    DSZ R99
+    GTO 00
+  STOP
+  GTO 'BWALK'
+  END
