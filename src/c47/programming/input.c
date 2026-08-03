@@ -7,6 +7,9 @@
  ***********************************************/
 
 #include "c47.h"
+#if defined(ANDROID_BUILD)
+#include "jni_bridge.h"
+#endif
 
 void fnInput(uint16_t regist) {
   if(programRunStop == PGM_RUNNING) {
@@ -189,18 +192,23 @@ void fnPause(uint16_t dur) {
     }
 
     #if defined(ANDROID_BUILD)
-      // Android: 100ms loop for progress display (10x per second refresh)
-      for(int32_t i = 0; i < duration && (programRunStop == PGM_PAUSED || programRunStop == PGM_KEY_PRESSED_WHILE_PAUSED); ++i) {
-        // Force refresh to show intermediate measurements (e.g. in VolTest)
+      LOGI("fnPause: dur=%d, duration=%d, programRunStop=%d, previousProgramRunStop=%d", dur, duration, programRunStop, previousProgramRunStop);
+      if (duration > 0 && !screenHoldsDrawnPixels && !graphToRemainOnScreen) {
+        // Force refresh once to show the current state (e.g. intermediate measurements)
         screenUpdatingMode &= ~SCRUPD_MANUAL_STATUSBAR;
         refreshScreen(12);
-        lcd_refresh();
-        
+      }
+      // Android: 100ms loop for progress display (10x per second refresh)
+      for(int32_t i = 0; i < duration && (programRunStop == PGM_PAUSED || programRunStop == PGM_KEY_PRESSED_WHILE_PAUSED); ++i) {
         // Fully unlock mutex for 100ms to allow UI thread to render the buffer
         yieldToAndroidWithMs(100);
         
+        if (i % 10 == 0) {
+          LOGI("fnPause loop: i=%d, programRunStop=%d", i, programRunStop);
+        }
         if (programRunStop != PGM_PAUSED && programRunStop != PGM_KEY_PRESSED_WHILE_PAUSED) break;
       }
+      LOGI("fnPause exit loop: programRunStop=%d", programRunStop);
     #elif defined(DMCP_BUILD)
       if(previousProgramRunStop != PGM_RUNNING && dur != 99) {
         screenUpdatingMode &= ~SCRUPD_MANUAL_STATUSBAR;

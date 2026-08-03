@@ -81,7 +81,7 @@ JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_sendKey(
   char charKey[4];
   onUIActivity();
   if (keyCode > 0) {
-    LOGD("sendKey: DOWN %d", keyCode);
+    LOGI("sendKey: DOWN %d", keyCode);
     currentPressedKeyCode = keyCode;
     pthread_mutex_lock(&screenMutex);
     if (keyCode >= 38 && keyCode <= 43) {
@@ -97,7 +97,7 @@ JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_sendKey(
     return;
   }
 
-  LOGD("sendKey: UP (last=%d)", currentPressedKeyCode);
+  LOGI("sendKey: UP (last=%d)", currentPressedKeyCode);
   pthread_mutex_lock(&screenMutex);
   if (currentPressedKeyCode >= 38 && currentPressedKeyCode <= 43) {
     btnFnReleased(NULL, &releaseEvent, currentPressedKeyStr);
