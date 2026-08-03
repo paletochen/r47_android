@@ -1,0 +1,1573 @@
+NOP ; Operating time and stack high-water of one case per kind of function, one or two functions each.
+NOP ; No nesting: every case runs a single engine at most. Cheapest and safest case first, so where the
+NOP ; output stops is itself a result. Needs a build with STACK_WATERMARK set in defines.h; on a build
+NOP ; without it the run still completes and STCKST reads the 9 KSET stores, saying so, and only the times are real.
+NOP ; The system flag PrintACT is clear unless set, so the print steps write to a dated DATA\*.REGS.TSV.
+NOP ; The program never stores STCKSPN. Each machine's own default stands: 8088 on a DM42, 16384 on a DM42n.
+NOP ; A case that kills the calculator does not end the test: store the next case number in R94 and XEQ FNKFROM,
+NOP ; which runs that case and every one after it. One case alone is XEQ M nn, the wrappers being M01 upward.
+NOP ; Raising it is yours to do, before the run, and only on a machine where you know the depth is safe.
+NOP ; Five lines per case: the stack figure, its STCKST, STCKSPU, how many calls fitted in the time
+NOP ; window, and the tenths of a second that took. STCKST: 0 the figure is a depth reached, 1 the marker
+NOP ; ran out so it is a floor, 2 nothing was disturbed, 3 no marker was laid. Only 0 is a measurement.
+NOP ; The window is one second a case unless the table says otherwise, so nothing is sized in advance and
+NOP ; the same program works on a machine eighty times slower than another. Time per call is the tenths
+NOP ; divided by the count. Case 01 is empty, so its figures are the loop and call overhead every other
+NOP ; case also pays: subtract it. Integration runs at ACC 1E-3 and the plot, matrix and solve cases at
+NOP ; SDIGS 6, since the cost and the depth are under test and not the answer.
+NOP ; Uses R95 to R98, R20 to R23, the named variable kvv, the STCK set, the TVM variables and the stat
+NOP ; registers. Run it on a state you do not mind touching. Notes in README.txt.
+# Jaco Mostert  Function kinds 2026-07-29
+
+LBL 'FNKIND'
+  # Entry point, runs every case
+  XEQ 'KSET'
+  XEQ 'M01'
+  XEQ 'M02'
+  XEQ 'M03'
+  XEQ 'M04'
+  XEQ 'M05'
+  XEQ 'M06'
+  XEQ 'M07'
+  XEQ 'M08'
+  XEQ 'M09'
+  XEQ 'M10'
+  XEQ 'M11'
+  XEQ 'M12'
+  XEQ 'M13'
+  XEQ 'M14'
+  XEQ 'M15'
+  XEQ 'M16'
+  XEQ 'M17'
+  XEQ 'M18'
+  XEQ 'M19'
+  XEQ 'M20'
+  XEQ 'M21'
+  XEQ 'M22'
+  XEQ 'M23'
+  XEQ 'M24'
+  XEQ 'M25'
+  XEQ 'M26'
+  XEQ 'M27'
+  XEQ 'M28'
+  XEQ 'M29'
+  XEQ 'M30'
+  XEQ 'M31'
+  XEQ 'M32'
+  XEQ 'M33'
+  XEQ 'M34'
+  XEQ 'M35'
+  XEQ 'M36'
+  XEQ 'M37'
+  XEQ 'M38'
+  XEQ 'M39'
+  XEQ 'M40'
+  SNAP
+RTN
+
+NOP ; Restart after a case that killed the calculator: put the next case number in R94 and
+NOP ; run FNKFROM instead. It runs that case and every one after it. A single case on its own
+NOP ; is XEQ M nn, the wrapper labels being M01 to M40.
+
+LBL 'FNKFROM'
+  # Runs from the case in R94
+  XEQ 'KSET'
+  RCL 94 1 𝑥≥? Y
+  XEQ 'M01'
+  DROP𝑥 DROP𝑥
+  RCL 94 2 𝑥≥? Y
+  XEQ 'M02'
+  DROP𝑥 DROP𝑥
+  RCL 94 3 𝑥≥? Y
+  XEQ 'M03'
+  DROP𝑥 DROP𝑥
+  RCL 94 4 𝑥≥? Y
+  XEQ 'M04'
+  DROP𝑥 DROP𝑥
+  RCL 94 5 𝑥≥? Y
+  XEQ 'M05'
+  DROP𝑥 DROP𝑥
+  RCL 94 6 𝑥≥? Y
+  XEQ 'M06'
+  DROP𝑥 DROP𝑥
+  RCL 94 7 𝑥≥? Y
+  XEQ 'M07'
+  DROP𝑥 DROP𝑥
+  RCL 94 8 𝑥≥? Y
+  XEQ 'M08'
+  DROP𝑥 DROP𝑥
+  RCL 94 9 𝑥≥? Y
+  XEQ 'M09'
+  DROP𝑥 DROP𝑥
+  RCL 94 10 𝑥≥? Y
+  XEQ 'M10'
+  DROP𝑥 DROP𝑥
+  RCL 94 11 𝑥≥? Y
+  XEQ 'M11'
+  DROP𝑥 DROP𝑥
+  RCL 94 12 𝑥≥? Y
+  XEQ 'M12'
+  DROP𝑥 DROP𝑥
+  RCL 94 13 𝑥≥? Y
+  XEQ 'M13'
+  DROP𝑥 DROP𝑥
+  RCL 94 14 𝑥≥? Y
+  XEQ 'M14'
+  DROP𝑥 DROP𝑥
+  RCL 94 15 𝑥≥? Y
+  XEQ 'M15'
+  DROP𝑥 DROP𝑥
+  RCL 94 16 𝑥≥? Y
+  XEQ 'M16'
+  DROP𝑥 DROP𝑥
+  RCL 94 17 𝑥≥? Y
+  XEQ 'M17'
+  DROP𝑥 DROP𝑥
+  RCL 94 18 𝑥≥? Y
+  XEQ 'M18'
+  DROP𝑥 DROP𝑥
+  RCL 94 19 𝑥≥? Y
+  XEQ 'M19'
+  DROP𝑥 DROP𝑥
+  RCL 94 20 𝑥≥? Y
+  XEQ 'M20'
+  DROP𝑥 DROP𝑥
+  RCL 94 21 𝑥≥? Y
+  XEQ 'M21'
+  DROP𝑥 DROP𝑥
+  RCL 94 22 𝑥≥? Y
+  XEQ 'M22'
+  DROP𝑥 DROP𝑥
+  RCL 94 23 𝑥≥? Y
+  XEQ 'M23'
+  DROP𝑥 DROP𝑥
+  RCL 94 24 𝑥≥? Y
+  XEQ 'M24'
+  DROP𝑥 DROP𝑥
+  RCL 94 25 𝑥≥? Y
+  XEQ 'M25'
+  DROP𝑥 DROP𝑥
+  RCL 94 26 𝑥≥? Y
+  XEQ 'M26'
+  DROP𝑥 DROP𝑥
+  RCL 94 27 𝑥≥? Y
+  XEQ 'M27'
+  DROP𝑥 DROP𝑥
+  RCL 94 28 𝑥≥? Y
+  XEQ 'M28'
+  DROP𝑥 DROP𝑥
+  RCL 94 29 𝑥≥? Y
+  XEQ 'M29'
+  DROP𝑥 DROP𝑥
+  RCL 94 30 𝑥≥? Y
+  XEQ 'M30'
+  DROP𝑥 DROP𝑥
+  RCL 94 31 𝑥≥? Y
+  XEQ 'M31'
+  DROP𝑥 DROP𝑥
+  RCL 94 32 𝑥≥? Y
+  XEQ 'M32'
+  DROP𝑥 DROP𝑥
+  RCL 94 33 𝑥≥? Y
+  XEQ 'M33'
+  DROP𝑥 DROP𝑥
+  RCL 94 34 𝑥≥? Y
+  XEQ 'M34'
+  DROP𝑥 DROP𝑥
+  RCL 94 35 𝑥≥? Y
+  XEQ 'M35'
+  DROP𝑥 DROP𝑥
+  RCL 94 36 𝑥≥? Y
+  XEQ 'M36'
+  DROP𝑥 DROP𝑥
+  RCL 94 37 𝑥≥? Y
+  XEQ 'M37'
+  DROP𝑥 DROP𝑥
+  RCL 94 38 𝑥≥? Y
+  XEQ 'M38'
+  DROP𝑥 DROP𝑥
+  RCL 94 39 𝑥≥? Y
+  XEQ 'M39'
+  DROP𝑥 DROP𝑥
+  RCL 94 40 𝑥≥? Y
+  XEQ 'M40'
+  DROP𝑥 DROP𝑥
+  SNAP
+RTN
+
+LBL 'KSET'
+  # Fixed state for every case
+  FIX 00
+  RAD
+  1E-3 STO 'ACC' DROP𝑥
+  0 STO 'STCKHI' DROP𝑥
+  9 STO 'STCKST' DROP𝑥
+  0 STO 'STCKSPU' DROP𝑥
+  0 STO 'STCKGO' DROP𝑥
+  20260729 10000 ÷ STO 22 DROP𝑥
+  123456 10000 ÷ STO 23 DROP𝑥
+  'ABCDEF' STO 21 DROP𝑥
+  3 3 M.DIM 20
+  XEQ 'KMAT'
+RTN
+
+NOP ; A well conditioned 3 by 3 in R20, so the matrix case inverts and never divides by zero.
+
+LBL 'KMAT'
+  # Fill R20
+  INDEX 20
+  1 1 STOIJ
+  4 STOEL DROP𝑥
+  1 2 STOIJ
+  2 STOEL DROP𝑥
+  1 3 STOIJ
+  1 STOEL DROP𝑥
+  2 1 STOIJ
+  2 STOEL DROP𝑥
+  2 2 STOIJ
+  5 STOEL DROP𝑥
+  2 3 STOIJ
+  3 STOEL DROP𝑥
+  3 1 STOIJ
+  1 STOEL DROP𝑥
+  3 2 STOIJ
+  3 STOEL DROP𝑥
+  3 3 STOIJ
+  6 STOEL DROP𝑥
+RTN
+
+NOP ; The measuring wrappers, one per case, in the order FNKIND runs them.
+
+LBL 'M01'
+  # 01 NULL
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K01'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '01 NULL' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's01' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u01' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 01
+    XEQ 'K01'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 01
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c01' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e01' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M02'
+  # 02 STK
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K02'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '02 STK' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's02' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u02' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 02
+    XEQ 'K02'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 02
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c02' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e02' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M03'
+  # 03 REG
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K03'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '03 REG' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's03' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u03' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 03
+    XEQ 'K03'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 03
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c03' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e03' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M04'
+  # 04 VAR
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K04'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '04 VAR' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's04' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u04' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 04
+    XEQ 'K04'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 04
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c04' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e04' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M05'
+  # 05 ARITH
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K05'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '05 ARITH' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's05' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u05' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 05
+    XEQ 'K05'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 05
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c05' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e05' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M06'
+  # 06 TRIG
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K06'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '06 TRIG' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's06' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u06' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 06
+    XEQ 'K06'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 06
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c06' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e06' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M07'
+  # 07 LOGEXP
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K07'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '07 LOGEXP' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's07' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u07' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 07
+    XEQ 'K07'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 07
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c07' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e07' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M08'
+  # 08 POWER
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K08'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '08 POWER' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's08' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u08' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 08
+    XEQ 'K08'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 08
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c08' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e08' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M09'
+  # 09 SPECIAL
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K09'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '09 SPECIAL' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's09' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u09' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 09
+    XEQ 'K09'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 09
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c09' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e09' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M10'
+  # 10 CONST
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K10'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '10 CONST' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's10' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u10' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 10
+    XEQ 'K10'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 10
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c10' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e10' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M11'
+  # 11 RANDOM
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K11'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '11 RANDOM' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's11' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u11' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 11
+    XEQ 'K11'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 11
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c11' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e11' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M12'
+  # 12 FLAGTEST
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K12'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '12 FLAGTEST' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's12' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u12' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 12
+    XEQ 'K12'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 12
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c12' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e12' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M13'
+  # 13 DISPMODE
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K13'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '13 DISPMODE' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's13' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u13' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 13
+    XEQ 'K13'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 13
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c13' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e13' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M14'
+  # 14 ANGLE
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K14'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '14 ANGLE' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's14' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u14' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 14
+    XEQ 'K14'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 14
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c14' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e14' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M15'
+  # 15 UNITCONV
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K15'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '15 UNITCONV' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's15' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u15' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 15
+    XEQ 'K15'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 15
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c15' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e15' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M16'
+  # 16 TIME
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K16'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '16 TIME' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's16' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u16' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 16
+    XEQ 'K16'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 16
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c16' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e16' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M17'
+  # 17 DATE
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K17'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '17 DATE' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's17' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u17' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 17
+    XEQ 'K17'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 17
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c17' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e17' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M18'
+  # 18 COMBIN
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K18'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '18 COMBIN' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's18' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u18' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 18
+    XEQ 'K18'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 18
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c18' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e18' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M19'
+  # 19 NUMTH
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K19'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '19 NUMTH' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's19' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u19' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 19
+    XEQ 'K19'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 19
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c19' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e19' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M20'
+  # 20 FRACT
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K20'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '20 FRACT' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's20' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u20' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 20
+    XEQ 'K20'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 20
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c20' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e20' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M21'
+  # 21 SHORTINT
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K21'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '21 SHORTINT' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's21' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u21' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 21
+    XEQ 'K21'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 21
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c21' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e21' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M22'
+  # 22 BITS
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K22'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '22 BITS' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's22' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u22' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 22
+    XEQ 'K22'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 22
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c22' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e22' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M23'
+  # 23 LONGINT
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K23'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '23 LONGINT' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's23' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u23' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 23
+    XEQ 'K23'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 23
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c23' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e23' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M24'
+  # 24 CPX
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K24'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '24 CPX' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's24' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u24' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 24
+    XEQ 'K24'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 24
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c24' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e24' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M25'
+  # 25 MATRIX
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K25'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '25 MATRIX' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's25' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u25' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 25
+    XEQ 'K25'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 25
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c25' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e25' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M26'
+  # 26 STRING
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K26'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '26 STRING' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's26' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u26' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 26
+    XEQ 'K26'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 26
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c26' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e26' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M27'
+  # 27 STAT
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K27'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '27 STAT' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's27' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u27' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 27
+    XEQ 'K27'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 27
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c27' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e27' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M28'
+  # 28 CURVEFIT
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K28'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '28 CURVEFIT' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's28' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u28' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 28
+    XEQ 'K28'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 28
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c28' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e28' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M29'
+  # 29 STATPLT
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K29'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '29 STATPLT' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's29' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u29' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 29
+    XEQ 'K29'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 29
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c29' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e29' 🖨xy DROP𝑥 DROP𝑥
+  XEQ 'C29'
+  SNAP
+  CLSTK
+RTN
+
+LBL 'M30'
+  # 30 PROBDIST
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K30'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '30 PROBDIST' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's30' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u30' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 30
+    XEQ 'K30'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 30
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c30' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e30' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M31'
+  # 31 FIN
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K31'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '31 FIN' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's31' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u31' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 31
+    XEQ 'K31'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 31
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c31' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e31' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M32'
+  # 32 GRAPHICS
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K32'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '32 GRAPHICS' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's32' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u32' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 32
+    XEQ 'K32'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 32
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c32' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e32' 🖨xy DROP𝑥 DROP𝑥
+  XEQ 'C32'
+  SNAP
+  CLSTK
+RTN
+
+LBL 'M33'
+  # 33 SNAP
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K33'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '33 SNAP' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's33' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u33' 🖨xy DROP𝑥 DROP𝑥
+  0 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 33
+    XEQ 'K33'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 33
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c33' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e33' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M34'
+  # 34 EQN
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K34'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '34 EQN' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's34' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u34' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 34
+    XEQ 'K34'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 34
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c34' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e34' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M35'
+  # 35 DERIV
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K35'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '35 DERIV' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's35' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u35' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 35
+    XEQ 'K35'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 35
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c35' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e35' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M36'
+  # 36 INT
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K36'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '36 INT' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's36' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u36' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 36
+    XEQ 'K36'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 36
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c36' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e36' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M37'
+  # 37 SOLVE
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K37'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '37 SOLVE' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's37' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u37' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 37
+    XEQ 'K37'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 37
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c37' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e37' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M38'
+  # 38 PLOT
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K38'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '38 PLOT' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's38' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u38' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 38
+    XEQ 'K38'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 38
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c38' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e38' 🖨xy DROP𝑥 DROP𝑥
+  XEQ 'C38'
+  SNAP
+  CLSTK
+RTN
+
+LBL 'M39'
+  # 39 VECTOR
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K39'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '39 VECTOR' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's39' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u39' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 39
+    XEQ 'K39'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 39
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c39' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e39' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+LBL 'M40'
+  # 40 HYPERB
+  1 STO 'STCKGO' DROP𝑥
+  XEQ 'K40'
+  2 STO 'STCKGO' DROP𝑥
+  CLSTK
+  RCL 'STCKHI' '40 HYPERB' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKST' 's40' 🖨xy DROP𝑥 DROP𝑥
+  RCL 'STCKSPU' 'u40' 🖨xy DROP𝑥 DROP𝑥
+  10 STO 96 DROP𝑥
+  0 STO 97 DROP𝑥
+  TICKS STO 98 DROP𝑥
+  LBL 40
+    XEQ 'K40'
+    1 STO+ 97 DROP𝑥
+    TICKS RCL 98 -
+  𝑥<? 96
+  GTO 40
+  STO 95 DROP𝑥
+  CLSTK
+  RCL 97 'c40' 🖨xy DROP𝑥 DROP𝑥
+  RCL 95 'e40' 🖨xy DROP𝑥 DROP𝑥
+RTN
+
+NOP ; The cases themselves. One or two functions of one kind, then the steps that put the stack back.
+
+LBL 'K01'
+  # NULL
+RTN
+
+LBL 'K02'
+  # STK
+  1 ENTER
+  𝑥⇄𝑦 R↓
+  DROP𝑥 DROP𝑥
+RTN
+
+LBL 'K03'
+  # REG
+  7 STO 10 DROP𝑥
+  RCL 10
+  DROP𝑥
+RTN
+
+LBL 'K04'
+  # VAR
+  7 STO 'kvv' DROP𝑥
+  RCL 'kvv'
+  DROP𝑥
+RTN
+
+LBL 'K05'
+  # ARITH
+  1.5 2.5 ×
+  3.5 +
+  DROP𝑥
+RTN
+
+LBL 'K06'
+  # TRIG
+  0.5 sin(𝑥)
+  cos⁻¹(𝑥)
+  DROP𝑥
+RTN
+
+LBL 'K07'
+  # LOGEXP
+  2.5 ln(𝑥)
+  𝑒ˣ
+  DROP𝑥
+RTN
+
+LBL 'K08'
+  # POWER
+  2.5 3.5 𝑦ˣ
+  √𝑥
+  DROP𝑥
+RTN
+
+LBL 'K09'
+  # SPECIAL
+  2.5 Γ(𝑥) DROP𝑥
+  0.5 erf
+  DROP𝑥
+RTN
+
+LBL 'K10'
+  # CONST
+  CNST 04 DROP𝑥
+  𝜋
+  DROP𝑥
+RTN
+
+LBL 'K11'
+  # RANDOM
+  RAN#
+  DROP𝑥
+RTN
+
+LBL 'K12'
+  # FLAGTEST
+  SF 00
+  FS? 00
+  NOP
+  CF 00
+  1 2 𝑥<? Y
+  NOP
+  DROP𝑥 DROP𝑥
+RTN
+
+LBL 'K13'
+  # DISPMODE
+  SCI 04
+  ALL 00
+  FIX 00
+RTN
+
+LBL 'K14'
+  # ANGLE
+  45 deg→rad
+  rad→deg
+  DROP𝑥
+RTN
+
+LBL 'K15'
+  # UNITCONV
+  10 ft→m
+  m→ft
+  DROP𝑥
+RTN
+
+LBL 'K16'
+  # TIME
+  RCL 23 HMS→HR
+  HR→HMS
+  DROP𝑥
+RTN
+
+LBL 'K17'
+  # DATE
+  RCL 22 𝑥→𝔻
+  𝔻→J
+  DROP𝑥
+RTN
+
+LBL 'K18'
+  # COMBIN
+  20 7 COMB DROP𝑥
+  20 7 PERM
+  DROP𝑥
+RTN
+
+LBL 'K19'
+  # NUMTH
+  123456 NEXTP DROP𝑥
+  123456 78901 GCD
+  DROP𝑥
+RTN
+
+LBL 'K20'
+  # FRACT
+  0.375 DECOMP
+  DROP𝑥 DROP𝑥
+RTN
+
+LBL 'K21'
+  # SHORTINT
+  255 ShortInt
+  170 ShortInt AND
+  DROP𝑥
+RTN
+
+LBL 'K22'
+  # BITS
+  255 ShortInt MIRROR DROP𝑥
+  255 ShortInt SLn 04
+  DROP𝑥
+RTN
+
+LBL 'K23'
+  # LONGINT
+  123456789012345678901234567890 LongInt
+  ENTER ×
+  DROP𝑥
+RTN
+
+LBL 'K24'
+  # CPX
+  1 2 ℝ→ℂ
+  ENTER ×
+  DROP𝑥
+RTN
+
+LBL 'K25'
+  # MATRIX
+  SDIGS 06
+  RCL 20 [𝑀]⁻¹
+  DROP𝑥
+  SDIGS 00
+RTN
+
+LBL 'K26'
+  # STRING
+  3 αLEFT 21
+  DROP𝑥
+RTN
+
+LBL 'K27'
+  # STAT
+  CLΣ
+  1 1 Σ+ DROP𝑥 DROP𝑥
+  2 4 Σ+ DROP𝑥 DROP𝑥
+  3 9 Σ+ DROP𝑥 DROP𝑥
+  4 16 Σ+ DROP𝑥 DROP𝑥
+  5 25 Σ+ DROP𝑥 DROP𝑥
+  𝑥̄
+  DROP𝑥 DROP𝑥
+RTN
+
+LBL 'K28'
+  # CURVEFIT
+  ResetF
+  BestF 01
+  CLΣ
+  1 1 Σ+ DROP𝑥 DROP𝑥
+  2 4 Σ+ DROP𝑥 DROP𝑥
+  3 9 Σ+ DROP𝑥 DROP𝑥
+  4 16 Σ+ DROP𝑥 DROP𝑥
+  5 25 Σ+ DROP𝑥 DROP𝑥
+  L.R. DROP𝑥 DROP𝑥
+  CORR
+  DROP𝑥
+RTN
+
+LBL 'K29'
+  # STATPLT
+  CLΣ
+  1 1 Σ+ DROP𝑥 DROP𝑥
+  2 4 Σ+ DROP𝑥 DROP𝑥
+  3 9 Σ+ DROP𝑥 DROP𝑥
+  4 16 Σ+ DROP𝑥 DROP𝑥
+  5 25 Σ+ DROP𝑥 DROP𝑥
+  SDIGS 06
+  SCATR
+  CLSTK
+  SDIGS 00
+RTN
+
+LBL 'K30'
+  # PROBDIST
+  1.5 Φ_ΦL DROP𝑥
+  0.975 Φ⁻¹
+  DROP𝑥
+RTN
+
+LBL 'K31'
+  # FIN
+  SDIGS 06
+  10 STO 'NPPER' DROP𝑥
+  5 STO 'I%/a' DROP𝑥
+  1 STO 'PPER/a' DROP𝑥
+  1 STO 'CPER/a' DROP𝑥
+  1000 STO 'PV' DROP𝑥
+  0 STO 'PMT' DROP𝑥
+  FV
+  DROP𝑥
+  SDIGS 00
+RTN
+
+LBL 'K32'
+  # GRAPHICS
+  CLLCD
+  50 100 PIXEL
+  80 150 POINT
+  CLSTK
+RTN
+
+LBL 'K33'
+  # SNAP
+  SNAP
+RTN
+
+LBL 'K34'
+  # EQN
+  SDIGS 06
+  'x^2+4' X.EDIT
+  1 5
+  cpxSlvˣʸ
+  DROP𝑥
+  SDIGS 00
+RTN
+
+LBL 'K35'
+  # DERIV
+  1 f'(𝑥) 'KFP'
+  DROP𝑥
+RTN
+
+LBL 'K36'
+  # INT
+  PGMINT 'KFP'
+  0 1
+  ∫^𝑥_𝑦 'x'
+  DROP𝑥
+RTN
+
+LBL 'K37'
+  # SOLVE
+  SDIGS 06
+  PGMSLV 'KF2'
+  0 2
+  SOLVE 'x'
+  DROP𝑥
+  SDIGS 00
+RTN
+
+LBL 'K38'
+  # PLOT
+  SDIGS 06
+  PGMPLT 'KFP'
+  -2 4
+  PLTf 'x'
+  CLSTK
+  SDIGS 00
+RTN
+
+LBL 'K39'
+  # VECTOR
+  1 2 3 𝑧𝑦𝑥→𝑣̄₃
+  ENTER DOT
+  DROP𝑥
+RTN
+
+LBL 'K40'
+  # HYPERB
+  0.5 sinh(𝑥)
+  sinh⁻¹(𝑥)
+  DROP𝑥
+RTN
+
+NOP ; The work steps alone of the two cases that leave something on the screen, for the capture.
+
+LBL 'C29'
+  # STATPLT
+  CLΣ
+  1 1 Σ+ DROP𝑥 DROP𝑥
+  2 4 Σ+ DROP𝑥 DROP𝑥
+  3 9 Σ+ DROP𝑥 DROP𝑥
+  4 16 Σ+ DROP𝑥 DROP𝑥
+  5 25 Σ+ DROP𝑥 DROP𝑥
+  SDIGS 06
+  SCATR
+RTN
+
+LBL 'C32'
+  # GRAPHICS
+  CLLCD
+  50 100 PIXEL
+  80 150 POINT
+RTN
+
+LBL 'C38'
+  # PLOT
+  SDIGS 06
+  PGMPLT 'KFP'
+  -2 4
+  PLTf 'x'
+RTN
+
+NOP ; The functions the engine cases integrate, solve, plot and differentiate.
+
+LBL 'KFP'
+  # 4 / (1 + x^2)
+  MVAR 'x'
+  4
+  RCL 'x' ENTER ×
+  1 +
+  ÷
+RTN
+
+LBL 'KF2'
+  # x^2 - 2
+  MVAR 'x'
+  RCL 'x' ENTER ×
+  2 -
+RTN
+
+END

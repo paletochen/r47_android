@@ -207,6 +207,9 @@ void clampShortIntegerRegistersToWordSize(void) {
   }
 }
 
+
+
+
 void *getRegisterDataPointer(calcRegister_t regist) {
   if(regist <= LAST_GLOBAL_REGISTER) { // Global register
     return TO_PCMEMPTR(globalRegister[regist].pointerToRegisterData);
@@ -357,11 +360,7 @@ void setRegisterDataType(calcRegister_t regist, uint16_t dataType, const uint32_
   }
 
   else if(regist <= LAST_RESERVED_VARIABLE) { // System named variable
-    regist -= FIRST_RESERVED_VARIABLE;
-    if(allReservedVariables[regist].header.pointerToRegisterData != C47_NULL && allReservedVariables[regist].header.readOnly == 0) {
-      allNamedVariables[regist].header.dataType = dataType;
-      allNamedVariables[regist].header.tag = tag;
-    }
+    // Nothing to do, as in setRegisterDataPointer(): allReservedVariables[] is const, so a reserved variable's type and tag are fixed.
   }
 
   else if(regist <= LAST_LOCAL_REGISTER) { // Local register
@@ -895,6 +894,9 @@ void invalidateNamedVariableCache(void) {
   lastFoundNamedVariables[1] = UINT16_MAX;
   lastFoundNamedVariables[2] = UINT16_MAX;
 }
+
+
+
 calcRegister_t findNamedVariable(const char *variableName) {
   calcRegister_t regist = INVALID_VARIABLE;
   uint8_t len = stringGlyphLength(variableName);
@@ -917,11 +919,14 @@ calcRegister_t findNamedVariable(const char *variableName) {
       }
     }
   }
+
+
   #if defined(VERBOSE_REGISTERS)
     printStatus(0, "findNamedVariable", force);
   #endif //VERBOSE_REGISTERS
   //printf("|%20s|%20s|\n",(char *)(allNamedVariables[0].variableName + 1), variableName);
   // Exact-bytes fast path first; the second compare treats sub- and superscript glyphs as their plain form.
+
 
   uint16_t foldedName[7];
   const int32_t foldedLength = foldNameToCharCodes(variableName, foldedName, 7); // 1..7 glyphs checked at entry; on overflow (-1) no candidate compares equal
@@ -2090,6 +2095,16 @@ void reallocateRegister(calcRegister_t regist, uint32_t dataType, uint32_t dataS
   }
 
   if(getRegisterDataType(regist) != dataType || ((getRegisterDataType(regist) == dtString || getRegisterDataType(regist) == dtLongInteger || getRegisterDataType(regist) == dtReal34Matrix || getRegisterDataType(regist) == dtComplex34Matrix) && getRegisterMaxDataLengthInBlocks(regist) != dataSizeWithoutDataLenBlocks)) {
+    if(FIRST_RESERVED_VARIABLE <= regist && regist <= LAST_RESERVED_VARIABLE) {
+      // A reserved variable owns a fixed block named by a const header: there is nothing here to free, allocate or retype.
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+        sprintf(errorMessage, "reserved variable %s", allReservedVariables[regist - FIRST_RESERVED_VARIABLE].reservedVariableName + 1);
+        moreInfoOnError("In function reallocateRegister:", errorMessage, "keeps the data type it was declared with!", NULL);
+      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+      return;
+    }
+
     if(!isMemoryBlockAvailable(dataSizeWithDataLenBlocks, 2, 0.1f)) {
       #if defined(PC_BUILD)
         printf("In function reallocateRegister: required %" PRIu32 " blocks for register #%" PRId16 " but no data blocks with enough size are available!\n", dataSizeWithoutDataLenBlocks, regist);

@@ -64,6 +64,21 @@ bool_t blockMonitoring = false;
                                        "RJvM" spc "NL," spc1
                                        "Walter" spc "DE.";
 
+  //Recount: non-merge commits only, author aliases merged per person, Robbert Jan is doc-only and carries no count.
+  //  code   git rev-list --no-merges <base>, plus Over_score alone from live origin branches not in <base>, less any whose git patch-id is already in <base>.
+  //  manual GitLab h2x/c47-wiki repo, every branch, unique by commit id.
+  //  pages  GitLab h2x/c47-wiki project events, target_type WikiPage::Meta, by author.
+  //  Each total is the sum of the three.
+  //non-merge commits: c43 00.109.04.00b0.RC2 2563e080 plus Martin's unmerged branches, c47-wiki manual repo, c47-wiki page edits
+  TO_QSPI static const char whoStr2[] = "Jaco Mostert" spc "(3996)," spc1 "Martin Lorang" spc "(1382)," spc1 "Robbert Jan van Meenen" spc "(doc)," spc1
+                                       "MihailJP" spc "(1093)," spc1 "Ralf Ahlbrink" spc "(459)," spc1 "Paul Dale" spc "(449)," spc1 "Didier Lachieze" spc "(277)," spc1
+                                       "Walter Bonin" spc "(270)," spc1 "Benjamin Titmus" spc "(215)," spc1 "Hartmut Bromkamp" spc "(187)," spc1
+                                       "Pasquale Pigazzini" spc "(161)," spc1 "Mike Leffel" spc "(107)," spc1 "David Emerson" spc "(69)," spc1 "Warren Young" spc "(68)," spc1
+                                       "Bj" STD_o_DIARESIS "rn Jadelius" spc "(47)," spc1 "Philippe Martens" spc "(46)," spc1 "Marcel Dan" spc "(37)," spc1
+                                       "H" STD_a_RING "kon Hansen" spc "(36)," spc1 "Gert Menke" spc "(31)," spc1 "John Boydon" spc "(29)," spc1 "Michael Peter" spc "(28)," spc1
+                                       "Ian Abbott" spc "(21)," spc1 "R" STD_e_ACUTE "my Trotin" spc "(19)," spc1 "fridlmue" spc "(17)," spc1 "A. Vosough" spc "(16)," spc1
+                                       "Dani Rau" spc "(9)," spc1 "Harald Overbeek" spc "(9)," spc1 "Will Rutherdale" spc "(6)," spc1 "Nigel Dowrick" spc "(4)"
+                                       spc1 "\n(commits 02Aug2026)";
 
 
    TO_QSPI static const char disclaimerStr[]     = "  " MODELTEXT " firmware is free, open source and \n  neither provided nor supported by \n  SwissMicros. Press a key to continue.";
@@ -794,7 +809,7 @@ void execTimerApp(uint16_t timerType) {
     char *funcParam = "";
 
     keyStateCode = (getSystemFlag(FLAG_ALPHA) ? 3 : 0) + 2;
-    funcParam = (char *)getNthString((uint8_t *)userKeyLabel, keyCode * 6 + keyStateCode);
+    funcParam = (char *)getUserKeyLabelString(keyCode * 6 + keyStateCode);
     if(item == ITM_RCL && getSystemFlag(FLAG_USER) && funcParam[0] != 0) {
       calcRegister_t var = findNamedVariable(funcParam);
       if(var != INVALID_VARIABLE) {
@@ -896,7 +911,7 @@ void execTimerApp(uint16_t timerType) {
               clearShiftTemporaryIndications(shiftG || shiftF);
               char *funcParam = "";
               keyStateCode = (getSystemFlag(FLAG_ALPHA) ? 3 : 0) + 2;
-              funcParam = (char *)getNthString((uint8_t *)userKeyLabel, keyCode * 6 + keyStateCode);
+              funcParam = (char *)getUserKeyLabelString(keyCode * 6 + keyStateCode);
               setCurrentUserMenu(item, funcParam);
               if(shiftF) {
                 if(getSystemFlag(FLAG_ALPHA) && ((currentMenu() == -MNU_MyAlpha) || (currentMenu() == -MNU_AIMCATALOG) || isAlphabeticSoftmenu())) {
@@ -1016,7 +1031,7 @@ void execTimerApp(uint16_t timerType) {
       if(JM_auto_longpress_enabled != 0) {
         char *funcParam;
         int keyStateCode = (getSystemFlag(FLAG_ALPHA) ? 3 : 0) + ((LongPressM == RBX_M124) ? 1 : longpressDelayedkey3 ? 1 : 2);
-        funcParam = (char *)getNthString((uint8_t *)userKeyLabel, currentKeyCode * 6 + keyStateCode);
+        funcParam = (char *)getUserKeyLabelString(currentKeyCode * 6 + keyStateCode);
 
         if(calcMode == CM_NORMAL && programRunStop == PGM_STOPPED && (isArrowUp(currentKeyCode))) {
           aimBuffer[0] = 0;
@@ -1810,6 +1825,8 @@ return res;
     halfSecTick2 = 0;
     halfSecTick3 = 0;
   }
+
+
   static bool_t _force_refresh(uint8_t mode) {
     #if defined(ANALYSE_REFRESH) && defined(PC_BUILD)
       printf("# force = %i", mode == force);
@@ -3305,9 +3322,22 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
         showString(confirmationTI[id].string, &standardFont, 1, Y_POSITION_OF_REGISTER_X_LINE + 6, vmNormal, true, true);
       }
 
+//      else if(temporaryInformation == TI_WHO) {
+//        if(regist == REGISTER_Z || regist == REGISTER_Y || regist == REGISTER_X) { //Force repainting it 3 times to get it painted properly over three lines
+//          showStringEnhanced(whoStr1, &standardFont, 1, Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*2 + 6, vmNormal, true, true, NO_compress, NO_raise, DO_Show, NO_Bold, DO_LF);
+//        }
+//      }
+
       else if(temporaryInformation == TI_WHO) {
-        if(regist == REGISTER_Z || regist == REGISTER_Y || regist == REGISTER_X) { //Force repainting it 3 times to get it painted properly over three lines
-          showStringEnhanced(whoStr1, &standardFont, 1, Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*2 + 6, vmNormal, true, true, NO_compress, NO_raise, DO_Show, NO_Bold, DO_LF);
+        if(regist == REGISTER_X) {
+          clearScreenOld(!clrStatusBar, clrRegisterLines, clrSoftkeys);   //clear before the blank menu goes up: the MNU_SHOW guards in _selectiveClearScreen skip the graph rects
+          showSoftmenu(-MNU_SHOW);
+          showStringEnhanced(whoStr1, &standardFont, 1, Y_POSITION_OF_REGISTER_T_LINE +30 - 3, vmNormal, true, true, NO_compress, NO_raise, DO_Show, NO_Bold, DO_LF);
+          showStringEnhanced(whoStr2, &tinyFont,     1, Y_POSITION_OF_REGISTER_X_LINE +50 -27, vmNormal, true, true, NO_compress, NO_raise, DO_Show, NO_Bold, DO_LF);
+          screenUpdatingMode |=  SCRUPD_MANUAL_MENU;
+        } 
+        if(regist == REGISTER_T || regist == REGISTER_Z || regist == REGISTER_Y || regist == REGISTER_X) {
+          return;
         }
       }
 
@@ -3786,7 +3816,10 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
           else if(aimBuffer[0] != 0 && aimBuffer[strlen(aimBuffer)-1]=='/') {
             char *lb = lastBase;
 
-            uint32_t iDigit = pow(10, (int)log10(lastDenominator) + 1);
+            uint32_t iDigit = 1;                     // smallest power of ten above lastDenominator, as pow(10, log10+1) computed it, without libm
+            while(iDigit <= lastDenominator) {
+              iDigit *= 10;
+            }
             uint32_t iDigit1;
             while(iDigit >= 10) {
               iDigit1 = iDigit / 10;
@@ -5656,10 +5689,10 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
           printf("   >>> _selectiveClearScreen: lcd_fill_rect SCRUPD_MANUAL_MENU | SCRUPD_SKIP_MENU_ONE_TIME\n");
         #endif // PC_BUILD && MONITOR_CLRSCR
         lcd_fill_rect(  LeftGraphInfoX,    topLeftMenuInclBorderY,     widthGraphInfoBox,    menuHeightInclBorder, LCD_SET_VALUE);
-        if(!GRAPHMODE || menu(0) == -MNU_PLOT_FUNC) {                                                                                      // not in GRAPHMODE, clear the little triangle area indicating more menus
+        if((!GRAPHMODE || menu(0) == -MNU_PLOT_FUNC) && currentMenu() != -MNU_SHOW) {                                                                                      // not in GRAPHMODE, clear the little triangle area indicating more menus
           lcd_fill_rect(LeftGraphInfoX,    topLeftMenuInclBorderY - 3, 20,                   6,                    LCD_SET_VALUE);
         }
-        if(!GRAPHMODE) {                                                                                                                   // in GRAPHMODE, protect the square graph area
+        if(!GRAPHMODE && currentMenu() != -MNU_SHOW) {                                                                                                                   // in GRAPHMODE, protect the square graph area
           lcd_fill_rect(widthGraphInfoBox, topLeftMenuInclBorderY,     widthGraphInclBorder, menuHeightInclBorder, LCD_SET_VALUE);
         }
       }
@@ -6017,6 +6050,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
   int16_t refreshScreenCounter = 0;        //JM
 
   void refreshScreen(uint16_t source) {
+    screenHoldsDrawnPixels = false;   // this repaint is what destroys anything CLLCD, PIXEL, POINT or AGRAPH drew
                               #if defined(ANALYSE_REFRESH)
                                 print_caller(NULL);
                               #endif
@@ -6249,7 +6283,7 @@ void fnSNAP(uint16_t unusedButMandatoryParameter) {
   #endif // PC_BUILD
   resetShiftState();                  //JM To avoid f or g top left of the screen, clear to make sure
   temporaryInformation = TI_NO_INFO;
-  if(!snapSkipRefresh) {              //--snapskiprefresh keeps the raw graphic screen
+  if(!snapSkipRefresh && !screenHoldsDrawnPixels) {   //--snapskiprefresh, or a screen a program drew, keeps the raw graphic screen
     screenUpdatingMode = SCRUPD_AUTO;
     refreshScreen(80);
   }
@@ -6275,60 +6309,60 @@ void fnSNAP(uint16_t unusedButMandatoryParameter) {
 
 
 void fnScreenDump(uint16_t unusedButMandatoryParameter) {
-  FILE *bmp = NULL;
-  #if defined(ANDROID_BUILD)
-    char bmpFileName[32];
-    time_t rawTime;
-    struct tm *timeInfo;
-    time(&rawTime);
-    timeInfo = localtime(&rawTime);
-    strftime(bmpFileName, sizeof(bmpFileName), "SNAP_%Y%m%d_%H%M%S.bmp", timeInfo);
-
-    int fd = requestAndroidFile(1, bmpFileName, 3); // 3 = SCREENS category
-    if (fd < 0) return;
-
-    bmp = fdopen(fd, "wb");
-    if (!bmp) {
-        close(fd);
-        return;
-    }
-  #elif defined(PC_BUILD)
-    extern char _ioFileNameOverride[];
-    char bmpFileName[22];
-    time_t rawTime;
-    struct tm *timeInfo;
-
-    time(&rawTime);
-    timeInfo = localtime(&rawTime);
-
-    if(_ioFileNameOverride[0] != '\0') {
-      strncpy(bmpFileName, _ioFileNameOverride, sizeof(bmpFileName) - 1);
-      bmpFileName[sizeof(bmpFileName) - 1] = '\0';
-      _ioFileNameOverride[0] = '\0';
-    }
-    else {
-      strftime(bmpFileName, sizeof(bmpFileName), "%Y%m%d-%H%M%S00.bmp", timeInfo);
-      for(int i = 0; i < 100; i++) {    //if the name clashes, increment the trailing 00..99 until free; 99 overwrites
-        FILE *existing;
-        bmpFileName[15] = '0' + i / 10;
-        bmpFileName[16] = '0' + i % 10;
-        existing = fopen(bmpFileName, "rb");
-        if(existing == NULL) {
-          break;
-        }
-        fclose(existing);
-      }
-    }
-    bmp = fopen(bmpFileName, "wb");
-  #endif
-
   #if defined(PC_BUILD) || defined(ANDROID_BUILD)
-    if (!bmp) return;
-
+    FILE *bmp = NULL;
     int32_t x, y;
     uint32_t uint32;
     uint16_t uint16;
     uint8_t  uint8 = 0;
+
+    #if defined(ANDROID_BUILD)
+      char bmpFileName[32];
+      time_t rawTime;
+      struct tm *timeInfo;
+      time(&rawTime);
+      timeInfo = localtime(&rawTime);
+      strftime(bmpFileName, sizeof(bmpFileName), "SNAP_%Y%m%d_%H%M%S.bmp", timeInfo);
+
+      int fd = requestAndroidFile(1, bmpFileName, 3); // 3 = SCREENS category
+      if (fd < 0) return;
+
+      bmp = fdopen(fd, "wb");
+      if (!bmp) {
+          close(fd);
+          return;
+      }
+    #elif defined(PC_BUILD)
+      extern char _ioFileNameOverride[];
+      char bmpFileName[22];
+      time_t rawTime;
+      struct tm *timeInfo;
+
+      time(&rawTime);
+      timeInfo = localtime(&rawTime);
+
+      if(_ioFileNameOverride[0] != '\0') {
+        strncpy(bmpFileName, _ioFileNameOverride, sizeof(bmpFileName) - 1);
+        bmpFileName[sizeof(bmpFileName) - 1] = '\0';
+        _ioFileNameOverride[0] = '\0';
+      }
+      else {
+        strftime(bmpFileName, sizeof(bmpFileName), "%Y%m%d-%H%M%S00.bmp", timeInfo);
+        for(int i = 0; i < 100; i++) {    //if the name clashes, increment the trailing 00..99 until free; 99 overwrites
+          FILE *existing;
+          bmpFileName[15] = '0' + i / 10;
+          bmpFileName[16] = '0' + i % 10;
+          existing = fopen(bmpFileName, "rb");
+          if(existing == NULL) {
+            break;
+          }
+          fclose(existing);
+        }
+      }
+      bmp = fopen(bmpFileName, "wb");
+    #endif
+
+    if (!bmp) return;
 
     fwrite("BM", 1, 2, bmp);        // Offset 0x00  0  BMP header
 
@@ -6409,7 +6443,7 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
     uint16 = 0;
     uint32 = 0;
     for(y=SCREEN_HEIGHT-1; y>=0; y--) {
-      uint8 = 0;
+
       for(x=0; x<SCREEN_WIDTH; x++) {
         uint8 <<= 1;
         if(lcd_buffer_pixel_on((uint32_t)x, (uint32_t)y)) {
@@ -6425,7 +6459,7 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
     }
 
     fclose(bmp);
-  #endif
+  #endif // PC_BUILD || ANDROID_BUILD
 }
 
 
@@ -6505,6 +6539,7 @@ void fnClLcd(uint16_t clear_mode) {
     }
     if(lastErrorCode == ERROR_NONE) {
       screenUpdatingMode |= SCRUPD_MANUAL_STATUSBAR | SCRUPD_MANUAL_STACK | SCRUPD_MANUAL_MENU | SCRUPD_MANUAL_SHIFT_STATUS;
+      screenHoldsDrawnPixels = true;
       lcd_fill_rect(x, 0, SCREEN_WIDTH - x, SCREEN_HEIGHT - y, LCD_SET_VALUE);
     }
     #if defined(REFRESH_ON_SCREEN_MONITOR)
@@ -6527,6 +6562,7 @@ void fnPixel(uint16_t unusedButMandatoryParameter) {
     getPixelPos(&x, &y);
     if(lastErrorCode == ERROR_NONE) {
       screenUpdatingMode |= SCRUPD_MANUAL_STACK | SCRUPD_MANUAL_MENU | SCRUPD_MANUAL_SHIFT_STATUS;
+      screenHoldsDrawnPixels = true;
       if((SCREEN_HEIGHT - abs(y) - 1) <= Y_POSITION_OF_REGISTER_T_LINE) {
         screenUpdatingMode |= SCRUPD_MANUAL_STATUSBAR;
       }
@@ -6550,6 +6586,7 @@ void fnPoint(uint16_t unusedButMandatoryParameter) {
     getPixelPos(&x, &y);
     if(lastErrorCode == ERROR_NONE) {
       screenUpdatingMode |= SCRUPD_MANUAL_STACK | SCRUPD_MANUAL_MENU | SCRUPD_MANUAL_SHIFT_STATUS;
+      screenHoldsDrawnPixels = true;
       if((SCREEN_HEIGHT - y - 2) <= Y_POSITION_OF_REGISTER_T_LINE) {
         screenUpdatingMode |= SCRUPD_MANUAL_STATUSBAR;
       }
@@ -6589,6 +6626,7 @@ void fnAGraph(uint16_t regist) {
         const uint8_t savedShortIntegerMode = shortIntegerMode;
 
         screenUpdatingMode |= SCRUPD_MANUAL_STACK | SCRUPD_MANUAL_MENU | SCRUPD_MANUAL_SHIFT_STATUS;
+        screenHoldsDrawnPixels = true;
         if((SCREEN_HEIGHT - y - 1 - (int)shortIntegerWordSize) <= Y_POSITION_OF_REGISTER_T_LINE) {
           screenUpdatingMode |= SCRUPD_MANUAL_STATUSBAR;
         }

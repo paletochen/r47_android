@@ -1,0 +1,9 @@
+case	bytes	note
+1 BASE	2292	no engine, the cost every program pays
+2 INT	5388
+3 SOLVE	4536
+4 PLOT	6932	fits the 8088 grant
+5 INT INT	7684	within 404 bytes of the grant
+6 PLOT INT	crash	exceeds the grant, hard fault, no line written
+7 PLOT SLV	not reached
+8 PLOT I I	not reached

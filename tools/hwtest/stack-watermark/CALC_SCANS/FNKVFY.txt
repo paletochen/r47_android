@@ -1,0 +1,338 @@
+NOP ; The same cases with the clean-up steps left out, so each one prints what it computed. This is the
+NOP ; check that a case does its work, which a run without an error does not show. Run one label at a
+NOP ; time: XEQ VSET first, then XEQ V05 and read register X. Generated beside FNKIND.txt, never edited.
+# Jaco Mostert  Function kinds check
+
+LBL 'VSET'
+  # Fixed state for every case
+  FIX 00
+  RAD
+  1E-3 STO 'ACC' DROP𝑥
+  0 STO 'STCKHI' DROP𝑥
+  9 STO 'STCKST' DROP𝑥
+  0 STO 'STCKSPU' DROP𝑥
+  0 STO 'STCKGO' DROP𝑥
+  20260729 10000 ÷ STO 22 DROP𝑥
+  123456 10000 ÷ STO 23 DROP𝑥
+  'ABCDEF' STO 21 DROP𝑥
+  3 3 M.DIM 20
+  XEQ 'KMAT'
+RTN
+
+NOP ; A well conditioned 3 by 3 in R20, so the matrix case inverts and never divides by zero.
+
+LBL 'KMAT'
+  # Fill R20
+  INDEX 20
+  1 1 STOIJ
+  4 STOEL DROP𝑥
+  1 2 STOIJ
+  2 STOEL DROP𝑥
+  1 3 STOIJ
+  1 STOEL DROP𝑥
+  2 1 STOIJ
+  2 STOEL DROP𝑥
+  2 2 STOIJ
+  5 STOEL DROP𝑥
+  2 3 STOIJ
+  3 STOEL DROP𝑥
+  3 1 STOIJ
+  1 STOEL DROP𝑥
+  3 2 STOIJ
+  3 STOEL DROP𝑥
+  3 3 STOIJ
+  6 STOEL DROP𝑥
+RTN
+
+NOP ; The work steps of each case, with nothing dropped, so register X holds the result.
+
+LBL 'V01'
+  # NULL
+RTN
+
+LBL 'V02'
+  # STK
+  1 ENTER
+  𝑥⇄𝑦 R↓
+RTN
+
+LBL 'V03'
+  # REG
+  7 STO 10 DROP𝑥
+  RCL 10
+RTN
+
+LBL 'V04'
+  # VAR
+  7 STO 'kvv' DROP𝑥
+  RCL 'kvv'
+RTN
+
+LBL 'V05'
+  # ARITH
+  1.5 2.5 ×
+  3.5 +
+RTN
+
+LBL 'V06'
+  # TRIG
+  0.5 sin(𝑥)
+  cos⁻¹(𝑥)
+RTN
+
+LBL 'V07'
+  # LOGEXP
+  2.5 ln(𝑥)
+  𝑒ˣ
+RTN
+
+LBL 'V08'
+  # POWER
+  2.5 3.5 𝑦ˣ
+  √𝑥
+RTN
+
+LBL 'V09'
+  # SPECIAL
+  2.5 Γ(𝑥) DROP𝑥
+  0.5 erf
+RTN
+
+LBL 'V10'
+  # CONST
+  CNST 04 DROP𝑥
+  𝜋
+RTN
+
+LBL 'V11'
+  # RANDOM
+  RAN#
+RTN
+
+LBL 'V12'
+  # FLAGTEST
+  SF 00
+  FS? 00
+  NOP
+  CF 00
+  1 2 𝑥<? Y
+  NOP
+RTN
+
+LBL 'V13'
+  # DISPMODE
+  SCI 04
+  ALL 00
+  FIX 00
+RTN
+
+LBL 'V14'
+  # ANGLE
+  45 deg→rad
+  rad→deg
+RTN
+
+LBL 'V15'
+  # UNITCONV
+  10 ft→m
+  m→ft
+RTN
+
+LBL 'V16'
+  # TIME
+  RCL 23 HMS→HR
+  HR→HMS
+RTN
+
+LBL 'V17'
+  # DATE
+  RCL 22 𝑥→𝔻
+  𝔻→J
+RTN
+
+LBL 'V18'
+  # COMBIN
+  20 7 COMB DROP𝑥
+  20 7 PERM
+RTN
+
+LBL 'V19'
+  # NUMTH
+  123456 NEXTP DROP𝑥
+  123456 78901 GCD
+RTN
+
+LBL 'V20'
+  # FRACT
+  0.375 DECOMP
+RTN
+
+LBL 'V21'
+  # SHORTINT
+  255 ShortInt
+  170 ShortInt AND
+RTN
+
+LBL 'V22'
+  # BITS
+  255 ShortInt MIRROR DROP𝑥
+  255 ShortInt SLn 04
+RTN
+
+LBL 'V23'
+  # LONGINT
+  123456789012345678901234567890 LongInt
+  ENTER ×
+RTN
+
+LBL 'V24'
+  # CPX
+  1 2 ℝ→ℂ
+  ENTER ×
+RTN
+
+LBL 'V25'
+  # MATRIX
+  SDIGS 06
+  RCL 20 [𝑀]⁻¹
+RTN
+
+LBL 'V26'
+  # STRING
+  3 αLEFT 21
+RTN
+
+LBL 'V27'
+  # STAT
+  CLΣ
+  1 1 Σ+ DROP𝑥 DROP𝑥
+  2 4 Σ+ DROP𝑥 DROP𝑥
+  3 9 Σ+ DROP𝑥 DROP𝑥
+  4 16 Σ+ DROP𝑥 DROP𝑥
+  5 25 Σ+ DROP𝑥 DROP𝑥
+  𝑥̄
+RTN
+
+LBL 'V28'
+  # CURVEFIT
+  ResetF
+  BestF 01
+  CLΣ
+  1 1 Σ+ DROP𝑥 DROP𝑥
+  2 4 Σ+ DROP𝑥 DROP𝑥
+  3 9 Σ+ DROP𝑥 DROP𝑥
+  4 16 Σ+ DROP𝑥 DROP𝑥
+  5 25 Σ+ DROP𝑥 DROP𝑥
+  L.R. DROP𝑥 DROP𝑥
+  CORR
+RTN
+
+LBL 'V29'
+  # STATPLT
+  CLΣ
+  1 1 Σ+ DROP𝑥 DROP𝑥
+  2 4 Σ+ DROP𝑥 DROP𝑥
+  3 9 Σ+ DROP𝑥 DROP𝑥
+  4 16 Σ+ DROP𝑥 DROP𝑥
+  5 25 Σ+ DROP𝑥 DROP𝑥
+  SDIGS 06
+  SCATR
+RTN
+
+LBL 'V30'
+  # PROBDIST
+  1.5 Φ_ΦL DROP𝑥
+  0.975 Φ⁻¹
+RTN
+
+LBL 'V31'
+  # FIN
+  SDIGS 06
+  10 STO 'NPPER' DROP𝑥
+  5 STO 'I%/a' DROP𝑥
+  1 STO 'PPER/a' DROP𝑥
+  1 STO 'CPER/a' DROP𝑥
+  1000 STO 'PV' DROP𝑥
+  0 STO 'PMT' DROP𝑥
+  FV
+RTN
+
+LBL 'V32'
+  # GRAPHICS
+  CLLCD
+  50 100 PIXEL
+  80 150 POINT
+RTN
+
+LBL 'V33'
+  # SNAP
+  SNAP
+RTN
+
+LBL 'V34'
+  # EQN
+  SDIGS 06
+  'x^2+4' X.EDIT
+  1 5
+  cpxSlvˣʸ
+RTN
+
+LBL 'V35'
+  # DERIV
+  1 f'(𝑥) 'KFP'
+RTN
+
+LBL 'V36'
+  # INT
+  PGMINT 'KFP'
+  0 1
+  ∫^𝑥_𝑦 'x'
+RTN
+
+LBL 'V37'
+  # SOLVE
+  SDIGS 06
+  PGMSLV 'KF2'
+  0 2
+  SOLVE 'x'
+RTN
+
+LBL 'V38'
+  # PLOT
+  SDIGS 06
+  PGMPLT 'KFP'
+  -2 4
+  PLTf 'x'
+RTN
+
+LBL 'V39'
+  # VECTOR
+  1 2 3 𝑧𝑦𝑥→𝑣̄₃
+  ENTER DOT
+RTN
+
+LBL 'V40'
+  # HYPERB
+  0.5 sinh(𝑥)
+  sinh⁻¹(𝑥)
+RTN
+
+NOP ; The functions the engine cases integrate, solve, plot and differentiate.
+
+LBL 'KFP'
+  # 4 / (1 + x^2)
+  MVAR 'x'
+  4
+  RCL 'x' ENTER ×
+  1 +
+  ÷
+RTN
+
+LBL 'KF2'
+  # x^2 - 2
+  MVAR 'x'
+  RCL 'x' ENTER ×
+  2 -
+RTN
+
+END

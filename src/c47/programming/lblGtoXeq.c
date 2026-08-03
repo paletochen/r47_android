@@ -908,9 +908,9 @@ void runProgram(bool_t singleStep, uint16_t menuLabel) {
   #endif // DMCP_BUILD
 
   if(!getSystemFlag(FLAG_INTING) && !getSystemFlag(FLAG_SOLVING) && !graphAccActive) {
-    showHideHourGlass();
     screenUpdatingMode = SCRUPD_AUTO;
     screenUpdatingMode |= SCRUPD_SKIP_STATUSBAR_ONE_TIME;
+    showHideHourGlass();               // paints the P; a set SCRUPD_MANUAL_STATUSBAR makes it return unpainted, so it must follow the screenUpdatingMode writes above
   }
 
   if(menuLabel != INVALID_VARIABLE) {
@@ -1016,6 +1016,7 @@ stopProgram:
     entryStatus &= 0xfe;
   }
   if(!nestedEngine) {
+    stackWatermarkAfterDispatch();                               // the run's own end, ahead of the statusbar repaint so that repaint's frames are not counted
     // Force a full statusbar repaint on every halt path and clear the one-time skip bit so the bar is current despite the cadence throttling in reallyRunFunction().
     // A program-set manual statusbar mode is left as is.
     forceSBupdate();

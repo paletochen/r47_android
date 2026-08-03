@@ -1,0 +1,200 @@
+NOP ; Stack high-water of eight PLOT, INT and SOLVE combinations, shallowest case first, three TSV lines each.
+NOP ; Needs a build with STACK_WATERMARK, and PLOT_NESTING_ALLOWED 1 for the three nested plot cases.
+NOP ; The system flag PrintACT is clear unless set, so the print steps write to a file. Notes in README.txt.
+NOP ; STCKGO 1 lays a fresh marker and 2 takes the reading, each carried out at the next function the
+NOP ; program runs, so every case is measured on its own. CLSTK is that function here, and it also
+NOP ; leaves the graph screen, which a plot case must do before anything can be written to a file.
+NOP ; The three lines per case are the figure, then STCKST, then STCKSPU. STCKST: 0 the figure is a
+NOP ; depth reached, 1 the marker ran out so it is a floor, 2 nothing was disturbed, 3 no marker was
+NOP ; laid so it repeats the case before. Only 0 is a measurement. STCKSPU is how far down was marked.
+# Jaco Mostert  Stack watermark 2026-07-27
+
+LBL 'STKALL'
+  # Entry point, runs all eight
+  XEQ 'SSET'
+  1 STO 'STCKGO' DROPX
+  XEQ 'SBASE'
+  2 STO 'STCKGO' DROPX
+  CLSTK
+  RCL 'STCKHI' '1 BASE' 🖨xy DROPX DROPX
+  RCL 'STCKST' 's1' 🖨xy DROPX DROPX
+  RCL 'STCKSPU' 'u1' 🖨xy DROPX DROPX
+  1 STO 'STCKGO' DROPX
+  XEQ 'SINT'
+  2 STO 'STCKGO' DROPX
+  CLSTK
+  RCL 'STCKHI' '2 INT' 🖨xy DROPX DROPX
+  RCL 'STCKST' 's2' 🖨xy DROPX DROPX
+  RCL 'STCKSPU' 'u2' 🖨xy DROPX DROPX
+  1 STO 'STCKGO' DROPX
+  XEQ 'SSLV'
+  2 STO 'STCKGO' DROPX
+  CLSTK
+  RCL 'STCKHI' '3 SOLVE' 🖨xy DROPX DROPX
+  RCL 'STCKST' 's3' 🖨xy DROPX DROPX
+  RCL 'STCKSPU' 'u3' 🖨xy DROPX DROPX
+  1 STO 'STCKGO' DROPX
+  XEQ 'SPLT'
+  2 STO 'STCKGO' DROPX
+  CLSTK
+  RCL 'STCKHI' '4 PLOT' 🖨xy DROPX DROPX
+  RCL 'STCKST' 's4' 🖨xy DROPX DROPX
+  RCL 'STCKSPU' 'u4' 🖨xy DROPX DROPX
+  1 STO 'STCKGO' DROPX
+  XEQ 'SINTINT'
+  2 STO 'STCKGO' DROPX
+  CLSTK
+  RCL 'STCKHI' '5 INT INT' 🖨xy DROPX DROPX
+  RCL 'STCKST' 's5' 🖨xy DROPX DROPX
+  RCL 'STCKSPU' 'u5' 🖨xy DROPX DROPX
+  1 STO 'STCKGO' DROPX
+  XEQ 'SPLTINT'
+  2 STO 'STCKGO' DROPX
+  CLSTK
+  RCL 'STCKHI' '6 PLOT INT' 🖨xy DROPX DROPX
+  RCL 'STCKST' 's6' 🖨xy DROPX DROPX
+  RCL 'STCKSPU' 'u6' 🖨xy DROPX DROPX
+  1 STO 'STCKGO' DROPX
+  XEQ 'SPLTSLV'
+  2 STO 'STCKGO' DROPX
+  CLSTK
+  RCL 'STCKHI' '7 PLOT SLV' 🖨xy DROPX DROPX
+  RCL 'STCKST' 's7' 🖨xy DROPX DROPX
+  RCL 'STCKSPU' 'u7' 🖨xy DROPX DROPX
+  1 STO 'STCKGO' DROPX
+  XEQ 'SPLTDBL'
+  2 STO 'STCKGO' DROPX
+  CLSTK
+  RCL 'STCKHI' '8 PLOT I I' 🖨xy DROPX DROPX
+  RCL 'STCKST' 's8' 🖨xy DROPX DROPX
+  RCL 'STCKSPU' 'u8' 🖨xy DROPX DROPX
+RTN
+
+LBL 'SSET'
+  # Integer display, loose ACC
+  FIX 00
+  1E-4 STO 'ACC' DROPX
+RTN
+
+NOP ; The eight cases, in the order STKALL runs them.
+
+LBL 'SBASE'
+  # No engine, the baseline
+  2 3 +
+RTN
+
+LBL 'SINT'
+  # INT alone
+  PGMINT 'SFP'
+  0 1
+  ∫^𝑥_𝑦 'x'
+RTN
+
+LBL 'SSLV'
+  # SOLVE alone
+  PGMSLV 'SF2'
+  0 2
+  SOLVE 'x'
+RTN
+
+LBL 'SPLT'
+  # PLOT alone
+  PGMPLT 'SFP'
+  -2 4
+  PLTf 'x'
+RTN
+
+LBL 'SINTINT'
+  # INT nesting INT
+  PGMINT 'SIT'
+  0 2
+  ∫^𝑥_𝑦 'x'
+RTN
+
+LBL 'SPLTINT'
+  # PLOT nesting INT
+  PGMPLT 'SIU'
+  0 3
+  PLTf 'u'
+RTN
+
+LBL 'SPLTSLV'
+  # PLOT nesting SOLVE
+  PGMPLT 'SRT'
+  0 3
+  PLTf 'p'
+RTN
+
+LBL 'SPLTDBL'
+  # PLOT nesting INT INT
+  PGMPLT 'SIV'
+  0 3
+  PLTf 'v'
+RTN
+
+NOP ; The functions the cases integrate, solve and plot.
+
+LBL 'SFP'
+  # 4 / (1 + x^2)
+  MVAR 'x'
+  4
+  RCL 'x' ENTER ×
+  1 +
+  ÷
+RTN
+
+LBL 'SF2'
+  # x^2 - 2
+  MVAR 'x'
+  RCL 'x' ENTER ×
+  2 -
+RTN
+
+LBL 'SHT'
+  # t, the integrand
+  MVAR 't'
+  RCL 't'
+RTN
+
+LBL 'SIT'
+  # INT(0..x) t dt
+  MVAR 'x'
+  PGMINT 'SHT'
+  0 RCL 'x'
+  ∫^𝑥_𝑦 't'
+RTN
+
+LBL 'SIU'
+  # INT(0..u), plotted
+  MVAR 'u'
+  PGMINT 'SHT'
+  0 RCL 'u'
+  ∫^𝑥_𝑦 't'
+RTN
+
+LBL 'SIV'
+  # INT of INT, plotted
+  MVAR 'v'
+  PGMINT 'SIT'
+  0 RCL 'v'
+  ∫^𝑥_𝑦 'x'
+RTN
+
+LBL 'SFX'
+  # x^2 - p*x - 2
+  MVAR 'x'
+  MVAR 'p'
+  RCL 'x' ENTER ×
+  RCL 'x' RCL 'p' × -
+  2 -
+RTN
+
+LBL 'SRT'
+  # root of SFX, plotted
+  MVAR 'p'
+  PGMSLV 'SFX'
+  0 8
+  SOLVE 'x'
+RTN
+
+END

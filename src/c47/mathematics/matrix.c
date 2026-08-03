@@ -1144,13 +1144,6 @@ static void _fnEuclideanNorm(uint16_t pParam) {
 }
 
 
-void fnEuclideanNorm(uint16_t unusedParamButMandatory) {
-  if(saveLastX()) {
-    _fnEuclideanNorm(NOPARAM);
-  }
-}
-
-
 void fnVectorDist(uint16_t unusedParamButMandatory) {
   fnSubtract(NOPARAM);
   _fnEuclideanNorm(2);
@@ -6572,7 +6565,10 @@ static void solveEigenBlock(real_t *a, real_t *eig, uint16_t size, int first_unc
 
 
 
-static void calculateEigenvalues(real_t *a, real_t *q, real_t *r, real_t *eig, real_t *previousDiagonal, uint16_t size, bool_t shifted, bool_t reducedSignificantDigits, realContext_t *realContext) {
+#if !defined(OPTION_SLVP_POLY)                                                                     // SLVP feeds its companion matrix through here; without it the engine stays file-local
+static
+#endif // !OPTION_SLVP_POLY
+void calculateEigenvalues(real_t *a, real_t *q, real_t *r, real_t *eig, real_t *previousDiagonal, uint16_t size, bool_t shifted, bool_t reducedSignificantDigits, realContext_t *realContext) {
   real_t SumTolerance, changeDiagonalSum, previousChangeDiagonalSum;
 
   real_t progress_indicator;
@@ -6685,6 +6681,11 @@ static void calculateEigenvalues(real_t *a, real_t *q, real_t *r, real_t *eig, r
   #if defined(EIGENDEBUGMINIMAL) || defined(EIGENDEBUG)
     printf("START, looking for easy analytic solves\n");
   #endif //EIGENDEBUGMINIMAL) || defined(EIGENDEBUG)
+
+  currentKeyCode = 255;
+  ++currentSolverNestingDepth;                                                                // the epilogue decrement runs on every path: increment here too, not in the QR branch only,
+  setSystemFlag(FLAG_SOLVING);                                                                // or each analytic 2x2/3x3 solve underflows the depth and FLAG_SOLVING never clears
+
   if(size == 2) {
     calculateEigenvalues22(a, size, eig, eig + 1, eig + 6, eig + 7, is_real_symmetric, realContext);
     sortEigenvalues(eig, size, 0, (size + 1) / 2, size - 1, realContext);
@@ -6738,10 +6739,6 @@ static void calculateEigenvalues(real_t *a, real_t *q, real_t *r, real_t *eig, r
       }
       converged = true;
     }
-
-    currentKeyCode = 255;
-    ++currentSolverNestingDepth;
-    setSystemFlag(FLAG_SOLVING);
 
 
 

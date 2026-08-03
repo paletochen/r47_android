@@ -1,0 +1,323 @@
+================================================================================================
+RUN  2027-07-29_001 DM42n RC2/1
+================================================================================================
+nr  kind          stack status     span tenths      calls    ms/call
+01  NULL           2048 2         16384     10         65      0.000
+02  STK            2048 2         16384     10         65      0.000
+03  REG            2052 0         16384     10         62      0.744
+04  VAR            2048 2         16384     10         63      0.488
+05  ARITH          2076 0         16384     10         61      1.009
+06  TRIG          11060 0         16384     10         45      6.838
+07  LOGEXP         4220 0         16384     10         40      9.615
+08  POWER          4700 0         16384     10         39     10.256
+09  SPECIAL        5204 0         16384     10         19     37.247
+10  CONST          2328 0         16384     10         62      0.744
+11  RANDOM         2344 0         16384     10         63      0.488
+12  FLAGTEST       2204 0         16384     10         59      1.565
+13  DISPMODE       2396 0         16384     10         20     34.615
+14  ANGLE          2776 0         16384     10         60      1.282
+15  UNITCONV       2688 0         16384     10         57      2.159
+16  TIME           2976 0         16384     10         58      1.857
+17  DATE           2572 0         16384     10         54      3.134
+18  COMBIN         2148 0         16384     10         59      1.565
+19  NUMTH          3704 0         16384     10         56      2.473
+20  FRACT          3456 0         16384     10         55      2.797
+21  SHORTINT       2120 0         16384     10         58      1.857
+22  BITS           2052 0         16384     10         54      3.134
+23  LONGINT        2120 0         16384     10         56      2.473
+24  CPX            3488 0         16384     10         55      2.797
+25  MATRIX         4596 0         16384     10         28     20.330
+26  STRING         2048 2         16384     10         54      3.134
+27  STAT           4428 0         16384     10          8    109.615
+
+loop and call overhead, from case 01: 15.385 ms per call
+captures: 1
+  20260729-23105438.bmp  12610 bytes  7c289cee7990854b
+STACK FIGURE IS NOT A MEASUREMENT: 01 NULL, STCKST 2, nothing disturbed
+STACK FIGURE IS NOT A MEASUREMENT: 02 STK, STCKST 2, nothing disturbed
+STACK FIGURE IS NOT A MEASUREMENT: 04 VAR, STCKST 2, nothing disturbed
+STACK FIGURE IS NOT A MEASUREMENT: 26 STRING, STCKST 2, nothing disturbed
+fewer than 20 calls fitted the window, so one call either way is worth over 5 per cent.
+A single call of these is at or past the window, which is a result in itself; lengthen the
+window in the table only if you want the count resolved: 09 SPECIAL (19), 27 STAT (8)
+
+================================================================================================
+RUN  2027-07-29_001 DM42n RC2/2
+================================================================================================
+nr  kind          stack status     span tenths      calls    ms/call
+01  NULL           2052 0         16384     10         62      0.000
+02  STK            2052 0         16384     10         62      0.000
+03  REG            2060 0         16384     10         61      0.264
+04  VAR            2048 2         16384     10         62      0.000
+05  ARITH          2076 0         16384     10         59      0.820
+06  TRIG          11060 0         16384     10         45      6.093
+07  LOGEXP         4220 0         16384     10         39      9.512
+08  POWER          4496 0         16384     10         40      8.871
+09  SPECIAL        5000 0         16384     10         20     33.871
+10  CONST          2328 0         16384     10         59      0.820
+11  RANDOM         2344 0         16384     10         58      1.112
+12  FLAGTEST       2204 0         16384     10         61      0.264
+13  DISPMODE       2348 0         16384     10         18     39.427
+14  ANGLE          2776 0         16384     10         55      2.053
+15  UNITCONV       2688 0         16384     10         59      0.820
+16  TIME           2988 0         16384     10         57      1.415
+17  DATE           2488 0         16384     10         56      1.728
+18  COMBIN         2148 0         16384     10         58      1.112
+19  NUMTH          3704 0         16384     10         58      1.112
+20  FRACT          3456 0         16384     10         56      1.728
+21  SHORTINT       2060 0         16384     10         57      1.415
+22  BITS           2048 2         16384     10         54      2.389
+23  LONGINT        2120 0         16384     10         55      2.053
+24  CPX            3488 0         16384     10         52      3.102
+25  MATRIX         4596 0         16384     10         26     22.333
+26  STRING         2048 2         16384     10         57      1.415
+27  STAT           4476 0         16384     12          5    223.871
+28  CURVEFIT       5512 0         16384     10          4    233.871
+29  STATPLT        4396 0         16384     12          5    223.871
+30  PROBDIST       5428 0         16384     10          4    233.871
+31  FIN            5388 0         16384     10         35     12.442
+32  GRAPHICS       2060 0         16384     10         50      3.871
+33  SNAP           3700 0         16384      7          1    683.871
+34  EQN           16384 1         16384     10          3    317.204
+35  DERIV          5708 0         16384     12          2    583.871
+36  INT            4476 0         16384     11          4    258.871
+37  SOLVE          7708 0         16384    192          1  19183.871
+38  PLOT           7692 0         16384     13          4    308.871
+39  VECTOR         3200 0         16384     10         52      3.102
+40  XFN            8792 0         16384     75          1   7483.871
+
+loop and call overhead, from case 01: 16.129 ms per call
+captures: 6
+  20260729-23495146.bmp  12610 bytes  2d6adaf59d0d7fbc
+  20260729-23495672.bmp  12610 bytes  08b99076996fe11f
+  20260729-23495765.bmp  12610 bytes  f282d27183f8d360
+  20260729-23495870.bmp  12610 bytes  f282d27183f8d360
+  20260729-23505073.bmp  12610 bytes  7c91c043db8ad51a
+  20260729-23510996.bmp  12610 bytes  8567fecb4e010507
+STACK FIGURE IS NOT A MEASUREMENT: 04 VAR, STCKST 2, nothing disturbed
+STACK FIGURE IS NOT A MEASUREMENT: 22 BITS, STCKST 2, nothing disturbed
+STACK FIGURE IS NOT A MEASUREMENT: 26 STRING, STCKST 2, nothing disturbed
+STACK FIGURE IS NOT A MEASUREMENT: 34 EQN, STCKST 1, marker ran out, floor only
+fewer than 20 calls fitted the window, so one call either way is worth over 5 per cent.
+A single call of these is at or past the window, which is a result in itself; lengthen the
+window in the table only if you want the count resolved: 13 DISPMODE (18), 27 STAT (5), 28 CURVEFIT (4), 29 STATPLT (5), 30 PROBDIST (4), 33 SNAP (1), 34 EQN (3), 35 DERIV (2), 36 INT (4), 37 SOLVE (1), 38 PLOT (4), 40 XFN (1)
+
+================================================================================================
+RUN  2027-07-29_001 DM42n RC2/3
+================================================================================================
+nr  kind          stack status     span tenths      calls    ms/call
+01  NULL           2048 2         20000     10         64      0.000
+02  STK            2048 2         20000     10         63      0.248
+03  REG            2060 0         20000     10         61      0.768
+04  VAR            2048 2         20000     10         63      0.248
+05  ARITH          2076 0         20000     10         59      1.324
+06  TRIG          11060 0         20000     10         46      6.114
+07  LOGEXP         4276 0         20000     10         41      8.765
+08  POWER          4564 0         20000     10         39     10.016
+09  SPECIAL        5084 0         20000     10         18     39.931
+10  CONST          2328 0         20000     10         59      1.324
+11  RANDOM         2344 0         20000     10         60      1.042
+12  FLAGTEST       2264 0         20000     10         61      0.768
+13  DISPMODE       2420 0         20000     10         19     37.007
+14  ANGLE          2980 0         20000     10         56      2.232
+15  UNITCONV       2688 0         20000     10         55      2.557
+16  TIME           2976 0         20000     10         52      3.606
+17  DATE           2532 0         20000     10         53      3.243
+18  COMBIN         2148 0         20000     10         59      1.324
+19  NUMTH          3704 0         20000     10         55      2.557
+20  FRACT          3456 0         20000     10         54      2.894
+21  SHORTINT       2048 2         20000     10         57      1.919
+22  BITS           2048 2         20000     10         57      1.919
+23  LONGINT        2120 0         20000     10         55      2.557
+24  CPX            3488 0         20000     10         52      3.606
+25  MATRIX         4596 0         20000     10         26     22.837
+26  STRING         2052 0         20000     10         53      3.243
+27  STAT           4428 0         20000     12          5    224.375
+28  CURVEFIT       5512 0         20000     10          4    234.375
+29  STATPLT        4476 0         20000     10          4    234.375
+30  PROBDIST       5412 0         20000     10          4    234.375
+31  FIN            5332 0         20000     10         35     12.946
+32  GRAPHICS       2048 2         20000     10         52      3.606
+33  SNAP           3700 0         20000      7          1    684.375
+34  EQN           16756 0         20000     12          4    284.375
+35  DERIV          5592 0         20000     12          2    584.375
+36  INT            4532 0         20000     11          4    259.375
+37  SOLVE          7708 0         20000    191          1  19084.375
+38  PLOT           7684 0         20000     13          4    309.375
+39  VECTOR         3200 0         20000     10         47      5.652
+40  HYPERB         4516 0         20000     10         28     20.089
+
+loop and call overhead, from case 01: 15.625 ms per call
+captures: 6
+  20260730-01312518.bmp  12610 bytes  2d6adaf59d0d7fbc
+  20260730-01313060.bmp  12610 bytes  08b99076996fe11f
+  20260730-01313121.bmp  12610 bytes  f282d27183f8d360
+  20260730-01313222.bmp  12610 bytes  f282d27183f8d360
+  20260730-01322371.bmp  12610 bytes  7c91c043db8ad51a
+  20260730-01322867.bmp  12610 bytes  8567fecb4e010507
+STACK FIGURE IS NOT A MEASUREMENT: 01 NULL, STCKST 2, nothing disturbed
+STACK FIGURE IS NOT A MEASUREMENT: 02 STK, STCKST 2, nothing disturbed
+STACK FIGURE IS NOT A MEASUREMENT: 04 VAR, STCKST 2, nothing disturbed
+STACK FIGURE IS NOT A MEASUREMENT: 21 SHORTINT, STCKST 2, nothing disturbed
+STACK FIGURE IS NOT A MEASUREMENT: 22 BITS, STCKST 2, nothing disturbed
+STACK FIGURE IS NOT A MEASUREMENT: 32 GRAPHICS, STCKST 2, nothing disturbed
+fewer than 20 calls fitted the window, so one call either way is worth over 5 per cent.
+A single call of these is at or past the window, which is a result in itself; lengthen the
+window in the table only if you want the count resolved: 09 SPECIAL (18), 13 DISPMODE (19), 27 STAT (5), 28 CURVEFIT (4), 29 STATPLT (4), 30 PROBDIST (4), 33 SNAP (1), 34 EQN (4), 35 DERIV (2), 36 INT (4), 37 SOLVE (1), 38 PLOT (4)
+
+================================================================================================
+RUN  2027-07-29_001 DM42 RC2/1
+================================================================================================
+nr  kind          stack status     span tenths      calls    ms/call
+01  NULL           2048 2          8088     10         24      0.000
+02  STK            2060 0          8088     10         23      1.812
+03  REG            2048 2          8088     10         23      1.812
+04  VAR            2356 0          8088     10         24      0.000
+05  ARITH          2076 0          8088     10         22      3.788
+06  TRIG           4196 0          8088     10         17     17.157
+07  LOGEXP         4220 0          8088     10         16     20.833
+08  POWER          4612 0          8088     10         15     25.000
+09  SPECIAL        5108 0          8088     10          8     83.333
+10  CONST          2328 0          8088     10         23      1.812
+11  RANDOM         2344 0          8088     10         22      3.788
+12  FLAGTEST       2208 0          8088     10         22      3.788
+13  DISPMODE       2380 0          8088     10         14     29.762
+14  ANGLE          2876 0          8088     10         22      3.788
+15  UNITCONV       2688 0          8088     10         21      5.952
+16  TIME           2988 0          8088     10         21      5.952
+17  DATE           2620 0          8088     10         20      8.333
+18  COMBIN         2144 0          8088     10         22      3.788
+19  NUMTH          3704 0          8088     10         21      5.952
+20  FRACT          3456 0          8088     10         21      5.952
+21  SHORTINT       2048 2          8088     10         20      8.333
+22  BITS           2060 0          8088     10         20      8.333
+23  LONGINT        2120 0          8088     10         19     10.965
+24  CPX            3488 0          8088     10         19     10.965
+25  MATRIX         4644 0          8088     10         11     49.242
+26  STRING         2048 2          8088     10         21      5.952
+27  STAT           4428 0          8088     10          2    458.333
+28  CURVEFIT       5616 0          8088     10          2    458.333
+29  STATPLT        4476 0          8088     10          2    458.333
+30  PROBDIST       2052 0          8088     10         20      8.333
+31  FIN            6892 0          8088     10          9     69.444
+32  GRAPHICS       2052 0          8088     10         18     13.889
+33  SNAP           3860 0          8088      8          1    758.333
+35  DERIV          4676 0          8088     32          1   3158.333
+36  INT            4548 0          8088    170          1  16958.333
+37  SOLVE          4732 0          8088     12          2    558.333
+38  PLOT           7668 0          8088     26          1   2558.333
+39  VECTOR         3088 0          8088     10         18     13.889
+40  HYPERB         4516 0          8088     10         12     41.667
+
+loop and call overhead, from case 01: 41.667 ms per call
+captures: 4
+  20260730-01490055.bmp  12610 bytes  2d6adaf59d0d7fbc
+  20260730-01490589.bmp  12610 bytes  08b99076996fe11f
+  20260730-01490657.bmp  12610 bytes  f282d27183f8d360
+  20260730-01490762.bmp  12610 bytes  f282d27183f8d360
+STACK FIGURE IS NOT A MEASUREMENT: 01 NULL, STCKST 2, nothing disturbed
+STACK FIGURE IS NOT A MEASUREMENT: 03 REG, STCKST 2, nothing disturbed
+STACK FIGURE IS NOT A MEASUREMENT: 21 SHORTINT, STCKST 2, nothing disturbed
+STACK FIGURE IS NOT A MEASUREMENT: 26 STRING, STCKST 2, nothing disturbed
+fewer than 20 calls fitted the window, so one call either way is worth over 5 per cent.
+A single call of these is at or past the window, which is a result in itself; lengthen the
+window in the table only if you want the count resolved: 06 TRIG (17), 07 LOGEXP (16), 08 POWER (15), 09 SPECIAL (8), 13 DISPMODE (14), 23 LONGINT (19), 24 CPX (19), 25 MATRIX (11), 27 STAT (2), 28 CURVEFIT (2), 29 STATPLT (2), 31 FIN (9), 32 GRAPHICS (18), 33 SNAP (1), 35 DERIV (1), 36 INT (1), 37 SOLVE (2), 38 PLOT (1), 39 VECTOR (18), 40 HYPERB (12)
+
+================================================================================================
+RUN  2026-07-30_002 SIM merged/1
+================================================================================================
+nr  kind          stack status     span tenths      calls    ms/call
+01  NULL           3884 0         65536     10       4861      0.000
+02  STK            3992 0         65536     10       4972     -0.005
+03  REG            3884 0         65536     10       5048     -0.008
+04  VAR            4024 0         65536     10       5050     -0.008
+05  ARITH          4024 0         65536     10       5013     -0.006
+06  TRIG          11552 0         65536     10       2457      0.201
+07  LOGEXP         4136 0         65536     10       2573      0.183
+08  POWER          4492 0         65536     10       2422      0.207
+09  SPECIAL        4828 0         65536     10        906      0.898
+10  CONST          4024 0         65536     10       4907     -0.002
+11  RANDOM         4024 0         65536     10       4894     -0.001
+12  FLAGTEST       4024 0         65536     10       4651      0.009
+13  DISPMODE       4024 0         65536     10       4824      0.002
+14  ANGLE          4056 0         65536     10       4639      0.010
+15  UNITCONV       4024 0         65536     10       4682      0.008
+16  TIME           4400 0         65536     10       4415      0.021
+17  DATE           4024 0         65536     10       4282      0.028
+18  COMBIN         4056 0         65536     10       4611      0.011
+19  NUMTH          4056 0         65536     10       4598      0.012
+20  FRACT          3992 0         65536     10       4572      0.013
+21  SHORTINT       4056 0         65536     10       4534      0.015
+22  BITS           4008 0         65536     10       4405      0.021
+23  LONGINT        4024 0         65536     10       4465      0.018
+24  CPX            4280 0         65536     10       4371      0.023
+25  MATRIX         4476 0         65536     10       1594      0.422
+26  STRING         4024 0         65536     10       4505      0.016
+27  STAT           4296 0         65536     10        157      6.164
+28  CURVEFIT       5580 0         65536     10        140      6.937
+29  STATPLT        4360 0         65536     10        156      6.205
+30  PROBDIST       5436 0         65536     10        175      5.509
+31  FIN            5292 0         65536     10       2071      0.277
+32  GRAPHICS       3912 0         65536     10       3685      0.066
+33  SNAP           4912 0         65536      0          1     -0.206
+34  EQN           17072 0         65536     10        255      3.716
+35  DERIV          6472 0         65536     10        245      3.876
+36  INT            6568 0         65536     10        286      3.291
+37  SOLVE          8844 0         65536     10          2    499.794
+38  PLOT           9436 0         65536     10        349      2.660
+39  VECTOR         4584 0         65536     10       3908      0.050
+40  HYPERB         4492 0         65536     10       1715      0.377
+
+loop and call overhead, from case 01: 0.206 ms per call
+captures: 6
+  20260730-02474300.bmp  12610 bytes  2d6adaf59d0d7fbc
+  20260730-02474600.bmp  12610 bytes  08b99076996fe11f
+  20260730-02474601.bmp  12610 bytes  f282d27183f8d360
+  20260730-02474602.bmp  12610 bytes  8f6cac6bcbcd7e14
+  20260730-02475200.bmp  12610 bytes  7c91c043db8ad51a
+  20260730-02475400.bmp  12610 bytes  4e4eff014e1e3b19
+fewer than 20 calls fitted the window, so one call either way is worth over 5 per cent.
+A single call of these is at or past the window, which is a result in itself; lengthen the
+window in the table only if you want the count resolved: 33 SNAP (1), 37 SOLVE (2)
+
+================================================================================================
+CHANGES  2027-07-29_001 DM42n RC2/2  against  2027-07-29_001 DM42n RC2/1
+================================================================================================
+case 04 VAR: STCKST 2, nothing disturbed, so its stack figure is not a measurement
+case 08 POWER: stack 4496 against 4700, -204 bytes
+case 09 SPECIAL: stack 5000 against 5204, -204 bytes
+case 22 BITS: STCKST 2, nothing disturbed, so its stack figure is not a measurement
+case 26 STRING: STCKST 2, nothing disturbed, so its stack figure is not a measurement
+case 28 CURVEFIT ran in the second and not in the first
+case 29 STATPLT ran in the second and not in the first
+case 30 PROBDIST ran in the second and not in the first
+case 31 FIN ran in the second and not in the first
+case 32 GRAPHICS ran in the second and not in the first
+case 33 SNAP ran in the second and not in the first
+case 34 EQN ran in the second and not in the first
+case 35 DERIV ran in the second and not in the first
+case 36 INT ran in the second and not in the first
+case 37 SOLVE ran in the second and not in the first
+case 38 PLOT ran in the second and not in the first
+case 39 VECTOR ran in the second and not in the first
+case 40 XFN ran in the second and not in the first
+6 captures against 1
+capture 1 differs: 20260729-23495146.bmp against 20260729-23105438.bmp
+
+20 differences
+
+================================================================================================
+CHANGES  2027-07-29_001 DM42n RC2/3  against  2027-07-29_001 DM42n RC2/2
+================================================================================================
+case 01 NULL: STCKST 2, nothing disturbed, so its stack figure is not a measurement
+case 02 STK: STCKST 2, nothing disturbed, so its stack figure is not a measurement
+case 04 VAR: STCKST 2, nothing disturbed, so its stack figure is not a measurement
+case 14 ANGLE: stack 2980 against 2776, +204 bytes
+case 21 SHORTINT: STCKST 2, nothing disturbed, so its stack figure is not a measurement
+case 22 BITS: STCKST 2, nothing disturbed, so its stack figure is not a measurement
+case 32 GRAPHICS: STCKST 2, nothing disturbed, so its stack figure is not a measurement
+case 40 is XFN in the first and HYPERB in the second
+case 40 HYPERB: stack 4516 against 8792, -4276 bytes
+
+9 differences
+

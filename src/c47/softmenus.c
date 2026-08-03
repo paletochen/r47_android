@@ -143,23 +143,15 @@ TO_QSPI const int16_t menu_LOOP[]        = { ITM_DSE,                       ITM_
 /*                                          <---------------------------------------------------------------------- 6 g shifted functions ------------------------------------------------------------------------->  */
 
 #if (defined(OPTION_VECTOR) && (CALCMODEL == USER_R47))
-  #define Mp1F6    -MNU_VECT
-  #define Mp2F6    -MNU_VECT
   #define VF5      -MNU_VECCONV
   #define VF6      ITM_CLSTK
 #elif (!defined(OPTION_VECTOR) && (CALCMODEL == USER_R47))
-  #define Mp1F6    ITM_NULL
-  #define Mp2F6    ITM_CLSTK
   #define VF5      ITM_NULL
   #define VF6      ITM_CLSTK
 #elif (defined(OPTION_VECTOR) && (CALCMODEL != USER_R47))
-  #define Mp1F6    -MNU_VECT
-  #define Mp2F6    -MNU_VECT
   #define VF5      -MNU_VECCONV
   #define VF6      ITM_DRG
 #elif (!defined(OPTION_VECTOR) && (CALCMODEL != USER_R47))
-  #define Mp1F6    ITM_NULL
-  #define Mp2F6    ITM_DRG
   #define VF5      ITM_NULL
   #define VF6      ITM_DRG
 #endif
@@ -176,12 +168,26 @@ TO_QSPI const int16_t menu_LOOP[]        = { ITM_DSE,                       ITM_
   #define EIG_VAL  ITM_NULL
   #define EIG_QR   ITM_NULL
 #endif // OPTION_EIGEN
+
+#if defined(OPTION_SLVP_POLY)
+  #define ADV_SLVP ITM_SLVP
+#else // OPTION_SLVP: blank SLVP (SLVQ SLVC stay)
+  #define ADV_SLVP ITM_NULL
+#endif // OPTION_SLVP_POLY
+
+#if defined(OPTION_SLVQ_SLVC)
+  #define ADV_SLVQ ITM_SLVQ
+  #define ADV_SLVC ITM_SLVC
+#else // OPTION_SLVQ_SLVC: blank SLVQ and SLVC
+  #define ADV_SLVQ ITM_NULL
+  #define ADV_SLVC ITM_NULL
+#endif // OPTION_SLVQ_SLVC
 TO_QSPI const int16_t menu_MATX[]        = {
-                                             ITM_M_NEW,                     ITM_M_TRANSP,               ITM_M_EDI,                ITM_M_EDIN,            ITM_SIM_EQ,                  Mp1F6,
+                                             ITM_M_NEW,                     ITM_M_TRANSP,               ITM_M_EDI,                ITM_M_EDIN,            ITM_SIM_EQ,                  -MNU_VECT,
                                              ITM_MIDENT,                    ITM_M_DIM,                  ITM_M_DIM_GR,             ITM_M_DIMNQ,           ITM_M_CONCATB,               ITM_M_CONCATR,
                                              ITM_REGtoVEC,                  ITM_VECtoREG,               ITM_STOVEL,               ITM_RCLVEL,            ITM_NULL,                    ITM_NULL,
 
-                                             ITM_M_INV,                     EIG_SQRT,                   ITM_RSUM,                 ITM_CSUM,              ITM_M_DET,                   Mp2F6,
+                                             ITM_M_INV,                     EIG_SQRT,                   ITM_RSUM,                 ITM_CSUM,              ITM_M_DET,                   -MNU_VECT,
                                              ITM_PNORM,                     ITM_UNITV,                  ITM_M_TRANSP,             ITM_VANGLE,            ITM_DOT_PROD,                ITM_CROSS_PROD,
                                              ITM_NULL,                      ITM_NULL,                   EIG_VEC,                  EIG_VAL,               ITM_M_LU,                    EIG_QR,
 
@@ -202,9 +208,9 @@ TO_QSPI const int16_t menu_VECT[]        = {
 
 
 TO_QSPI const int16_t menu_VECCONV[]     = {
-                                             ITM_STKtoV2,                   ITM_V2toSTK,                ITM_VECtoREG,             ITM_REGtoVEC,          ITM_STKtoV3,                 ITM_V3toSTK,
-                                             ITM_NULL,                      ITM_NULL,                   ITM_NULL,                 ITM_NULL,              ITM_NULL,                    ITM_NULL,
-                                             ITM_CPXtoV,                    ITM_VtoCPX,                 ITM_NULL,                 ITM_NULL,              ITM_3DPHYS,                  ITM_3DXYZ
+                                             ITM_STKtoV2,                   ITM_V2toSTK,                ITM_STKtoV3,              ITM_V3toSTK,           ITM_STKtoV4,                 ITM_V4toSTK,
+                                             ITM_stkexV2,                   ITM_NULL,                   ITM_stkexV3,              ITM_NULL,              ITM_stkexV4,                 ITM_NULL,              
+                                             ITM_CPXtoV,                    ITM_VtoCPX,                 ITM_VECtoREG,             ITM_REGtoVEC,          ITM_3DPHYS,                  ITM_3DXYZ
                                            };
 
 
@@ -720,9 +726,9 @@ TO_QSPI const int16_t menu_alphaMisc[]    ={ ITM_CR,                        ITM_
 TO_QSPI const int16_t menu_EQN[]         = { ITM_EQ_NEW,                    ITM_EQ_EDI,                  -MNU_2NDDERIV,                -MNU_1STDERIV,                -MNU_Sf,                      -MNU_Solver,
                                              ITM_EQ_DEL,                    ITM_NULL,                     ITM_NULL,                     ITM_NULL,                     ITM_NULL,                    -MNU_Grapher               };
 
-TO_QSPI const int16_t menu_ADV[]         = { ITM_PIn,                       ITM_SIGMAn,                   ITM_FQX,                      ITM_PLTf,                    -MNU_Sfdx,                     ITM_SOLVE,
-                                             ITM_iPIn,                      ITM_iSIGMAn,                  ITM_FDQX,                     ITM_PGMPLT,                   ITM_PGMINT,                   ITM_PGMSLV,
-                                             ITM_SLVQ,                      ITM_SLVC,                     ITM_NULL,                     ITM_NULL,                     ITM_NULL,                     ITM_NULL                  };
+TO_QSPI const int16_t menu_ADV[]         = { ITM_SIGMAn,                    ITM_PIn,                       ITM_FQX,                      ITM_PLTf,                    -MNU_Sfdx,                     ITM_SOLVE,
+                                             ITM_iSIGMAn,                   ITM_iPIn,                      ITM_FDQX,                     ITM_PGMPLT,                   ITM_PGMINT,                   ITM_PGMSLV,
+                                             ITM_SIGMAnINF,                 ADV_SLVQ,                      ADV_SLVC,                     ADV_SLVP,                     ITM_NULL,                     ITM_NULL                 };
 
 TO_QSPI const int16_t menu_1stDeriv[]    = { ITM_NULL,                      ITM_NULL,                     ITM_NULL,                     ITM_NULL,                    -MNU_GRAPHS,                   ITM_FPHERE                };
 //note: the items in here are dynamically assigned, including the static ones
@@ -863,7 +869,7 @@ TO_QSPI const int16_t menu_Eim[]         = {
                                              ITM_NULL,                      ITM_NULL,                  ITM_NULL,                  ITM_NULL,              ITM_NULL,                    ITM_NULL,
 
                                              ITM_EXCLAMATION_MARK,          ITM_poly_SIGN,             ITM_XEDIT,                 ITM_XSWAP,             ITM_EQ_LEFT,                 ITM_EQ_RIGHT,
-                                             ITM_NULL,                      ITM_NULL,                  ITM_NULL,                  ITM_NULL,              ITM_NULL,                    ITM_NULL
+                                             ITM_EQUAL,                     ITM_NULL,                  ITM_NULL,                  ITM_NULL,              ITM_NULL,                    ITM_NULL
 
                                             };
 
@@ -1564,6 +1570,9 @@ void fnGetMenu(uint16_t funusedButMandatoryParameter) {
 
 static void _dynmenuConstructMVarsFromPgm(uint16_t label, uint16_t *numberOfBytes, uint16_t *numberOfVars) {
     uint8_t *step;
+    if(label >= numberOfLabels) {                              // no PGMSLV parks currentSolverProgram at 0xffff, and a deleted program leaves currentMvarLabel stale
+      return;
+    }
     step = labelList[label].instructionPointer;
     while(*numberOfVars < MAX_MVAR_DECLARATIONS) {
       // Skip any user REM to not stop the MVAR count. REM before an MVAR is transparent. Otherwise REM and all others still quite the MVAR count. Also before an .END.
@@ -2782,6 +2791,10 @@ bool_t savedspace(int16_t itemNr) {  //strike out all SAVED_SPACE items
       case ITM_M_SQRT:
     #endif // !OPTION_EIGEN
 
+    #if !defined(OPTION_SLVP_POLY)
+      case ITM_SLVP:
+    #endif // !OPTION_SLVP
+
     #if !defined(OPTION_ELLIPTIC)
       case -MNU_ELLIPT:
       case ITM_sn:
@@ -2805,17 +2818,45 @@ bool_t savedspace(int16_t itemNr) {  //strike out all SAVED_SPACE items
     #if !(defined(OPTION_VECTOR) || defined(OPTION_ELEC))
       case ITM_STKTO3x1   :
       case ITM_3x1TOSTK   :
-    #endif
+    #endif //OPTION_VECTOR; OPTION_ELEC
+
+
+    #if !(defined(OPTION_SLVQ_SLVC))
+      case ITM_SLVC:
+      case ITM_SLVQ:
+    #endif //OPTION_SLV_ZETA_BETA
+
+
+    #if !defined(OPTION_ZETA_BETA)
+      case ITM_zetaX :
+      case ITM_BETAXY:
+      case ITM_LNBETA:
+    #endif // !OPTION_ZETA_BETA
 
 
     #if !defined(OPTION_VECTOR)
-      case ITM_CPXexV :
       case ITM_stkexV2:
+      case ITM_stkexV3:
+      case ITM_stkexV4:
+      case ITM_STKtoV2:
+      case ITM_V2toSTK:
+      case ITM_STKtoV3:
+      case ITM_V3toSTK:
+      case ITM_STKtoV4:
+      case ITM_V4toSTK:
+    #endif // !OPTION_VECTOR
+
+
+    #if !defined(OPTION_VECTOR)
+      case ITM_CPXtoV :
+      case ITM_VtoCPX :
+  //    case ITM_VECtoREG: still needed in matrix ops
+  //    case ITM_REGtoVEC: still needed in matrix ops
+      case ITM_CPXexV :
       case ITM_V10    :
       case ITM_V01    :
       case ITM_V3toSPH:
       case ITM_V3toCYL:
-      case ITM_stkexV3:
       case ITM_V100   :
       case ITM_V010   :
       case ITM_V001   :
@@ -2827,16 +2868,12 @@ bool_t savedspace(int16_t itemNr) {  //strike out all SAVED_SPACE items
       case ITM_EE_STO_V_Z :
       case ITM_EE_STO_V_I :
       case ITM_EE_X2BAL   :
-      case ITM_EE_RCL_V   :
-      case ITM_EE_RCL_I   :
-      case ITM_EE_RCL_Z   :
       case ITM_EE_Y2D     :
       case ITM_EE_D2Y     :
-      case ITM_EE_STO_V   :
-      case ITM_EE_STO_I   :
-      case ITM_EE_STO_Z   :
       case ITM_EE_A2S     :
       case ITM_EE_S2A     :
+      case ITM_3R3P       :
+  //  ITM_EE_RCL_V/I/Z and ITM_EE_STO_V/I/Z stay live: they run fn3Rcl and fn3Sto, which carry no gate and are needed by the X.FN and stack menus
     #endif // !OPTION_ELEC
 
 
@@ -2859,7 +2896,7 @@ bool_t savedspace(int16_t itemNr) {  //strike out all SAVED_SPACE items
     #endif // !OPTION_XFN_1000
 
 
-    #if !defined(OPTION_DIST_2)    // cauchy, chi, expo, logis, t, weibull
+    #if !defined(OPTION_DIST_B)    // cauchy, chi, expo, logis, t, weibull
       case  -MNU_CAUCH   :
       case  ITM_CAUCHP  :
       case  ITM_CAUCH   :
@@ -2893,7 +2930,7 @@ bool_t savedspace(int16_t itemNr) {  //strike out all SAVED_SPACE items
     #endif // !OPTION_DIST_2
 
 
-    #if !defined(OPTION_DIST_3)   // Gev, Pareto, Uniform, Discr Uniform
+    #if !defined(OPTION_DIST_D)   // Gev, Pareto, Uniform, Discr Uniform
       case -MNU_GEV       :
       case ITM_GEVP      :
       case ITM_GEV       :
@@ -2929,9 +2966,10 @@ bool_t savedspace(int16_t itemNr) {  //strike out all SAVED_SPACE items
       case ITM_STDNORML  :
       case ITM_STDNORMLU :
       case ITM_STDNORMLM1:
+      case ITM_ERFC      :   // erfc is the normal CDF in disguise, so it goes with this option
     #endif // !OPTION_DIST_NORMAL
 
-    #if !defined(OPTION_DIST_1)
+    #if !defined(OPTION_DIST_C)
       case -MNU_F: case -MNU_BINOM: case -MNU_HYPER: case -MNU_POISS: case -MNU_GEOM:
       case ITM_FPX:      case ITM_FX:      case ITM_FUX:      case ITM_FM1P:
       case ITM_BINOMP:   case ITM_BINOM:   case ITM_BINOMU:   case ITM_BINOMM1:
@@ -3078,7 +3116,9 @@ void showSoftmenuCurrentPart(void) {
   setScreenUpdateFromMenu(softmenu[m].menuItem, openMenu);
 
   if((!IS_BASEBLANK_(m) || BASE_OVERRIDEONCE) && calcMode != CM_FLAG_BROWSER && calcMode != CM_ASN_BROWSER && calcMode != CM_FONT_BROWSER && calcMode != CM_REGISTER_BROWSER && calcMode != CM_BUG_ON_SCREEN) {           //JM: Added exclusions, as this procedure is not only called from refreshScreen, but from various places due to underline
-    clearScreenOld(false, false, true); //JM, added to ensure the f/g underlines are deleted
+    if(currentMenu() != -MNU_SHOW) {                                                                //the blank menu carries no softkeys or underlines, and the screen owner has already painted over the menu area
+      clearScreenOld(false, false, true); //JM, added to ensure the f/g underlines are deleted
+    }
     // clear_ul();
     BASE_OVERRIDEONCE = false;
     if(tam.mode == TM_KEY && !tam.keyInputFinished) {
@@ -4167,14 +4207,22 @@ char *dynmenuGetLabel(int16_t menuitem) {
 
 
 
+// softmenuStack[].softmenuId ranks in softmenu[] and in dynamicSoftmenu[]; only the first NUMBER_OF_DYNAMIC_SOFTMENUS ranks agree.
+dynamicSoftmenu_t *currentDynamicSoftmenu(void) {
+  const int16_t id = softmenuStack[0].softmenuId;
+  return (0 <= id && id < NUMBER_OF_DYNAMIC_SOFTMENUS) ? &dynamicSoftmenu[id] : NULL;
+}
+
+
 char *dynmenuGetLabelWithDup(int16_t menuitem, int16_t *dupNum) {
+  const dynamicSoftmenu_t *dynamic = currentDynamicSoftmenu();
   if(dupNum) {
     *dupNum = 0;
   }
-  if(menuitem < 0 || menuitem >= dynamicSoftmenu[softmenuStack[0].softmenuId].numItems) {
+  if(dynamic == NULL || menuitem < 0 || menuitem >= dynamic->numItems) {
     return "";
   }
-  char *labelName = (char *)dynamicSoftmenu[softmenuStack[0].softmenuId].menuContent;
+  char *labelName = (char *)dynamic->menuContent;
   char *prevLabelName = labelName;
   while(menuitem > 0) {
     labelName += stringByteLength(labelName) + 1;

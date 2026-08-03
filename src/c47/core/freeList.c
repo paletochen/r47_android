@@ -21,14 +21,18 @@ void *freeListAlloc(size_t sizeInBlocks) {
       numberOfFreeMemoryRegions--;
       //debugMemory("freeListAlloc: found a memory region with the exact requested size!");
       #if !defined(DMCP_BUILD)
-        allocatedMemoryRegions[numberOfAllocatedMemoryRegions].blockAddress = TO_C47MEMPTR(pcMemPtr);
-        allocatedMemoryRegions[numberOfAllocatedMemoryRegions].sizeInBlocks = sizeInBlocks;
-        //printf("Memory allocation: %5zd blocks at address %5u     (number of allocated regions = %4d)\n", sizeInBlocks, TO_C47MEMPTR(pcMemPtr), numberOfAllocatedMemoryRegions + 1);
-        //fflush(stderr);
-        numberOfAllocatedMemoryRegions++;
+        // The check has to come before the write: past MAX_ALLOCATED_REGIONS the store is itself the out-of-bounds access, and
+        // errorf() after it reports a bound already passed. A state file claiming 32767 equations reaches this, one per setEquation().
         if(numberOfAllocatedMemoryRegions >= MAX_ALLOCATED_REGIONS) {
           errorf("numberOfAllocatedMemoryRegions is >= MAX_ALLOCATED_REGIONS, increase MAX_ALLOCATED_REGIONS in defines.h (this affects only the PC simulator not the HW firmware)");
         }
+        else {
+          allocatedMemoryRegions[numberOfAllocatedMemoryRegions].blockAddress = TO_C47MEMPTR(pcMemPtr);
+          allocatedMemoryRegions[numberOfAllocatedMemoryRegions].sizeInBlocks = sizeInBlocks;
+          numberOfAllocatedMemoryRegions++;
+        }
+        //printf("Memory allocation: %5zd blocks at address %5u     (number of allocated regions = %4d)\n", sizeInBlocks, TO_C47MEMPTR(pcMemPtr), numberOfAllocatedMemoryRegions + 1);
+        //fflush(stderr);
       #endif // !DMCP_BUILD
       return pcMemPtr;
     }
@@ -58,14 +62,17 @@ void *freeListAlloc(size_t sizeInBlocks) {
 
   //debugMemory("freeListAlloc: allocated within the smalest memory region found that is large enough.");
   #if !defined(DMCP_BUILD)
-    allocatedMemoryRegions[numberOfAllocatedMemoryRegions].blockAddress = TO_C47MEMPTR(pcMemPtr);
-    allocatedMemoryRegions[numberOfAllocatedMemoryRegions].sizeInBlocks = sizeInBlocks;
-    //printf("Memory allocation: %5zd blocks at address %5u     (number of allocated regions = %4d)\n", sizeInBlocks, TO_C47MEMPTR(pcMemPtr), numberOfAllocatedMemoryRegions + 1);
-    //fflush(stderr);
-    numberOfAllocatedMemoryRegions++;
+    // The check has to come before the write, as above.
     if(numberOfAllocatedMemoryRegions >= MAX_ALLOCATED_REGIONS) {
       errorf("numberOfAllocatedMemoryRegions is >= MAX_ALLOCATED_REGIONS, increase MAX_ALLOCATED_REGIONS in defines.h (this affects only the PC simulator not the HW firmware)");
     }
+    else {
+      allocatedMemoryRegions[numberOfAllocatedMemoryRegions].blockAddress = TO_C47MEMPTR(pcMemPtr);
+      allocatedMemoryRegions[numberOfAllocatedMemoryRegions].sizeInBlocks = sizeInBlocks;
+      numberOfAllocatedMemoryRegions++;
+    }
+    //printf("Memory allocation: %5zd blocks at address %5u     (number of allocated regions = %4d)\n", sizeInBlocks, TO_C47MEMPTR(pcMemPtr), numberOfAllocatedMemoryRegions + 1);
+    //fflush(stderr);
   #endif // !DMCP_BUILD
   return pcMemPtr;
 }

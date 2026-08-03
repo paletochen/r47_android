@@ -158,6 +158,7 @@ c47_src = files(
   'mathematics/sincpi.c',
   'mathematics/sinh.c',
   'mathematics/slvc.c',
+  'mathematics/slvp.c',
   'mathematics/slvq.c',
   'mathematics/sqrt1Px2.c',
   'mathematics/square.c',
