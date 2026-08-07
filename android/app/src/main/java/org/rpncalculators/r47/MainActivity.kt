@@ -512,13 +512,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         }
     }
 
-    override fun onStart() {
-        Log.i(TAG, "onStart")
-        super.onStart()
-    }
-
     override fun onResume() {
-        Log.i(TAG, "onResume")
         super.onResume()
         coreRuntime.requestForceRefresh()
         storageAccessCoordinator.handleResume()
@@ -534,11 +528,6 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             Log.i(TAG, "Auto-saving state on pause (synchronous via core thread)...")
             coreRuntime.saveStateOnPause(autoSaveEnabled = true)
         }
-    }
-
-    override fun onStop() {
-        Log.i(TAG, "onStop")
-        super.onStop()
     }
 
 

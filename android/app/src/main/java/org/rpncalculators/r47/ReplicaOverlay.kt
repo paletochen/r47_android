@@ -255,7 +255,6 @@ class ReplicaOverlay @JvmOverloads constructor(
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         val w = (r - l).toFloat()
         val h = (b - t).toFloat()
-        Log.d("ReplicaOverlay", "onLayout: changed=$changed, size=${w}x${h}")
 
         if (isPiPMode) {
             for (i in 0 until childCount) {
@@ -279,7 +278,6 @@ class ReplicaOverlay @JvmOverloads constructor(
     override fun dispatchDraw(canvas: Canvas) {
         val w = width.toFloat()
         val h = height.toFloat()
-        Log.d("ReplicaOverlay", "dispatchDraw: size=${w}x${h}")
 
         if (isPiPMode) {
             lcdDestRect.set(0f, 0f, w, h)
@@ -311,7 +309,6 @@ class ReplicaOverlay @JvmOverloads constructor(
             projection.offsetX + (layoutSpec.lcdWindowLeft + layoutSpec.lcdWindowWidth) * projection.scale,
             projection.offsetY + (layoutSpec.lcdWindowTop + layoutSpec.lcdWindowHeight) * projection.scale
         )
-        Log.d("ReplicaOverlay", "dispatchDraw: drawing bitmap to $lcdDestRect")
         canvas.drawBitmap(lcdBitmap, lcdRect, lcdDestRect, paint)
 
 
