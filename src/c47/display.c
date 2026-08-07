@@ -571,25 +571,25 @@ overRange:
       int8_t ii=0;
       while(tmpString100[ii]!=0) {                       //skip all zeroes
         while(tmpString100[ii] == '0') {
-          if(tmpString100[ii] == 0) {
-            break;
-          }
           ii++;
         }                                                //counter at first non-'0' or at end
+        if(tmpString100[ii] == 0) {                      //Stop at the terminator: the zero-skip above lands on it when the digits run out, and every scan below indexes from ii.
+          break;
+        }
         if(tmpString100[ii] == '.') {
         // printf("------- 004 >>>>%s|, %i\n",tmpString100, ii);
 
             ii++;                                        //move to first non-'.' and skip all zeroes
             while(tmpString100[ii] == '0') {
-              if(tmpString100[ii] == 0) {
-                break;
-              }
               ii++;
             }                                            //counter at first non-'0' or end, eg. 3.14159265358979E+15
             // printf("------- 004a >>>>%s|, %i, displayFormatDigits=%i\n",tmpString100, ii, displayFormatDigits);
 
             if(tmpString100[ii] != 0 && forceSigZeroes) {   //SIG0 clear keeps full precision for the FIX stage to round; only SIG0 set truncates here
-              ii = ii + displayFormatDigits+1;           //2023-06-01 added 1 digit, giving FIX one extra digit for rounding. If it does not work properly, to do rounding here.
+              //Hold the sum in int and clamp it to the terminator: displayFormatDigits is not bounded by the digits present, and an int8_t sum of the two wraps negative.
+              int stringLength = (int)strlen(tmpString100);
+              int digitsEnd    = ii + displayFormatDigits + 1;   //2023-06-01 added 1 digit, giving FIX one extra digit for rounding. If it does not work properly, to do rounding here.
+              ii = (int8_t)(digitsEnd > stringLength ? stringLength : digitsEnd);
               int8_t jj = ii;
               //round here
 

@@ -734,6 +734,7 @@ bool_t validateName(const char *name) {
       case '+':
       case '-':
       case ':':
+      case '*':
       case '/':
       case '^':
       case '(':
@@ -746,7 +747,7 @@ bool_t validateName(const char *name) {
         return false;
       }
       default: {
-        if(compareChar(name, STD_CROSS) == 0) {
+        if(compareChar(name, STD_CROSS) == 0 || compareChar(name, STD_DIVIDE) == 0) {
           return false;
         }
     }

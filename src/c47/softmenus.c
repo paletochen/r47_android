@@ -603,9 +603,14 @@ TO_QSPI const int16_t menu_ConvHum[]        = {
                                                     ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL};
 
 TO_QSPI const int16_t menu_ConvYmmv[]       = {
-                                                    ITM_L100toKML,            ITM_KMLtoL100,            ITM_KMLEtoK100K,          ITM_K100KtoKMLE,          ITM_K100KtoKMK,           ITM_KMKtoK100K,
-                                                    ITM_L100toMGUS,           ITM_MGUStoL100,           ITM_MGEUStoK100M,         ITM_K100MtoMGEUS,         ITM_K100MtoK100K,         ITM_K100KtoK100M,
-                                                    ITM_L100toMGUK,           ITM_MGUKtoL100,           ITM_MGEUKtoK100M,         ITM_K100MtoMGEUK,         ITM_K100MtoMIK,           ITM_MIKtoK100M};
+                                                    ITM_L100toKML,            ITM_KMLtoL100,            ITM_L100toMGUS,           ITM_MGUStoL100,           ITM_L100toMGUK,           ITM_MGUKtoL100,
+                                                    ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,
+                                                    ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,                 ITM_NULL,
+
+                                                    ITM_MIKtoK100K,           ITM_K100KtoMIK,           ITM_MIKtoK100M,           ITM_K100MtoMIK,           ITM_KMKtoK100K,           ITM_K100KtoKMK,
+                                                    ITM_MGEUStoK100K,         ITM_K100KtoMGEUS,         ITM_MGEUStoK100M,         ITM_K100MtoMGEUS,         ITM_KMLEtoK100K,          ITM_K100KtoKMLE, 
+                                                    ITM_MGEUKtoK100K,         ITM_K100KtoMGEUK,         ITM_MGEUKtoK100M,         ITM_K100MtoMGEUK,         ITM_K100MtoK100K,         ITM_K100KtoK100M};
+
 TO_QSPI const int16_t menu_ConvChef[]       = {
 
                                                     ITM_MLtoTSPUK,            ITM_TSPUKtoML,            ITM_MLtoTBSPUK,           ITM_TBSPUKtoML,           ITM_MLtoCUPUK,            ITM_CUPUKtoML,

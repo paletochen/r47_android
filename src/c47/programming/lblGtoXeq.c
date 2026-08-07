@@ -931,7 +931,7 @@ void runProgram(bool_t singleStep, uint16_t menuLabel) {
     if(opCode & 0x80) {
       opCode = ((uint16_t)(opCode & 0x7F) << 8) | *(currentStep + 1);
     }
-    if(temporaryInformation == TI_TRUE || temporaryInformation == TI_FALSE || temporaryInformation == TI_SOLVER_FAILED || (opCode != ITM_RTN && opCode != ITM_STOP && opCode != ITM_END && opCode != 0x7fff)) {
+    if(temporaryInformation == TI_TRUE || temporaryInformation == TI_FALSE || temporaryInformation == TI_SOLVER_FAILED || (opCode != ITM_RTN && opCode != ITM_STOP && opCode != ITM_END && opCode != ITM_SNAP && opCode != 0x7fff)) {
       temporaryInformation = TI_NO_INFO;
     }
     stepsToBeAdvanced = executeOneStep(currentStep);

@@ -82,6 +82,9 @@ Thumbs.db
 [Dd]esktop.ini
 .git_backup/
 .git_private/
+*.rej
+*.orig
+
 
 # --- 6. Explicitly TRACK these in Vault ---
 !android/
