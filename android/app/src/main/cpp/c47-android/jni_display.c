@@ -1431,7 +1431,9 @@ Java_org_rpncalculators_r47_MainActivity_getKeypadLabelsNative(JNIEnv *env,
 JNIEXPORT void JNICALL
 Java_org_rpncalculators_r47_MainActivity_getDisplayPixels(
     JNIEnv *env, jobject thiz, jintArray pixels) {
-  (void)thiz;
+  if (!g_mainActivityObj || !(*env)->IsSameObject(env, thiz, g_mainActivityObj)) {
+    return;
+  }
   if (!screenData) {
     return;
   }

@@ -46,6 +46,12 @@ internal class NativeCoreRuntime(
         @Volatile
         private var isNativeInitializedShared = false
 
+        @Volatile
+        private var coreThreadExitLatch: CountDownLatch? = null
+
+        @Volatile
+        private var activeActivityCount = 0
+
         fun isAppRunning(): Boolean = isAppRunningShared
 
         internal fun resetSharedState() {
@@ -53,24 +59,56 @@ internal class NativeCoreRuntime(
             isCoreThreadStarted = false
             isAppRunningShared = false
             isNativeInitializedShared = false
+            activeActivityCount = 0
         }
+
     }
 
 
 
     fun attach() {
+        activeActivityCount++
+        Log.i(TAG, "attach: activeActivityCount=$activeActivityCount")
         isAppRunningShared = true
         startOrAttachCoreThread()
         displayRefreshLoop.start()
     }
 
-    fun dispose(stopApp: Boolean) {
+    fun dispose(stopApp: Boolean, onActualStop: (() -> Unit)? = null) {
         displayRefreshLoop.stop()
+        activeActivityCount--
+        Log.i(TAG, "dispose: activeActivityCount=$activeActivityCount stopApp=$stopApp")
         if (stopApp) {
-            isAppRunningShared = false
-            coreTasks.clear()
+            if (activeActivityCount <= 0) {
+                Log.i(TAG, "No active activities left, stopping core thread")
+                isAppRunningShared = false
+                coreTasks.clear()
+                waitForCoreThreadToExit()
+                onActualStop?.invoke()
+            } else {
+                Log.i(TAG, "Still have active activities ($activeActivityCount), keeping core thread running")
+            }
         }
     }
+
+
+
+    private fun waitForCoreThreadToExit() {
+        val latch = coreThreadExitLatch ?: return
+        try {
+            Log.i(TAG, "Waiting for core thread to exit...")
+            if (!latch.await(500, TimeUnit.MILLISECONDS)) {
+                Log.w(TAG, "Timeout waiting for core thread to exit")
+            } else {
+                Log.i(TAG, "Core thread exited cleanly")
+            }
+        } catch (error: InterruptedException) {
+            Log.e(TAG, "Interrupted while waiting for core thread to exit", error)
+        } finally {
+            coreThreadExitLatch = null
+        }
+    }
+
 
     fun offerTask(task: Runnable) {
         if (isAppRunningShared) {
@@ -116,6 +154,7 @@ internal class NativeCoreRuntime(
     private fun startOrAttachCoreThread() {
         if (!isCoreThreadStarted) {
             isCoreThreadStarted = true
+            coreThreadExitLatch = CountDownLatch(1)
             Thread {
                 try {
                     Log.i(TAG, "Core thread starting; nativeInitialized=$isNativeInitializedShared")
@@ -144,6 +183,7 @@ internal class NativeCoreRuntime(
                     Log.e(TAG, "Native core thread crashed", error)
                 } finally {
                     isCoreThreadStarted = false
+                    coreThreadExitLatch?.countDown()
                 }
             }.start()
         } else {
@@ -151,6 +191,7 @@ internal class NativeCoreRuntime(
             updateNativeActivityRef()
         }
     }
+
 
 
 

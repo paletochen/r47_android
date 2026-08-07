@@ -400,19 +400,16 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         factoryResetController = FactoryResetController(
             activity = this,
             onResetRequested = {
-                coreRuntime.dispose(stopApp = true)
-                AudioEngine.stop()
+                // Let onDestroy handle dispose and stop
             },
             onDestroyFactoryReset = {
-                AudioEngine.stop()
-                releaseNativeRuntime()
                 NativeCoreRuntime.resetSharedState()
             },
             onDestroyFinish = {
-                AudioEngine.stop()
-                releaseNativeRuntime()
+                // Handled by onActualStop in dispose
             },
         )
+
         
         window.attributes.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         val isFullscreen = prefs.getBoolean("fullscreen_mode", true)
@@ -493,11 +490,19 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     override fun onDestroy() { 
         Log.i(TAG, "onDestroy: isFinishing=$isFinishing isFactoryResetInProgress=${factoryResetController.isResetInProgress}")
         val shouldStopApp = isFinishing || factoryResetController.isResetInProgress
-        coreRuntime.dispose(stopApp = shouldStopApp)
+        coreRuntime.dispose(
+            stopApp = shouldStopApp,
+            onActualStop = {
+                Log.i(TAG, "Actual stop of native core: running cleanup")
+                AudioEngine.stop()
+                releaseNativeRuntime()
+            }
+        )
         appPreferences.unregisterOnSharedPreferenceChangeListener(this)
         factoryResetController.handleDestroy(shouldStopApp)
         super.onDestroy() 
     }
+
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -507,11 +512,18 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         }
     }
 
+    override fun onStart() {
+        Log.i(TAG, "onStart")
+        super.onStart()
+    }
+
     override fun onResume() {
+        Log.i(TAG, "onResume")
         super.onResume()
         coreRuntime.requestForceRefresh()
         storageAccessCoordinator.handleResume()
     }
+
 
     override fun onPause() {
         super.onPause()
@@ -523,6 +535,12 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             coreRuntime.saveStateOnPause(autoSaveEnabled = true)
         }
     }
+
+    override fun onStop() {
+        Log.i(TAG, "onStop")
+        super.onStop()
+    }
+
 
     private val slotCreateLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
