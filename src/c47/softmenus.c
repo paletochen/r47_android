@@ -2482,7 +2482,7 @@ static void accToString(char *s, float x) {
 }
 
 
-static void changeSoftKey(int16_t itemNr, char * itemName, videoMode_t * vm, int8_t * showCb, int16_t * showValue, char * showText) {
+void changeSoftKey(int16_t itemNr, char * itemName, videoMode_t * vm, int8_t * showCb, int16_t * showValue, char * showText) {
   float tmpF = 0;
   char tmpS[30], tmpSS[20];
   real_t tmpR;
