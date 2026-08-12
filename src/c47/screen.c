@@ -81,6 +81,8 @@ bool_t blockMonitoring = false;
                                        spc1 "\n(commits 02Aug2026)";
 
 
+
+
    TO_QSPI static const char disclaimerStr[]     = "  " MODELTEXT " firmware is free, open source and \n  neither provided nor supported by \n  SwissMicros. Press a key to continue.";
 
    TO_QSPI static const char versionStr[]        = "  " MODELTEXT " " VERSION_STRING ".";
@@ -1557,24 +1559,15 @@ return res;
 
   void showBottomLine(void) {
     int yoff = 0;
-    if(!( (temporaryInformation == TI_SHOW_REGISTER_SMALL && tmpString[5*SHOWLineSize] != 0) ||
-          (temporaryInformation == TI_SHOW_REGISTER_TINY && tmpString[14*SHOWLineSize] != 0)      )    //The softmenu space is not used
-      || (overrideShowBottomLine > 0) ) {
-
-
-      if(overrideShowBottomLine > 0) {
-        yoff = SCREEN_HEIGHT - REGISTER_LINE_HEIGHT*(overrideShowBottomLine)/10.0f;   // 40 means 4.0 registers from bottom
-      }
-      else {
-        yoff = SCREEN_HEIGHT - REGISTER_LINE_HEIGHT*2;
-      }
+    if(overrideShowBottomLine > 0) {                                                 //only a page that prints alternative renderings below the line asks for one:
+                                                                                    //real34 sets 30, or 40 with an angular mode, and complex34 sets 20. A long
+                                                                                    //integer, an XFN sum and the rest print nothing below it and get no line.
+      yoff = SCREEN_HEIGHT - REGISTER_LINE_HEIGHT*(overrideShowBottomLine)/10.0f;    // 40 means 4.0 registers from bottom
 
       int offs = (temporaryInformation == TI_SHOW_REGISTER_BIG ? - 2 : temporaryInformation == TI_SHOW_REGISTER_SMALL ? 0 : temporaryInformation == TI_SHOW_REGISTER_TINY ? 0 : 0);
 
       drawSinglePixelFullWidthLine(yoff + offs); //HERE SHOW LINE SMALL & TINY
-
-      overrideShowBottomLine = 0;
-    }
+    }                                            //the override belongs to the page, not to one paint: fnC47Show clears it when it builds the next page
   }
 
 
@@ -1825,6 +1818,7 @@ return res;
     halfSecTick2 = 0;
     halfSecTick3 = 0;
   }
+
 
 
   static bool_t _force_refresh(uint8_t mode) {
@@ -5691,10 +5685,10 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
           printf("   >>> _selectiveClearScreen: lcd_fill_rect SCRUPD_MANUAL_MENU | SCRUPD_SKIP_MENU_ONE_TIME\n");
         #endif // PC_BUILD && MONITOR_CLRSCR
         lcd_fill_rect(  LeftGraphInfoX,    topLeftMenuInclBorderY,     widthGraphInfoBox,    menuHeightInclBorder, LCD_SET_VALUE);
-        if((!GRAPHMODE || menu(0) == -MNU_PLOT_FUNC) && currentMenu() != -MNU_SHOW) {                                                                                      // not in GRAPHMODE, clear the little triangle area indicating more menus
+        if((!GRAPHMODE || menu(0) == -MNU_PLOT_FUNC) && temporaryInformation != TI_WHO) {                                                                                  // not in GRAPHMODE, clear the little triangle area indicating more menus
           lcd_fill_rect(LeftGraphInfoX,    topLeftMenuInclBorderY - 3, 20,                   6,                    LCD_SET_VALUE);
         }
-        if(!GRAPHMODE && currentMenu() != -MNU_SHOW) {                                                                                                                   // in GRAPHMODE, protect the square graph area
+        if(!GRAPHMODE && temporaryInformation != TI_WHO) {                                                                                                               // in GRAPHMODE, protect the square graph area
           lcd_fill_rect(widthGraphInfoBox, topLeftMenuInclBorderY,     widthGraphInclBorder, menuHeightInclBorder, LCD_SET_VALUE);
         }
       }
@@ -6463,6 +6457,7 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
     uint16 = 0;
     uint32 = 0;
     for(y=SCREEN_HEIGHT-1; y>=0; y--) {
+
 
       for(x=0; x<SCREEN_WIDTH; x++) {
         uint8 <<= 1;

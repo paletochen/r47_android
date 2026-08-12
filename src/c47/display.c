@@ -3512,9 +3512,8 @@ void fnC47Show(uint16_t fnShow_param) {
       printf(">>> ---- clearScreenOld from display.c fnC47Show\n");
     #endif // PC_BUILD && MONITOR_CLRSCR
       //      clearScreenOld(!clrStatusBar, clrRegisterLines, !clrSoftkeys); //Clear screen content while NEW SHOW
-    refreshScreen(153);
-
     SHOW_reset();
+    overrideShowBottomLine = 0;                          //the real34 page sets it again below; every other page keeps the standard line at two registers
 
 
 
@@ -3972,6 +3971,7 @@ goBreak1:
     systemFlags0 = ssf0;
     systemFlags1 = ssf1;
 
+    refreshScreen(153);
     #if defined(VERBOSE_SCREEN) && defined(PC_BUILD)
       printf("SHOW:Done |%s|\n", tmpString);
     #endif

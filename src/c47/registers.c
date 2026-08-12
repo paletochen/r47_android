@@ -210,6 +210,7 @@ void clampShortIntegerRegistersToWordSize(void) {
 
 
 
+
 void *getRegisterDataPointer(calcRegister_t regist) {
   if(regist <= LAST_GLOBAL_REGISTER) { // Global register
     return TO_PCMEMPTR(globalRegister[regist].pointerToRegisterData);
@@ -898,6 +899,7 @@ void invalidateNamedVariableCache(void) {
 
 
 
+
 calcRegister_t findNamedVariable(const char *variableName) {
   calcRegister_t regist = INVALID_VARIABLE;
   uint8_t len = stringGlyphLength(variableName);
@@ -920,6 +922,7 @@ calcRegister_t findNamedVariable(const char *variableName) {
       }
     }
   }
+
 
 
   #if defined(VERBOSE_REGISTERS)
