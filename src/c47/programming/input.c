@@ -32,6 +32,9 @@ void fnInput(uint16_t regist) {
 
 static bool_t _isVarMenu(uint16_t label) {
     uint8_t *step;
+    if(label < FIRST_LABEL || (uint16_t)(label - FIRST_LABEL) >= numberOfLabels) {  // a label the list does not hold would index the array from outside it
+      return false;
+    }
     step = labelList[label - FIRST_LABEL].instructionPointer;
     while(checkOpCodeOfStep(step, ITM_REM)) {
       step = findNextStep(step);
@@ -41,6 +44,10 @@ static bool_t _isVarMenu(uint16_t label) {
 
 
 void fnVarMnu(uint16_t label) {
+  label = findProgramLabel(label, "In function fnVarMnu:");
+  if(label == INVALID_VARIABLE) {
+    return;
+  }
   if(!_isVarMenu(label)) {
     displayCalcErrorMessage(ERROR_NO_MVAR_FOUND, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -57,6 +64,10 @@ void fnVarMnu(uint16_t label) {
 
 
 void fn42VarMnu(uint16_t label) {
+  label = findProgramLabel(label, "In function fn42VarMnu:");
+  if(label == INVALID_VARIABLE) {
+    return;
+  }
   if(!_isVarMenu(label)) {
     displayCalcErrorMessage(ERROR_NO_MVAR_FOUND, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)

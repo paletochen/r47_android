@@ -281,6 +281,322 @@ A single call of these is at or past the window, which is a result in itself; le
 window in the table only if you want the count resolved: 33 SNAP (1), 37 SOLVE (2)
 
 ================================================================================================
+RUN  2027-07-30_001 DM42n RC2+
+================================================================================================
+nr  kind          stack status     span tenths      calls    ms/call
+01  NULL              0 9             0     10         60      0.000
+02  STK               0 9             0     10         56      1.190
+03  REG               0 9             0     10         56      1.190
+04  VAR               0 9             0     10         57      0.877
+05  ARITH             0 9             0     10         55      1.515
+06  TRIG              0 9             0     10         41      7.724
+07  LOGEXP            0 9             0     10         40      8.333
+08  POWER             0 9             0     10         37     10.360
+09  SPECIAL           0 9             0     10         18     38.889
+10  CONST             0 9             0     10         54      1.852
+11  RANDOM            0 9             0     10         52      2.564
+12  FLAGTEST          0 9             0     10         52      2.564
+13  DISPMODE          0 9             0     10         18     38.889
+14  ANGLE             0 9             0     10         52      2.564
+15  UNITCONV          0 9             0     10         54      1.852
+16  TIME              0 9             0     10         50      3.333
+17  DATE              0 9             0     10         51      2.941
+18  COMBIN            0 9             0     10         49      3.741
+19  NUMTH             0 9             0     10         52      2.564
+20  FRACT             0 9             0     10         51      2.941
+21  SHORTINT          0 9             0     10         50      3.333
+22  BITS              0 9             0     10         50      3.333
+23  LONGINT           0 9             0     10         51      2.941
+24  CPX               0 9             0     10         51      2.941
+25  MATRIX            0 9             0     10         26     21.795
+26  STRING            0 9             0     10         48      4.167
+27  STAT              0 9             0     11          5    203.333
+28  CURVEFIT          0 9             0     10          4    233.333
+29  STATPLT           0 9             0     12          5    223.333
+30  PROBDIST          0 9             0     10          4    233.333
+31  FIN               0 9             0     10         33     13.636
+32  GRAPHICS          0 9             0     10         45      5.556
+33  SNAP              0 9             0     11          1   1083.333
+34  EQN               0 9             0     11          4    258.333
+35  DERIV             0 9             0     13          2    633.333
+36  INT               0 9             0     10          3    316.667
+37  SOLVE             0 9             0    192          1  19183.333
+38  PLOT              0 9             0     11          3    350.000
+39  VECTOR            0 9             0     10         46      5.072
+40  HYPERB            0 9             0     10         29     17.816
+
+loop and call overhead, from case 01: 16.667 ms per call
+captures: 6
+  20260731-02202023.bmp  12610 bytes  2d6adaf59d0d7fbc
+  20260731-02202733.bmp  12610 bytes  08b99076996fe11f
+  20260731-02202836.bmp  12610 bytes  f282d27183f8d360
+  20260731-02203008.bmp  12610 bytes  f282d27183f8d360
+  20260731-02212149.bmp  12610 bytes  7c91c043db8ad51a
+  20260731-02212685.bmp  12610 bytes  8567fecb4e010507
+STACK FIGURE IS NOT A MEASUREMENT: 01 NULL, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 02 STK, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 03 REG, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 04 VAR, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 05 ARITH, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 06 TRIG, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 07 LOGEXP, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 08 POWER, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 09 SPECIAL, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 10 CONST, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 11 RANDOM, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 12 FLAGTEST, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 13 DISPMODE, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 14 ANGLE, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 15 UNITCONV, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 16 TIME, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 17 DATE, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 18 COMBIN, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 19 NUMTH, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 20 FRACT, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 21 SHORTINT, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 22 BITS, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 23 LONGINT, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 24 CPX, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 25 MATRIX, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 26 STRING, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 27 STAT, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 28 CURVEFIT, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 29 STATPLT, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 30 PROBDIST, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 31 FIN, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 32 GRAPHICS, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 33 SNAP, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 34 EQN, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 35 DERIV, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 36 INT, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 37 SOLVE, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 38 PLOT, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 39 VECTOR, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 40 HYPERB, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+fewer than 20 calls fitted the window, so one call either way is worth over 5 per cent.
+A single call of these is at or past the window, which is a result in itself; lengthen the
+window in the table only if you want the count resolved: 09 SPECIAL (18), 13 DISPMODE (18), 27 STAT (5), 28 CURVEFIT (4), 29 STATPLT (5), 30 PROBDIST (4), 33 SNAP (1), 34 EQN (4), 35 DERIV (2), 36 INT (3), 37 SOLVE (1), 38 PLOT (3)
+
+================================================================================================
+RUN  2027-07-30_001 DM42 RC2+
+================================================================================================
+nr  kind          stack status     span tenths      calls    ms/call
+01  NULL              0 9             0     10         24      0.000
+02  STK               0 9             0     10         24      0.000
+03  REG               0 9             0     10         22      3.788
+04  VAR               0 9             0     10         24      0.000
+05  ARITH             0 9             0     10         23      1.812
+06  TRIG              0 9             0     10         18     13.889
+07  LOGEXP            0 9             0     10         15     25.000
+08  POWER             0 9             0     10         15     25.000
+09  SPECIAL           0 9             0     10          8     83.333
+10  CONST             0 9             0     10         22      3.788
+11  RANDOM            0 9             0     10         21      5.952
+12  FLAGTEST          0 9             0     10         21      5.952
+13  DISPMODE          0 9             0     10         14     29.762
+14  ANGLE             0 9             0     10         21      5.952
+15  UNITCONV          0 9             0     10         23      1.812
+16  TIME              0 9             0     10         21      5.952
+17  DATE              0 9             0     10         21      5.952
+18  COMBIN            0 9             0     10         22      3.788
+19  NUMTH             0 9             0     10         22      3.788
+20  FRACT             0 9             0     10         21      5.952
+21  SHORTINT          0 9             0     10         20      8.333
+22  BITS              0 9             0     10         21      5.952
+23  LONGINT           0 9             0     10         22      3.788
+24  CPX               0 9             0     10         20      8.333
+25  MATRIX            0 9             0     10         11     49.242
+26  STRING            0 9             0     10         20      8.333
+27  STAT              0 9             0     14          3    425.000
+28  CURVEFIT          0 9             0     11          2    508.333
+29  STATPLT           0 9             0     10          2    458.333
+30  PROBDIST          0 9             0     10         20      8.333
+31  FIN               0 9             0     10          8     83.333
+32  GRAPHICS          0 9             0     10         19     10.965
+33  SNAP              0 9             0     12          1   1158.333
+34  EQN               0 9             0     14          3    425.000
+35  DERIV             0 9             0     16          1   1558.333
+36  INT               0 9             0     16          2    758.333
+37  SOLVE             0 9             0    333          1  33258.333
+38  PLOT              0 9             0     10          1    958.333
+39  VECTOR            0 9             0     10         19     10.965
+40  HYPERB            0 9             0     10         12     41.667
+
+loop and call overhead, from case 01: 41.667 ms per call
+captures: 6
+  20260731-02353123.bmp  12610 bytes  2d6adaf59d0d7fbc
+  20260731-02353746.bmp  12610 bytes  08b99076996fe11f
+  20260731-02353859.bmp  12610 bytes  f282d27183f8d360
+  20260731-02354044.bmp  12610 bytes  f282d27183f8d360
+  20260731-02370471.bmp  12610 bytes  a6c294878e92faf1
+  20260731-02371008.bmp  12610 bytes  9788007b93e3e88a
+STACK FIGURE IS NOT A MEASUREMENT: 01 NULL, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 02 STK, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 03 REG, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 04 VAR, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 05 ARITH, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 06 TRIG, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 07 LOGEXP, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 08 POWER, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 09 SPECIAL, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 10 CONST, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 11 RANDOM, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 12 FLAGTEST, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 13 DISPMODE, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 14 ANGLE, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 15 UNITCONV, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 16 TIME, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 17 DATE, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 18 COMBIN, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 19 NUMTH, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 20 FRACT, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 21 SHORTINT, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 22 BITS, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 23 LONGINT, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 24 CPX, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 25 MATRIX, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 26 STRING, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 27 STAT, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 28 CURVEFIT, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 29 STATPLT, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 30 PROBDIST, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 31 FIN, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 32 GRAPHICS, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 33 SNAP, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 34 EQN, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 35 DERIV, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 36 INT, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 37 SOLVE, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 38 PLOT, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 39 VECTOR, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+STACK FIGURE IS NOT A MEASUREMENT: 40 HYPERB, STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored
+fewer than 20 calls fitted the window, so one call either way is worth over 5 per cent.
+A single call of these is at or past the window, which is a result in itself; lengthen the
+window in the table only if you want the count resolved: 06 TRIG (18), 07 LOGEXP (15), 08 POWER (15), 09 SPECIAL (8), 13 DISPMODE (14), 25 MATRIX (11), 27 STAT (3), 28 CURVEFIT (2), 29 STATPLT (2), 31 FIN (8), 32 GRAPHICS (19), 33 SNAP (1), 34 EQN (3), 35 DERIV (1), 36 INT (2), 37 SOLVE (1), 38 PLOT (1), 39 VECTOR (19), 40 HYPERB (12)
+
+================================================================================================
+RUN  2027-07-31_001 DM42n RC2+
+================================================================================================
+nr  kind          stack status     span tenths      calls    ms/call
+01  NULL           2092 0         16384     10         58      0.000
+02  STK            2048 2         16384     10         57      0.302
+03  REG            2048 2         16384     10         55      0.940
+04  VAR            2048 2         16384     10         56      0.616
+05  ARITH          2076 0         16384     10         54      1.277
+06  TRIG           4112 0         16384     10         40      7.759
+07  LOGEXP         4276 0         16384     10         38      9.074
+08  POWER          4564 0         16384     10         36     10.536
+09  SPECIAL        5124 0         16384     10         18     38.314
+10  CONST          2328 0         16384     10         53      1.627
+11  RANDOM         2344 0         16384     10         56      0.616
+12  FLAGTEST       2204 0         16384     10         51      2.366
+13  DISPMODE       2420 0         16384     10         19     35.390
+14  ANGLE          2776 0         16384     10         51      2.366
+15  UNITCONV       2688 0         16384     10         54      1.277
+16  TIME           2976 0         16384     10         49      3.167
+17  DATE           2544 0         16384     10         49      3.167
+18  COMBIN         2148 0         16384     10         49      3.167
+19  NUMTH          3704 0         16384     10         49      3.167
+20  FRACT          3456 0         16384     10         52      1.989
+21  SHORTINT       2052 0         16384     10         52      1.989
+22  BITS           2052 0         16384     10         50      2.759
+23  LONGINT        2120 0         16384     10         49      3.167
+24  CPX            3488 0         16384     10         52      1.989
+25  MATRIX         4652 0         16384     10         26     21.220
+26  STRING         2048 2         16384     10         51      2.366
+27  STAT           4468 0         16384     11          5    202.759
+28  CURVEFIT       5512 0         16384     10          4    232.759
+29  STATPLT        4428 0         16384     10          4    232.759
+30  PROBDIST       5428 0         16384     10          4    232.759
+31  FIN            5388 0         16384     10         32     14.009
+32  GRAPHICS       2048 2         16384     10         45      4.981
+33  SNAP           3780 0         16384     12          1   1182.759
+34  EQN            7724 0         16384     11          4    257.759
+35  DERIV          5668 0         16384     14          2    682.759
+36  INT            4516 0         16384     10          3    316.092
+37  SOLVE          6308 0         16384    192          1  19182.759
+38  PLOT           7772 0         16384     11          3    349.425
+39  VECTOR         3200 0         16384     10         44      5.486
+40  HYPERB         4516 0         16384     10         28     18.473
+
+loop and call overhead, from case 01: 17.241 ms per call
+captures: 6
+  20260731-14043166.bmp  12610 bytes  2d6adaf59d0d7fbc
+  20260731-14043896.bmp  12610 bytes  08b99076996fe11f
+  20260731-14044086.bmp  12610 bytes  f282d27183f8d360
+  20260731-14044283.bmp  12610 bytes  f282d27183f8d360
+  20260731-14053513.bmp  12610 bytes  7c91c043db8ad51a
+  20260731-14054045.bmp  12610 bytes  8567fecb4e010507
+STACK FIGURE IS NOT A MEASUREMENT: 02 STK, STCKST 2, nothing disturbed
+STACK FIGURE IS NOT A MEASUREMENT: 03 REG, STCKST 2, nothing disturbed
+STACK FIGURE IS NOT A MEASUREMENT: 04 VAR, STCKST 2, nothing disturbed
+STACK FIGURE IS NOT A MEASUREMENT: 26 STRING, STCKST 2, nothing disturbed
+STACK FIGURE IS NOT A MEASUREMENT: 32 GRAPHICS, STCKST 2, nothing disturbed
+fewer than 20 calls fitted the window, so one call either way is worth over 5 per cent.
+A single call of these is at or past the window, which is a result in itself; lengthen the
+window in the table only if you want the count resolved: 09 SPECIAL (18), 13 DISPMODE (19), 27 STAT (5), 28 CURVEFIT (4), 29 STATPLT (4), 30 PROBDIST (4), 33 SNAP (1), 34 EQN (4), 35 DERIV (2), 36 INT (3), 37 SOLVE (1), 38 PLOT (3)
+
+================================================================================================
+RUN  2027-07-31_001 DM42 RC2+
+================================================================================================
+nr  kind          stack status     span tenths      calls    ms/call
+01  NULL           2052 0          8088     10         24      0.000
+02  STK            2052 0          8088     10         23      1.812
+03  REG            2048 2          8088     10         23      1.812
+04  VAR            2388 0          8088     10         23      1.812
+05  ARITH          2076 0          8088     10         23      1.812
+06  TRIG           3948 0          8088     10         18     13.889
+07  LOGEXP         4220 0          8088     10         16     20.833
+08  POWER          4612 0          8088     10         15     25.000
+09  SPECIAL        5068 0          8088     10          8     83.333
+10  CONST          2328 0          8088     10         22      3.788
+11  RANDOM         2344 0          8088     10         22      3.788
+12  FLAGTEST       2208 0          8088     10         22      3.788
+13  DISPMODE       2396 0          8088     10         14     29.762
+14  ANGLE          2776 0          8088     10         22      3.788
+15  UNITCONV       2688 0          8088     10         21      5.952
+16  TIME           3068 0          8088     10         19     10.965
+17  DATE           2520 0          8088     10         19     10.965
+18  COMBIN         2144 0          8088     10         20      8.333
+19  NUMTH          3908 0          8088     10         20      8.333
+20  FRACT          3456 0          8088     10         20      8.333
+21  SHORTINT       2052 0          8088     10         20      8.333
+22  BITS           2048 2          8088     10         21      5.952
+23  LONGINT        2120 0          8088     10         20      8.333
+24  CPX            3488 0          8088     10         20      8.333
+25  MATRIX         4644 0          8088     10         11     49.242
+26  STRING         2048 2          8088     10         20      8.333
+27  STAT           4476 0          8088     14          3    425.000
+28  CURVEFIT       5528 0          8088     11          2    508.333
+29  STATPLT        4476 0          8088     14          3    425.000
+30  PROBDIST       2052 0          8088     10         21      5.952
+31  FIN            5868 0          8088     10          8     83.333
+32  GRAPHICS       2052 0          8088     10         20      8.333
+33  SNAP           3860 0          8088      7          1    658.333
+34  EQN            7676 0          8088     13          3    391.667
+35  DERIV          5676 0          8088     16          1   1558.333
+36  INT            4548 0          8088     15          2    708.333
+37  SOLVE          5844 0          8088    334          1  33358.333
+38  PLOT           7704 0          8088     10          1    958.333
+39  VECTOR         3088 0          8088     10         19     10.965
+40  HYPERB         4556 0          8088     10         12     41.667
+
+loop and call overhead, from case 01: 41.667 ms per call
+captures: 6
+  20260731-14212239.bmp  12610 bytes  2d6adaf59d0d7fbc
+  20260731-14212775.bmp  12610 bytes  08b99076996fe11f
+  20260731-14212846.bmp  12610 bytes  f282d27183f8d360
+  20260731-14212956.bmp  12610 bytes  f282d27183f8d360
+  20260731-14225352.bmp  12610 bytes  a6c294878e92faf1
+  20260731-14225871.bmp  12610 bytes  9788007b93e3e88a
+STACK FIGURE IS NOT A MEASUREMENT: 03 REG, STCKST 2, nothing disturbed
+STACK FIGURE IS NOT A MEASUREMENT: 22 BITS, STCKST 2, nothing disturbed
+STACK FIGURE IS NOT A MEASUREMENT: 26 STRING, STCKST 2, nothing disturbed
+fewer than 20 calls fitted the window, so one call either way is worth over 5 per cent.
+A single call of these is at or past the window, which is a result in itself; lengthen the
+window in the table only if you want the count resolved: 06 TRIG (18), 07 LOGEXP (16), 08 POWER (15), 09 SPECIAL (8), 13 DISPMODE (14), 16 TIME (19), 17 DATE (19), 25 MATRIX (11), 27 STAT (3), 28 CURVEFIT (2), 29 STATPLT (3), 31 FIN (8), 33 SNAP (1), 34 EQN (3), 35 DERIV (1), 36 INT (2), 37 SOLVE (1), 38 PLOT (1), 39 VECTOR (19), 40 HYPERB (12)
+
+================================================================================================
 CHANGES  2027-07-29_001 DM42n RC2/2  against  2027-07-29_001 DM42n RC2/1
 ================================================================================================
 case 04 VAR: STCKST 2, nothing disturbed, so its stack figure is not a measurement
@@ -320,4 +636,158 @@ case 40 is XFN in the first and HYPERB in the second
 case 40 HYPERB: stack 4516 against 8792, -4276 bytes
 
 9 differences
+
+================================================================================================
+CHANGES  2027-07-30_001 DM42 RC2+  against  2027-07-30_001 DM42n RC2+
+================================================================================================
+case 01 NULL: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 01 NULL: 24 calls against 60, -60 per cent
+case 02 STK: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 02 STK: 24 calls against 56, -57 per cent
+case 03 REG: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 03 REG: 22 calls against 56, -61 per cent
+case 04 VAR: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 04 VAR: 24 calls against 57, -58 per cent
+case 05 ARITH: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 05 ARITH: 23 calls against 55, -58 per cent
+case 06 TRIG: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 06 TRIG: 18 calls against 41, -56 per cent
+case 07 LOGEXP: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 07 LOGEXP: 15 calls against 40, -62 per cent
+case 08 POWER: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 08 POWER: 15 calls against 37, -59 per cent
+case 09 SPECIAL: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 10 CONST: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 10 CONST: 22 calls against 54, -59 per cent
+case 11 RANDOM: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 11 RANDOM: 21 calls against 52, -60 per cent
+case 12 FLAGTEST: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 12 FLAGTEST: 21 calls against 52, -60 per cent
+case 13 DISPMODE: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 14 ANGLE: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 14 ANGLE: 21 calls against 52, -60 per cent
+case 15 UNITCONV: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 15 UNITCONV: 23 calls against 54, -57 per cent
+case 16 TIME: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 16 TIME: 21 calls against 50, -58 per cent
+case 17 DATE: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 17 DATE: 21 calls against 51, -59 per cent
+case 18 COMBIN: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 18 COMBIN: 22 calls against 49, -55 per cent
+case 19 NUMTH: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 19 NUMTH: 22 calls against 52, -58 per cent
+case 20 FRACT: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 20 FRACT: 21 calls against 51, -59 per cent
+case 21 SHORTINT: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 21 SHORTINT: 20 calls against 50, -60 per cent
+case 22 BITS: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 22 BITS: 21 calls against 50, -58 per cent
+case 23 LONGINT: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 23 LONGINT: 22 calls against 51, -57 per cent
+case 24 CPX: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 24 CPX: 20 calls against 51, -61 per cent
+case 25 MATRIX: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 25 MATRIX: 11 calls against 26, -58 per cent
+case 26 STRING: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 26 STRING: 20 calls against 48, -58 per cent
+case 27 STAT: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 28 CURVEFIT: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 29 STATPLT: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 30 PROBDIST: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 31 FIN: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 31 FIN: 8 calls against 33, -76 per cent
+case 32 GRAPHICS: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 32 GRAPHICS: 19 calls against 45, -58 per cent
+case 33 SNAP: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 34 EQN: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 35 DERIV: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 36 INT: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 37 SOLVE: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 38 PLOT: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 39 VECTOR: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 39 VECTOR: 19 calls against 46, -59 per cent
+case 40 HYPERB: STCKST 9, the build has no stack tool, so nothing wrote over what KSET stored, so its stack figure is not a measurement
+case 40 HYPERB: 12 calls against 29, -59 per cent
+capture 5 differs: 20260731-02370471.bmp against 20260731-02212149.bmp
+capture 6 differs: 20260731-02371008.bmp against 20260731-02212685.bmp
+
+70 differences
+
+================================================================================================
+CHANGES  2027-07-31_001 DM42n RC2+  against  2027-07-30_001 DM42 RC2+
+================================================================================================
+case 01 NULL: 58 calls against 24, +142 per cent
+case 02 STK: STCKST 2, nothing disturbed, so its stack figure is not a measurement
+case 02 STK: 57 calls against 24, +138 per cent
+case 03 REG: STCKST 2, nothing disturbed, so its stack figure is not a measurement
+case 03 REG: 55 calls against 22, +150 per cent
+case 04 VAR: STCKST 2, nothing disturbed, so its stack figure is not a measurement
+case 04 VAR: 56 calls against 24, +133 per cent
+case 05 ARITH: 54 calls against 23, +135 per cent
+case 10 CONST: 53 calls against 22, +141 per cent
+case 11 RANDOM: 56 calls against 21, +167 per cent
+case 12 FLAGTEST: 51 calls against 21, +143 per cent
+case 14 ANGLE: 51 calls against 21, +143 per cent
+case 15 UNITCONV: 54 calls against 23, +135 per cent
+case 16 TIME: 49 calls against 21, +133 per cent
+case 17 DATE: 49 calls against 21, +133 per cent
+case 18 COMBIN: 49 calls against 22, +123 per cent
+case 19 NUMTH: 49 calls against 22, +123 per cent
+case 20 FRACT: 52 calls against 21, +148 per cent
+case 21 SHORTINT: 52 calls against 20, +160 per cent
+case 22 BITS: 50 calls against 21, +138 per cent
+case 23 LONGINT: 49 calls against 22, +123 per cent
+case 24 CPX: 52 calls against 20, +160 per cent
+case 26 STRING: STCKST 2, nothing disturbed, so its stack figure is not a measurement
+case 26 STRING: 51 calls against 20, +155 per cent
+case 30 PROBDIST: 4 calls against 20, -80 per cent
+case 32 GRAPHICS: STCKST 2, nothing disturbed, so its stack figure is not a measurement
+capture 5 differs: 20260731-14053513.bmp against 20260731-02370471.bmp
+capture 6 differs: 20260731-14054045.bmp against 20260731-02371008.bmp
+
+28 differences
+
+================================================================================================
+CHANGES  2027-07-31_001 DM42 RC2+  against  2027-07-31_001 DM42n RC2+
+================================================================================================
+case 01 NULL: 24 calls against 58, -59 per cent
+case 02 STK: 23 calls against 57, -60 per cent
+case 03 REG: STCKST 2, nothing disturbed, so its stack figure is not a measurement
+case 03 REG: 23 calls against 55, -58 per cent
+case 04 VAR: 23 calls against 56, -59 per cent
+case 05 ARITH: 23 calls against 54, -57 per cent
+case 06 TRIG: stack 3948 against 4112, -164 bytes
+case 06 TRIG: 18 calls against 40, -55 per cent
+case 07 LOGEXP: 16 calls against 38, -58 per cent
+case 08 POWER: 15 calls against 36, -58 per cent
+case 10 CONST: 22 calls against 53, -58 per cent
+case 11 RANDOM: 22 calls against 56, -61 per cent
+case 12 FLAGTEST: 22 calls against 51, -57 per cent
+case 14 ANGLE: 22 calls against 51, -57 per cent
+case 15 UNITCONV: 21 calls against 54, -61 per cent
+case 16 TIME: 19 calls against 49, -61 per cent
+case 17 DATE: 19 calls against 49, -61 per cent
+case 18 COMBIN: 20 calls against 49, -59 per cent
+case 19 NUMTH: stack 3908 against 3704, +204 bytes
+case 19 NUMTH: 20 calls against 49, -59 per cent
+case 20 FRACT: 20 calls against 52, -62 per cent
+case 21 SHORTINT: 20 calls against 52, -62 per cent
+case 22 BITS: STCKST 2, nothing disturbed, so its stack figure is not a measurement
+case 22 BITS: 21 calls against 50, -58 per cent
+case 23 LONGINT: 20 calls against 49, -59 per cent
+case 24 CPX: 20 calls against 52, -62 per cent
+case 25 MATRIX: 11 calls against 26, -58 per cent
+case 26 STRING: STCKST 2, nothing disturbed, so its stack figure is not a measurement
+case 26 STRING: 20 calls against 51, -61 per cent
+case 30 PROBDIST: stack 2052 against 5428, -3376 bytes
+case 31 FIN: stack 5868 against 5388, +480 bytes
+case 31 FIN: 8 calls against 32, -75 per cent
+case 32 GRAPHICS: 20 calls against 45, -56 per cent
+case 37 SOLVE: stack 5844 against 6308, -464 bytes
+case 39 VECTOR: 19 calls against 44, -57 per cent
+case 40 HYPERB: 12 calls against 28, -57 per cent
+capture 5 differs: 20260731-14225352.bmp against 20260731-14053513.bmp
+capture 6 differs: 20260731-14225871.bmp against 20260731-14054045.bmp
+
+38 differences
 

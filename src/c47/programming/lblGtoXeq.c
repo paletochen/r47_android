@@ -1042,10 +1042,16 @@ stopProgram:
 void execProgram(uint16_t label) {
   uint16_t origLocalStepNumber = currentLocalStepNumber;
   uint16_t origProgramNumber = currentProgramNumber;   // the nested run repoints to the function's program; restore it too so the caller (and the final return to the system) stays in the right program
+  uint16_t origSubroutineLevel = currentSubroutineLevel;
   uint8_t *origStep = currentStep;
   fnExecute(label);
   if(programRunStop == PGM_RUNNING && (getSystemFlag(FLAG_INTING) || getSystemFlag(FLAG_SOLVING) || (currentSolverStatus & SOLVER_STATUS_RPN_GRAPHER))) {
     runProgram(false, INVALID_VARIABLE);
+    // fnExecute above pushed one subroutine level to run the body, which the body's own RTN pops. A level still standing here means that RTN was never reached,
+    // which is what an error does, so it is popped here: left standing it stops the calling program's own RTN from matching and that program then never ends.
+    while(currentSubroutineLevel > origSubroutineLevel) {
+      fnReturn(0);
+    }
     currentLocalStepNumber = origLocalStepNumber;
     currentProgramNumber = origProgramNumber;
     currentStep = origStep;

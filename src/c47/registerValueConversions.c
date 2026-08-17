@@ -1464,8 +1464,6 @@ void restoreRegisterSnapshot(calcRegister_t reg, snap_t *s) {
   setRegisterDataType(reg, s->t, s->tag);
 }
 
-
-
 void processRealComplexMonadicFunction(void (*realf)(void), void (*complexf)(void)) {
   processIntRealComplexMonadicFunction(realf, complexf, NULL, NULL);
 }
