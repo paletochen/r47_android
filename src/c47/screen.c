@@ -2070,8 +2070,7 @@ return res;
   bool_t showingProbMenu(void) {
     int cur = -softmenu[softmenuStack[0].softmenuId].menuItem;
 
-    return (cur >= PROBMENUSTART1 && cur <= PROBMENUEND1) ||
-           (cur >= PROBMENUSTART2 && cur <= PROBMENUEND2);
+    return cur >= PROBMENUSTART && cur <= PROBMENUEND;
   }
 
 //#define DEBUG_SHOWNAME
@@ -2488,15 +2487,8 @@ void createSubstrings(uint8_t number) {
       int16_t dummyVal[MATRIX_MAX_COLUMNS * (MATRIX_MAX_ROWS + 1) + 1] = {};
 
       bool_t allElementsInColAreIntegers[MATRIX_MAX_COLUMNS] = {};
-      for(int j = 0; j < min(cols, MATRIX_MAX_COLUMNS); j++) {
-        allElementsInColAreIntegers[j]=true;
-        for(int i = 0; i < rows; i++) {
-          if(!real34IsAnInteger(&matrix.matrixElements[i*cols+j])) {
-            allElementsInColAreIntegers[j]=false;
-            break;
-          }
-        }
-      }
+      getRealMatrixIntegerColumns(&matrix, displayFormat, cols, 0, 0, rows, min(cols, MATRIX_MAX_COLUMNS), allElementsInColAreIntegers);
+      // same rule as showRealMatrix, else the height cache reserves stack lines for a width the viewer does not draw
 
       const int16_t mtxWidth = getRealMatrixColumnWidths(&matrix, prefixWidth, &numericFont, dummyVal, dummyVal + MATRIX_MAX_COLUMNS, dummyVal + (MATRIX_MAX_ROWS + 1) * MATRIX_MAX_COLUMNS, cols > MATRIX_MAX_COLUMNS ? MATRIX_MAX_COLUMNS : cols, allElementsInColAreIntegers);
       if(abs(mtxWidth) > MATRIX_LINE_WIDTH) {
@@ -5358,7 +5350,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
             }
 #endif //OPTION_VECTOR
 
-            showRealMatrix(&matrix, prefixWidth, toDisplayVectorMatrix, !(temporaryInformation == TI_VIEW_REGISTER && origRegist == REGISTER_T));
+            showRealMatrix(&matrix, prefixWidth, !(temporaryInformation == TI_VIEW_REGISTER && origRegist == REGISTER_T), NULL);
             if(lastErrorCode != 0) {
               refreshRegisterLine(errorMessageRegisterLine);
             }
@@ -5380,15 +5372,12 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
             }
 
 
-            char preserveErrorMessage[ERROR_MESSAGE_LENGTH];
-            xcopy(preserveErrorMessage, errorMessage, ERROR_MESSAGE_LENGTH); // maintain the errormessage string, which is used for TI's earlier.
             if((regist == REGISTER_Z || regist == REGISTER_T) && !runningOnSimOrUSB) {
               real34MatrixToDisplayString(regist, tmpString);
             }
             else if(!vectorToDisplayString(regist, tmpString)) {
               real34MatrixToDisplayString(regist, tmpString);
             }
-            xcopy(errorMessage, preserveErrorMessage, ERROR_MESSAGE_LENGTH); // maintain the errormessage string, which is used for TI's earlier.
 
 
 
@@ -5598,18 +5587,29 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
   #define displayF (useSmallShifts ? STD_f : STD_MODE_F)
   #define displayG (useSmallShifts ? STD_g : STD_MODE_G)
 
+  static bool_t shiftGlyphOnScreen = false;
+
   void clearShiftState(void) {
     uint32_t fcol, frow, gcol, grow;
+    if(!shiftGlyphOnScreen) {                                                                                //no shift was drawn, no clear is needed
+      return;
+    }
+    shiftGlyphOnScreen = false;
     getGlyphBounds(displayF, 0, &standardFont, &fcol, &frow);
     getGlyphBounds(displayG, 0, &standardFont, &gcol, &grow);
-    lcd_fill_rect(X_SHIFT, Y_SHIFT, (fcol > gcol ? fcol : gcol), (frow > grow ? frow : grow), LCD_SET_VALUE);
+    lcd_fill_rect(X_SHIFT, Y_SHIFT, (fcol > gcol ? fcol : gcol), (frow > grow ? frow : grow), LCD_SET_VALUE);//clear shift glyph area
+    if(calcMode == CM_MIM && matrixIndex != INVALID_VARIABLE && Y_SHIFT ) {                                  //in Mx editor, top left border is also cleared
+      showMatrixEditor();
+    }
   }
 
   void showShiftStateF(void) {
+        shiftGlyphOnScreen = true;
         showGlyph(displayF, &standardFont, X_SHIFT, Y_SHIFT, vmNormal, true, true, false); // f is pixel 4+8+3 wide
   }
 
   void showShiftStateG(void) {
+        shiftGlyphOnScreen = true;
         showGlyph(displayG, &standardFont, X_SHIFT, Y_SHIFT, vmNormal, true, true, false); // g is pixel 4+10+1 wide
   }
 

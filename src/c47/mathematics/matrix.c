@@ -119,7 +119,7 @@ bool_t getMatrixDims(calcRegister_t regist, const char *funcName, uint16_t *rows
     return true;
   }
 
-static bool_t getSingleDimension(calcRegister_t reg, uint32_t *d) {
+bool_t getSingleDimension(calcRegister_t reg, uint32_t *d) {
   longInteger_t tmp;
   bool_t res = false;
 

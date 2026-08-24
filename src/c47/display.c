@@ -1858,12 +1858,7 @@ void angle34ToDisplayString2(const real34_t *angle34, uint8_t modeIn, char *disp
     displayFormatDigits = savedDisplayFormatDigits;
     displayFormat       = savedDisplayFormat;
     //remove the '.' radix indicating it is a real
-    int32_t slen = (int32_t)strlen(degStr);
-    int32_t mlen = (Rx[0] & 0x80) ? (int32_t)strlen(RADIX34_MARK_STRING) : (int32_t)strlen(Rx);
-    const char *marker = (Rx[0] & 0x80) ? RADIX34_MARK_STRING : Rx;
-    if(slen >= mlen && strcmp(degStr + slen - mlen, marker) == 0) {
-      degStr[slen - mlen] = '\0';
-    }
+    stripTrailingRadix(degStr);
 
 
     char tt[4];
@@ -2092,9 +2087,12 @@ void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, boo
   }
   else {
     if(base == 2) {
-      gap = 4;
+      gap = grpGroupingBin;
     }
-    else if(base == 4 || base == 16) {
+    else if(base == 16) {
+      gap = grpGroupingHex;
+    }
+    else if(base == 4) {
       gap = 2;
     }
     else if(base == 8) {
@@ -2799,6 +2797,11 @@ void timeToDisplayString(calcRegister_t regist, char *displayString, bool_t igno
   bool_t isValid12hTime = false, isAfternoon = false;
   uint8_t savedDisplayFormat = displayFormat, savedDisplayFormatDigits = displayFormatDigits;
 
+  // The fraction loop below never ends on a NaN, and under ignoreTDisp there is no digit cap to stop it.
+  if(real34IsNaN(REGISTER_REAL34_DATA(regist))) {
+    real34ToString(REGISTER_REAL34_DATA(regist), displayString);
+    return;
+  }
   real34ToReal(REGISTER_REAL34_DATA(regist), &real);
   sign = realIsNegative(&real);
 
@@ -3043,12 +3046,11 @@ bool_t vectorToDisplayString(calcRegister_t regist, char *displayString) {
     if(isMatrixVector(matrixHeader->matrixRows, matrixHeader->matrixColumns)) {
       real34Matrix_t matrix;
       linkToRealMatrixRegister(regist, &matrix);
-      showRealMatrix(&matrix, 0, !toDisplayVectorMatrix, regXp);
-      sprintf(displayString, "%s", errorMessage);
+      showRealMatrix(&matrix, 0, regXp, displayString);
       //if(stringWidth(tmpString, &numericFont, true, true) + 1 > SCREEN_WIDTH) {
       //  return false;     //this is to revert to [4x4 Matrix] if the digits in the default standard font is too wide. Not needed as it is managed by reducing the font
       //}
-      return true;
+      return displayString[0] != 0;                    // empty means showRealMatrix refused, then shows [n×n Matrix]
     }
   }
   return false;
@@ -3193,7 +3195,7 @@ static void dispM(uint16_t regist, char * prefix) {
   if(getRegisterDataType(regist) == dtReal34Matrix) {
     real34Matrix_t matrix;
     linkToRealMatrixRegister(regist, &matrix);
-    showRealMatrix(&matrix, prefixWidth, toDisplayVectorMatrix, !regXp);
+    showRealMatrix(&matrix, prefixWidth, !regXp, NULL);
     //printf("#### tmpString=%s prefix=%s prefixWidth=%u lastErrorCode=%u temporaryInformation=%u\n",tmpString, prefix, prefixWidth, lastErrorCode, temporaryInformation);
     if(lastErrorCode != 0) {
       refreshRegisterLine(errorMessageRegisterLine);
@@ -3956,6 +3958,9 @@ goBreak1:
         clearScreenOld(!clrStatusBar, clrRegisterLines, clrSoftkeys);
         dispM(showRegis, tmpString + 2100);                   //then display the matrix
         drawSinglePixelFullWidthLine(Y_POSITION_OF_REGISTER_T_LINE-4);
+        hourGlassIconEnabled = false;                         //clear hourglass as refresh below is skipped
+        showHideHourGlass();
+        screenUpdatingMode |= (SCRUPD_MANUAL_MENU | SCRUPD_MANUAL_STACK);   //the matrix is drawn here, refresh to leave the stack and menu
         temporaryInformation = TI_SHOWNOTHING;                //then tell the system it is in show nothing mode,
         if(programRunStop == PGM_RUNNING) {   //this needs to be checked - maybe needed for all show items not only here
           refreshScreen(150);
