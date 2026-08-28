@@ -1490,6 +1490,7 @@ static void complex34ToDisplayString2(const complex34_t *complex34, char *displa
   if(tagPolar) { // polar mode
     real34ToReal(VARIABLE_REAL34_DATA(complex34), &real);
     real34ToReal(VARIABLE_IMAG34_DATA(complex34), &imagIc);
+
     decContext c = ctxtReal39;
     // Compute the polar form at a fixed display precision (POLAR_DISPLAY_COMPUTE_DIGITS),
     // not at a precision scaled by the operands' exponent: hypot and atan2 are
@@ -2802,6 +2803,7 @@ void timeToDisplayString(calcRegister_t regist, char *displayString, bool_t igno
     real34ToString(REGISTER_REAL34_DATA(regist), displayString);
     return;
   }
+
   real34ToReal(REGISTER_REAL34_DATA(regist), &real);
   sign = realIsNegative(&real);
 

@@ -26,11 +26,15 @@ build.ninja
 .ninja_deps
 .ninja_log
 compile_commands.json
+/src_files_stamp
+/testPgms_stamp
+/dep/gmp-6.2.1/
 
 # --- 3. C47 Core Generated & Specifics ---
 /wp43
 /c47
 /r47
+/t47
 /testSuite
 /generate*
 /ttf2RasterFonts
@@ -43,12 +47,16 @@ compile_commands.json
 backup.bin
 backup.cfg
 backupR47.cfg
+backupTest.cfg
+backupTestR47.cfg
 wp43.sav
 wp43.dat
 c47.sav
 c47.dat
 *.s47
 *.zip
+!xfnToC47user.s47
+!xfnToR47user.s47
 20*.REGS.TSV
 20*.bmp
 tags
@@ -56,6 +64,7 @@ tags
 /SAVFILES/
 src/generated/*.c
 src/generated/*.h
+!/src/generated/constantsVerification.txt
 manual/**/*.pdf
 pdfs/**/*.pdf
 WP43_Docs/**/*.pdf
@@ -85,12 +94,12 @@ Thumbs.db
 *.rej
 *.orig
 
-
 # --- 6. Explicitly TRACK these in Vault ---
 !android/
 !PROGRAMS/
 !manual/
 !tools/
+!docs/
 !.agents/
 !.gemini/
 !MANIFEST_PRIVATE.md
@@ -107,14 +116,14 @@ Thumbs.db
 !dist.sh
 !Makefile
 !README.md
+!AGENTS.md
 !.gitignore
 !.gitlab-ci.yml
 
 # --- 7. Upstream Whitelist (Delta Mode) ---
-# We track all c47 core files directly
 !/src/c47/
 
-# --- 8. Android Core Copies (Ignore copies of the core) ---
+# --- 8. Android Core Copies ---
 /android/app/src/main/cpp/c47/
 !/android/app/src/main/cpp/c47-android/
 android/build_output.txt
@@ -128,10 +137,13 @@ android/build_output.txt
 # --- 11. Test Suite Outputs ---
 /backupTest.cfg
 /c47Test.sav
+/c47autoTest.sav
+/c47Test.dat
+/c47stateTest.bin
 /c47programTest.bin
 /c47programTest.rtf
 /c47programsTest.bin
 /c47programsTest.rtf
 /c47regsTest.txt
+/c47regdumpTest.txt
 /c47plotTest*.bmp
-/c47stateTest.bin

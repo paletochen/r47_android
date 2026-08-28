@@ -95,7 +95,17 @@ subdir('src/generateCatalogs')
 subdir('src/generateTestPgms')
 subdir('src/generateTests')
 subdir('src/testSuite')
-subdir('src/t47')
+
+# dep/jimtcl is a submodule, so GitLab source archives arrive with it empty; build without the DSL rather than fail
+fs = import('fs')
+if fs.exists('dep/jimtcl/jim.c')
+  have_t47_dsl = true
+  subdir('src/t47')
+else
+  have_t47_dsl = false
+  t47_dep = declare_dependency()
+  warning('dep/jimtcl is empty: building without the T47 DSL')
+endif
 
 # Jim Tcl DSL module (only for PC_BUILD)
 if not meson.is_cross_build()

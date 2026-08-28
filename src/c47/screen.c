@@ -82,7 +82,6 @@ bool_t blockMonitoring = false;
 
 
 
-
    TO_QSPI static const char disclaimerStr[]     = "  " MODELTEXT " firmware is free, open source and \n  neither provided nor supported by \n  SwissMicros. Press a key to continue.";
 
    TO_QSPI static const char versionStr[]        = "  " MODELTEXT " " VERSION_STRING ".";
@@ -1821,7 +1820,6 @@ return res;
     halfSecTick3 = 0;
   }
 
-
   static bool_t _force_refresh(uint8_t mode) {
     #if defined(ANALYSE_REFRESH) && defined(PC_BUILD)
       printf("# force = %i", mode == force);
@@ -2863,6 +2861,7 @@ void createSubstrings(uint8_t number) {
       *prefixWidth = stringWidth(prefix, &standardFont, true, true) + 1;
     }
   }
+
   #define noLine false
   static void _displaySigmaPlus(calcRegister_t regist, char *prefix, int16_t *prefixWidth, bool_t doLine) {
     int32_t w = realToInt32C47(SIGMA_N, NULL);
@@ -6016,6 +6015,9 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
             lcd_refresh_dma();             //If this is not here, menu generation is not reliable, and presses are missed. Not sure why.
           #endif //DMCP_BUILD
         }
+        else {
+          showMenuTopLine();               //the stack clear and the X line take the top rows of the menu, so draw them again when the menu itself is not drawn
+        }
         if(programRunStop == PGM_STOPPED || programRunStop == PGM_WAITING) {
           hourGlassIconEnabled = false;
         }
@@ -6474,7 +6476,6 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
     uint16 = 0;
     uint32 = 0;
     for(y=SCREEN_HEIGHT-1; y>=0; y--) {
-
       for(x=0; x<SCREEN_WIDTH; x++) {
         uint8 <<= 1;
         if(lcd_buffer_pixel_on((uint32_t)x, (uint32_t)y)) {
@@ -6642,14 +6643,10 @@ void fnPoint(uint16_t unusedButMandatoryParameter) {
 
 void fnAGraph(uint16_t regist) {
     int32_t x, y;
-    uint32_t gramod;
-    longInteger_t liGramod;
+    uint32_t gramod = graMod;
     getPixelPos(&x, &y);
     x= abs(x);
     y= abs(y);
-    convertLongIntegerRegisterToLongInteger(RESERVED_VARIABLE_GRAMOD, liGramod);
-    longIntegerToUInt32(liGramod, gramod);
-    longIntegerFree(liGramod);
     if(lastErrorCode == ERROR_NONE) {
       if(getRegisterDataType(regist) == dtShortInteger) {
         uint64_t val;

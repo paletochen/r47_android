@@ -62,6 +62,10 @@ if have_dladdr
   _c_args += ['-DHAVE_DLADDR=1']
 endif
 
+if have_t47_dsl
+  _c_args += ['-DHAVE_T47_DSL=1']
+endif
+
 sim = executable('c47',
   sources             : decNumber_src + c47_src + c47_gtk_src + c47_gtk_rc + [rasterFontsData_c, softmenuCatalogs_h, constantPointers_ch, vcs_h, version_h],
   c_args              : _c_args + ['-DCALCMODEL=USER_C47'],
