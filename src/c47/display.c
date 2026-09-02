@@ -3231,7 +3231,9 @@ static void dispM(uint16_t regist, char * prefix) {
 
 #undef MONITOR_SHOW
 
-static void prepLongintIntoLines(int16_t *last, int16_t *source, int16_t *dest, const font_t *fontToUse, int16_t maxWidth, int16_t numberOfLines, int16_t *startingLine) {
+static void prepIntoLines(const char *src, bool_t grouped, int16_t last, int16_t *source, const font_t *fontToUse, int16_t maxWidth, int16_t numberOfLines, int16_t startingLine) {
+        /* src is errorMessage for a number and the register for a string. A string is not grouped: it takes no separator */
+        /* allowance, no eat-back, and its terminator prints as the closing quote.                                        */
         /* checktmpStringSep macro:           */
         /* previous 2 bytes = double byte sep */
         /* previous byte = single byte sep    */
@@ -3244,43 +3246,49 @@ static void prepLongintIntoLines(int16_t *last, int16_t *source, int16_t *dest, 
   int8_t GRPWID = GROUPWIDTH_LEFT;
   bool_t GRP_DISABLED = GROUPLEFT_DISABLED;
 
-  if(strchr(errorMessage, '.') || strstr(errorMessage, RADIX34_MARK_STRING)) {
+  if(strchr(src, '.') || strstr(src, RADIX34_MARK_STRING)) {
     //in XFN decimal mode, a decimal point changes the seps to the right hand style
     SEP = SEPARATOR_RIGHT;
     GRPWID = GROUPWIDTH_RIGHT;
     GRP_DISABLED = GROUPRIGHT_DISABLED;
   }
-  int16_t Width_0 = stringWidth(SEP, fontToUse, true, true);
+  int16_t Width_0 = grouped ? stringWidth(SEP, fontToUse, true, true) : 0;
   #if defined(MONITOR_SHOW)
-    printf("000: source=%d %d %d [%d] %d %d\n", *source, errorMessage[*source-2], errorMessage[*source-1], errorMessage[*source], errorMessage[*source+1], errorMessage[*source+2]);
+    printf("000: source=%d %d %d [%d] %d %d\n", *source, src[*source-2], src[*source-1], src[*source], src[*source+1], src[*source+2]);
     printf("Width_0 = %d\n", Width_0);
   #endif //MONITOR_SHOW
 
   int16_t d;
-  *dest = 0;
+  int16_t dest = 0;
   int16_t sourceReturn = 0;
   for(d=0; d <= (numberOfLines)*SHOWLineSize ; d+=SHOWLineSize) {   //0 to (n-1)+1 one more that the displayed strings, to detect run-over
     tmpString[d] = 0;
   }
-  for(d = (*startingLine)*SHOWLineSize; d <= (*startingLine + (numberOfLines-1+1))*SHOWLineSize; d += SHOWLineSize) { //0 to (n-1)+1 one more that the displayed strings, to detect run-over
-    int16_t dCounter = d - (*startingLine)*SHOWLineSize;
-    //printf("dCounter=%i d=%i startingLine=%i last=%i source=%i dest=%i ...", dCounter, d, *startingLine, *last, *source, *dest);
-    *dest = dCounter;
+  for(d = (startingLine)*SHOWLineSize; d <= (startingLine + (numberOfLines-1+1))*SHOWLineSize; d += SHOWLineSize) { //0 to (n-1)+1 one more that the displayed strings, to detect run-over
+    int16_t dCounter = d - (startingLine)*SHOWLineSize;
+    //printf("dCounter=%i d=%i startingLine=%i last=%i source=%i dest=%i ...", dCounter, d, startingLine, last, *source, dest);
+    dest = dCounter;
+    if(!grouped && dCounter == 0 && *source == 0) {         //a string leads its first page with the register name and the opening quote
+      xcopy(tmpString, tmpString + 2100, stringByteLength(tmpString + 2100) + 1);
+      dest += stringByteLength(tmpString);
+      tmpString[dest++] = '\'';
+      tmpString[dest] = 0;
+    }
 
 
-    while((*source < *last) && (*dest < TMP_STR_LENGTH - 6)) {
+    while((*source < last) && (dest < TMP_STR_LENGTH - 6) && (dest - dCounter < SHOWLineSize - 2)) {   //the slot bounds the line as well as the width
       // Add the character(s)
-      tmpString[*dest] = errorMessage[*source];
+      tmpString[dest] = src[*source] ? src[*source] : '\'';
       int bytesToAdd = 1;
 
-      if(tmpString[*dest] & 0x80) {
-        tmpString[++*dest] = errorMessage[++*source];
+      if(tmpString[dest] & 0x80) {
+        tmpString[++dest] = src[++*source];
         bytesToAdd = 2;
         #if defined(MONITOR_SHOW)
-          printf("(%u)\n", (uint8_t)((tmpString + (*dest))[0]));
+          printf("(%u)\n", (uint8_t)((tmpString + (dest))[0]));
         #endif
       }
-      tmpString[++*dest] = 0;
+      tmpString[++dest] = 0;
       (*source)++;
 
       // Check width validity
@@ -3289,18 +3297,18 @@ static void prepLongintIntoLines(int16_t *last, int16_t *source, int16_t *dest, 
 
       if(currentWidth >= allowedWidth) {
         // Width exceeded - remove added character(s) and break
-        *dest -= bytesToAdd;
+        dest -= bytesToAdd;
         *source -= bytesToAdd;
-        tmpString[*dest] = 0;
+        tmpString[dest] = 0;
         break;
       }
       // Width is valid
 
       #if defined(MONITOR_SHOW)
         printf("dCounter = %d, Width_0 =%d, %s : Width=%d <> %d\n", dCounter, Width_0, tmpString + dCounter, currentWidth, allowedWidth);
-        printf("02--->d=%i startingLine=%i last=%i source=%i dest=%i wid=%i??maxwid=%i <<:%u ", d, *startingLine, *last, *source, *dest, currentWidth, allowedWidth, *dest < TMP_STR_LENGTH - 6);
-        printf("03    ==>%c (%u)", ((tmpString + (*dest-1))[0]), (uint8_t)((tmpString + (*dest-1))[0]));
-        if(((uint8_t)((tmpString + (*dest-1))[0]) & 0x80) == 0) {
+        printf("02--->d=%i startingLine=%i last=%i source=%i dest=%i wid=%i??maxwid=%i <<:%u ", d, startingLine, last, *source, dest, currentWidth, allowedWidth, dest < TMP_STR_LENGTH - 6);
+        printf("03    ==>%c (%u)", ((tmpString + (dest-1))[0]), (uint8_t)((tmpString + (dest-1))[0]));
+        if(((uint8_t)((tmpString + (dest-1))[0]) & 0x80) == 0) {
           printf("\n");
         }
       #endif
@@ -3311,16 +3319,16 @@ static void prepLongintIntoLines(int16_t *last, int16_t *source, int16_t *dest, 
       printf("  --->d=%i wid=%i\n", d, (int16_t)(stringWidth(tmpString + dCounter, fontToUse, true, true)));
     #endif
     uint8_t cnt = GRPWID+1;
-    while(cnt-- != 0 && *source < *last && !GRP_DISABLED ) { //Eat away characters at the end to line, up to and excluding the last seperator.
-      if(checktmpStringSep(SEP, *dest)) {                    //try the actual sep char, or any other double byte unicode character to split it there. That excludes all ligit digits
-        (*dest)--;                                           //line does not end on separator, so reduce the characters until it does
+    while(cnt-- != 0 && *source < last && grouped && !GRP_DISABLED ) { //Eat away characters at the end to line, up to and excluding the last seperator.
+      if(checktmpStringSep(SEP, dest)) {                     //try the actual sep char, or any other double byte unicode character to split it there. That excludes all ligit digits
+        dest--;                                              //line does not end on separator, so reduce the characters until it does
         (*source)--;
       }
       else {
-        (*dest)--;    //line ends on a seperator so reduce only the target and let the next line begins onthe number, not separator
+        dest--;       //line ends on a seperator so reduce only the target and let the next line begins onthe number, not separator
         (*source)--;
         if(SEP[0] & 0x80 && SEP[1] != 1) { //line ends on a double byte seperator
-          (*dest)--;
+          dest--;
           (*source)--;
         }
         break;
@@ -3330,27 +3338,27 @@ static void prepLongintIntoLines(int16_t *last, int16_t *source, int16_t *dest, 
 
 
     #if defined(MONITOR_SHOW)
-      printf("AAA: source=%d %d %d [%d] %d %d\n", (uint8_t)*source, (uint8_t)errorMessage[*source-2], (uint8_t)errorMessage[*source-1], (uint8_t)errorMessage[*source], (uint8_t)errorMessage[*source+1], (uint8_t)errorMessage[*source+2]);
-      printf("AAA: dest  =%d %d %d [%d] %d %d\n", (uint8_t)*dest  , (uint8_t)tmpString[*dest  -2],    (uint8_t)tmpString[*dest  -1],    (uint8_t)tmpString[*dest  ],    (uint8_t)tmpString[*dest  +1],    (uint8_t)tmpString[*dest  +2]);
-      printf("---: d=%d (*startingLine + (numberOfLines-1))*SHOWLineSize=%d\n", d, (*startingLine + (numberOfLines-1))*SHOWLineSize);
+      printf("AAA: source=%d %d %d [%d] %d %d\n", (uint8_t)*source, (uint8_t)src[*source-2], (uint8_t)src[*source-1], (uint8_t)src[*source], (uint8_t)src[*source+1], (uint8_t)src[*source+2]);
+      printf("AAA: dest  =%d %d %d [%d] %d %d\n", (uint8_t)dest  , (uint8_t)tmpString[dest  -2],    (uint8_t)tmpString[dest  -1],    (uint8_t)tmpString[dest  ],    (uint8_t)tmpString[dest  +1],    (uint8_t)tmpString[dest  +2]);
+      printf("---: d=%d (startingLine + (numberOfLines-1))*SHOWLineSize=%d\n", d, (startingLine + (numberOfLines-1))*SHOWLineSize);
     #endif //MONITOR_SHOW
 
-    tmpString[*dest] = 0;
-    if(d == (*startingLine + (numberOfLines-1))*SHOWLineSize) {
+    tmpString[dest] = 0;
+    if(d == (startingLine + (numberOfLines-1))*SHOWLineSize) {
       sourceReturn = *source; //numberOfLines-1 is the last visible line
     }
 
-    //printf("source=%i dest=%i [..3]=%i %i %i\n", *source, *dest, tmpString[*dest-2], tmpString[*dest-1], tmpString[*dest-0]);
+    //printf("source=%i dest=%i [..3]=%i %i %i\n", *source, dest, tmpString[dest-2], tmpString[dest-1], tmpString[dest-0]);
     //printf(">>>AA %u %u |%s|\n", d, (uint8_t)tmpString[d], tmpString+d);
-    //printf(">>>BB source=%i last=%i dest=%i\n", *source, *last, *dest);
+    //printf(">>>BB source=%i last=%i dest=%i\n", *source, last, dest);
   }
 
   *source = sourceReturn;
 
   #if defined(MONITOR_SHOW)
-    printf("###%s###\n", errorMessage + *dest);
-    printf("BBB: source=%d %d %d [%d] %d %d\n", (uint8_t)*source, (uint8_t)errorMessage[*source-2], (uint8_t)errorMessage[*source-1], (uint8_t)errorMessage[*source], (uint8_t)errorMessage[*source+1], (uint8_t)errorMessage[*source+2]);
-    printf("BBB: dest  =%d %d %d [%d] %d %d\n", (uint8_t)*dest  , (uint8_t)tmpString[*dest  -2],    (uint8_t)tmpString[*dest  -1],    (uint8_t)tmpString[*dest  ],    (uint8_t)tmpString[*dest  +1],    (uint8_t)tmpString[*dest  +2]);
+    printf("###%s###\n", src + dest);
+    printf("BBB: source=%d %d %d [%d] %d %d\n", (uint8_t)*source, (uint8_t)src[*source-2], (uint8_t)src[*source-1], (uint8_t)src[*source], (uint8_t)src[*source+1], (uint8_t)src[*source+2]);
+    printf("BBB: dest  =%d %d %d [%d] %d %d\n", (uint8_t)dest  , (uint8_t)tmpString[dest  -2],    (uint8_t)tmpString[dest  -1],    (uint8_t)tmpString[dest  ],    (uint8_t)tmpString[dest  +1],    (uint8_t)tmpString[dest  +2]);
   #endif //MONITOR_SHOW
 }
 
@@ -3417,8 +3425,7 @@ void fnC47Show(uint16_t fnShow_param) {
     uint8_t savedDisplayFormat = displayFormat, savedDisplayFormatDigits = displayFormatDigits;
     uint64_t ssf0 = systemFlags0;
     uint64_t ssf1 = systemFlags1;
-    bool_t thereIsANextLine;
-    int16_t dest = 0, last = 0, d, i, offset, bytesProcessed, aa, bb, cc, dd, numberOfLines = 0;
+    int16_t dest = 0, last = 0, d, i, aa, bb, cc, dd, numberOfLines = 0;
 
     displayFormat = DF_ALL;
     displayFormatDigits = 0;
@@ -3455,6 +3462,20 @@ void fnC47Show(uint16_t fnShow_param) {
                      source = 0;
                      IntShowMode = SHOWTNY;
                    }
+                 }
+               }
+               else if(getRegisterDataType(showRegis) == dtString) {   //a string pages on source alone, one screen at a time, big then standard then tiny
+                 if(IntShowMode == SHOWTNY) {
+                   source = 0;
+                   IntShowMode = SHOWAUTO;
+                 }
+                 else if(IntShowMode != SHOWSML) {
+                   source = 0;
+                   IntShowMode = SHOWSML;
+                 }
+                 else if(source > stringByteLength(REGISTER_STRING_DATA(showRegis))) {   //source passes the length only once the closing quote is printed
+                   source = 0;
+                   IntShowMode = SHOWTNY;
                  }
                }
                break;
@@ -3584,14 +3605,12 @@ XFNentryPoint:
             numberOfLines = 6;
             startingLine = 0;
             int16_t sourcemem = source;
-            int16_t destmem = dest;
-            prepLongintIntoLines(&last, &source, &dest, &numericFont, SCREEN_WIDTH, numberOfLines, &startingLine);
+            prepIntoLines(errorMessage, true, last, &source, &numericFont, SCREEN_WIDTH, numberOfLines, startingLine);
             //printf("001 ll=%i source=%i last=%i\n",glyphNumber, source, last);
             if(tmpString[numberOfLines*SHOWLineSize] == 0) {
               break;
             }
             source = sourcemem;
-            dest = destmem;
             IntShowMode = SHOWSML; // if not broken out, go smaller
           }
           else {
@@ -3605,7 +3624,7 @@ XFNentryPoint:
           SHOW_reset();
           temporaryInformation = TI_SHOW_REGISTER_SMALL;
           numberOfLines = 10;
-          prepLongintIntoLines(&last, &source, &dest, &standardFont, SCREEN_WIDTH, numberOfLines, &startingLine);
+          prepIntoLines(errorMessage, true, last, &source, &standardFont, SCREEN_WIDTH, numberOfLines, startingLine);
           if(tmpString[0] != 0) {
             goto goBreak1; //break if first line first character is non-terminator and display
           }
@@ -3624,7 +3643,7 @@ XFNentryPoint:
           temporaryInformation = TI_SHOW_REGISTER_TINY;
           numberOfLines = min(21, SHOWLineMax);
           startingLine = 0;
-          prepLongintIntoLines(&last, &source, &dest, &tinyFont, SCREEN_WIDTH, numberOfLines, &startingLine);
+          prepIntoLines(errorMessage, true, last, &source, &tinyFont, SCREEN_WIDTH, numberOfLines, startingLine);
 
 goBreak1:
 
@@ -3878,74 +3897,41 @@ goBreak1:
           printf("SHOW:String\n");
         #endif // VERBOSE_SCREEN && PC_BUILD
 
-        SHOW_reset();
-        temporaryInformation = TI_SHOW_REGISTER_BIG; //First try one line of big font.
-        offset = 0;
-        thereIsANextLine = true;
-        bytesProcessed = 2100;
-        strcat(tmpString + 2100, "'");
-        strcat(tmpString + 2100, REGISTER_STRING_DATA(showRegis));//, stringByteLength(REGISTER_STRING_DATA(showRegis)) + 4+1);
-        strcat(tmpString + 2100, "'");
-        #if defined(VERBOSE_SCREEN) && defined(PC_BUILD)
-          uint32_t tmp = 0;
-          printf("^^^0 %4u", tmp);
-          printf("^^^^$$ %s %d\n", tmpString + 2100, stringWidthC47(tmpString + 2100, stdnumEnlarge, nocompress, false, true));
-        #endif // VERBOSE_SCREEN && PC_BUILD
-        while(thereIsANextLine) {
-          char *strw;
-          xcopy(tmpString + offset, tmpString + bytesProcessed, stringByteLength(tmpString + bytesProcessed) + 1);
-          thereIsANextLine = false;
-          strw = stringAfterPixelsC47(tmpString + offset, stdnumEnlarge, nocompress, SCREEN_WIDTH - 1, false, true);
-          if(*strw != 0) {
-            *strw = 0;
-            thereIsANextLine = true;
-            #if defined(VERBOSE_SCREEN) && defined(PC_BUILD)
-              printf("^^^A %4u", tmp++);
-              printf("^^^^$$ %s %d\n", tmpString + offset, stringWidthC47(tmpString + offset, stdnumEnlarge, nocompress, false, true));
-            #endif // VERBOSE_SCREEN && PC_BUILD
+        last = stringByteLength(REGISTER_STRING_DATA(showRegis)) + 1;        //one past the string, where the terminator prints as the closing quote
+
+        if(IntShowMode == SHOWAUTO) {                                        //the big font keeps the string up to four lines
+          temporaryInformation = TI_SHOW_REGISTER_BIG;
+          numberOfLines = 4;
+          prepIntoLines(REGISTER_STRING_DATA(showRegis), false, last, &source, &numericFont, SCREEN_WIDTH, numberOfLines, 0);
+          if(tmpString[numberOfLines*SHOWLineSize] == 0) {
+            break;
           }
-          bytesProcessed += stringByteLength(tmpString + offset);
-          offset += SHOWLineSize;
-          tmpString[offset] = 0;
-        }
-        if(offset <= 4*SHOWLineSize) {
-          break; //else continue on the small font
+          source = 0;
+          IntShowMode = SHOWSML;
         }
 
+        if(IntShowMode == SHOWSML) {
+          temporaryInformation = TI_SHOW_REGISTER_SMALL;
+          numberOfLines = 10;
+          prepIntoLines(REGISTER_STRING_DATA(showRegis), false, last, &source, &standardFont, SCREEN_WIDTH, numberOfLines, 0);
+        }
+        else {
+          temporaryInformation = TI_SHOW_REGISTER_TINY;
+          numberOfLines = 20;                                                //21 are drawn, but a 21st run-over slot sits past tmpString; 20 lines take 1180 glyphs
+          prepIntoLines(REGISTER_STRING_DATA(showRegis), false, last, &source, &tinyFont, SCREEN_WIDTH, numberOfLines, 0);
+        }
 
-        SHOW_reset();
-        temporaryInformation = TI_SHOW_REGISTER_SMALL;
-        offset = 0;
-        thereIsANextLine = true;
-        bytesProcessed = 2100;
-        strcat(tmpString + 2100, "'");
-        strcat(tmpString + 2100, REGISTER_STRING_DATA(showRegis));//, stringByteLength(REGISTER_STRING_DATA(showRegis)) + 4+1);
-        strcat(tmpString + 2100, "'");
-        #if defined(VERBOSE_SCREEN) && defined(PC_BUILD)
-          uint32_t tmp2 = 0;
-        #endif // VERBOSE_SCREEN && PC_BUILD
-        while(thereIsANextLine) {
-          char *remainingString;
-          xcopy(tmpString + offset, tmpString + bytesProcessed, stringByteLength(tmpString + bytesProcessed) + 1);
-          thereIsANextLine = false;
-          #if defined(VERBOSE_SCREEN) && defined(PC_BUILD)
-            tmp =0;
-          #endif // VERBOSE_SCREEN && PC_BUILD
-          remainingString = stringAfterPixels(tmpString + offset, &standardFont, SCREEN_WIDTH, false, true);
-          if(*remainingString != 0) {
-            *remainingString = 0;
-            thereIsANextLine = true;
-            #if defined(VERBOSE_SCREEN) && defined(PC_BUILD)
-              printf("^^^B %4u %4u", tmp2, tmp++);
-              printf("^^^^$$ %s %d\n", tmpString + offset, stringWidth(tmpString + offset, &standardFont, false, true));
-            #endif // VERBOSE_SCREEN && PC_BUILD
+        if(tmpString[numberOfLines*SHOWLineSize] != 0) {                     //more to come: the last visible line ends in an ellipsis and R/S brings the next page
+          const font_t *pageFont = (temporaryInformation == TI_SHOW_REGISTER_SMALL) ? &standardFont : &tinyFont;
+          d = (numberOfLines-1)*SHOWLineSize;
+          i = stringByteLength(tmpString + d);
+          while(i > 0 && (i > SHOWLineSize - 7 || stringWidth(tmpString + d, pageFont, true, true) + stringWidth(STD_ELLIPSIS, pageFont, true, true) >= SCREEN_WIDTH)) {
+            i = stringPrevGlyph(tmpString + d, i);
+            tmpString[d + i] = 0;
+            source = stringPrevGlyph(REGISTER_STRING_DATA(showRegis), source);   //a glyph the ellipsis displaces is printed again on the next page
           }
-          #if defined(VERBOSE_SCREEN) && defined(PC_BUILD)
-            tmp2++;
-          #endif // VERBOSE_SCREEN && PC_BUILD
-          bytesProcessed += stringByteLength(tmpString + offset);
-          offset += SHOWLineSize;
-          tmpString[offset] = 0;
+          xcopy(tmpString + d + i, STD_ELLIPSIS, 2);
+          tmpString[d + i + 2] = 0;
         }
         break;
 

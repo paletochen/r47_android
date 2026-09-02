@@ -1518,6 +1518,7 @@ void saveRegisterSnapshot(calcRegister_t reg, snap_t *s) {
       }
       else {
         s->blocks = 0;
+        displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE); // the value is not captured, so the restore would put back nothing
       }
       break;
   }
@@ -1547,13 +1548,20 @@ void restoreRegisterSnapshot(calcRegister_t reg, snap_t *s) {
       *(REGISTER_SHORT_INTEGER_DATA(reg))=s->siVal;
       setRegisterShortIntegerBase(reg, s->siBase);
       break;
-    default: // the blocks the save took a copy of go back as they were, and the register's own blocks are freed first whatever it holds now
+    default: // the blocks the save took a copy of go back as they were, and the register's own blocks are freed whatever it holds now
       if(s->mem) {
-        freeRegisterData(reg);
-        setRegisterDataPointer(reg, allocC47Blocks(s->blocks));
-        xcopy(getRegisterDataPointer(reg), s->mem, TO_BYTES(s->blocks));
+        void *dataPtr = allocC47Blocks(s->blocks); // taken before the register's own blocks go, so a refusal leaves the register with the value it has now
+        if(dataPtr) {
+          freeRegisterData(reg);
+          setRegisterDataPointer(reg, dataPtr);
+          xcopy(dataPtr, s->mem, TO_BYTES(s->blocks));
+        }
         freeC47Blocks(s->mem, s->blocks);
         s->mem = NULL;
+        if(!dataPtr) {
+          displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+          return; // the register keeps the type and the value it has now
+        }
       }
       break;
   }

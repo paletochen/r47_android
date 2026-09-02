@@ -1169,6 +1169,15 @@ return res;
       return x; //This is special usage of the 01 ASCII code, to ignore the code and return with nothing printed
     }
 
+    uint8_t mini = miniC;                                     //JM 1 while a standard font glyph replaces one the tiny font lacks, which halves it in both axes
+    if(font == &tinyFont && findGlyphExact(font, charCode) < 0) {   //findGlyph aliases a tiny font miss to glyph 0, so the exact probe is the one that finds the gap
+      int16_t stdId = findGlyphExact(&standardFont, charCode);
+      if(stdId >= 0 && standardFont.glyphs[stdId].colsGlyph > 0) {  //only a glyph with ink is worth compressing; leaving blanks alone keeps the number separators
+        font = &standardFont;
+        mini = 1;
+      }
+    }
+
     bool_t enlarge = false;                                   //JM ENLARGE vv
     if(combinationFonts == stdnumEnlarge || combinationFonts == numHalf) {
       if(maxiC == 1 && font == &numericFont) {                //JM allow enlargements
@@ -1236,9 +1245,9 @@ return res;
 
     // Clearing the space needed by the glyph
     bool_t rep_enlarge = numDouble || (enlarge && combinationFonts != 0);                //JM ENLARGE
-    uint32_t yNewMaxDx = (rep_enlarge ? 2 : 1) * (((glyph->rowsAboveGlyph + glyph->rowsGlyph + glyph->rowsBelowGlyph) >> miniC) - (rep_enlarge ? 4 : 0));
+    uint32_t yNewMaxDx = (rep_enlarge ? 2 : 1) * (((glyph->rowsAboveGlyph + glyph->rowsGlyph + glyph->rowsBelowGlyph) >> mini) - (rep_enlarge ? 4 : 0));
     if(!noShow && !noPreClear) {
-      lcd_fill_rect(x, max(0, yy), (uint32_t)(doubling * ((xGlyph + glyph->colsGlyph + endingCols) >> miniC)) >> 3, max(0, (int32_t)(yNewMaxDx) + (yy<0 ? yy : 0)), (videoMode == vmNormal ? LCD_SET_VALUE : LCD_EMPTY_VALUE));  //JMmini
+      lcd_fill_rect(x, max(0, yy), (uint32_t)(doubling * ((xGlyph + glyph->colsGlyph + endingCols) >> mini)) >> 3, max(0, (int32_t)(yNewMaxDx) + (yy<0 ? yy : 0)), (videoMode == vmNormal ? LCD_SET_VALUE : LCD_EMPTY_VALUE));  //JMmini
     }
     if(displaymode == numHalf) {
       y += (uint32_t)(glyph->rowsAboveGlyph*REDUCT_A/REDUCT_B*(rep_enlarge ? 2 : 1));
@@ -1261,16 +1270,16 @@ return res;
       for(col=0; col<glyph->colsGlyph; col++) {
         if(!(col%8)) {
           byte = *(data++);
-          if(miniC!=0) {
+          if(mini!=0) {
             byte = (uint8_t)byte | (((uint8_t)byte) << 1);           //JMmini
           }
         }
 
         if(byte & 0x80 && !noShow) { // MSB set
-          uint32_t x1 = x+((((doubling * (xGlyph+col)) >> miniC)) >> 3);
+          uint32_t x1 = x+((((doubling * (xGlyph+col)) >> mini)) >> 3);
           uint32_t x2 = x1;
-          uint32_t y1 = min(SCREEN_HEIGHT-1, max(0, yy + (int32_t)min(yNewMaxDx,   ((y-y0) >> miniC))));
-          uint32_t y2 = min(SCREEN_HEIGHT-1, max(0, yy + (int32_t)min(yNewMaxDx, 1+((y-y0) >> miniC))));
+          uint32_t y1 = min(SCREEN_HEIGHT-1, max(0, yy + (int32_t)min(yNewMaxDx,   ((y-y0) >> mini))));
+          uint32_t y2 = min(SCREEN_HEIGHT-1, max(0, yy + (int32_t)min(yNewMaxDx, 1+((y-y0) >> mini))));
           if(x2 > 0) {
             x2--;
           }
@@ -1295,7 +1304,7 @@ return res;
         y++; //JM ENLARGE vv do not advance the row counter for four rows, to match the row height of the enlarge font
       }
     }
-    return x + boldString + (((doubling * (xGlyph + glyph->colsGlyph + endingCols)) >> miniC) >> 3);        //JMmini
+    return x + boldString + (((doubling * (xGlyph + glyph->colsGlyph + endingCols)) >> mini) >> 3);        //JMmini
   }
 
 

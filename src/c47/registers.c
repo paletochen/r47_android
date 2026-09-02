@@ -1164,6 +1164,7 @@ void setRegisterMaxDataLengthInBlocks(calcRegister_t regist, uint16_t maxDataLen
 
 uint16_t getRegisterMaxDataLengthInBlocks(calcRegister_t regist) {
   void *db = NULL;
+  const uint32_t dataType = getRegisterDataType(regist); // read here: the branches below reduce regist, offset as an index from the boundary
 
   if(regist <= LAST_GLOBAL_REGISTER) { // Global register
       db = TO_PCMEMPTR(globalRegister[regist].pointerToRegisterData);
@@ -1215,10 +1216,10 @@ uint16_t getRegisterMaxDataLengthInBlocks(calcRegister_t regist) {
   }
 
   if(db) {
-    if(getRegisterDataType(regist) == dtReal34Matrix) {
+    if(dataType == dtReal34Matrix) {
       return ((matrixHeader_t *)db)->matrixRows * ((matrixHeader_t *)db)->matrixColumns * REAL34_SIZE_IN_BLOCKS;
     }
-    else if(getRegisterDataType(regist) == dtComplex34Matrix) {
+    else if(dataType == dtComplex34Matrix) {
       return ((matrixHeader_t *)db)->matrixRows * ((matrixHeader_t *)db)->matrixColumns * COMPLEX34_SIZE_IN_BLOCKS;
     }
     else {
