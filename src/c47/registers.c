@@ -46,7 +46,7 @@ TO_QSPI const reservedVariableDescStr_t varDescr[] = {
 /*  VAR_NO_PPERONA 37 */ { " Pay periods YR ="},
 /*  VAR_NO_PMT     38 */ { " Payment ="       },
 /*  VAR_NO_PV      39 */ { " Present Value =" },
-/*  VAR_NO_SPARE6  40 */ { ""},
+/*  VAR_NO_IP      40 */ { " Interest per period ="},
 /*  VAR_NO_UX      41 */ { ""},
 /*  VAR_NO_LX      42 */ { ""},
 /*  VAR_NO_CPERONA 43 */ { " Compounding periods YR ="},
@@ -99,7 +99,7 @@ TO_QSPI const reservedVariableHeader_t allReservedVariables[] = { // MUST be in 
 /*  VAR_NO_PPERONA 37 */  { .header = {.pointerToRegisterData = 24,         .dataType = dtReal34,      .tag = amNone,      .readOnly = 0, .notUsed = 0}, .reservedVariableName = {6, 'P', 'P', 'E', 'R', '/',  'a', 0} },
 /*  VAR_NO_PMT     38 */  { .header = {.pointerToRegisterData = 28,         .dataType = dtReal34,      .tag = amNone,      .readOnly = 0, .notUsed = 0}, .reservedVariableName = {3, 'P', 'M', 'T',  0,   0,   0,   0} },
 /*  VAR_NO_PV      39 */  { .header = {.pointerToRegisterData = 32,         .dataType = dtReal34,      .tag = amNone,      .readOnly = 0, .notUsed = 0}, .reservedVariableName = {2, 'P', 'V',  0,   0,   0,   0,   0} },
-/*  VAR_NO_SPARE6  40 */  { .header = {.pointerToRegisterData = C47_NULL,   .dataType = 0,             .tag = 0,           .readOnly = 0, .notUsed = 1}, .reservedVariableName = {0,   0,  0,   0,   0,   0,   0,   0} },   // Removed, spare
+/*  VAR_NO_IP      40 */  { .header = {.pointerToRegisterData = 36,         .dataType = dtReal34,      .tag = amNone,      .readOnly = 0, .notUsed = 0}, .reservedVariableName = {2, 'i', '%',  0,   0,   0,   0,   0} },
 /*  VAR_NO_UX      41 */  { .header = {.pointerToRegisterData = 40,         .dataType = dtReal34,      .tag = amNone,      .readOnly = 0, .notUsed = 0}, .reservedVariableName = {3, 161, 145, 'X',  0,   0,   0,   0} },
 /*  VAR_NO_LX      42 */  { .header = {.pointerToRegisterData = 44,         .dataType = dtReal34,      .tag = amNone,      .readOnly = 0, .notUsed = 0}, .reservedVariableName = {3, 161, 147, 'X',  0,   0,   0,   0} },
 /*  VAR_NO_CPERONA 43 */  { .header = {.pointerToRegisterData = 48,         .dataType = dtReal34,      .tag = amNone,      .readOnly = 0, .notUsed = 0}, .reservedVariableName = {6, 'C', 'P', 'E', 'R', '/', 'a',  0} },
@@ -1518,6 +1518,7 @@ void adjustResult(calcRegister_t res, bool_t dropY, bool_t setCpxRes, calcRegist
 
 
 void copySourceRegisterToDestRegister(calcRegister_t sourceRegister, calcRegister_t destRegister) {
+  const calcRegister_t origDestRegister = destRegister;
   if(FIRST_RESERVED_VARIABLE <= destRegister && destRegister < FIRST_NAMED_RESERVED_VARIABLE) {
     destRegister = destRegister - FIRST_RESERVED_VARIABLE + REGISTER_X;
   }
@@ -1575,6 +1576,13 @@ void copySourceRegisterToDestRegister(calcRegister_t sourceRegister, calcRegiste
   }
   }
   setRegisterTag(destRegister, getRegisterTag(sourceRegister));
+
+  if(origDestRegister == RESERVED_VARIABLE_IPONA || origDestRegister == RESERVED_VARIABLE_IP) {
+    tvmSyncIp(origDestRegister);
+  }
+  else if(origDestRegister == RESERVED_VARIABLE_PPERONA || origDestRegister == RESERVED_VARIABLE_CPERONA) {   // the frequency changed, so the pair must be recomputed:
+    tvmSyncIp(/*currentMenu() == -MNU_TVM2 || */false ? RESERVED_VARIABLE_IP : RESERVED_VARIABLE_IPONA);                   // TVM2 holds i% and moves I%/a, every other menu holds I%/a
+  }
 }
 
 
