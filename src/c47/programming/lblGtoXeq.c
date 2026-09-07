@@ -752,6 +752,7 @@ static void _putLiteral(uint8_t *literalAddress) {
 
 
 int16_t executeOneStep(uint8_t *step) {
+  uint8_t * const stepBegin = step;
   uint16_t op;
 
   op = *(step++);
@@ -795,6 +796,28 @@ int16_t executeOneStep(uint8_t *step) {
       return 0;
     }
 
+    case ITM_IF:          //  2920
+    case ITM_ELSE:        //  2921
+    case ITM_ENDIF:       //  2922
+    case ITM_DO:          //  2924
+    case ITM_WHILE:       //  2925
+    case ITM_ENDDO:       //  2926
+    case ITM_REPEAT:      //  2935
+    case ITM_UNTIL: {     //  2936
+      _executeOp(step, op, PARAM_SKIP_BACK); // each carries the number of its structure, an operand type with no indirect form
+      return -1;
+    }
+
+    case ITM_NEXT: {      //  2928
+      _executeOp(step, op, PARAM_REGISTER); // NEXT places the step pointer itself, back to its FOR on a further pass and past itself on the last one
+      return -1;
+    }
+
+    case ITM_FORTOP: {    //  2938
+      _executeOp(step, op, PARAM_REGISTER); // FORTOP places the step pointer itself, into the body or past its NEXT when the start is already past the end
+      return -1;
+    }
+
     case 0x7fff: {        // 32767  .END.
       screenUpdatingMode = SCRUPD_AUTO;
       fnReturn(0);
@@ -809,7 +832,8 @@ int16_t executeOneStep(uint8_t *step) {
           return 0;
         }
         lastErrorCode = ERROR_NONE;
-        return 2;
+        // A STRUCT token next takes the step: an IF or WHILE reports the missing condition, and the other four must not be skipped.
+        return structNoLegacySkip(stepBegin) ? 1 : 2;
       }
       else {
         return 1;
@@ -881,7 +905,21 @@ int16_t executeOneStep(uint8_t *step) {
       //    printTraceX(LINE_FULL);
       //  }
       #endif //OPTION_IR_PRINTING
-      return temporaryInformation == TI_FALSE ? 2 : 1;
+      if(temporaryInformation != TI_TRUE && temporaryInformation != TI_FALSE) { // not a test, so the legacy rule below does not apply
+        return 1;
+      }
+      uint16_t fusedOp = structFusedOp(stepBegin);
+      if(fusedOp == 0) {
+        // The legacy rule: a false test skips the step after it. A STRUCT token is never skipped, since a skipped ENDDO or ELSE breaks the structure
+        // with no message. There is no IF or WHILE after this step, so only the other four have to be asked about.
+        return (temporaryInformation == TI_FALSE && !structStepIsJumpTarget(findNextStep(stepBegin))) ? 2 : 1;
+      }
+      // A test with IF or WHILE directly after it runs as one action: that step executes on this pass, from here. Nothing runs between the two steps, so the
+      // answer passes straight to it. An IF or WHILE reached any other way has no answer and stops with the error.
+      currentStep = findNextStep(stepBegin);
+      currentLocalStepNumber++;
+      _executeOp(currentStep + 2, fusedOp, PARAM_SKIP_BACK); // both are two-byte op codes, so the number is the third byte
+      return -1;
     }
   }
 }

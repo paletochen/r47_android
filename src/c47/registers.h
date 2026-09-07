@@ -300,7 +300,7 @@
   #define getComplexRegisterPolarMode(reg)       (getRegisterTag(reg) & amPolar)
   //#define setComplexRegisterPolarMode(reg, pm) setRegisterTag(reg, (getRegisterTag(reg) & amAngleMask) | (pm & amPolar))    // Intended to maintain bits 0-3 for amAngle (amAngleMask), clear the polar bit 4, and then OR only the polar bit.
   #define setComplexRegisterPolarMode(reg, pm)   setRegisterTag(reg, (((pm & amPolar) != 0) ? (getRegisterTag(reg) & amAngleMask) : amNone) | (pm & amPolar))   // if polar bit clear, force angle to amNone; if set, preserve angle bits
-  #define isXYRegisterMatrix                      ((getRegisterDataType(REGISTER_X) == dtReal34Matrix) || (getRegisterDataType(REGISTER_X) == dtComplex34Matrix) || (getRegisterDataType(REGISTER_Y) == dtReal34Matrix) || (getRegisterDataType(REGISTER_X) == dtComplex34Matrix) )
+  #define isXYRegisterMatrix                      ((getRegisterDataType(REGISTER_X) == dtReal34Matrix) || (getRegisterDataType(REGISTER_X) == dtComplex34Matrix) || (getRegisterDataType(REGISTER_Y) == dtReal34Matrix) || (getRegisterDataType(REGISTER_Y) == dtComplex34Matrix) )
 
 
   #define amPolarCYL 64  //  virtual bit, working in addition to the tag bit 4 = amPolar = 16; bit 5 usid by 32-bit pointer changes; real bits 6 & 7 spare. Real bits not used, in favour of these virtual logic bits,  as the register header also only has bits 0-4.

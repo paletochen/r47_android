@@ -65,20 +65,31 @@ bool_t blockMonitoring = false;
                                        "Walter" spc "DE.";
 
   //Recount: non-merge commits only, author aliases merged per person, Robbert Jan is doc-only and carries no count.
-  //  code   git rev-list --no-merges <base>, plus Over_score alone from live origin branches not in <base>, less any whose git patch-id is already in <base>.
+  //  code   git rev-list --no-merges <base>, plus Over_score and Sviatoslav from live origin branches not in <base>, less any whose git patch-id is already in <base>.
   //  manual GitLab h2x/c47-wiki repo, every branch, unique by commit id.
   //  pages  GitLab h2x/c47-wiki project events, target_type WikiPage::Meta, by author.
   //  Each total is the sum of the three.
-  //non-merge commits: c43 00.109.04.00b0.RC2 2563e080 plus Martin's unmerged branches, c47-wiki manual repo, c47-wiki page edits
-  TO_QSPI static const char whoStr2[] = "Jaco Mostert" spc "(3996)," spc1 "Martin Lorang" spc "(1382)," spc1 "Robbert Jan van Meenen" spc "(doc)," spc1
-                                       "MihailJP" spc "(1093)," spc1 "Ralf Ahlbrink" spc "(459)," spc1 "Paul Dale" spc "(449)," spc1 "Didier Lachieze" spc "(277)," spc1
-                                       "Walter Bonin" spc "(270)," spc1 "Benjamin Titmus" spc "(215)," spc1 "Hartmut Bromkamp" spc "(187)," spc1
-                                       "Pasquale Pigazzini" spc "(161)," spc1 "Mike Leffel" spc "(107)," spc1 "David Emerson" spc "(69)," spc1 "Warren Young" spc "(68)," spc1
-                                       "Bj" STD_o_DIARESIS "rn Jadelius" spc "(47)," spc1 "Philippe Martens" spc "(46)," spc1 "Marcel Dan" spc "(37)," spc1
-                                       "H" STD_a_RING "kon Hansen" spc "(36)," spc1 "Gert Menke" spc "(31)," spc1 "John Boydon" spc "(29)," spc1 "Michael Peter" spc "(28)," spc1
-                                       "Ian Abbott" spc "(21)," spc1 "R" STD_e_ACUTE "my Trotin" spc "(19)," spc1 "fridlmue" spc "(17)," spc1 "A. Vosough" spc "(16)," spc1
-                                       "Dani Rau" spc "(9)," spc1 "Harald Overbeek" spc "(9)," spc1 "Will Rutherdale" spc "(6)," spc1 "Nigel Dowrick" spc "(4)"
-                                       spc1 "\n(commits 02Aug2026)";
+  //Coders: c43 00.109.04.00a3.Internal f3ae371 plus the unmerged branches. Doccers: c47-wiki manual repo plus c47-wiki page edits. Testers and porters are not tracked in git.
+  //Bands are commit counts: 400+ over four hundred, 100+ over one hundred, the plain band the rest. Within a band, most commits first.
+  TO_QSPI static const char whoStr2[] = "Coders 400+ :" spc1 "Jaco Mostert," spc1 "Martin Lorang," spc1 "MihailJP," spc1 "Paul Dale."
+                                       "\n"
+                                       "Coders 100+ :" spc1 "Didier Lachieze," spc1 "Walter Bonin," spc1 "Benjamin Titmus," spc1 "   Pasquale Pigazzini," spc1
+                                       "David Emerson."
+                                       "\n"
+                                       "Coders      :" spc1 "Warren Young," spc1 "Bj" STD_o_DIARESIS "rn Jadelius," spc1 "Ralf Ahlbrink," spc1 "      Philippe Martens," spc1
+                                       "Gert Menke," spc1 "John Boydon," spc1 "Ian Abbott," spc1 "R" STD_e_ACUTE "my      Trotin," spc1 "fridlmue," spc1 "Dani Rau," spc1
+                                       "Harald Overbeek," spc1 "Will Rutherdale," spc1 "  Nigel Dowrick," spc1 "Sviatoslav Feshchenko," spc1 "H" STD_a_RING "kon Hansen."
+                                       "\n"
+                                       "Doccers 400+:" spc1 "Robbert Jan van Meenen," spc1 "Ralf Ahlbrink."
+                                       "\n"
+                                       "Doccers     :" spc1 "Hartmut Bromkamp," spc1 "Mike Leffel," spc1 "Jaco Mostert," spc1 "Marcel Dan," spc1
+                                       "H" STD_a_RING "kon Hansen," spc1 "Michael Peter," spc1 "A. Vosough," spc1 "Will Rutherdale," spc1 "Martin Lorang," spc
+                                       "Warren Young," spc "Philippe Martens." spc
+                                       "Testers:" spc "Barry Mead." spc1
+                                       "Porters:" spc1 "Marcel Dan" spc "(iOS, Android, Web)," spc1 "paletochen" spc "(Android)," spc1
+                                       "Pasquale Pigazzini" spc "(Android)."
+                                       "\n"
+                                       "(commits 04Sep2026)";
 
 
 
@@ -3355,8 +3366,8 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
         if(regist == REGISTER_X) {
           clearScreenOld(!clrStatusBar, clrRegisterLines, clrSoftkeys);   //clear before the blank menu goes up: the MNU_SHOW guards in _selectiveClearScreen skip the graph rects
           showSoftmenu(-MNU_SHOW);
-          showStringEnhanced(whoStr1, &standardFont, 1, Y_POSITION_OF_REGISTER_T_LINE +30 - 3, vmNormal, true, true, NO_compress, NO_raise, DO_Show, NO_Bold, DO_LF);
-          showStringEnhanced(whoStr2, &tinyFont,     1, Y_POSITION_OF_REGISTER_X_LINE +50 -27, vmNormal, true, true, NO_compress, NO_raise, DO_Show, NO_Bold, DO_LF);
+          showStringEnhanced(whoStr1, &standardFont, 1, Y_POSITION_OF_REGISTER_T_LINE +30 -25, vmNormal, true, true, NO_compress, NO_raise, DO_Show, NO_Bold, DO_LF);
+          showStringEnhanced(whoStr2, &tinyFont,     1, Y_POSITION_OF_REGISTER_X_LINE +50 -62, vmNormal, true, true, NO_compress, NO_raise, DO_Show, NO_Bold, DO_LF);
           screenUpdatingMode |=  SCRUPD_MANUAL_MENU;
         } 
         if(regist == REGISTER_T || regist == REGISTER_Z || regist == REGISTER_Y || regist == REGISTER_X) {
@@ -3801,13 +3812,19 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
 
         if(lastErrorCode != 0 && regist == errorMessageRegisterLine) {
           if(stringWidth(errorMessageOf(lastErrorCode), &standardFont, true, true) <= SCREEN_WIDTH - 1) {
-            if(lastErrorCode == ERROR_RESERVED_VARIABLE_NAME) {
-              sprintf(tmpString, "%s: %s", errorMessageOf(lastErrorCode), errorMessage);
+            const int16_t errorY = Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(regist - REGISTER_X) + 6;
+            const bool_t overLapPossible = (calcMode == CM_PEM);  // the message lands on the program listing, so it is spaced and boxed like the function name
+            const char * const pad = overLapPossible ? " " : "";
 
-              showString(tmpString, &standardFont, 1, Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(regist - REGISTER_X) + 6, vmNormal, true, true);
+            if(lastErrorCode == ERROR_RESERVED_VARIABLE_NAME) {
+              sprintf(tmpString, "%s%s: %s%s", pad, errorMessageOf(lastErrorCode), errorMessage, pad);
             }
             else {
-              showString(errorMessageOf(lastErrorCode), &standardFont, 1, Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(regist - REGISTER_X) + 6, vmNormal, true, true);
+              sprintf(tmpString, "%s%s%s", pad, errorMessageOf(lastErrorCode), pad);
+            }
+            w = showString(tmpString, &standardFont, 1, errorY, vmNormal, true, true);
+            if(overLapPossible) {
+              plotrect(1, errorY, w, errorY + STANDARD_FONT_HEIGHT - 1);
             }
           }
           else {
@@ -6043,8 +6060,8 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
             lcd_refresh_dma();             //If this is not here, menu generation is not reliable, and presses are missed. Not sure why.
           #endif //DMCP_BUILD
         }
-        else if(!SHOWMODE) {
-          showMenuTopLine();               //the stack clear and the X line take the top rows of the menu, so draw them again when the menu itself is not drawn; SHOW owns the whole screen
+        else {
+          showMenuTopLine();               //the stack clear and the X line take the top rows of the menu, so draw them again when the menu itself is not drawn
         }
         if(programRunStop == PGM_STOPPED || programRunStop == PGM_WAITING) {
           hourGlassIconEnabled = false;

@@ -200,6 +200,7 @@ c47_src = files(
   'programming/manage.c',
   'programming/nextStep.c',
   'programming/programmableMenu.c',
+  'programming/structured.c',
   'realType.c',
   'recall.c',
   'registerValueConversions.c',

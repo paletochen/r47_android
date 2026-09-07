@@ -1038,6 +1038,7 @@ void fnDeleteVariable(uint16_t regist) {
     else if(graphVariabl1 > regist && graphVariabl1 <= LAST_NAMED_VARIABLE) {
       graphVariabl1 -= 1;
     }
+    forAdjustCountersAfterVariableDelete(regist);
   }
   else if(regist >= FIRST_NAMED_VARIABLE && regist < LAST_NAMED_VARIABLE) {
     displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
@@ -1591,10 +1592,10 @@ int16_t indirectAddressing(calcRegister_t regist, uint16_t parameterType, int16_
   int16_t value;
   bool_t isValidAlpha = false;
   #if defined(PC_BUILD)
-    printf("parameterType %u\n", parameterType);
-    fflush(stdout);
-    printf("currentNumberOfLocalFlags %u\n", currentNumberOfLocalFlags);
-    fflush(stdout);
+    //printf("parameterType %u\n", parameterType);
+    //fflush(stdout);
+    //printf("currentNumberOfLocalFlags %u\n", currentNumberOfLocalFlags);
+    //fflush(stdout);
   #endif   // PC_BUILD
 
   switch(parameterType) {
@@ -2515,6 +2516,9 @@ bool_t isFunctionAllowingNewVariable(uint16_t op) {
     case ITM_Tex:
     case ITM_INTEGRAL:
     case ITM_INTEGRAL_YX:
+    case ITM_FOR:
+    case ITM_FORYX:
+    case ITM_FORTOP:
       return true;
 
     default:
