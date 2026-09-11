@@ -54,6 +54,7 @@ c47_src = files(
   'mathematics/2pow.c',
   'mathematics/addition.c',
   'mathematics/agm.c',
+  'mathematics/algdep.c',
   'mathematics/arccos.c',
   'mathematics/arccosh.c',
   'mathematics/arcsin.c',

@@ -6033,10 +6033,12 @@ static void calculateQrShiftOld(const real_t *mat, uint16_t size, real_t *re, re
     realSetZero(im); // disable shift
   }
   else if(realCompareLessThan(&tmpR, &tmp)) {
-    realCopy(&t1r, re); realCopy(&t1i, im);
+    realCopy(&t1r, re);
+    realCopy(&t1i, im);
   }
   else {
-    realCopy(&t2r, re); realCopy(&t2i, im);
+    realCopy(&t2r, re);
+    realCopy(&t2i, im);
   }
 }
 */

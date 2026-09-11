@@ -1204,14 +1204,14 @@ bool_t getRegisterAsShortInt(calcRegister_t reg, bool_t *sign, uint64_t *val, bo
     case dtLongInteger:
       convertLongIntegerRegisterToLongInteger(reg, ival);
     #if defined(OS32BIT) // 32 bit
-      u64 = *(uint32_t *)(ival->_mp_d);
+      u64 = (ival->_mp_size == 0 ? 0 : *(uint32_t *)(ival->_mp_d));
       if(abs(ival->_mp_size) > 1) {
         u64 |= (int64_t)(*(((uint32_t *)(ival->_mp_d)) + 1)) << 32;
       }
       of = abs(ival->_mp_size) > 2 || (u64 & shortIntegerMask) != u64;
       u64 &= shortIntegerMask;
     #else // 64 bit
-      u64 = *(uint64_t *)(ival->_mp_d) & shortIntegerMask;
+      u64 = (ival->_mp_size == 0 ? 0 : *(uint64_t *)(ival->_mp_d)) & shortIntegerMask;
       of = abs(ival->_mp_size) > 1 || (u64 & shortIntegerMask) != u64;
     #endif // OS32BIT
       *sign = longIntegerIsNegative(ival);

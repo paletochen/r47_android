@@ -2648,8 +2648,10 @@ void createSubstrings(uint8_t number) {
     jji = lastJ;
     if(iii == 0xFFFF || jji == 0xFFFF) {
       bb  = getRegisterAsRealQuiet(REGISTER_I, &iir) && getRegisterAsRealQuiet(REGISTER_J, &jjr);
-      iii = realToUint32C47(&iir, NULL);
-      jji = realToUint32C47(&jjr, NULL);
+      if(bb) {                                            // a refused I stops the && before the second call, so jjr is unwritten too
+        iii = realToUint32C47(&iir, NULL);
+        jji = realToUint32C47(&jjr, NULL);
+      }
     }
     else {
       bb = true;
@@ -2925,7 +2927,9 @@ void _displayRegType(calcRegister_t regist, char *prefix, int16_t *prefixWidth) 
   TO_QSPI static const char coordMode[][6]    = { "RECT", "POLAR", "RECT", "RECT", "SPH", "CYL" };
   if(regist == REGISTER_X) {
     real_t t;
-    getRegisterAsRealQuiet(REGISTER_X, &t);
+    if(!getRegisterAsRealQuiet(REGISTER_X, &t)) {         // the decode below needs t, and a type the conversion refuses, a date or a string, leaves it unwritten
+      return;
+    }
     int32_t typeIdx = realToInt32C47(&t, NULL);           // integer part: data type
     realMultiply(&t, const_1000, &t, &ctxtReal39);
     int32_t subCode = realToInt32C47(&t, NULL) - 1000*typeIdx;
@@ -3143,15 +3147,98 @@ static bool_t displayTrueFalse(calcRegister_t regist) {
 
 
 
+  #define BASEMODE_OFFSET_X 2
+  #define BASEMODE_OFFSET_Y 2
+
+  static void _showBaseModeLine(calcRegister_t rowReg, const char *text, const char *prefix, bool_t enhanced) {
+    const int32_t lineY      = Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(rowReg - REGISTER_X) + (fontForShortInteger == &standardFont ? 6 : 0);
+    const int32_t rightEdge  = enhanced ? SCREEN_WIDTH - (isShiftOffset ? 10 : 0) : SCREEN_WIDTH;
+    const bool_t  firstCol   = enhanced ? fontForShortInteger == &tinyFont : false;
+    const int32_t textWidth  = stringWidth(text, fontForShortInteger, firstCol, true);
+    const bool_t  prefixFits = textWidth + stringWidth(prefix, &standardFont, false, true) <= rightEdge;
+
+    if(lastErrorCode == 0 && prefixFits) {
+      showString(prefix, &standardFont, rowReg == REGISTER_T ? BASEMODE_OFFSET_X : 0, lineY + (rowReg == REGISTER_T ? BASEMODE_OFFSET_Y : 0), vmNormal, false, true);
+    }
+    if(enhanced) {
+      showStringEnhanced(text, fontForShortInteger, prefixFits ? rightEdge - textWidth - 3 : (isShiftOffset ? 10 : 0), lineY, vmNormal, firstCol, true, NO_compress, NO_raise, DO_Show, NO_Bold, DO_LF);
+    }
+    else {
+      showString(text, fontForShortInteger, SCREEN_WIDTH - textWidth, lineY, vmNormal, false, true);
+    }
+  }
+
+
+  static uint8_t _baseModeBaseT(void) {
+    return dispBase == 0 ? (!getSystemFlag(FLAG_BCD) ? 16 : 1) : dispBase;        // base 1 is BCD, #10
+  }
+
+
+  static uint8_t _baseModeNextBase(uint8_t skip) {
+    static const uint8_t order[3] = {10, 16, 2};
+    const uint8_t baseX = getRegisterShortIntegerBase(calcMode == CM_NIM ? REGISTER_Y : REGISTER_X);
+    const uint8_t baseT = _baseModeBaseT();
+    uint8_t i;
+
+    for(i = 0; i < 3; i++) {
+      if(order[i] != skip && order[i] != baseX && order[i] != baseT) {
+        return order[i];
+      }
+    }
+    return 0;
+  }
+
+
+  static uint8_t _baseModeBaseZ(void) {
+    const uint8_t baseX = getRegisterShortIntegerBase(calcMode == CM_NIM ? REGISTER_Y : REGISTER_X);
+
+    if(_baseModeBaseT() != 16) {                                                  // base 16 always shows, on T where dBASE puts it there and on Z otherwise
+      return 16;
+    }
+    if(displayStackSHOIDISP == 3 && baseX != 2) {                                 // with T on 16 and three rows, Z takes base 2 and the Y line below it takes the value base
+      return 2;
+    }
+    return _baseModeNextBase(0);
+  }
+
+
+  static uint8_t _baseModeBaseY(void) {
+    return _baseModeNextBase(_baseModeBaseZ());
+  }
+
+
+  static uint8_t _baseModeLinesBelowT(void) {
+    if(displayStackSHOIDISP <= 1 || _baseModeBaseZ() == 0) {
+      return 0;
+    }
+    if(displayStackSHOIDISP == 2 || _baseModeBaseY() == 0) {                      // the Y row has no base of its own to show, so it goes back to the stack
+      return 1;
+    }
+    return 2;
+  }
+
+
   void displayBaseMode(calcRegister_t regist) {
-     #define BASEMODE_OFFSET_X 2
-     #define BASEMODE_OFFSET_Y 2
      calcRegister_t Register_X = calcMode == CM_NIM ? REGISTER_Y : REGISTER_X;
 
      //JM SHOIDISP // use the top part of the screen for HEX and BIN    //JM vv SHOIDISP
-     //DISP_TI=3    T=16    T=16    T=16
-     //DISP_TI=2            Z=10    T=2
-     //DISP_TI=1                    Z=10
+
+//OLD !!!
+     //  screen row     dSI=1         dSI=2                  dSI=3
+     //  T              dBASE or 16   dBASE or 16            dBASE or 16
+     //  Z              stack Z       10, or 16 with dBASE   2
+     //  Y              stack Y       stack Y                10, or 16 with dBASE
+     //  X              own base      own base               own base
+     //  No row looks at what any other row shows, so a base appears twice whenever dBASE or the register's own base lands on one that is already up.
+
+//CURRENT !!!
+     //  screen row     dSI=1         dSI=2                  dSI=3
+     //  T              dBASE or 16   dBASE or 16            dBASE or 16
+     //  Z              stack Z       16, else 10, else 2    16, else 2, else 10
+     //  Y              stack Y       stack Y                10, else 16, else 2
+     //  X              own base      own base               own base
+     //  Base 16 always shows, on T where dBASE puts it there and on Z otherwise. Every other row skips a base that X, that T, or that the row above it shows,
+     //  and goes back to the stack where 10, 16 and 2 are all shown already.
      if(BASEMODEREGISTERX && regist == REGISTER_X && lastErrorCode == 0) {
 
 
@@ -3159,45 +3246,30 @@ static bool_t displayTrueFalse(calcRegister_t regist) {
 
          //handle Reg Pos Y
          if(displayStack == 1 && calcMode != CM_NIM) {
-           shortIntegerToDisplayString(Register_X, tmpString, true, dispBase == 0 ? 10 : 16);
-           if(lastErrorCode == 0 && stringWidth(tmpString, fontForShortInteger, false, true) + stringWidth("  X: ", &standardFont, false, true) <= SCREEN_WIDTH) {
-             showString("  X: ", &standardFont, 0, Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(REGISTER_Y - REGISTER_X) + (fontForShortInteger == &standardFont ? 6 : 0), vmNormal, false, true);
-           }
-           showString(tmpString, fontForShortInteger, SCREEN_WIDTH - stringWidth(tmpString, fontForShortInteger, false, true), Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(REGISTER_Y - REGISTER_X) + (fontForShortInteger == &standardFont ? 6 : 0), vmNormal, false, true);
+           shortIntegerToDisplayString(Register_X, tmpString, true, _baseModeBaseY());
+           _showBaseModeLine(REGISTER_Y, tmpString, "  X: ", false);
          }
 
 
          //handle reg pos Z
          if((displayStack == 1 && calcMode != CM_NIM) || displayStack == 2){
-           shortIntegerToDisplayString(Register_X, tmpString, true, displayStack == 1 ? 2 : (dispBase == 0 ? 10 : 16));
-           if(lastErrorCode == 0 && stringWidth(tmpString, fontForShortInteger, false, true) + stringWidth("  X: ", &standardFont, false, true) <= SCREEN_WIDTH) {
-             showString("  X: ", &standardFont, 0, Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(REGISTER_Z - REGISTER_X) + (fontForShortInteger == &standardFont ? 6 : 0), vmNormal, false, true);
-           }
-           showString(tmpString, fontForShortInteger, SCREEN_WIDTH - stringWidth(tmpString, fontForShortInteger, false, true), Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(REGISTER_Z - REGISTER_X) + (fontForShortInteger == &standardFont ? 6 : 0), vmNormal, false, true);
+           shortIntegerToDisplayString(Register_X, tmpString, true, _baseModeBaseZ());
+           _showBaseModeLine(REGISTER_Z, tmpString, "  X: ", false);
          }
 
 
          //handle reg pos T
          if((displayStack == 1 && calcMode != CM_NIM) || displayStack == 2 || displayStack == 3) {
-           shortIntegerToDisplayString(Register_X, tmpString, true,  dispBase == 0 ? (!getSystemFlag(FLAG_BCD) ? 16 : 1) : dispBase); // base 1 is BCD, #10
-           if(lastErrorCode == 0 && stringWidth(tmpString, fontForShortInteger, false, true) + stringWidth("  X: ", &standardFont, false, true) <= SCREEN_WIDTH) {
-             showString("  X: ", &standardFont, 0 + BASEMODE_OFFSET_X, Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(REGISTER_T - REGISTER_X) + (fontForShortInteger == &standardFont ? 6 : 0) + BASEMODE_OFFSET_Y, vmNormal, false, true);
-           }
-           showString(tmpString, fontForShortInteger, SCREEN_WIDTH - stringWidth(tmpString, fontForShortInteger, false, true), Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(REGISTER_T - REGISTER_X) + (fontForShortInteger == &standardFont ? 6 : 0), vmNormal, false, true);
+           shortIntegerToDisplayString(Register_X, tmpString, true,  _baseModeBaseT());
+           _showBaseModeLine(REGISTER_T, tmpString, "  X: ", false);
          }
 
        }
        else if(getRegisterDataType(REGISTER_X) == dtLongInteger && !solverEstimatesUsed) {
          //handle longinteger in pos T
          if((displayStack == 1 && calcMode != CM_NIM) || displayStack == 2 || displayStack == 3) {
-           longIntegerToHexDisplayString(REGISTER_X, tmpString, true,  dispBase == 0 ? (!getSystemFlag(FLAG_BCD) ? 16 : 1) : dispBase, SCREEN_WIDTH - (isShiftOffset ? 10 : 0)); // base 1 is BCD, #10
-           bool_t   printFirstCol = fontForShortInteger == &tinyFont;
-           bool_t   printWillFit = stringWidth(tmpString, fontForShortInteger, printFirstCol, true) + stringWidth("  X:" STD_INTEGER_Z ": ", &standardFont, false, true) <= SCREEN_WIDTH - (isShiftOffset ? 10 : 0);
-           uint32_t xoff = printWillFit ? SCREEN_WIDTH - (isShiftOffset ? 10 : 0) - stringWidth(tmpString, fontForShortInteger, printFirstCol, true) - 3 : (isShiftOffset ? 10 : 0);
-           if(lastErrorCode == 0 && printWillFit) {
-             showString("  X:" STD_INTEGER_Z ": ", &standardFont, 0 + BASEMODE_OFFSET_X, Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(REGISTER_T - REGISTER_X) + (fontForShortInteger == &standardFont ? 6 : 0) + BASEMODE_OFFSET_Y, vmNormal, false, true);
-           }
-           showStringEnhanced(tmpString, fontForShortInteger, xoff, Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(REGISTER_T - REGISTER_X) + (fontForShortInteger == &standardFont ? 6 : 0), vmNormal, printFirstCol, true, NO_compress, NO_raise, DO_Show, NO_Bold, DO_LF);
+           longIntegerToHexDisplayString(REGISTER_X, tmpString, true,  _baseModeBaseT(), SCREEN_WIDTH - (isShiftOffset ? 10 : 0));
+           _showBaseModeLine(REGISTER_T, tmpString, "  X:" STD_INTEGER_Z ": ", true);
          }
        }
 
@@ -3288,9 +3360,9 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
 
     if(BASEMODEREGISTERX && !SHOWMODE && displayStack != 4-displayStackSHOIDISP) { //JMSHOI
       if(getRegisterDataType(REGISTER_X) == dtShortInteger) {
-        fnDisplayStack(4-displayStackSHOIDISP);
+        fnDisplayStack(3 - _baseModeLinesBelowT());
       }
-      else {
+      else if(DBASEMODE) {                                                          // the long integer base line is drawn only under DBASEMODE, so give up the T row only then
         fnDisplayStack(3);
       }
     } else {
@@ -3567,6 +3639,15 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
         sprintf(prefix, "%s", errorMessageOf(TI_Data_file_loaded));
         displayTemporaryInformationOnX(prefix);
       }
+
+      #if defined(OPTION_ALGDEP)
+        // The relation reads as a polynomial rather than a column of coefficients; the coefficients themselves are in X.
+        else if(temporaryInformation == TI_ALGDEP_POLY && regist == REGISTER_X) {
+          // Holds the X line until the next keypress clears the temporary information and the coefficient vector reappears. displayTemporaryInformationOnX is
+          // not usable here: it draws only when X holds a real34, and the matrix form is exactly the case where reading the relation as a polynomial matters.
+          showString(algdepPolynomialString(), &standardFont, 1, Y_POSITION_OF_REGISTER_X_LINE + 6, vmNormal, true, true);
+        }
+      #endif // OPTION_ALGDEP
 
       else if(temporaryInformation == TI_UNDO_DISABLED && regist == REGISTER_X) {
         showString(errorMessageOf(ERROR_TI_UNDO_FAILED), &standardFont, 1, Y_POSITION_OF_REGISTER_X_LINE + 6, vmNormal, true, true);
@@ -6056,9 +6137,6 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
         }
         if(!(screenUpdatingMode & (SCRUPD_MANUAL_MENU | SCRUPD_SKIP_MENU_ONE_TIME))) {
           showSoftmenuCurrentPart();
-          #if defined(DMCP_BUILD)
-            lcd_refresh_dma();             //If this is not here, menu generation is not reliable, and presses are missed. Not sure why.
-          #endif //DMCP_BUILD
         }
         else {
           showMenuTopLine();               //the stack clear and the X line take the top rows of the menu, so draw them again when the menu itself is not drawn
@@ -6071,6 +6149,10 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
         //  refreshStatusBar();
         //}
         refreshStatusBar();
+
+        #if defined(DMCP_BUILD)
+          lcd_refresh_dma();               //the whole repaint reaches the display, not only the menu: a screen drawn with the menu suppressed never left the buffer
+        #endif //DMCP_BUILD
 
         #if (REAL34_WIDTH_TEST == 1)
           for(int y=Y_POSITION_OF_REGISTER_Y_LINE; y<Y_POSITION_OF_REGISTER_Y_LINE + 2*REGISTER_LINE_HEIGHT; y++ ) {
