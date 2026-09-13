@@ -100,6 +100,7 @@ internal class StorageAccessCoordinator(
                 defaultName.endsWith(".s47") -> "application/octet-stream"
                 defaultName.endsWith(".p47") -> "application/octet-stream"
                 defaultName.endsWith(".sav") -> "application/octet-stream"
+                defaultName.endsWith(".d47") -> "application/octet-stream"
                 else -> "*/*"
             }
             putExtra(Intent.EXTRA_TITLE, defaultName)

@@ -61,6 +61,7 @@ void set_android_base_path(const char* path) {
     ensure_android_subdir(STATE_DIR);
     ensure_android_subdir(PROGRAMS_DIR);
     ensure_android_subdir(SAVE_DIR);
+    ensure_android_subdir(DATA_DIR);
 }
 
 int create_dir(char * dir) {
@@ -87,12 +88,12 @@ int ioFileOpen(ioFilePath_t path, ioFileMode_t mode) {
         ioFileClose();
     }
 
-    // Intercept State, Program and Manual Save File operations for Android SAF
+    // Intercept State, Program, Manual Save and Data (Register) File operations for Android SAF
     if (path == ioPathSaveStateFile || path == ioPathLoadStateFile ||
         path == ioPathSaveProgram || path == ioPathLoadProgram ||
         path == ioPathExportRTFProgram || path == ioPathSaveAllPrograms ||
         path == ioPathExportRTFAllPrograms || path == ioPathManualSave ||
-        path == ioPathPgmFile) {
+        path == ioPathPgmFile || path == ioPathRegExport || path == ioPathRegImport) {
         
         int isSave = (mode == ioModeWrite);
         char defaultName[256];
@@ -104,6 +105,8 @@ int ioFileOpen(ioFilePath_t path, ioFileMode_t mode) {
             ext = ".rtf";
         } else if (path == ioPathManualSave) {
             ext = ".sav";
+        } else if (path == ioPathRegExport || path == ioPathRegImport) {
+            ext = ".d47";
         }
 
         extern char *tmpStringLabelOrVariableName;
@@ -117,6 +120,14 @@ int ioFileOpen(ioFilePath_t path, ioFileMode_t mode) {
             #else
                 strcpy(defaultName, "C47.sav");
             #endif
+        } else if (path == ioPathRegExport || path == ioPathRegImport) {
+            if (tmpStringLabelOrVariableName && tmpStringLabelOrVariableName[0] != 0) {
+                char asciiName[256];
+                stringToASCII(tmpStringLabelOrVariableName, asciiName);
+                snprintf(defaultName, sizeof(defaultName), "%s%s", asciiName, ext);
+            } else {
+                snprintf(defaultName, sizeof(defaultName), "data%s", ext);
+            }
         } else {
             // For programs, try to use the current label name
             if (tmpStringLabelOrVariableName && tmpStringLabelOrVariableName[0] != 0) {
@@ -135,6 +146,8 @@ int ioFileOpen(ioFilePath_t path, ioFileMode_t mode) {
             category = 0; // STATE
         } else if (path == ioPathManualSave) {
             category = 2; // SAVFILES
+        } else if (path == ioPathRegExport || path == ioPathRegImport) {
+            category = 4; // DATA
         }
 
         int fd = requestAndroidFile(isSave, defaultName, category);
@@ -182,6 +195,10 @@ int ioFileOpen(ioFilePath_t path, ioFileMode_t mode) {
         case ioPathLoadProgram:
             snprintf(fullpath, 1024, "%s/%s/program.p47", android_base_path, PROGRAMS_DIR);
             break;
+        case ioPathRegExport:
+        case ioPathRegImport:
+            snprintf(fullpath, 1024, "%s/%s/data.d47", android_base_path, DATA_DIR);
+            break;
         default:
              snprintf(fullpath, 1024, "%s/default.dat", android_base_path);
              break;
@@ -194,6 +211,9 @@ int ioFileOpen(ioFilePath_t path, ioFileMode_t mode) {
             mkdir(dir, 0777);
         } else if (path == ioPathPgmFile || path == ioPathSaveProgram || path == ioPathLoadProgram) {
             snprintf(dir, 1024, "%s/%s", android_base_path, PROGRAMS_DIR);
+            mkdir(dir, 0777);
+        } else if (path == ioPathRegExport || path == ioPathRegImport) {
+            snprintf(dir, 1024, "%s/%s", android_base_path, DATA_DIR);
             mkdir(dir, 0777);
         }
     }

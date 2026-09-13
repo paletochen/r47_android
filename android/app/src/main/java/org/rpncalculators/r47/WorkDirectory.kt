@@ -133,6 +133,7 @@ object WorkDirectory {
             1 -> "PROGRAMS"
             2 -> "SAVFILES"
             3 -> "SCREENS"
+            4 -> "DATA"
             else -> null
         }
     }
