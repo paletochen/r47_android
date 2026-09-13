@@ -111,3 +111,61 @@ Java_org_rpncalculators_r47_MainActivity_onFileCancelledNative(
   pthread_cond_signal(&fileCond);
   pthread_mutex_unlock(&fileMutex);
 }
+
+int openDirectDocumentFd(int fileType, const char *fileName, const char *mode) {
+  if (!g_openDirectDocumentFdId || !g_mainActivityObj || !g_jvm) {
+    return -1;
+  }
+
+  JNIEnv *env = NULL;
+  if ((*g_jvm)->GetEnv(g_jvm, (void **)&env, JNI_VERSION_1_6) != JNI_OK) {
+    if ((*g_jvm)->AttachCurrentThread(g_jvm, &env, NULL) != JNI_OK || !env) {
+      return -1;
+    }
+  }
+
+  jstring nameObj = (*env)->NewStringUTF(env, fileName ? fileName : "");
+  jstring modeObj = (*env)->NewStringUTF(env, mode ? mode : "r");
+  jint fd = (*env)->CallIntMethod(env, g_mainActivityObj, g_openDirectDocumentFdId,
+                                  (jint)fileType, nameObj, modeObj);
+  if (nameObj) {
+    (*env)->DeleteLocalRef(env, nameObj);
+  }
+  if (modeObj) {
+    (*env)->DeleteLocalRef(env, modeObj);
+  }
+
+  if ((*env)->ExceptionCheck(env)) {
+    (*env)->ExceptionClear(env);
+    return -1;
+  }
+
+  return (int)fd;
+}
+
+bool deleteDirectDocument(int fileType, const char *fileName) {
+  if (!g_deleteDirectDocumentId || !g_mainActivityObj || !g_jvm) {
+    return false;
+  }
+
+  JNIEnv *env = NULL;
+  if ((*g_jvm)->GetEnv(g_jvm, (void **)&env, JNI_VERSION_1_6) != JNI_OK) {
+    if ((*g_jvm)->AttachCurrentThread(g_jvm, &env, NULL) != JNI_OK || !env) {
+      return false;
+    }
+  }
+
+  jstring nameObj = (*env)->NewStringUTF(env, fileName ? fileName : "");
+  jboolean res = (*env)->CallBooleanMethod(env, g_mainActivityObj, g_deleteDirectDocumentId,
+                                           (jint)fileType, nameObj);
+  if (nameObj) {
+    (*env)->DeleteLocalRef(env, nameObj);
+  }
+
+  if ((*env)->ExceptionCheck(env)) {
+    (*env)->ExceptionClear(env);
+    return false;
+  }
+
+  return (bool)res;
+}

@@ -174,6 +174,7 @@ mkdir -p "$DRAWABLE_DIR"
 ASSETS_FONTS_DIR="$ANDROID_PROJECT_DIR/app/src/main/assets/fonts"
 mkdir -p "$ASSETS_FONTS_DIR"
 cp -v res/fonts/*.ttf "$ASSETS_FONTS_DIR/"
+cp -v res/testPgms/testPgms.bin "$ANDROID_PROJECT_DIR/app/src/main/assets/"
 
 # Copy GMP (mini-gmp)
 echo "--- Setting up GMP ---"

@@ -66,6 +66,10 @@ void set_android_base_path(const char* path) {
     ensure_android_subdir(DATA_DIR);
 }
 
+const char *get_android_base_path(void) {
+    return android_base_path;
+}
+
 int create_dir(char * dir) {
   char fullpath[1024];
   if (dir[0] != '/' && android_base_path_ready) {
@@ -179,11 +183,26 @@ int ioFileOpen(ioFilePath_t path, ioFileMode_t mode) {
             #endif
             break;
         case ioPathAutoSave:
-            #if (CALCMODEL == USER_R47)
-                snprintf(fullpath, 1024, "%s/%s/R47auto_%d.sav", android_base_path, SAVE_DIR, current_slot_id);
-            #else
-                snprintf(fullpath, 1024, "%s/%s/C47auto_%d.sav", android_base_path, SAVE_DIR, current_slot_id);
-            #endif
+            {
+                #if (CALCMODEL == USER_R47)
+                    const char *autoFileName = "R47auto.sav";
+                #else
+                    const char *autoFileName = "C47auto.sav";
+                #endif
+                int directFd = openDirectDocumentFd(2 /* SAVFILES */, autoFileName, (mode == ioModeWrite) ? "wt" : "r");
+                if (directFd >= 0) {
+                    openedFile = fdopen(directFd, (mode == ioModeWrite) ? "wb" : "rb");
+                    if (openedFile) {
+                        return FILE_OK;
+                    }
+                    close(directFd);
+                }
+                #if (CALCMODEL == USER_R47)
+                    snprintf(fullpath, 1024, "%s/%s/R47auto_%d.sav", android_base_path, SAVE_DIR, current_slot_id);
+                #else
+                    snprintf(fullpath, 1024, "%s/%s/C47auto_%d.sav", android_base_path, SAVE_DIR, current_slot_id);
+                #endif
+            }
             break;
         case ioPathBackup:
             #if (CALCMODEL == USER_R47)
@@ -252,6 +271,60 @@ int ioEof(void) {
 }
 
 int ioFileRemove(ioFilePath_t path, uint32_t *errorNumber) {
+    bool removedFromWorkDir = false;
+    #if (CALCMODEL == USER_R47)
+        const char *manualName = "R47.sav";
+        const char *autoName = "R47auto.sav";
+    #else
+        const char *manualName = "C47.sav";
+        const char *autoName = "C47auto.sav";
+    #endif
+
+    if (path == ioPathManualSave) {
+        removedFromWorkDir = deleteDirectDocument(2 /* SAVFILES */, manualName);
+    } else if (path == ioPathAutoSave) {
+        removedFromWorkDir = deleteDirectDocument(2 /* SAVFILES */, autoName);
+    }
+
+    if (!has_android_base_path()) {
+        if (removedFromWorkDir) return FILE_OK;
+        if (errorNumber) *errorNumber = ENOENT;
+        return FILE_ERROR;
+    }
+
+    char fullpath[1024];
+    switch(path) {
+        case ioPathManualSave:
+            #if (CALCMODEL == USER_R47)
+                snprintf(fullpath, sizeof(fullpath), "%s/%s/R47_%d.sav", android_base_path, SAVE_DIR, current_slot_id);
+            #else
+                snprintf(fullpath, sizeof(fullpath), "%s/%s/C47_%d.sav", android_base_path, SAVE_DIR, current_slot_id);
+            #endif
+            break;
+        case ioPathAutoSave:
+            #if (CALCMODEL == USER_R47)
+                snprintf(fullpath, sizeof(fullpath), "%s/%s/R47auto_%d.sav", android_base_path, SAVE_DIR, current_slot_id);
+            #else
+                snprintf(fullpath, sizeof(fullpath), "%s/%s/C47auto_%d.sav", android_base_path, SAVE_DIR, current_slot_id);
+            #endif
+            break;
+        case ioPathBackup:
+            #if (CALCMODEL == USER_R47)
+                snprintf(fullpath, sizeof(fullpath), "%s/backupR47_%d.cfg", android_base_path, current_slot_id);
+            #else
+                snprintf(fullpath, sizeof(fullpath), "%s/backup_%d.cfg", android_base_path, current_slot_id);
+            #endif
+            break;
+        default:
+            return removedFromWorkDir ? FILE_OK : FILE_ERROR;
+    }
+
+    int result = remove(fullpath);
+    if (result == -1) {
+        if (removedFromWorkDir) return FILE_OK;
+        if (errorNumber) *errorNumber = errno;
+        return (errno == ENOENT) ? FILE_OK : FILE_ERROR;
+    }
     return FILE_OK;
 }
 

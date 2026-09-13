@@ -37,6 +37,10 @@ Java_org_rpncalculators_r47_MainActivity_updateNativeActivityRef(JNIEnv *env,
       (*env)->GetMethodID(env, clazz, "getBatteryVoltageMv", "()I");
   g_getStorageInfoId =
       (*env)->GetMethodID(env, clazz, "getStorageInfo", "()Ljava/lang/String;");
+  g_openDirectDocumentFdId =
+      (*env)->GetMethodID(env, clazz, "openDirectDocumentFd", "(ILjava/lang/String;Ljava/lang/String;)I");
+  g_deleteDirectDocumentId =
+      (*env)->GetMethodID(env, clazz, "deleteDirectDocument", "(ILjava/lang/String;)Z");
   (*env)->DeleteLocalRef(env, clazz);
 
   if (!ram) {

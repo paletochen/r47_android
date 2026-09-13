@@ -6,11 +6,15 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import android.util.Log
 
+import java.util.concurrent.ConcurrentHashMap
+
 object WorkDirectory {
     private const val TAG = "R47WorkDir"
 
     const val PREFS_NAME = SlotStore.APP_PREFS_NAME
     const val KEY_TREE_URI = "work_directory_uri"
+
+    private val documentUriCache = ConcurrentHashMap<String, Uri>()
 
     fun readTreeUriString(context: Context): String? {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -134,7 +138,130 @@ object WorkDirectory {
             2 -> "SAVFILES"
             3 -> "SCREENS"
             4 -> "DATA"
+            5 -> "PRINT"
             else -> null
+        }
+    }
+
+    fun openDirectDocumentFd(
+        contentResolver: ContentResolver,
+        treeUriString: String?,
+        fileType: Int,
+        fileName: String,
+        mode: String,
+    ): Int {
+        if (treeUriString.isNullOrEmpty()) {
+            return -1
+        }
+
+        return try {
+            val cacheKey = "$treeUriString|$fileType|$fileName"
+            var docUri: Uri? = documentUriCache[cacheKey]
+
+            if (docUri == null) {
+                val folderUri = resolveSubfolder(contentResolver, treeUriString, fileType) ?: return -1
+                val treeUri = Uri.parse(treeUriString)
+                val folderDocId = DocumentsContract.getDocumentId(folderUri)
+                val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, folderDocId)
+
+                contentResolver.query(
+                    childrenUri,
+                    arrayOf(
+                        DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                        DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                    ),
+                    null,
+                    null,
+                    null,
+                )?.use { cursor ->
+                    while (cursor.moveToNext()) {
+                        if (cursor.getString(0) == fileName) {
+                            docUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, cursor.getString(1))
+                            break
+                        }
+                    }
+                }
+
+                if (docUri == null) {
+                    if (!mode.contains("w")) {
+                        return -1
+                    }
+                    val mimeType = when {
+                        fileName.endsWith(".txt") -> "text/plain"
+                        fileName.endsWith(".sav") -> "application/octet-stream"
+                        fileName.endsWith(".tsv") -> "text/tab-separated-values"
+                        else -> "application/octet-stream"
+                    }
+                    docUri = DocumentsContract.createDocument(
+                        contentResolver,
+                        folderUri,
+                        mimeType,
+                        fileName,
+                    ) ?: return -1
+                }
+
+                documentUriCache[cacheKey] = docUri!!
+            }
+
+            val pfd = contentResolver.openFileDescriptor(docUri!!, mode) ?: run {
+                documentUriCache.remove(cacheKey)
+                return -1
+            }
+            pfd.detachFd()
+        } catch (error: Exception) {
+            val cacheKey = "$treeUriString|$fileType|$fileName"
+            documentUriCache.remove(cacheKey)
+            Log.e(TAG, "Failed openDirectDocumentFd for $fileName (fileType=$fileType, mode=$mode)", error)
+            -1
+        }
+    }
+
+    fun deleteDirectDocument(
+        contentResolver: ContentResolver,
+        treeUriString: String?,
+        fileType: Int,
+        fileName: String,
+    ): Boolean {
+        if (treeUriString.isNullOrEmpty()) {
+            return false
+        }
+
+        val cacheKey = "$treeUriString|$fileType|$fileName"
+        documentUriCache.remove(cacheKey)
+
+        return try {
+            val folderUri = resolveSubfolder(contentResolver, treeUriString, fileType) ?: return false
+            val treeUri = Uri.parse(treeUriString)
+            val folderDocId = DocumentsContract.getDocumentId(folderUri)
+            val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, folderDocId)
+
+            var docUri: Uri? = null
+            contentResolver.query(
+                childrenUri,
+                arrayOf(
+                    DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                    DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                ),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    if (cursor.getString(0) == fileName) {
+                        docUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, cursor.getString(1))
+                        break
+                    }
+                }
+            }
+
+            if (docUri != null) {
+                DocumentsContract.deleteDocument(contentResolver, docUri!!)
+            } else {
+                false
+            }
+        } catch (error: Exception) {
+            Log.e(TAG, "Failed deleteDirectDocument for $fileName in fileType=$fileType", error)
+            false
         }
     }
 }

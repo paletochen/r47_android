@@ -13,6 +13,8 @@ jmethodID g_setBeeperVolumeId = NULL;
 jmethodID g_getBeeperVolumeId = NULL;
 jmethodID g_getBatteryVoltageId = NULL;
 jmethodID g_getStorageInfoId = NULL;
+jmethodID g_openDirectDocumentFdId = NULL;
+jmethodID g_deleteDirectDocumentId = NULL;
 
 pthread_mutex_t fileMutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t fileCond = PTHREAD_COND_INITIALIZER;

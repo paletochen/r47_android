@@ -21,6 +21,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import org.rpncalculators.r47.databinding.ActivityMainBinding
 import android.content.SharedPreferences
 import android.content.res.Configuration
+import java.io.File
 
 @Keep
 class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceChangeListener {
@@ -469,6 +470,19 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
 
         syncAudioSettings()
         
+        val testPgmsDest = File(filesDir, "testPgms.bin")
+        if (!testPgmsDest.exists()) {
+            try {
+                assets.open("testPgms.bin").use { input ->
+                    testPgmsDest.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to copy testPgms.bin asset: ${e.message}")
+            }
+        }
+
         replicaOverlay.setChromeMode(chromeMode)
         setupInteractiveZones()
         slotsList = slotStore.loadSlots()
@@ -615,6 +629,29 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
                 moveTaskToBack(true)
             }
         }
+    }
+
+    @Keep
+    fun openDirectDocumentFd(fileType: Int, fileName: String, mode: String): Int {
+        val treeUriString = WorkDirectory.readTreeUriString(this)
+        return WorkDirectory.openDirectDocumentFd(
+            contentResolver = contentResolver,
+            treeUriString = treeUriString,
+            fileType = fileType,
+            fileName = fileName,
+            mode = mode,
+        )
+    }
+
+    @Keep
+    fun deleteDirectDocument(fileType: Int, fileName: String): Boolean {
+        val treeUriString = WorkDirectory.readTreeUriString(this)
+        return WorkDirectory.deleteDirectDocument(
+            contentResolver = contentResolver,
+            treeUriString = treeUriString,
+            fileType = fileType,
+            fileName = fileName,
+        )
     }
 
     @Keep

@@ -15,6 +15,10 @@ static void _refreshPemScreen(void);
 //   The default is to keep the left offset as it looks prettier, arguably
   #define FIXED_FN_NAME_SHIFT
 
+  #if !defined(TI_DISK_INFO)
+    #define TI_DISK_INFO 145
+  #endif
+
   #define shiftOffset        17
   #define noShiftOffset      0
   #if defined(FIXED_FN_NAME_SHIFT)
