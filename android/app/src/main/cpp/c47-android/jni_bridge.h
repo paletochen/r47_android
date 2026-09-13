@@ -22,6 +22,10 @@ extern jmethodID g_requestFileId;
 extern jmethodID g_playToneId;
 extern jmethodID g_stopToneId;
 extern jmethodID g_processCoreTasksId;
+extern jmethodID g_setBeeperVolumeId;
+extern jmethodID g_getBeeperVolumeId;
+extern jmethodID g_getBatteryVoltageId;
+extern jmethodID g_getStorageInfoId;
 
 extern pthread_mutex_t fileMutex;
 extern pthread_cond_t fileCond;

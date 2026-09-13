@@ -146,6 +146,36 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     @Keep
     fun stopTone() {}
 
+    @Keep
+    fun setBeeperVolume(volume: Int) {
+        AudioEngine.setBeeperVolume(volume)
+        beeperVolume = volume.coerceIn(0, 100)
+        appPreferences.edit().putInt("beeper_volume", beeperVolume).apply()
+    }
+
+    @Keep
+    fun getBeeperVolume(): Int {
+        return AudioEngine.getBeeperVolume()
+    }
+
+    @Keep
+    fun getBatteryVoltageMv(): Int {
+        val intent = registerReceiver(null, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        return intent?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 3800) ?: 3800
+    }
+
+    @Keep
+    fun getStorageInfo(): String {
+        return try {
+            val stat = StatFs(filesDir.absolutePath)
+            val freeMb = stat.availableBytes / (1024 * 1024)
+            val totalMb = stat.totalBytes / (1024 * 1024)
+            "Disk Info\n\nInternal Flash:\nFree: ${freeMb} MB\nTotal: ${totalMb} MB"
+        } catch (e: Exception) {
+            "Disk Info\n\nInternal Flash:\nUnavailable"
+        }
+    }
+
     private fun applyLcdMode(mode: String, luminancePercent: Int) {
         lcdMode = mode
         val palette = resolveLcdPalette(mode, luminancePercent)

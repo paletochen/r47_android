@@ -122,6 +122,7 @@ extern uint32_t sys_current_ms(void);
 extern gint64 g_get_monotonic_time(void);
 extern gint64 g_get_real_time(void);
 extern int requestAndroidFile(int isSave, const char* defaultName, int fileType);
+extern int get_vbat(void);
 extern pthread_mutex_t coreMutex;
 extern pthread_mutex_t screenMutex;
 

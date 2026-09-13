@@ -93,6 +93,8 @@ bool_t blockMonitoring = false;
 
 
 
+   char diskInfoStr[256] = "";
+
    TO_QSPI static const char disclaimerStr[]     = "  " MODELTEXT " firmware is free, open source and \n  neither provided nor supported by \n  SwissMicros. Press a key to continue.";
 
    TO_QSPI static const char versionStr[]        = "  " MODELTEXT " " VERSION_STRING ".";
@@ -3442,6 +3444,18 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
           showStringEnhanced(whoStr2, &tinyFont,     1, Y_POSITION_OF_REGISTER_X_LINE +50 -62, vmNormal, true, true, NO_compress, NO_raise, DO_Show, NO_Bold, DO_LF);
           screenUpdatingMode |=  SCRUPD_MANUAL_MENU;
         } 
+        if(regist == REGISTER_T || regist == REGISTER_Z || regist == REGISTER_Y || regist == REGISTER_X) {
+          return;
+        }
+      }
+
+      else if(temporaryInformation == TI_DISK_INFO) {
+        if(regist == REGISTER_X) {
+          clearScreenOld(!clrStatusBar, clrRegisterLines, clrSoftkeys);
+          showSoftmenu(-MNU_SHOW);
+          showStringEnhanced(diskInfoStr, &standardFont, 1, Y_POSITION_OF_REGISTER_T_LINE + 10, vmNormal, true, true, NO_compress, NO_raise, DO_Show, NO_Bold, DO_LF);
+          screenUpdatingMode |= SCRUPD_MANUAL_MENU;
+        }
         if(regist == REGISTER_T || regist == REGISTER_Z || regist == REGISTER_Y || regist == REGISTER_X) {
           return;
         }

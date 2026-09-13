@@ -1,4 +1,6 @@
 #include "c47.h"
+#include "jni_bridge.h"
+#include "screen.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -258,4 +260,31 @@ int load_statefile(const char * fpath, const char * fname, void * data) { return
 int save_programfile(const char * fpath, const char * fname, void * data) { return MRET_SAVESTATE; }
 int load_programfile(const char * fpath, const char * fname, void * data) { return MRET_LOADSTATE; }
 void show_warning(char *string) {}
-void fnDiskInfo(uint16_t unused) {}
+
+void fnDiskInfo(uint16_t unused) {
+  (void)unused;
+  if (g_mainActivityObj && g_jvm && g_getStorageInfoId) {
+    JNIEnv *env;
+    if ((*g_jvm)->GetEnv(g_jvm, (void **)&env, JNI_VERSION_1_6) == JNI_EDETACHED) {
+      if ((*g_jvm)->AttachCurrentThread(g_jvm, &env, NULL) != JNI_OK) {
+        snprintf(diskInfoStr, sizeof(diskInfoStr), "Disk Info\n\nInternal Flash:\nUnavailable");
+        temporaryInformation = TI_DISK_INFO;
+        return;
+      }
+    }
+    jstring jstr = (jstring)(*env)->CallObjectMethod(env, g_mainActivityObj, g_getStorageInfoId);
+    if (jstr != NULL) {
+      const char *chars = (*env)->GetStringUTFChars(env, jstr, 0);
+      if (chars != NULL) {
+        snprintf(diskInfoStr, sizeof(diskInfoStr), "%s", chars);
+        (*env)->ReleaseStringUTFChars(env, jstr, chars);
+      }
+      (*env)->DeleteLocalRef(env, jstr);
+    } else {
+      snprintf(diskInfoStr, sizeof(diskInfoStr), "Disk Info\n\nInternal Flash:\nUnavailable");
+    }
+  } else {
+    snprintf(diskInfoStr, sizeof(diskInfoStr), "Disk Info\n\nInternal Flash:\nUnavailable");
+  }
+  temporaryInformation = TI_DISK_INFO;
+}

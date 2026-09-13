@@ -28,6 +28,12 @@ object AudioEngine {
         beeperVolume = volume.coerceIn(0, 100)
     }
 
+    fun getBeeperVolume(): Int = beeperVolume
+
+    fun setBeeperVolume(volume: Int) {
+        beeperVolume = volume.coerceIn(0, 100)
+    }
+
     @Synchronized
     fun start(shouldKeepRunning: () -> Boolean) {
         runningCheck = shouldKeepRunning

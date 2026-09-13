@@ -1,14 +1,18 @@
-#include "jni_bridge.h"
-
 #include <string.h>
 #include <unistd.h>
 
-JavaVM *g_jvm = NULL;
+#include "jni_bridge.h"
+
+JavaVM* g_jvm = NULL;
 jobject g_mainActivityObj = NULL;
 jmethodID g_requestFileId = NULL;
 jmethodID g_playToneId = NULL;
 jmethodID g_stopToneId = NULL;
 jmethodID g_processCoreTasksId = NULL;
+jmethodID g_setBeeperVolumeId = NULL;
+jmethodID g_getBeeperVolumeId = NULL;
+jmethodID g_getBatteryVoltageId = NULL;
+jmethodID g_getStorageInfoId = NULL;
 
 pthread_mutex_t fileMutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t fileCond = PTHREAD_COND_INITIALIZER;
@@ -31,7 +35,42 @@ uint32_t nextScreenRefresh = 0;
 GdkEvent pressEvent;
 GdkEvent releaseEvent;
 
-uint16_t getBeepVolume(void) { return 80; }
+uint16_t getBeepVolume(void) {
+  if (g_mainActivityObj && g_jvm && g_getBeeperVolumeId) {
+    JNIEnv* env;
+    if ((*g_jvm)->GetEnv(g_jvm, (void**)&env, JNI_VERSION_1_6) ==
+        JNI_EDETACHED) {
+      if ((*g_jvm)->AttachCurrentThread(g_jvm, &env, NULL) != JNI_OK) {
+        return 2;
+      }
+    }
+    jint pct =
+        (*env)->CallIntMethod(env, g_mainActivityObj, g_getBeeperVolumeId);
+    int vol = (pct * 11 + 50) / 100;
+    if (vol > 11) {
+      vol = 11;
+    }
+    if (vol < 0) {
+      vol = 0;
+    }
+    return (uint16_t)vol;
+  }
+  return 2;
+}
+
+int get_vbat(void) {
+  if (g_mainActivityObj && g_jvm && g_getBatteryVoltageId) {
+    JNIEnv* env;
+    if ((*g_jvm)->GetEnv(g_jvm, (void**)&env, JNI_VERSION_1_6) ==
+        JNI_EDETACHED) {
+      if ((*g_jvm)->AttachCurrentThread(g_jvm, &env, NULL) != JNI_OK) {
+        return 3800;
+      }
+    }
+    return (*env)->CallIntMethod(env, g_mainActivityObj, g_getBatteryVoltageId);
+  }
+  return 3800;
+}
 
 void onUIActivity(void) { ui_is_active = TRUE; }
 
@@ -54,35 +93,61 @@ uint32_t sys_current_ms(void) {
 }
 
 void _Buzz(uint32_t frequency, uint32_t ms_delay) {
-  if (!g_mainActivityObj || !g_jvm || !g_playToneId) {
+  if (getSystemFlag(FLAG_QUIET)) {
     return;
   }
 
-  if (frequency > 0) {
-    JNIEnv *env;
-    if ((*g_jvm)->GetEnv(g_jvm, (void **)&env, JNI_VERSION_1_6) ==
+  if (ms_delay > 0) {
+    if (ms_delay > 2000) {
+      ms_delay = 2000;
+    }
+    if (frequency != 0) {
+      if (frequency > 20000) {
+        frequency = 20000;
+      }
+      if (g_mainActivityObj && g_jvm && g_playToneId) {
+        JNIEnv* env;
+        if ((*g_jvm)->GetEnv(g_jvm, (void**)&env, JNI_VERSION_1_6) ==
+            JNI_EDETACHED) {
+          if ((*g_jvm)->AttachCurrentThread(g_jvm, &env, NULL) != JNI_OK) {
+            return;
+          }
+        }
+        (*env)->CallVoidMethod(env, g_mainActivityObj, g_playToneId,
+                               (jint)(frequency * 1000), (jint)ms_delay);
+      }
+    }
+    yieldToAndroidWithMs((int)ms_delay);
+  }
+}
+
+void audioTone(uint32_t frequency) {
+  if (getSystemFlag(FLAG_QUIET)) {
+    return;
+  }
+
+  if (g_mainActivityObj && g_jvm && g_playToneId) {
+    JNIEnv* env;
+    if ((*g_jvm)->GetEnv(g_jvm, (void**)&env, JNI_VERSION_1_6) ==
         JNI_EDETACHED) {
       if ((*g_jvm)->AttachCurrentThread(g_jvm, &env, NULL) != JNI_OK) {
         return;
       }
     }
     (*env)->CallVoidMethod(env, g_mainActivityObj, g_playToneId,
-                           (jint)frequency, (jint)ms_delay);
+                           (jint)frequency, (jint)200);
   }
 
-  usleep((ms_delay + 10) * 1000);
+  yieldToAndroidWithMs(210);
 }
-
-void audioTone(uint32_t frequency) { _Buzz(frequency, 200); }
 
 void processCoreTasksNative(void) {
   if (!g_mainActivityObj || !g_jvm || !g_processCoreTasksId) {
     return;
   }
 
-  JNIEnv *env;
-  if ((*g_jvm)->GetEnv(g_jvm, (void **)&env, JNI_VERSION_1_6) ==
-      JNI_EDETACHED) {
+  JNIEnv* env;
+  if ((*g_jvm)->GetEnv(g_jvm, (void**)&env, JNI_VERSION_1_6) == JNI_EDETACHED) {
     if ((*g_jvm)->AttachCurrentThread(g_jvm, &env, NULL) != JNI_OK) {
       return;
     }
@@ -124,20 +189,118 @@ void yieldToAndroidWithMs(int ms) {
 
 void yieldToAndroid(void) { yieldToAndroidWithMs(1); }
 
-void fnSetVolume(uint16_t v) { (void)v; }
-void fnGetVolume(uint16_t v) { (void)v; }
-void fnVolumeUp(uint16_t v) { (void)v; }
-void fnVolumeDown(uint16_t v) { (void)v; }
-void fnBuzz(uint16_t v) { (void)v; }
-void fnPlay(uint16_t v) { (void)v; }
+void fnSetVolume(uint16_t volume) {
+  if (volume > 11) {
+    volume = 11;
+  }
+  if (g_mainActivityObj && g_jvm && g_setBeeperVolumeId) {
+    JNIEnv* env;
+    if ((*g_jvm)->GetEnv(g_jvm, (void**)&env, JNI_VERSION_1_6) ==
+        JNI_EDETACHED) {
+      if ((*g_jvm)->AttachCurrentThread(g_jvm, &env, NULL) != JNI_OK) {
+        return;
+      }
+    }
+    jint pct = (volume * 100) / 11;
+    (*env)->CallVoidMethod(env, g_mainActivityObj, g_setBeeperVolumeId, pct);
+  }
+}
+
+void fnGetVolume(uint16_t unusedButMandatoryParameter) {
+  (void)unusedButMandatoryParameter;
+  longInteger_t volume;
+  liftStack();
+  longIntegerInit(volume);
+  int32ToLongInteger((int32_t)getBeepVolume(), volume);
+  convertLongIntegerToLongIntegerRegister(volume, REGISTER_X);
+  longIntegerFree(volume);
+}
+
+void fnVolumeUp(uint16_t unusedButMandatoryParameter) {
+  (void)unusedButMandatoryParameter;
+  uint16_t vol = getBeepVolume();
+  if (vol < 11) {
+    vol++;
+    fnSetVolume(vol);
+  }
+  audioTone(440000);
+}
+
+void fnVolumeDown(uint16_t unusedButMandatoryParameter) {
+  (void)unusedButMandatoryParameter;
+  uint16_t vol = getBeepVolume();
+  if (vol > 0) {
+    vol--;
+    fnSetVolume(vol);
+  }
+  audioTone(440000);
+}
+
+static uint32_t _getValueFromRegister(calcRegister_t regist) {
+  uint32_t value = 0;
+  if (getRegisterDataType(regist) == dtReal34) {
+    value = real34ToUInt32(REGISTER_REAL34_DATA(regist));
+  } else if (getRegisterDataType(regist) == dtLongInteger) {
+    longInteger_t lgInt;
+    convertLongIntegerRegisterToLongInteger(regist, lgInt);
+    longIntegerToUInt32(lgInt, value);
+    longIntegerFree(lgInt);
+  } else {
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE,
+                            REGISTER_X);
+    return (uint32_t)-1;
+  }
+  return value;
+}
+
+void fnBuzz(uint16_t unusedButMandatoryParameter) {
+  (void)unusedButMandatoryParameter;
+  if (!getSystemFlag(FLAG_QUIET)) {
+    uint32_t frequency = _getValueFromRegister(REGISTER_Y);
+    uint32_t ms_delay = _getValueFromRegister(REGISTER_X);
+    _Buzz(frequency, ms_delay);
+  }
+}
+
+void fnPlay(uint16_t regist) {
+  if (getRegisterDataType(regist) == dtReal34Matrix) {
+    real34Matrix_t m;
+    if (!getSystemFlag(FLAG_QUIET)) {
+      linkToRealMatrixRegister(regist, &m);
+      uint16_t cols = m.header.matrixColumns;
+      if ((cols != 2) && (cols != 3)) {
+        displayCalcErrorMessage(ERROR_MATRIX_MISMATCH, ERR_REGISTER_LINE,
+                                REGISTER_X);
+        return;
+      }
+      screenUpdatingMode = SCRUPD_AUTO;
+      screenUpdatingMode |= SCRUPD_SKIP_STATUSBAR_ONE_TIME;
+      for (uint16_t i = 0; i < m.header.matrixRows; ++i) {
+        uint32_t frequency = real34ToUInt32(&m.matrixElements[i * cols]);
+        uint32_t ms_delay = real34ToUInt32(&m.matrixElements[i * cols + 1]);
+        _Buzz(frequency, ms_delay);
+        if (ms_delay > 0) {
+          yieldToAndroidWithMs((int)(ms_delay / 8));
+        }
+        if (exitKeyWaiting()) {
+          return;
+        }
+      }
+    }
+  } else {
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE,
+                            NIM_REGISTER_LINE);
+  }
+}
+
 void squeak(void) { _Buzz(1000, 10); }
 
-jint JNI_OnLoad(JavaVM *vm, void *reserved) {
+jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   (void)reserved;
   g_jvm = vm;
 
-  JNIEnv *env;
-  if ((*vm)->GetEnv(vm, (void **)&env, JNI_VERSION_1_6) != JNI_OK) {
+  JNIEnv* env;
+  if ((*vm)->GetEnv(vm, (void**)&env, JNI_VERSION_1_6) != JNI_OK) {
     return JNI_ERR;
   }
 
@@ -162,7 +325,7 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved) {
   return JNI_VERSION_1_6;
 }
 
-void releaseNativeActivityReferences(JNIEnv *env) {
+void releaseNativeActivityReferences(JNIEnv* env) {
   if (g_mainActivityObj != NULL) {
     (*env)->DeleteGlobalRef(env, g_mainActivityObj);
     g_mainActivityObj = NULL;
@@ -172,59 +335,66 @@ void releaseNativeActivityReferences(JNIEnv *env) {
   g_playToneId = NULL;
   g_stopToneId = NULL;
   g_processCoreTasksId = NULL;
+  g_setBeeperVolumeId = NULL;
+  g_getBeeperVolumeId = NULL;
+  g_getBatteryVoltageId = NULL;
+  g_getStorageInfoId = NULL;
 }
 
-JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_releaseNativeRuntime(JNIEnv *env, jobject thiz) {
+JNIEXPORT void JNICALL
+Java_org_rpncalculators_r47_MainActivity_releaseNativeRuntime(JNIEnv* env,
+                                                              jobject thiz) {
   (void)thiz;
   releaseNativeActivityReferences(env);
 }
 
-int register_main_activity_natives(JNIEnv *env) {
+int register_main_activity_natives(JNIEnv* env) {
   static const JNINativeMethod methods[] = {
       {"updateNativeActivityRef", "()V",
-        (void *)Java_org_rpncalculators_r47_MainActivity_updateNativeActivityRef},
+       (void*)Java_org_rpncalculators_r47_MainActivity_updateNativeActivityRef},
       {"nativePreInit", "(Ljava/lang/String;)V",
-        (void *)Java_org_rpncalculators_r47_MainActivity_nativePreInit},
+       (void*)Java_org_rpncalculators_r47_MainActivity_nativePreInit},
       {"initNative", "(Ljava/lang/String;I)V",
-        (void *)Java_org_rpncalculators_r47_MainActivity_initNative},
-       {"tick", "()V", (void *)Java_org_rpncalculators_r47_MainActivity_tick},
+       (void*)Java_org_rpncalculators_r47_MainActivity_initNative},
+      {"tick", "()V", (void*)Java_org_rpncalculators_r47_MainActivity_tick},
       {"releaseNativeRuntime", "()V",
-        (void *)Java_org_rpncalculators_r47_MainActivity_releaseNativeRuntime},
-       {"sendKey", "(I)V", (void *)Java_org_rpncalculators_r47_MainActivity_sendKey},
+       (void*)Java_org_rpncalculators_r47_MainActivity_releaseNativeRuntime},
+      {"sendKey", "(I)V",
+       (void*)Java_org_rpncalculators_r47_MainActivity_sendKey},
       {"sendSimKeyNative", "(Ljava/lang/String;ZZ)V",
-        (void *)Java_org_rpncalculators_r47_MainActivity_sendSimKeyNative},
+       (void*)Java_org_rpncalculators_r47_MainActivity_sendSimKeyNative},
       {"sendSimMenuNative", "(I)V",
-        (void *)Java_org_rpncalculators_r47_MainActivity_sendSimMenuNative},
+       (void*)Java_org_rpncalculators_r47_MainActivity_sendSimMenuNative},
       {"sendSimFuncNative", "(I)V",
-        (void *)Java_org_rpncalculators_r47_MainActivity_sendSimFuncNative},
+       (void*)Java_org_rpncalculators_r47_MainActivity_sendSimFuncNative},
       {"saveStateNative", "()V",
-        (void *)Java_org_rpncalculators_r47_MainActivity_saveStateNative},
+       (void*)Java_org_rpncalculators_r47_MainActivity_saveStateNative},
       {"loadStateNative", "()V",
-        (void *)Java_org_rpncalculators_r47_MainActivity_loadStateNative},
+       (void*)Java_org_rpncalculators_r47_MainActivity_loadStateNative},
       {"forceRefreshNative", "()V",
-        (void *)Java_org_rpncalculators_r47_MainActivity_forceRefreshNative},
+       (void*)Java_org_rpncalculators_r47_MainActivity_forceRefreshNative},
       {"setSlotNative", "(I)V",
-        (void *)Java_org_rpncalculators_r47_MainActivity_setSlotNative},
+       (void*)Java_org_rpncalculators_r47_MainActivity_setSlotNative},
       {"getXRegisterNative", "()Ljava/lang/String;",
-        (void *)Java_org_rpncalculators_r47_MainActivity_getXRegisterNative},
+       (void*)Java_org_rpncalculators_r47_MainActivity_getXRegisterNative},
       {"getDisplayPixels", "([I)V",
-        (void *)Java_org_rpncalculators_r47_MainActivity_getDisplayPixels},
+       (void*)Java_org_rpncalculators_r47_MainActivity_getDisplayPixels},
       {"setLcdColors", "(II)V",
-        (void *)Java_org_rpncalculators_r47_MainActivity_setLcdColors},
+       (void*)Java_org_rpncalculators_r47_MainActivity_setLcdColors},
       {"getButtonLabelNative", "(IIZ)Ljava/lang/String;",
-        (void *)Java_org_rpncalculators_r47_MainActivity_getButtonLabelNative},
+       (void*)Java_org_rpncalculators_r47_MainActivity_getButtonLabelNative},
       {"getSoftkeyLabelNative", "(I)Ljava/lang/String;",
-        (void *)Java_org_rpncalculators_r47_MainActivity_getSoftkeyLabelNative},
+       (void*)Java_org_rpncalculators_r47_MainActivity_getSoftkeyLabelNative},
       {"getKeyboardStateNative", "()[I",
-        (void *)Java_org_rpncalculators_r47_MainActivity_getKeyboardStateNative},
+       (void*)Java_org_rpncalculators_r47_MainActivity_getKeyboardStateNative},
       {"getKeypadMetaNative", "(ZZ)[I",
-        (void *)Java_org_rpncalculators_r47_MainActivity_getKeypadMetaNative},
+       (void*)Java_org_rpncalculators_r47_MainActivity_getKeypadMetaNative},
       {"getKeypadLabelsNative", "(ZZ)[Ljava/lang/String;",
-        (void *)Java_org_rpncalculators_r47_MainActivity_getKeypadLabelsNative},
+       (void*)Java_org_rpncalculators_r47_MainActivity_getKeypadLabelsNative},
       {"onFileSelectedNative", "(I)V",
-        (void *)Java_org_rpncalculators_r47_MainActivity_onFileSelectedNative},
+       (void*)Java_org_rpncalculators_r47_MainActivity_onFileSelectedNative},
       {"onFileCancelledNative", "()V",
-        (void *)Java_org_rpncalculators_r47_MainActivity_onFileCancelledNative},
+       (void*)Java_org_rpncalculators_r47_MainActivity_onFileCancelledNative},
   };
 
   jclass clazz = (*env)->FindClass(env, MAIN_ACTIVITY_CLASS);

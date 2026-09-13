@@ -29,6 +29,14 @@ Java_org_rpncalculators_r47_MainActivity_updateNativeActivityRef(JNIEnv *env,
   g_stopToneId = (*env)->GetMethodID(env, clazz, "stopTone", "()V");
   g_processCoreTasksId =
       (*env)->GetMethodID(env, clazz, "processCoreTasks", "()V");
+  g_setBeeperVolumeId =
+      (*env)->GetMethodID(env, clazz, "setBeeperVolume", "(I)V");
+  g_getBeeperVolumeId =
+      (*env)->GetMethodID(env, clazz, "getBeeperVolume", "()I");
+  g_getBatteryVoltageId =
+      (*env)->GetMethodID(env, clazz, "getBatteryVoltageMv", "()I");
+  g_getStorageInfoId =
+      (*env)->GetMethodID(env, clazz, "getStorageInfo", "()Ljava/lang/String;");
   (*env)->DeleteLocalRef(env, clazz);
 
   if (!ram) {
