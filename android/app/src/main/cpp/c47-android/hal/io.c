@@ -1,6 +1,12 @@
 #include "c47.h"
 #include "jni_bridge.h"
 #include "screen.h"
+
+#if !defined(TI_DISK_INFO)
+#define TI_DISK_INFO 145
+#endif
+extern char diskInfoStr[256];
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

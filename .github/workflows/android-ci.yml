@@ -238,6 +238,7 @@ jobs:
             src/c47/programming/input.c \
             src/c47/programming/lblGtoXeq.c \
             src/c47/screen.c \
+            src/c47/screen.h \
             src/c47/display.c \
             src/c47/core/freeList.c \
             src/c47/registerValueConversions.c \
@@ -521,6 +522,7 @@ jobs:
             src/c47/programming/input.c \
             src/c47/programming/lblGtoXeq.c \
             src/c47/screen.c \
+            src/c47/screen.h \
             src/c47/display.c \
             src/c47/core/freeList.c \
             src/c47/registerValueConversions.c \
