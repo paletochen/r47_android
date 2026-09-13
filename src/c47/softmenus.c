@@ -1317,6 +1317,19 @@ static void changeToPFN  (void);
 static void initVariableSoftmenu(int16_t menu);
 
 
+// Softmenus that reopen on the page last shown, regarless FLAG_MNUp1. cfg and state files write retainedPageFirstItem[]. A new softmenu is added at the end.
+TO_QSPI const int16_t retainedPageMenu[NUMBER_OF_RETAINED_PAGE_MENUS] = { -MNU_TVM, -MNU_UNITCONV };
+
+static int16_t *retainedPageSlot(int16_t menuItem) {
+  for(size_t i=0; i<sizeof(retainedPageMenu)/sizeof(int16_t); i++) {
+    if(retainedPageMenu[i] == menuItem) {
+      return retainedPageFirstItem + i;
+    }
+  }
+  return NULL;
+}
+
+
 
 void fnOpenMenu(uint16_t menu) {
   int16_t i, numItems;
@@ -1360,6 +1373,10 @@ void fnOpenMenu(uint16_t menu) {
     }
     else {
       lastCatalogPosition[catalog] = 18 * (menuPageNumber-1);          // To open the menu at the right page
+    }
+    int16_t *retainedPage = retainedPageSlot(-menu);
+    if(retainedPage != NULL) {
+      *retainedPage = lastCatalogPosition[catalog];                    // MENU sets the page a retained-page softmenu reopens on
     }
     showSoftmenu(-menu);
     lastCatalogPosition[CATALOG_NONE] = 0;                           // Return to default page for non catalog menus
@@ -3761,6 +3778,7 @@ void showSoftmenuCurrentPart(void) {
 
     softmenuStack[0].softmenuId = softmenuId;
     softmenuStack[0].firstItem = lastCatalogPosition[catalog];
+    lastCatalogPosition[CATALOG_NONE] = 0;                                                             // a page taken from the stack above is for this softmenu only, not for the next one pushed
     softmenuStack[0].userMenuId = userMenuId;
     softmenuStack[0].calcMode = calcMode;
 
@@ -3772,6 +3790,12 @@ void showSoftmenuCurrentPart(void) {
       softmenuStack[0].firstItem = getSystemFlag(FLAG_US) ? 18 : 0;
     }
 
+
+    const int16_t *retainedPage = retainedPageSlot(softmenu[softmenuId].menuItem);
+    const int16_t numItems = (softmenuId < NUMBER_OF_DYNAMIC_SOFTMENUS ? dynamicSoftmenu[softmenuId].numItems : softmenu[softmenuId].numItems);
+    if(retainedPage != NULL && *retainedPage >= 0 && *retainedPage < numItems) {   // a retained-page softmenu opens on its own last page, whatever FLAG_MNUp1 is; a page it does not have is ignored
+      softmenuStack[0].firstItem = *retainedPage;
+    }
 
     doRefreshSoftMenu = true;     //dr
   }
@@ -4250,6 +4274,11 @@ void showSoftmenuCurrentPart(void) {
     }
     else if(catalog == CATALOG_aint) {
       lastCatalogPosition[CATALOG_AINT] = softmenuStack[0].firstItem;
+    }
+
+    int16_t *retainedPage = retainedPageSlot(softmenu[softmenuStack[0].softmenuId].menuItem);
+    if(retainedPage != NULL) {                                         // menuUp() and menuDown() call this after every page change
+      *retainedPage = softmenuStack[0].firstItem;
     }
   }
 

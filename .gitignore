@@ -12,7 +12,6 @@
 **/*.obj
 **/*.pyc
 **/__pycache__/
-
 # --- 2. Meson / Build Artifacts ---
 /build/
 /build.sim*/
@@ -29,8 +28,12 @@ compile_commands.json
 /src_files_stamp
 /testPgms_stamp
 /dep/gmp-6.2.1/
-
 # --- 3. C47 Core Generated & Specifics ---
+# C47 project specific files
+/build
+/build.sim*
+/t47bench
+/dep/gmp-6.2.1
 /wp43
 /c47
 /r47
@@ -55,6 +58,20 @@ c47.sav
 c47.dat
 *.s47
 *.zip
+# testSuite coverage-corpus artefacts (written to the repo root by 'make test')
+c47Test.sav
+c47autoTest.sav
+c47Test.dat
+c47stateTest.bin
+c47programTest.bin
+c47programTest.rtf
+c47programsTest.bin
+c47programsTest.rtf
+c47regsTest.txt
+c47regdumpTest.txt
+!docs/appnotes/sources/
+!docs/appnotes/sources/*.*
+!docs/appnotes/sources/*/*.*
 !xfnToC47user.s47
 !xfnToR47user.s47
 20*.REGS.TSV
@@ -75,7 +92,6 @@ WP43_Docs/**/*.pdf
 /subprojects/*
 !/subprojects/*.wrap
 !/subprojects/packagefiles/
-
 # --- 5. OS / IDE Bloat ---
 .DS_Store
 ._*
@@ -93,7 +109,6 @@ Thumbs.db
 .git_private/
 *.rej
 *.orig
-
 # --- 6. Explicitly TRACK these in Vault ---
 !android/
 !PROGRAMS/
@@ -119,21 +134,16 @@ Thumbs.db
 !AGENTS.md
 !.gitignore
 !.gitlab-ci.yml
-
 # --- 7. Upstream Whitelist (Delta Mode) ---
 !/src/c47/
-
 # --- 8. Android Core Copies ---
 /android/app/src/main/cpp/c47/
 !/android/app/src/main/cpp/c47-android/
 android/build_output.txt
-
 # --- 9. Brainstorming / Research ---
 /tmp/
-
 # --- 10. Configuration Secrets ---
 .google_env
-
 # --- 11. Test Suite Outputs ---
 /backupTest.cfg
 /c47Test.sav
@@ -147,3 +157,107 @@ android/build_output.txt
 /c47regsTest.txt
 /c47regdumpTest.txt
 /c47plotTest*.bmp
+c47plotTest*.bmp
+/PROGRAMS
+/SAVFILES
+# 'make repeattest' incremental markers, written to the repo root
+/src_files_stamp
+/testPgms_stamp
+/src/generated/*
+# AGENTS.md and CLAUDE.md are tracked deliberately: they give the contribution rules to every clone.
+# Created by https://www.toptal.com/developers/gitignore/api/macos,windows,linux,codeblocks,valgrind,vscode
+# Edit at https://www.toptal.com/developers/gitignore?templates=macos,windows,linux,codeblocks,valgrind,vscode
+### CodeBlocks ###
+# specific to CodeBlocks IDE
+*.layout
+*.depend
+# generated directories
+bin/
+obj/
+### Linux ###
+# temporary files which can be created if a process still has a handle open of a deleted file
+# KDE directory preferences
+# Linux trash folder which might appear on any partition or disk
+.Trash-*
+# .nfs files are created when an open file is removed but is still being accessed
+### macOS ###
+# General
+.AppleDouble
+.LSOverride
+# Icon must end with two \r
+Icon
+# Thumbnails
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+### Valgrind ###
+# Callgrind output files
+callgrind.out
+callgrind.out.*
+# Cachegrind output files
+cachegrind.out
+cachegrind.out.*
+# Massif output files
+massif.out
+massif.out.*
+# BBV output files
+bb.out
+bb.out.*
+### vscode ###
+/.vscode
+.cache
+### Windows ###
+# Windows thumbnail cache files
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+# Dump file
+*.stackdump
+# Folder config file
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
+# Windows Installer files
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+# Windows shortcuts
+*.lnk
+# End of https://www.toptal.com/developers/gitignore/api/macos,windows,linux,codeblocks,valgrind,vscode
+# Created by https://www.toptal.com/developers/gitignore/api/meson
+# Edit at https://www.toptal.com/developers/gitignore?templates=meson
+### Meson ###
+# subproject directories
+# Meson Directories
+meson-logs
+meson-private
+# Meson Files
+meson_benchmark_setup.dat
+meson_test_setup.dat
+sanitycheckcpp.cc     # C++ specific
+sanitycheckcpp.exe    # C++ specific
+# Ninja
+build.ninja
+.ninja_deps
+.ninja_logs
+# Misc
+compile_commands.json
+# End of https://www.toptal.com/developers/gitignore/api/meson
+# LaTeX byproducts from building an application note in docs/appnotes/sources
+docs/appnotes/sources/**/*.aux
+docs/appnotes/sources/**/*.log
+docs/appnotes/sources/**/*.out
+docs/appnotes/sources/**/*.toc
+docs/appnotes/sources/**/*.pdf
