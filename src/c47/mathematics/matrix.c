@@ -70,7 +70,6 @@ static void complexEigenvectors(const complex34Matrix_t *matrix, complex34Matrix
   #define eigenContext            &ctxtReal75
   #define ctxtTruncate            &ctxtReal51  //ctxtReal34
   #define ctxtDeNoise             &ctxtReal39                                     // tested, no benfit on 51
-  #define tolerance_complex_noise_removal_except_conjugate const_1e_32            // to test. Make very small to skip it, like const_1e_6143
 // End Eigenvalue setup
 
 
@@ -1778,6 +1777,9 @@ void fnEigenvalues(uint16_t unusedParamButMandatory) {
       liftStack();
       res.matrixElements = NULL;
       complexEigenvalues(&x, &res);
+      if(res.matrixElements && lastErrorCode != ERROR_NONE && lastErrorCode != ERROR_SOLVER_ABORT) {   // after an error no result is written, as on the real path
+        complexMatrixFree(&res);
+      }
       if(res.matrixElements) {
         convertComplex34MatrixToComplex34MatrixRegister(&res, REGISTER_X);
         adjustResult(REGISTER_X, true, true, REGISTER_X, -1, -1);
@@ -1917,6 +1919,9 @@ void fnEigenvectors(uint16_t unusedParamButMandatory) {
         realMatrixFree(&res);
       }
       else {
+        if(lastErrorCode == ERROR_NO_ROOT_FOUND) {                                               // the error from the eigenvalues is already displayed
+          goto ErrorExit;
+        }
         displayCalcErrorMessage(ERROR_SINGULAR_MATRIX, ERR_REGISTER_LINE, REGISTER_X);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           sprintf(errorMessage, "matrix is defective: no full set of linearly independent eigenvectors");
@@ -1959,6 +1964,9 @@ void fnEigenvectors(uint16_t unusedParamButMandatory) {
         complexMatrixFree(&res);
       }
       else {
+        if(lastErrorCode == ERROR_NO_ROOT_FOUND) {                                               // the error from the eigenvalues is already displayed
+          goto ErrorExit;
+        }
         displayCalcErrorMessage(ERROR_SINGULAR_MATRIX, ERR_REGISTER_LINE, REGISTER_X);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           sprintf(errorMessage, "matrix is defective: no full set of linearly independent eigenvectors");
@@ -6183,45 +6191,6 @@ static void sortEigenvalues(real_t *eig, uint16_t size, uint16_t begin_a, uint16
 
 
 
-static void solve2x2Block(real_t *a, real_t *eig, uint16_t size, bool_t is_real_symmetric, realContext_t *realContext) {
-  #if defined(EIGENDEBUG)
-    printf("solve2x2Block\n");
-  #endif //EIGENDEBUG
-  real_t block[8];
-  for(int i = 0; i < 2; i++) {
-    for(int j = 0; j < 2; j++) {
-      realCopy(a + (i * size + j) * 2,     block + (i * 2 + j) * 2);
-      realCopy(a + (i * size + j) * 2 + 1, block + (i * 2 + j) * 2 + 1);
-    }
-  }
-  calculateEigenvalues22(block, 2, a, a + 1, a + (size + 1) * 2, a + (size + 1) * 2 + 1, is_real_symmetric, realContext);
-
-  for(int i = 0; i < 2; i++) {
-    realCopy(a + (i * size + i) * 2,     eig + (i * size + i) * 2);
-    realCopy(a + (i * size + i) * 2 + 1, eig + (i * size + i) * 2 + 1);
-    }
-  }
-
-
-static void solve3x3Block(real_t *a, real_t *eig, uint16_t size, bool_t is_real_symmetric, realContext_t *realContext) {
-  #if defined(EIGENDEBUG)
-    printf("solve3x3Block\n");
-  #endif //EIGENDEBUG
-  real_t block[18];
-  for(int i = 0; i < 3; i++) {
-    for(int j = 0; j < 3; j++) {
-      realCopy(a + (i * size + j) * 2,     block + (i * 3 + j) * 2);
-      realCopy(a + (i * size + j) * 2 + 1, block + (i * 3 + j) * 2 + 1);
-    }
-  }
-  calculateEigenvalues33(block, 3, a, a + 1, a + (size + 1) * 2, a + (size + 1) * 2 + 1, a + (size + 1) * 4, a + (size + 1) * 4 + 1, is_real_symmetric, realContext);
-  for(int i = 0; i < 3; i++) {
-    realCopy(a + (i * size + i) * 2,     eig + (i * size + i) * 2);
-    realCopy(a + (i * size + i) * 2 + 1, eig + (i * size + i) * 2 + 1);
-  }
-}
-
-
 static bool_t isMatrixDiagonal(real_t *matrix, uint16_t size, real_t *tol, realContext_t *realContext) {
   for(uint16_t i = 0; i < size; i++) {
     for(uint16_t j = 0; j < size; j++) {
@@ -7196,6 +7165,54 @@ if(iteration % 20 == 0) {
         } // end of while
       } // end of deflation
 
+      // A matrix split into 1x1 blocks and real 2x2 blocks with a complex pair is finished: real shifts only rotate such a block, and the block scan after the iteration
+      // solves it. Every element below the subdiagonal is under 1E-40, a subdiagonal under 1E-40 ends a block, and each 2x2 block has (a - d)^2 + 4bc < 0.
+      if((iteration % 5) == 0 && !converged) {
+        real_t negligible, mag;
+        bool_t split = true;
+
+        realSetOne(&negligible);
+        negligible.exponent -= blockDetectionTolerance;
+
+        for(i = 2; i < size && split; i++) {
+          for(j = 0; j + 1 < i && split; j++) {
+            complexMagnitude(eig + (i * size + j) * 2, eig + (i * size + j) * 2 + 1, &mag, realContext);
+            split = realCompareLessThan(&mag, &negligible);
+          }
+        }
+
+        i = 0;
+        while(i + 1 < size && split) {
+          complexMagnitude(eig + ((i + 1) * size + i) * 2, eig + ((i + 1) * size + i) * 2 + 1, &mag, realContext);
+          if(realCompareLessThan(&mag, &negligible)) {
+            i++;
+          }
+          else {
+            if(i + 2 < size) {
+              complexMagnitude(eig + ((i + 2) * size + i + 1) * 2, eig + ((i + 2) * size + i + 1) * 2 + 1, &mag, realContext);
+              split = realCompareLessThan(&mag, &negligible);
+            }
+            for(j = 0; j < 4 && split; j++) {
+              split = realIsZero(eig + ((i + j / 2) * size + i + j % 2) * 2 + 1);
+            }
+            if(split) {
+              real_t diff, bc, disc;
+              realSubtract(eig + (i * size + i) * 2, eig + ((i + 1) * size + i + 1) * 2, &diff, realContext);
+              realMultiply(&diff, &diff, &disc, realContext);
+              realMultiply(eig + (i * size + i + 1) * 2, eig + ((i + 1) * size + i) * 2, &bc, realContext);
+              realMultiply(&bc, const_4, &bc, realContext);
+              realAdd(&disc, &bc, &disc, realContext);
+              split = !realIsZero(&disc) && realIsNegative(&disc);
+            }
+            i += 2;
+          }
+        }
+
+        if(split) {
+          converged = true;
+        }
+      }
+
 
 
 
@@ -7370,211 +7387,52 @@ if(iteration % 20 == 0) {
     fflush(stdout);
     #endif
 
-    // Find the span of ALL unconverged regions
-    int first_unconverged = -1;
-    int last_unconverged = -1;
-
-    for(int i = 0; i < size - 1; i++) {
-      real_t offdiag_mag;
-      complexMagnitude(eig + ((i+1) * size + i) * 2, eig + ((i+1) * size + i) * 2 + 1, &offdiag_mag, realContext);
+    // Each block of the final quasi-triangular eig is solved on its own, and solveEigenBlock writes the eigenvalues of a 2x2 or 3x3 block on the diagonal of a.
+    // The top-left block that deflation left at activeSize 2 or 3 is one block; below it a subdiagonal element under the threshold ends a block. A 1x1 block keeps
+    // the diagonal of a. A longer block, or a block with an element below it at the threshold or above, did not converge and is reported as no root found, unless
+    // an error is already set.
+    {
+      real_t blockThreshold, mag;
       #if defined(POST_QR_RELATIVE_BLOCK_CHECK)
-      if(!realCompareLessThan(&offdiag_mag, &rel_threshold)) {
-      #else
-      real_t threshold;
-      realSetOne(&threshold);
-      threshold.exponent -= blockDetectionTolerance;
-      if(!realCompareLessThan(&offdiag_mag, &threshold)) {
-      #endif
-        if(first_unconverged == -1) {
-          first_unconverged = i;
-        }
-        last_unconverged = i + 1;
-      }
-    }
-                                                                        #if defined(EIGENDEBUG)
-                                                                        printf("Dedicated 2x2 scan detection: check block from %d to %d\n", first_unconverged, last_unconverged);
-                                                                        #endif
-    if(first_unconverged != -1) {
-      int block_size = last_unconverged - first_unconverged + 1;
+        realCopy(&rel_threshold, &blockThreshold);
+      #else // !POST_QR_RELATIVE_BLOCK_CHECK
+        realSetOne(&blockThreshold);
+        blockThreshold.exponent -= blockDetectionTolerance;
+      #endif // POST_QR_RELATIVE_BLOCK_CHECK
 
-      #if defined(EIGENDEBUG)
-      printf("Found unconverged block spanning positions %d to %d (size %d)\n",
-             first_unconverged, last_unconverged, block_size);
-      #endif
-
-      // If block size is 3 or larger, skip 2x2 solving - let the 3x3 solver handle it
-      if(block_size >= 3) {
-        #if defined(EIGENDEBUG)
-        printf("Block size >= 3, skipping 2x2 scan - will use 3x3 solver or smart detection\n");
-        #endif
-      }
-      else if(block_size == 2) {
-        // Single 2×2 block - safe to solve
-        #if defined(EIGENDEBUG)
-        printf("Solving single 2x2 block at positions [%d,%d]\n", first_unconverged, first_unconverged + 1);
-        #endif
-
-        // Extract 2×2 block
-        real_t temp_2x2[8];
-        for(int row = 0; row < 2; row++) {
-          for(int col = 0; col < 2; col++) {
-            int idx_row = first_unconverged + row;
-            int idx_col = first_unconverged + col;
-            realCopy(eig + (idx_row * size + idx_col) * 2, temp_2x2 + (row * 2 + col) * 2);
-            realCopy(eig + (idx_row * size + idx_col) * 2 + 1, temp_2x2 + (row * 2 + col) * 2 + 1);
+      for(i = 0; i < size; i = j + 1) {
+        bool_t coupled = false;
+        for(j = i; j + 1 < size; j++) {                                                     // j stops on the last row of the block that starts on row i
+          real_t offdiag_mag;
+          if(i == 0 && j + 1 < activeSize && activeSize <= 3) {
+            continue;
+          }
+          complexMagnitude(eig + ((j + 1) * size + j) * 2, eig + ((j + 1) * size + j) * 2 + 1, &offdiag_mag, realContext);
+          if(realIsZero(&offdiag_mag) || realCompareLessThan(&offdiag_mag, &blockThreshold)) {
+            break;
           }
         }
+        #if defined(EIGENDEBUG)
+          printf("Block from %d to %d\n", i, j);
+        #endif // EIGENDEBUG
 
-        // Check for conjugate pair before solving (must have non-zero imaginary parts!)
-        real_t re_diff, im_sum, im1, im2;
-        realCopy(eig + (first_unconverged * size + first_unconverged) * 2 + 1, &im1);
-        realCopy(eig + ((first_unconverged + 1) * size + (first_unconverged + 1)) * 2 + 1, &im2);
-
-        bool_t is_conjugate_pair = false;
-        // Only check for conjugates if both have non-zero imaginary part
-        if(!realIsZero(&im1) && !realIsZero(&im2)) {
-          realSubtract(eig + (first_unconverged * size + first_unconverged) * 2, eig + ((first_unconverged + 1) * size + (first_unconverged + 1)) * 2, &re_diff, realContext);
-          realAdd(&im1, &im2, &im_sum, realContext);
-
-          if(realCompareAbsLessThan(&re_diff, tolerance_complex_noise_removal_except_conjugate) &&  realCompareAbsLessThan(&im_sum, tolerance_complex_noise_removal_except_conjugate)) {
-            is_conjugate_pair = true;
-                                                                         #if defined(EIGENDEBUG)
-                                                                         printf("Diagonal elements are conjugates - keeping them\n");
-                                                                         #endif
+        for(uint16_t row = j + 1; row < size && !coupled; row++) {
+          for(uint16_t col = i; col <= j && !coupled; col++) {
+            complexMagnitude(eig + (row * size + col) * 2, eig + (row * size + col) * 2 + 1, &mag, realContext);
+            coupled = !realIsZero(&mag) && !realCompareLessThan(&mag, &blockThreshold);
           }
         }
-
-        if(!is_conjugate_pair) {                                     //prevent destroying complex pairs
-            // Solve using the unified block solver (writes into A only)
-            solveEigenBlock(a, eig, size, first_unconverged, first_unconverged + 1, is_real_symmetric, realContext);
-
-            // After solveEigenBlock(), copy eigenvalues from A to EIG
-            for(int i = 0; i < 2; i++) {
-              int pos = first_unconverged + i;
-              realCopy(a + (pos * size + pos) * 2, eig + (pos * size + pos) * 2);
-              realCopy(a + (pos * size + pos) * 2 + 1, eig + (pos * size + pos) * 2 + 1);
-            }
-            // Zero off-diagonals (both upper and lower)
-            realSetZero(eig + ((first_unconverged + 1) * size + first_unconverged) * 2);
-            realSetZero(eig + ((first_unconverged + 1) * size + first_unconverged) * 2 + 1);
-            realSetZero(eig + (first_unconverged * size + (first_unconverged + 1)) * 2);
-            realSetZero(eig + (first_unconverged * size + (first_unconverged + 1)) * 2 + 1);
+        if(!coupled && (j == i + 1 || j == i + 2)) {
+          solveEigenBlock(a, eig, size, i, j, is_real_symmetric, realContext);
+        }
+        else if((coupled || j > i + 2) && lastErrorCode == ERROR_NONE) {
+          displayCalcErrorMessage(ERROR_NO_ROOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
+          #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+            sprintf(errorMessage, "rows %d to %d are not a block of at most 3 rows apart from the rows below", i, j);
+            moreInfoOnError("In function calculateEigenvalues:", errorMessage, NULL, NULL);
+          #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
         }
       }
-    }
-
-                                                                        #if defined(EIGENDEBUG)
-                                                                        printEigenvaluesComparison("After the 2×2 scanning loop completes... before smart checking", a, eig, size, iteration, converged);
-                                                                        #endif
-
-#if defined(EIGENDEBUG) || defined(EIGENDEBUG2) || defined(EIGENDEBUGMINIMAL)
-if(iteration % 20 == 0) {
-  printf("==== Smart scan for 2x2 and 3x3 \n");
-}
-#endif
-
-
-    // Smart remaining block detection - check what actually needs solving
-    first_unconverged = -1;
-    last_unconverged = -1;
-
-    // Scan for any remaining unconverged positions
-    for(int i = 0; i < size - 1; i++) {
-      real_t offdiag_mag;
-      complexMagnitude(eig + ((i+1) * size + i) * 2, eig + ((i+1) * size + i) * 2 + 1, &offdiag_mag, realContext);
-      #if defined(POST_QR_RELATIVE_BLOCK_CHECK)
-      if(!realCompareLessThan(&offdiag_mag, &rel_threshold)) {
-      #else
-      real_t threshold;
-      realSetOne(&threshold);
-      threshold.exponent -= blockDetectionTolerance;
-      if(!realCompareLessThan(&offdiag_mag, &threshold)) {
-      #endif
-        if(first_unconverged == -1) {
-          first_unconverged = i;
-        }
-        last_unconverged = i + 1;
-      }
-    }
-                                                                        #if defined(EIGENDEBUG)
-                                                                        printf("Smart detection: check block from %d to %d\n", first_unconverged, last_unconverged);
-                                                                        #endif
-    // Determine what block (if any) needs solving
-    if(first_unconverged != -1) {
-      int block_size = last_unconverged - first_unconverged + 1;
-                                                                        #if defined(EIGENDEBUG)
-                                                                        debugf("WARNING:  Unconverged blocks");
-                                                                        printf("Smart detection: unconverged block from %d to %d (size=%d)\n", first_unconverged, last_unconverged, block_size);
-                                                                        #endif
-      if(block_size == 3) {
-        #if defined(EIGENDEBUG)
-          printf("  !!!! Found unconverged 3x3 block that scan missed, solving...\n");
-        #endif
-        solveEigenBlock(a, eig, size, first_unconverged, last_unconverged, is_real_symmetric, realContext);
-      }
-      else if(block_size == 2) {
-        #if defined(EIGENDEBUG)
-          printf("  !!!! Found unconverged 2x2 block that scan missed, This shouldn't happen - 2×2 scan should have caught it, solving...\n");
-        #endif
-        solveEigenBlock(a, eig, size, first_unconverged, last_unconverged, is_real_symmetric, realContext);
-      }
-      else if(block_size > 3) {
-        #if defined(EIGENDEBUG)
-          printf("   !!!! Large unconverged block size=%d - QR didn't converge properly!\n", block_size);
-        #endif
-      }
-    }
-
-
-
-#if defined(EIGENDEBUG) || defined(EIGENDEBUG2) || defined(EIGENDEBUGMINIMAL)
-if(iteration % 20 == 0) {
-  printf("==== activeSize handling (single eigenvalue at position activeSize-1) and copying converged eigenvalues from a to eig \n");
-}
-#endif
-
-
-    // activeSize handling (single eigenvalue at position activeSize-1)
-    if(activeSize == 1) {
-      realCopy(a, eig);
-      realCopy(a + 1, eig + 1);
-    }
-    else if(activeSize > 1 && activeSize < size) {
-      // Copy converged eigenvalues from a to eig
-      for(int i = 0; i < activeSize; i++) {
-        realCopy(a + (i * size + i) * 2, eig + (i * size + i) * 2);
-        realCopy(a + (i * size + i) * 2 + 1, eig + (i * size + i) * 2 + 1);
-      }
-    }
-
-                                                                    #if defined(EIGENDEBUG)
-                                                                    printEigenvaluesComparison("After the smart solves", a, eig, size, iteration, converged);
-                                                                    #endif //EIGENDEBUG
-
-
-    if(activeSize == 3) {
-      solve3x3Block(a, eig, size, is_real_symmetric, realContext);
-    }
-    else if(activeSize == 2) {
-      // Check if already solved by 2×2 scan (off-diagonals should be zero)
-      real_t offdiag_01, offdiag_10;
-      complexMagnitude(eig + (1 * size + 0) * 2, eig + (1 * size + 0) * 2 + 1, &offdiag_01, realContext);
-      complexMagnitude(eig + (0 * size + 1) * 2, eig + (0 * size + 1) * 2 + 1, &offdiag_10, realContext);
-      if(!realCompareLessThan(&offdiag_01, &tol) || !realCompareLessThan(&offdiag_10, &tol)) {
-        #if defined(EIGENDEBUG)
-        printf("solve2x2Block called for unconverged activeSize=2\n");
-        #endif
-        solve2x2Block(a, eig, size, is_real_symmetric, realContext);
-      }
-      #if defined(EIGENDEBUG)
-      else {
-        printf("activeSize=2 but block already solved - skipping solve2x2Block\n");
-      }
-      #endif
-    }
-    else if(activeSize == 1) {
-      realCopy(a, eig);
-      realCopy(a + 1, eig + 1);
     }
     shifted = false;
 
@@ -8082,6 +7940,9 @@ static void realEigenvectors(const real34Matrix_t *matrix, real34Matrix_t *res, 
       // Calculate eigenvalues
       calculateEigenvalues(a, q, r, eig, previousDiagonal, size, shifted, false, eigenContext);
       shifted = false;
+      if(lastErrorCode == ERROR_NO_ROOT_FOUND) {                                                  // the eigenvalues did not converge, so no eigenvectors are returned
+        goto fail;
+      }
       calculateEigenvectors((any34Matrix_t *)matrix, false, a, q, r, eig, eigenContext);
 
       // Detect failure: calculateEigenvectors zero-fills any column where it could not find a linearly independent eigenvector (defective matrix).
@@ -8098,11 +7959,7 @@ static void realEigenvectors(const real34Matrix_t *matrix, real34Matrix_t *res, 
           // No linearly independent eigenvector for this column. Caller checks
           // res.matrixElements; fnEigenvectors raises ERROR_SINGULAR_MATRIX,
           // fnMatrixSquareRoot's eigen path falls back silently.
-          res->matrixElements = NULL;
-          res->header.matrixRows = 0;
-          res->header.matrixColumns = 0;
-          freeC47Blocks(bulk, bulkSize);
-          return;
+          goto fail;
         }
       }
 
@@ -8173,6 +8030,13 @@ static void realEigenvectors(const real34Matrix_t *matrix, real34Matrix_t *res, 
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
     }
   }
+  return;
+
+fail:
+  res->matrixElements = NULL;
+  res->header.matrixRows = 0;
+  res->header.matrixColumns = 0;
+  freeC47Blocks(bulk, bulkSize);
 }
 
 
@@ -8200,6 +8064,9 @@ static void complexEigenvectors(const complex34Matrix_t *matrix, complex34Matrix
       // Calculate eigenvalues
       calculateEigenvalues(a, q, r, eig, previousDiagonal, size, shifted, false, eigenContext);
       shifted = false;
+      if(lastErrorCode == ERROR_NO_ROOT_FOUND) {                                                  // the eigenvalues did not converge, so no eigenvectors are returned
+        goto fail;
+      }
       calculateEigenvectors((any34Matrix_t *)matrix, true, a, q, r, eig, eigenContext);
 
       // Detect failure: calculateEigenvectors zero-fills any column where it could not find a linearly independent eigenvector (defective matrix).
@@ -8213,11 +8080,7 @@ static void complexEigenvectors(const complex34Matrix_t *matrix, complex34Matrix
           }
         }
         if(allZero) {
-          res->matrixElements = NULL;
-          res->header.matrixRows = 0;
-          res->header.matrixColumns = 0;
-          freeC47Blocks(bulk, bulkSize);
-          return;
+          goto fail;
         }
       }
 
@@ -8246,6 +8109,13 @@ static void complexEigenvectors(const complex34Matrix_t *matrix, complex34Matrix
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
     }
   }
+  return;
+
+fail:
+  res->matrixElements = NULL;
+  res->header.matrixRows = 0;
+  res->header.matrixColumns = 0;
+  freeC47Blocks(bulk, bulkSize);
 }
 
 
