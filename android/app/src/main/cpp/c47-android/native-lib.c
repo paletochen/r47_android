@@ -373,6 +373,8 @@ int register_main_activity_natives(JNIEnv* env) {
        (void*)Java_org_rpncalculators_r47_MainActivity_saveStateNative},
       {"loadStateNative", "()V",
        (void*)Java_org_rpncalculators_r47_MainActivity_loadStateNative},
+      {"loadAutoSaveNative", "()Z",
+       (void*)Java_org_rpncalculators_r47_MainActivity_loadAutoSaveNative},
       {"forceRefreshNative", "()V",
        (void*)Java_org_rpncalculators_r47_MainActivity_forceRefreshNative},
       {"setSlotNative", "(I)V",

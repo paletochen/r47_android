@@ -273,6 +273,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     override fun onSharedPreferenceChanged(prefs: SharedPreferences?, key: String?) {
         if (prefs == null || key == null) return
         when (key) {
+            WorkDirectory.KEY_TREE_URI -> checkPendingAutoLoad()
             "haptic_enabled" -> isHapticEnabled = prefs.getBoolean(key, true)
             "haptic_hifi_enabled" -> isHighFidelityHapticEnabled = prefs.getBoolean(key, true)
             "haptic_intensity" -> hapticIntensity = prefs.getInt(key, DEFAULT_HAPTIC_INTENSITY)
@@ -560,6 +561,21 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         super.onResume()
         coreRuntime.requestForceRefresh()
         storageAccessCoordinator.handleResume()
+        checkPendingAutoLoad()
+    }
+
+    private fun checkPendingAutoLoad() {
+        if (WorkDirectory.consumePendingAutoLoad(this)) {
+            Log.i(TAG, "Triggering auto-load of auto-save file from Work Directory")
+            offerCoreTask {
+                val success = loadAutoSaveNative()
+                mainHandler.post {
+                    if (success) {
+                        android.widget.Toast.makeText(this, "Auto-loaded calculator state from SAVFILES", android.widget.Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
     }
 
 
@@ -699,6 +715,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     private external fun sendSimFuncNative(funcId: Int)
     private external fun saveStateNative()
     private external fun loadStateNative()
+    private external fun loadAutoSaveNative(): Boolean
     private external fun forceRefreshNative()
     private external fun setSlotNative(slot: Int)
     private external fun getXRegisterNative(): String

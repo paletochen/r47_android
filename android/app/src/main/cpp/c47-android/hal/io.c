@@ -196,6 +196,13 @@ int ioFileOpen(ioFilePath_t path, ioFileMode_t mode) {
                     const char *autoFileName = "C47auto.sav";
                 #endif
                 int directFd = openDirectDocumentFd(2 /* SAVFILES */, autoFileName, (mode == ioModeWrite) ? "wt" : "r");
+                if (directFd < 0 && mode == ioModeRead) {
+                    #if (CALCMODEL == USER_R47)
+                        directFd = openDirectDocumentFd(2 /* SAVFILES */, "C47auto.sav", "r");
+                    #else
+                        directFd = openDirectDocumentFd(2 /* SAVFILES */, "R47auto.sav", "r");
+                    #endif
+                }
                 if (directFd >= 0) {
                     openedFile = fdopen(directFd, (mode == ioModeWrite) ? "wb" : "rb");
                     if (openedFile) {

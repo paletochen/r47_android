@@ -92,7 +92,8 @@ class SettingsFragment : PreferenceFragmentCompat() {
 
     private val treeLauncher = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
-            requireContext().contentResolver.takePersistableUriPermission(
+            val contentResolver = requireContext().contentResolver
+            contentResolver.takePersistableUriPermission(
                 uri,
                 Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             )
@@ -101,9 +102,20 @@ class SettingsFragment : PreferenceFragmentCompat() {
             val displayPath = WorkDirectory.formatDisplayPath(uri.path)
             findPreference<Preference>("work_directory")?.summary = displayPath
             
+            // Ensure all subfolders (STATE, PROGRAMS, SAVFILES, SCREENS, DATA, PRINT) exist
+            WorkDirectory.ensureAllSubfolders(requireContext(), uri.toString())
+
+            // Check if R47auto.sav (or C47auto.sav) exists in SAVFILES
+            val autoFile = WorkDirectory.findAutoSaveFile(contentResolver, uri.toString())
+            var autoLoadNotice = ""
+            if (autoFile != null) {
+                WorkDirectory.setPendingAutoLoad(requireContext(), true)
+                autoLoadNotice = "\n\nFound $autoFile in SAVFILES. It will be loaded automatically."
+            }
+
             MaterialAlertDialogBuilder(requireContext())
                 .setTitle("Work Directory Set")
-                .setMessage("Folder selected: $displayPath\nSubfolders (STATE, PROGRAMS, SAVFILES, SCREENS) will be created automatically.")
+                .setMessage("Folder selected: $displayPath\nSubfolders (STATE, PROGRAMS, SAVFILES, SCREENS, DATA, PRINT) created.$autoLoadNotice")
                 .setPositiveButton("OK", null)
                 .show()
         }

@@ -229,3 +229,42 @@ JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_setSlotNative(
   extern int current_slot_id;
   current_slot_id = slot;
 }
+
+JNIEXPORT jboolean JNICALL
+Java_org_rpncalculators_r47_MainActivity_loadAutoSaveNative(JNIEnv *env,
+                                                            jobject thiz) {
+  (void)env;
+  (void)thiz;
+  LOGI("loadAutoSaveNative triggered");
+  if (!ram) {
+    return JNI_FALSE;
+  }
+
+  pthread_mutex_lock(&screenMutex);
+  extern void fnLoadAuto(void);
+  fnLoadAuto();
+  extern void scanLabelsAndPrograms(void);
+  extern void defineCurrentProgramFromGlobalStepNumber(int16_t globalStepNumber);
+  extern void defineCurrentStep(void);
+  extern void defineFirstDisplayedStep(void);
+  extern void defineCurrentProgramFromCurrentStep(void);
+  extern void updateMatrixHeightCache(void);
+  extern uint16_t currentLocalStepNumber;
+  extern uint16_t currentProgramNumber;
+  extern programList_t *programList;
+  scanLabelsAndPrograms();
+  if (currentProgramNumber > 0) {
+    defineCurrentProgramFromGlobalStepNumber(
+        currentLocalStepNumber +
+        abs(programList[currentProgramNumber - 1].step) - 1);
+  }
+  defineCurrentStep();
+  defineFirstDisplayedStep();
+  defineCurrentProgramFromCurrentStep();
+  updateMatrixHeightCache();
+  refreshScreen(95);
+  refreshLcd(NULL);
+  lcd_refresh();
+  pthread_mutex_unlock(&screenMutex);
+  return JNI_TRUE;
+}

@@ -73,6 +73,73 @@ object WorkDirectory {
         }
     }
 
+    const val KEY_PENDING_AUTOLOAD = "pending_autoload_autosave"
+
+    fun setPendingAutoLoad(context: Context, pending: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_PENDING_AUTOLOAD, pending)
+            .apply()
+    }
+
+    fun consumePendingAutoLoad(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val pending = prefs.getBoolean(KEY_PENDING_AUTOLOAD, false)
+        if (pending) {
+            prefs.edit().putBoolean(KEY_PENDING_AUTOLOAD, false).apply()
+        }
+        return pending
+    }
+
+    fun ensureAllSubfolders(context: Context, treeUriString: String? = readTreeUriString(context)) {
+        if (treeUriString.isNullOrEmpty()) {
+            return
+        }
+        val contentResolver = context.contentResolver
+        for (type in 0..5) {
+            try {
+                resolveSubfolder(contentResolver, treeUriString, type)
+            } catch (error: Exception) {
+                Log.e(TAG, "Failed ensuring subfolder for type $type", error)
+            }
+        }
+    }
+
+    fun findAutoSaveFile(contentResolver: ContentResolver, treeUriString: String?): String? {
+        if (treeUriString.isNullOrEmpty()) {
+            return null
+        }
+        return try {
+            val folderUri = resolveSubfolder(contentResolver, treeUriString, 2) ?: return null
+            val treeUri = Uri.parse(treeUriString)
+            val folderDocId = DocumentsContract.getDocumentId(folderUri)
+            val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, folderDocId)
+
+            var foundName: String? = null
+            contentResolver.query(
+                childrenUri,
+                arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    val name = cursor.getString(0)
+                    if (name.equals("R47auto.sav", ignoreCase = true)) {
+                        foundName = "R47auto.sav"
+                        break
+                    } else if (name.equals("C47auto.sav", ignoreCase = true) && foundName == null) {
+                        foundName = "C47auto.sav"
+                    }
+                }
+            }
+            foundName
+        } catch (error: Exception) {
+            Log.e(TAG, "Failed finding auto-save file in SAVFILES", error)
+            null
+        }
+    }
+
     fun resolveSubfolder(
         contentResolver: ContentResolver,
         treeUriString: String?,
@@ -108,7 +175,9 @@ object WorkDirectory {
                 null,
             )?.use { cursor ->
                 while (cursor.moveToNext()) {
-                    if (cursor.getString(0) == subfolderName) {
+                    val name = cursor.getString(0)
+                    if (name.equals(subfolderName, ignoreCase = true) ||
+                        (fileType == 2 && name.equals("SAVEFILES", ignoreCase = true))) {
                         folderUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, cursor.getString(1))
                         break
                     }
@@ -175,7 +244,7 @@ object WorkDirectory {
                     null,
                 )?.use { cursor ->
                     while (cursor.moveToNext()) {
-                        if (cursor.getString(0) == fileName) {
+                        if (cursor.getString(0).equals(fileName, ignoreCase = true)) {
                             docUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, cursor.getString(1))
                             break
                         }
@@ -247,7 +316,7 @@ object WorkDirectory {
                 null,
             )?.use { cursor ->
                 while (cursor.moveToNext()) {
-                    if (cursor.getString(0) == fileName) {
+                    if (cursor.getString(0).equals(fileName, ignoreCase = true)) {
                         docUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, cursor.getString(1))
                         break
                     }

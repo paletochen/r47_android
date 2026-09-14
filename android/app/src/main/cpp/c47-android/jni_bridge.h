@@ -96,6 +96,9 @@ Java_org_rpncalculators_r47_MainActivity_saveStateNative(JNIEnv *env,
 JNIEXPORT void JNICALL
 Java_org_rpncalculators_r47_MainActivity_loadStateNative(JNIEnv *env,
                                                          jobject thiz);
+JNIEXPORT jboolean JNICALL
+Java_org_rpncalculators_r47_MainActivity_loadAutoSaveNative(JNIEnv *env,
+                                                            jobject thiz);
 JNIEXPORT void JNICALL
 Java_org_rpncalculators_r47_MainActivity_forceRefreshNative(JNIEnv *env,
                                                             jobject thiz);
