@@ -369,7 +369,7 @@ void fnItemTimerApp(uint16_t unusedButMandatoryParameter) {
       //  gdk_threads_add_timeout(100, _updateTimer, NULL);
       //#endif // PC_BUILD
   }
-  #endif // !OPTION_STOPWATCH
+  #endif // OPTION_STOPWATCH
 }
 
 void fnDecisecondTimerApp(uint16_t unusedButMandatoryParameter) {
@@ -498,7 +498,7 @@ void fnStartStopTimerApp(uint16_t unusedButMandatoryParameter) {
     fnStopTimerApp();
   }
   rbr1stDigit = true;
-#endif // !OPTION_STOPWATCH
+#endif // OPTION_STOPWATCH
 }
 
 void fnStopTimerApp(void) {
@@ -517,7 +517,7 @@ void fnStopTimerApp(void) {
     setSystemFlagChanged(SETTING_WATCHICON);
     watchIconEnabled = false;
   }
-#endif // !OPTION_STOPWATCH
+#endif // OPTION_STOPWATCH
 }
 
 void fnShowTimerApp(void) {
@@ -601,7 +601,7 @@ void fnShowTimerApp(void) {
         calcModeNormalGui();
       }
     }
-  #endif // !OPTION_STOPWATCH
+  #endif // OPTION_STOPWATCH
 }
 
 void fnUpdateTimerApp(void) {
@@ -616,7 +616,7 @@ void fnUpdateTimerApp(void) {
       refreshLcd(NULL);
     #endif // DMCP_BUILD
   }
-  #endif // !OPTION_STOPWATCH
+  #endif // OPTION_STOPWATCH
 }
 
 void fnRegAddTimerApp(uint16_t unusedButMandatoryParameter) {  //ENTER
@@ -636,7 +636,7 @@ void fnRegAddTimerApp(uint16_t unusedButMandatoryParameter) {  //ENTER
     timerCraAndDeciseconds = (timerCraAndDeciseconds & 0x80u) + (uint8_t)(aimBuffer[AIM_BUFFER_LENGTH / 2] - '0');
     rbr1stDigit = true;
   }
-  #endif // !OPTION_STOPWATCH
+  #endif // OPTION_STOPWATCH
 }
 
 void fnRegAddLapTimerApp(uint16_t unusedButMandatoryParameter) {   //dot
@@ -662,7 +662,7 @@ void fnRegAddLapTimerApp(uint16_t unusedButMandatoryParameter) {   //dot
     timerStartTime = _currentTime();
     fnTimerStart(TO_TIMER_APP, TO_TIMER_APP, TIMER_APP_PERIOD);
   }
-  #endif // !OPTION_STOPWATCH
+  #endif // OPTION_STOPWATCH
 }
 
 
@@ -727,7 +727,7 @@ void fnAddLapTimerApp(uint16_t unusedButMandatoryParameter) {
   }
 
   refreshScreen(31);
-  #endif // !OPTION_STOPWATCH
+  #endif // OPTION_STOPWATCH
 }
 
 
@@ -740,7 +740,7 @@ void fnUpTimerApp(void) {
     ++timerCraAndDeciseconds;
   }
   rbr1stDigit = true;
-  #endif // !OPTION_STOPWATCH
+  #endif // OPTION_STOPWATCH
 }
 
 void fnDownTimerApp(void) {
@@ -764,7 +764,7 @@ void fnDigitKeyTimerApp(uint16_t digit) {
     timerCraAndDeciseconds = (timerCraAndDeciseconds & 0x80u) + (uint8_t)(aimBuffer[AIM_BUFFER_LENGTH / 2] - '0') * 10u + digit;
     rbr1stDigit = true;
   }
-  #endif // !OPTION_STOPWATCH
+  #endif // OPTION_STOPWATCH
 }
 
 

@@ -228,7 +228,7 @@ void freeListFree(void *pcMemPtr, size_t sizeInBlocks) {
                                               printf("%30s%42d: %s\n", "", i, strs[i]);
                                           }
                                           free(strs);
-                                        #endif
+                                        #endif // !WIN32
           fflush(stderr);
         }
         if(numberOfAllocatedMemoryRegions - region - 1) {
@@ -252,7 +252,7 @@ void freeListFree(void *pcMemPtr, size_t sizeInBlocks) {
                                               printf("%30s%42d: %s\n", "", i, strs[i]);
                                           }
                                           free(strs);
-                                        #endif
+                                        #endif // !WIN32
       fflush(stderr);
     }
   #endif // !DMCP_BUILD

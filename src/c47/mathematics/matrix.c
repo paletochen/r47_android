@@ -5738,7 +5738,7 @@ static void calculateEigenvalues22(const real_t *mat, uint16_t size, real_t *t1r
 
   #if defined(EIGENDEBUGMINIMAL)
     printf("== calculateEigenvalues22\n");
-  #endif //EIGENDEBUGMINIMAL) || defined(EIGENDEBUG)
+  #endif //EIGENDEBUGMINIMAL
   realContext_t ctx159 = ctxtReal75;
 
   #if defined(OPTION_EIGEN_159)
@@ -5849,7 +5849,7 @@ static void calculateEigenvalues33(const real_t *mat, uint16_t size, real_t *t1r
 
   #if defined(EIGENDEBUGMINIMAL)
     printf("== calculateEigenvalues33\n");
-  #endif //EIGENDEBUGMINIMAL) || defined(EIGENDEBUG)
+  #endif //EIGENDEBUGMINIMAL
   const real_t *mr[9], *mi[9];
   realContext_t ctx159 = ctxtReal75;
 
@@ -6499,7 +6499,7 @@ static void solveEigenBlock(real_t *a, real_t *eig, uint16_t size, int first_unc
                 printRealToConsole(block + (row * n + col) * 2 + 1, "", "i\n");
             }
         }
-    #endif
+    #endif // EIGENDEBUG
 
     // Storage for eigenvalues
     real_t ev_re[3];
@@ -6580,7 +6580,7 @@ void calculateEigenvalues(real_t *a, real_t *q, real_t *r, real_t *eig, real_t *
                                                             }
                                                             printf("\n");
                                                           }
-                                                          #endif
+                                                          #endif // EIGENDEBUG
 
   if(isProblematicMatrix(a, size)) {
     displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
@@ -6730,7 +6730,7 @@ void calculateEigenvalues(real_t *a, real_t *q, real_t *r, real_t *eig, real_t *
           }
           printf("IterA %d: size=%d, activeSize=%d, converged=%d shifted=%d\n", iteration, size, activeSize, converged, shifted);
         }
-      #endif
+      #endif // EIGENDEBUG || EIGENDEBUG1 || EIGENDEBUGMINIMAL
 
 #if defined(EIGENDEBUG) || defined(EIGENDEBUG2) || defined(EIGENDEBUGMINIMAL)
 if(iteration % 20 == 0) {
@@ -6808,7 +6808,7 @@ if((iteration == 1000 || iteration == 1020)) {
   printRealToConsole(a + (4*size+4)*2, "", " + ");
   printRealToConsole(a + (4*size+4)*2+1, "", "i\n");
 }
-#endif
+#endif // EIGENDEBUG1
 
 
 
@@ -6847,7 +6847,7 @@ if(iteration % 20 == 0) {
                                                                                                 printComplexMatrix("R matrix RRR:", r, size, size, &ctxtReal4);
                                                                                                 #endif
                                                                                               }
-                                                                                              #endif
+                                                                                              #endif // EIGENDEBUG
 
 #if defined(EIGENDEBUG) || defined(EIGENDEBUG2) || defined(EIGENDEBUGMINIMAL)
 if(iteration % 20 == 0) {
@@ -7005,7 +7005,7 @@ if(iteration % 20 == 0) {
                                                                         printRealToConsole(eig + (k * size + (k-1)) * 2, "", " + ");
                                                                         printRealToConsole(eig + (k * size + (k-1)) * 2 + 1, "", "i\n");
                                                                       }
-                                                                    #endif
+                                                                    #endif // EIGENDEBUG
             }
           }
           else {
@@ -7084,7 +7084,7 @@ if(iteration % 20 == 0) {
                                                                           printf("CONVERGED: |Δ(sum diag)| < tolerance\n");
                                                                         }
                                                                       }
-                                                                    #endif
+                                                                    #endif // EIGENDEBUG
 
         realCopy(&currentOffDiagonalSum, &previousOffDiagonalSum);
         realCopy(&changeDiagonalSum, &previousChangeDiagonalSum);
@@ -7482,7 +7482,7 @@ if(iteration % 20 == 0) {
             }
             printf("\n");
           }
-        #endif
+        #endif // EIGENDEBUG
         for(j = 1; j < size; j++) {
           complexMagnitude(eig + (j * size + j) * 2, eig + (j * size + j) * 2 + 1, &tmpM, realContext);
           if(realCompareLessThan(&tmpM, &minM)) {
@@ -7549,7 +7549,7 @@ if(iteration % 20 == 0) {
                                                                   printf("Trace error: ");
                                                                   printRealToConsole(&trace_error, "", "\n");
                                                                   printf("=== END VERIFICATION ===\n");
-                                                                #endif
+                                                                #endif // EIGENDEBUG
 
   if((--currentSolverNestingDepth) == 0) {
     clearSystemFlag(FLAG_SOLVING);
@@ -7569,6 +7569,7 @@ static void calculateEigenvectors(const any34Matrix_t *matrix, bool_t isComplex,
   uint16_t       freeUnknowns = 1;
   uint16_t       duplicateEigenvalueCount = 0;
   uint16_t       *unknownsToFill = NULL;
+  bool_t         pairedSlack = false;
 
   if(matrix->header.matrixRows == matrix->header.matrixColumns) {
     for(i = 0; i < size * size * 2; i++) {
@@ -7661,6 +7662,7 @@ static void calculateEigenvectors(const any34Matrix_t *matrix, bool_t isComplex,
           duplicateEigenvalueCount = 0;
           freeUnknowns = 1;
           unknownsToFill[0] = 0;
+          pairedSlack = false;
         }
         if((v = allocC47Blocks(size * 2 * REAL_SIZE_IN_BLOCKS(75) * 2))) {
           do {
@@ -7684,7 +7686,7 @@ static void calculateEigenvectors(const any34Matrix_t *matrix, bool_t isComplex,
                   }
                 }
                 for(j = 0; j < freeUnknowns; j++) {
-                  realCopy(j == i ? const_1 : const_0, a + (i * (size + freeUnknowns) + j + size) * 2);
+                  realCopy((pairedSlack ? unknownsToFill[j] : j) == i ? const_1 : const_0, a + (i * (size + freeUnknowns) + j + size) * 2);
                   realSetZero(a + (i * (size + freeUnknowns) + j + size) * 2 + 1);
                 }
               }
@@ -7733,7 +7735,15 @@ static void calculateEigenvectors(const any34Matrix_t *matrix, bool_t isComplex,
               }
             }
             if(unknownsToFill[freeUnknowns - 1] >= size) {
-              ++freeUnknowns;
+              // No choice of fixed unknowns works with the slack on the first rows: the same choices come again with the slack on the rows of the fixed
+              // unknowns, which reaches an eigenvector whose dependent row is further down, and only then one more unknown is fixed.
+              if(pairedSlack) {
+                pairedSlack = false;
+                ++freeUnknowns;
+              }
+              else {
+                pairedSlack = true;
+              }
               for(i = 0; i < size; ++i) {
                 unknownsToFill[i] = i;
               }
@@ -8244,7 +8254,7 @@ void elementwiseRemaLonI(void (*f)(void)) {
     realMatrixFree(&y);
   }
   longIntegerFree(x);
-#endif
+#endif // 0
 }
 
 
@@ -8472,7 +8482,7 @@ void elementwiseCxmaLonI(void (*f)(void)) {
 
   longIntegerFree(x);
   complexMatrixFree(&y);
-#endif
+#endif // 0
 }
 
 
@@ -8503,7 +8513,7 @@ void elementwiseCxmaReal(void (*f)(void)) {
   convertComplex34MatrixToComplex34MatrixRegister(&y, REGISTER_X);
 
   complexMatrixFree(&y);
-#endif
+#endif // 0
 }
 
 
@@ -8532,7 +8542,7 @@ void elementwiseCxmaShoI(void (*f)(void)) {
   convertComplex34MatrixToComplex34MatrixRegister(&y, REGISTER_X);
 
   complexMatrixFree(&y);
-#endif
+#endif // 0
 }
 
 

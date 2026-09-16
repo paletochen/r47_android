@@ -2603,15 +2603,22 @@ void longIntegerToDisplayString(longInteger_t lgInt, char *displayString, int32_
 
   //for any exponent display, further manipulation of GRP is not needed
   if(stringWidth(displayString, allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, false, false) > maxWidth) {      //JM
-    char exponentString[14] = {0}, lastRemovedDigit = '0';
+    char exponentString[14], lastRemovedDigit;
     int16_t lastChar, stringStep, tenExponent;
-    int16_t minChar = (displayString[0] == '-' ? 2 : 1);
 
     stringStep = (GROUPLEFT_DISABLED ? 1 : GROUPWIDTH_LEFT + (SEPARATOR_LEFT[1] == 1 ? 1 : 2));
     tenExponent = exponentStep + exponentShift;
-    lastChar = (int16_t)strlen(displayString) - stringStep;
-
-    if (lastChar >= minChar) {
+    lastChar = strlen(displayString) - stringStep;
+    lastRemovedDigit = displayString[lastChar + (SEPARATOR_LEFT[1] == 1 ? 1 : 2)];
+    displayString[lastChar] = 0;
+    if(updateDisplayValueX) {
+      displayValueX[strlen(displayValueX) - max(GROUPWIDTH_LEFT, 1)] = 0;
+    }
+    exponentString[0] = 0;
+    exponentToDisplayString(tenExponent, exponentString, NULL, false);
+    while(stringWidth(displayString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, false, true) + stringWidth(exponentString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, true, false) > maxWidth) {  //JM getSystemFlag(FLAG_LARGELI)
+      lastChar -= stringStep;
+      tenExponent += exponentStep;
       lastRemovedDigit = displayString[lastChar + (SEPARATOR_LEFT[1] == 1 ? 1 : 2)];
       displayString[lastChar] = 0;
       if(updateDisplayValueX) {
@@ -2619,17 +2626,6 @@ void longIntegerToDisplayString(longInteger_t lgInt, char *displayString, int32_
       }
       exponentString[0] = 0;
       exponentToDisplayString(tenExponent, exponentString, NULL, false);
-      while(lastChar >= minChar + stringStep && (stringWidth(displayString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, false, true) + stringWidth(exponentString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, true, false) > maxWidth)) {  //JM getSystemFlag(FLAG_LARGELI)
-        lastChar -= stringStep;
-        tenExponent += exponentStep;
-        lastRemovedDigit = displayString[lastChar + (SEPARATOR_LEFT[1] == 1 ? 1 : 2)];
-        displayString[lastChar] = 0;
-        if(updateDisplayValueX) {
-          displayValueX[strlen(displayValueX) - max(GROUPWIDTH_LEFT, 1)] = 0;
-        }
-        exponentString[0] = 0;
-        exponentToDisplayString(tenExponent, exponentString, NULL, false);
-      }
     }
 
     if(lastRemovedDigit >= '5') { // Round up
