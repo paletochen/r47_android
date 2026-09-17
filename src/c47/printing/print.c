@@ -2758,14 +2758,30 @@ void fnP_PrintAllItems(uint16_t unusedButMandatoryParameter) {
 //  Print XFN result
 //
 void fnP_Xfn(uint16_t unusedButMandatoryParameter) {
-  if (getSystemFlag(FLAG_PRTACT)) {  // Print to the printer
 #if defined(OPTION_IR_PRINTING)
-    if (registerFMAOutputPlainString(REGISTER_X, "", errorMessage)) {
-      printLine("XY+Z=", 1);
-      printLine(errorMessage, 1);
+  if (getSystemFlag(FLAG_PRTACT)) {
+    char* valStr = malloc(TMP_STR_LENGTH);
+    if (valStr != NULL) {
+      printLine("X: XY+Z", 1);
+
+      printLine("XY=", 1);
+      copyRegisterToClipboardString(REGISTER_Y, valStr, true);
+      printLine(valStr, 1);
+
+      printLine("Z=", 1);
+      copyRegisterToClipboardString(REGISTER_Z, valStr, true);
+      printLine(valStr, 1);
+
+      free(valStr);
     }
-#endif      // OPTION_IR_PRINTING
-  } else {  // Print to file
+  }
+#endif  // OPTION_IR_PRINTING
+
+#if defined(ANDROID_BUILD)
+  create_filename(".REGS.TSV");
+  stackregister_csv_out(REGISTER_X, REGISTER_Z, !ONELINE);
+#else
+  if (!getSystemFlag(FLAG_PRTACT)) {
     if (calcMode != CM_NORMAL) {
 #if defined(DMCP_BUILD)
       beep(440, 50);
@@ -2785,4 +2801,5 @@ void fnP_Xfn(uint16_t unusedButMandatoryParameter) {
 
     stackregister_csv_out(REGISTER_X, REGISTER_Z, !ONELINE);
   }
+#endif  // ANDROID_BUILD
 }

@@ -256,15 +256,21 @@ object WorkDirectory {
                         return -1
                     }
                     val mimeType = when {
-                        fileName.endsWith(".txt") -> "text/plain"
-                        fileName.endsWith(".sav") -> "application/octet-stream"
-                        fileName.endsWith(".tsv") -> "text/tab-separated-values"
+                        fileName.endsWith(".txt", ignoreCase = true) -> "text/plain"
+                        fileName.endsWith(".sav", ignoreCase = true) -> "application/octet-stream"
+                        fileName.endsWith(".tsv", ignoreCase = true) -> "text/tab-separated-values"
+                        fileName.endsWith(".csv", ignoreCase = true) -> "text/comma-separated-values"
                         else -> "application/octet-stream"
                     }
                     docUri = DocumentsContract.createDocument(
                         contentResolver,
                         folderUri,
                         mimeType,
+                        fileName,
+                    ) ?: DocumentsContract.createDocument(
+                        contentResolver,
+                        folderUri,
+                        "text/plain",
                         fileName,
                     ) ?: return -1
                 }
@@ -274,9 +280,12 @@ object WorkDirectory {
 
             val pfd = contentResolver.openFileDescriptor(docUri!!, mode) ?: run {
                 documentUriCache.remove(cacheKey)
+                Log.e(TAG, "openDirectDocumentFd: openFileDescriptor returned null for $fileName (mode=$mode)")
                 return -1
             }
-            pfd.detachFd()
+            val fd = pfd.detachFd()
+            Log.i(TAG, "openDirectDocumentFd: opened $fileName with fd $fd (fileType=$fileType, mode=$mode)")
+            fd
         } catch (error: Exception) {
             val cacheKey = "$treeUriString|$fileType|$fileName"
             documentUriCache.remove(cacheKey)

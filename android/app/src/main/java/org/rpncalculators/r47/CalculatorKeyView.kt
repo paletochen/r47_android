@@ -1095,7 +1095,7 @@ class CalculatorKeyView @JvmOverloads constructor(
         align: Paint.Align = Paint.Align.CENTER,
         verticalAnchor: Int = TEXT_ANCHOR_CENTER,
     ) {
-        val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
+        val prefs = context.getSharedPreferences(SlotStore.APP_PREFS_NAME, android.content.Context.MODE_PRIVATE)
         val skin = prefs.getString("chrome_mode", "r47_background")
         if (skin == "das_kalkulator" || text.isBlank()) {
             return

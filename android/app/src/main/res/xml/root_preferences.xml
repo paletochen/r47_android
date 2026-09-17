@@ -58,8 +58,8 @@
         <SwitchPreferenceCompat
             app:key="export_tsv_data"
             app:title="Export TSV to Work Directory"
-            app:summaryOn="Export register/statistic tables (.TSV) to DATA/ when printing is inactive"
-            app:summaryOff="Do not export TSV tables to DATA/ when printing is inactive"
+            app:summaryOn="Export register/statistic tables (.TSV) to DATA/ folder"
+            app:summaryOff="Do not export TSV tables to DATA/ folder"
             app:defaultValue="false" />
         <SwitchPreferenceCompat
             app:key="fullscreen_mode"
@@ -129,7 +129,7 @@
         <Preference
             app:key="about_version"
             app:title="Version"
-            app:summary="R47 Android Port (09d88e62)" />
+            app:summary="R47 Android Port (e8a82c31)" />
         <Preference
             app:key="view_gpl_license"
             app:title="@string/about_gpl_license_title"

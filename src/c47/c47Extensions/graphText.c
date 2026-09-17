@@ -893,14 +893,21 @@ int16_t export_append_line(const char* inputstring) {
 
 #if defined(ANDROID_BUILD)
 #include <unistd.h>
+#include <android/log.h>
   extern int openDirectDocumentFd(int fileType, const char* fileName,
                                   const char* mode);
   int directFd = openDirectDocumentFd(4 /* DATA */, filename_csv, "wa");
   if (directFd < 0) {
+    __android_log_print(ANDROID_LOG_INFO, "R47Native",
+                        "export_append_line: openDirectDocumentFd returned %d for %s",
+                        directFd, filename_csv);
     return 0;
   }
   outfile = fdopen(directFd, "a");
   if (outfile == NULL) {
+    __android_log_print(ANDROID_LOG_ERROR, "R47Native",
+                        "export_append_line: fdopen failed for %s (directFd=%d)",
+                        filename_csv, directFd);
     close(directFd);
     return 1;
   }
@@ -927,6 +934,11 @@ int16_t export_append_line(const char* inputstring) {
     }
     return frr;
   } else {
+#if defined(ANDROID_BUILD)
+    __android_log_print(ANDROID_LOG_INFO, "R47Native",
+                        "export_append_line: exported %d chars to %s",
+                        frr, filename_csv);
+#endif  // defined(ANDROID_BUILD)
     printf("Exported %i chars to %s: %s\n", frr, filename_csv, inputstring);
     fflush(stdout);
     fclose(outfile);
