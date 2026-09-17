@@ -25,7 +25,7 @@ echo "--- Re-applying Android Port Patches ---"
 git checkout HEAD -- .gitignore README.md Makefile build_android.sh sync_public.sh dist.sh 2>/dev/null || true
 
 # Source Patches
-git checkout HEAD -- src/c47/programming/input.c src/c47/programming/lblGtoXeq.c src/c47/screen.c 2>/dev/null || true
+git checkout HEAD -- src/c47/programming/input.c src/c47/programming/lblGtoXeq.c src/c47/screen.c src/c47/items.c src/c47/printing/print.c src/c47/printing/print.h src/c47/c47Extensions/graphText.c 2>/dev/null || true
 
 # Blueprint Preservation
 find src -name "meson.build" -exec git checkout HEAD -- {} + 2>/dev/null || true

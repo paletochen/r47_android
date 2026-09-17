@@ -649,6 +649,13 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
 
     @Keep
     fun openDirectDocumentFd(fileType: Int, fileName: String, mode: String): Int {
+        if (fileType == 4 && (fileName.endsWith(".tsv", ignoreCase = true) || fileName.endsWith(".csv", ignoreCase = true))) {
+            val tsvEnabled = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+                .getBoolean("export_tsv_data", false)
+            if (!tsvEnabled) {
+                return -1
+            }
+        }
         val treeUriString = WorkDirectory.readTreeUriString(this)
         return WorkDirectory.openDirectDocumentFd(
             contentResolver = contentResolver,

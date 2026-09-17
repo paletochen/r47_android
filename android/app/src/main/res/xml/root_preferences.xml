@@ -56,6 +56,12 @@
             app:title="Work Directory"
             app:summary="Select a folder for organized storage (STATE, PROGRAMS, etc.)" />
         <SwitchPreferenceCompat
+            app:key="export_tsv_data"
+            app:title="Export TSV to Work Directory"
+            app:summaryOn="Export register/statistic tables (.TSV) to DATA/ when printing is inactive"
+            app:summaryOff="Do not export TSV tables to DATA/ when printing is inactive"
+            app:defaultValue="false" />
+        <SwitchPreferenceCompat
             app:key="fullscreen_mode"
             app:title="Full Screen Mode"
             app:summaryOn="Hides status and navigation bars"
