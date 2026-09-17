@@ -167,7 +167,7 @@ TO_QSPI const int16_t menu_STRUCTPGM[]   = { ITM_IF,                        ITM_
 #elif (!defined(OPTION_VECTOR) && (CALCMODEL != USER_R47))
   #define VF5      ITM_NULL
   #define VF6      ITM_DRG
-#endif
+#endif // (OPTION_VECTOR && (CALCMODEL == USER_R47))
 
 
 #if defined(OPTION_EIGEN)
@@ -184,7 +184,7 @@ TO_QSPI const int16_t menu_STRUCTPGM[]   = { ITM_IF,                        ITM_
 
 #if defined(OPTION_SLVP_POLY)
   #define ADV_SLVP ITM_SLVP
-#else // OPTION_SLVP: blank SLVP (SLVQ SLVC stay)
+#else // OPTION_SLVP_POLY: blank SLVP (SLVQ SLVC stay)
   #define ADV_SLVP ITM_NULL
 #endif // OPTION_SLVP_POLY
 
@@ -2801,7 +2801,7 @@ bool_t savedspace(int16_t itemNr) {  //strike out all SAVED_SPACE items
       case ITM_AMORT_PRN:
       case ITM_AMORT_BAL:
       case ITM_AMORT_NXT:
-    #endif // OPTION_TVM_AMORT
+    #endif // !OPTION_TVM_AMORT
 
     #if !defined(OPTION_ORTHO)
       case -MNU_ORTHOG:
@@ -2812,16 +2812,16 @@ bool_t savedspace(int16_t itemNr) {  //strike out all SAVED_SPACE items
       case ITM_Tn     :
       case ITM_Un     :
       case ITM_HNP    :
-    #endif // OPTION_ORTHO
+    #endif // !OPTION_ORTHO
 
     #if !defined(OPTION_STOPWATCH)
       case ITM_TIMER  :
-    #endif // OPTION_STOPWATCH
+    #endif // !OPTION_STOPWATCH
 
     #if !defined(OPTION_BESSEL)
       case ITM_JYX    :
       case ITM_YYX    :
-    #endif // OPTION_BESSEL
+    #endif // !OPTION_BESSEL
 
     #if !defined(OPTION_PRIME)
       case ITM_NEXTP  :
@@ -2874,7 +2874,7 @@ bool_t savedspace(int16_t itemNr) {  //strike out all SAVED_SPACE items
     #if !defined(OPTION_SLVP_POLY)
       case ITM_SLVP:
       case ITM_VtoEQ:
-    #endif // !OPTION_SLVP
+    #endif // !OPTION_SLVP_POLY
 
     #if !defined(OPTION_ELLIPTIC)
       case -MNU_ELLIPT:
@@ -2893,19 +2893,19 @@ bool_t savedspace(int16_t itemNr) {  //strike out all SAVED_SPACE items
       case ITM_THtoM:
       case ITM_MtoTH:
       case ITM_ELLIPSE:
-    #endif // OPTION_ELLIPTIC
+    #endif // !OPTION_ELLIPTIC
 
 
     #if !(defined(OPTION_VECTOR) || defined(OPTION_ELEC))
       case ITM_STKTO3x1   :
       case ITM_3x1TOSTK   :
-    #endif //OPTION_VECTOR; OPTION_ELEC
+    #endif //!(OPTION_VECTOR || OPTION_ELEC)
 
 
     #if !(defined(OPTION_SLVQ_SLVC))
       case ITM_SLVC:
       case ITM_SLVQ:
-    #endif //OPTION_SLV_ZETA_BETA
+    #endif //!OPTION_SLVQ_SLVC
 
 
     #if !defined(OPTION_ZETA_BETA)
@@ -3008,7 +3008,7 @@ bool_t savedspace(int16_t itemNr) {  //strike out all SAVED_SPACE items
       case  ITM_TX      :
       case  ITM_TUX     :
       case  ITM_TM1P    :
-    #endif // !OPTION_DIST_2
+    #endif // !OPTION_DIST_B
 
 
     #if !defined(OPTION_DIST_D)   // Gev, Pareto, Uniform, Discr Uniform
@@ -3036,7 +3036,7 @@ bool_t savedspace(int16_t itemNr) {  //strike out all SAVED_SPACE items
       case ITM_DISUNIFORML:
       case ITM_DISUNIFORMU:
       case ITM_DISUNIFORMI:
-    #endif // !OPTION_DIST_3
+    #endif // !OPTION_DIST_D
 
     #if !defined(OPTION_DIST_NORMAL)
       case -MNU_NORML :
@@ -3058,7 +3058,7 @@ bool_t savedspace(int16_t itemNr) {  //strike out all SAVED_SPACE items
       case ITM_HYPERP:   case ITM_HYPER:   case ITM_HYPERU:   case ITM_HYPERM1:
       case ITM_POISSP:   case ITM_POISS:   case ITM_POISSU:   case ITM_POISSM1:
       case ITM_GEOMP:    case ITM_GEOM:    case ITM_GEOMU:    case ITM_GEOMM1 :
-    #endif // !OPTION_DIST_1
+    #endif // !OPTION_DIST_C
 
     case 9999: return true;  break;
     default:   return false; break;
@@ -4440,7 +4440,7 @@ void fnMenuDump(uint16_t menu, uint16_t item, uint16_t newFilenameformat, const 
 
   fwrite("BM", 1, 2, bmp);        // Offset 0x00  0  BMP header
 
-  uint32 = (SCREEN_WIDTH/8 * (SCREEN_HEIGHT-171)) + 610;
+  uint32 = ((SCREEN_WIDTH/8 + 2) * (SCREEN_HEIGHT-171)) + 0x82;
   fwrite(&uint32, 1, 4, bmp);     // Offset 0x02  2  File size
 
   uint32 = 0;

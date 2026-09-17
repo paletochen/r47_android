@@ -281,7 +281,7 @@ void fnReturn(uint16_t skip) {
     #else
       goToPgmStep(currentProgramNumber, 1);
       pemCursorIsZerothStep = true;
-    #endif
+    #endif // PGMPTR_TO_NEXT_AFTER_RTN
     cleanLocalFlagsAndRegisters();
   }
 }

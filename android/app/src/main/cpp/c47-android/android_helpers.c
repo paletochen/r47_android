@@ -89,7 +89,7 @@ char* getXRegisterString() {
             break;
             
         case dtShortInteger:
-            shortIntegerToDisplayString(regist, coreBuf, false, 0);
+            shortIntegerToDisplayString(regist, coreBuf, false, 0, SCREEN_WIDTH);
             break;
             
         case dtLongInteger:

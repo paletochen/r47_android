@@ -1919,7 +1919,7 @@ void fnEigenvectors(uint16_t unusedParamButMandatory) {
         realMatrixFree(&res);
       }
       else {
-        if(lastErrorCode == ERROR_NO_ROOT_FOUND) {                                               // the error from the eigenvalues is already displayed
+        if(lastErrorCode == ERROR_NO_ROOT_FOUND || lastErrorCode == ERROR_RAM_FULL) {            // the error is already displayed
           goto ErrorExit;
         }
         displayCalcErrorMessage(ERROR_SINGULAR_MATRIX, ERR_REGISTER_LINE, REGISTER_X);
@@ -1964,7 +1964,7 @@ void fnEigenvectors(uint16_t unusedParamButMandatory) {
         complexMatrixFree(&res);
       }
       else {
-        if(lastErrorCode == ERROR_NO_ROOT_FOUND) {                                               // the error from the eigenvalues is already displayed
+        if(lastErrorCode == ERROR_NO_ROOT_FOUND || lastErrorCode == ERROR_RAM_FULL) {            // the error is already displayed
           goto ErrorExit;
         }
         displayCalcErrorMessage(ERROR_SINGULAR_MATRIX, ERR_REGISTER_LINE, REGISTER_X);
@@ -7651,7 +7651,7 @@ static void calculateEigenvectors(const any34Matrix_t *matrix, bool_t isComplex,
     }
 
     if((unknownsToFill = allocC47Blocks(size * 2 * REAL_SIZE_IN_BLOCKS(75) * 2))) {
-      for(k = 0; k < size; k++) {
+      for(k = 0; k < size && lastErrorCode != ERROR_RAM_FULL; k++) {                            // a full RAM stops the remaining columns
         if(k > 0 && realCompareEqual(eig + (k * size + k) * 2, eig + ((k - 1) * size + (k - 1)) * 2) && realCompareEqual(eig + (k * size + k) * 2 + 1, eig + ((k - 1) * size + (k - 1)) * 2 + 1)) {
           ++duplicateEigenvalueCount;
           if(freeUnknowns > size) {
@@ -7954,6 +7954,9 @@ static void realEigenvectors(const real34Matrix_t *matrix, real34Matrix_t *res, 
         goto fail;
       }
       calculateEigenvectors((any34Matrix_t *)matrix, false, a, q, r, eig, eigenContext);
+      if(lastErrorCode == ERROR_RAM_FULL) {                                                       // RAM is full, so no eigenvectors are returned
+        goto fail;
+      }
 
       // Detect failure: calculateEigenvectors zero-fills any column where it could not find a linearly independent eigenvector (defective matrix).
       // A genuine eigenvector is never zero, so a zero column unambiguously signals failure.
@@ -8019,6 +8022,9 @@ static void realEigenvectors(const real34Matrix_t *matrix, real34Matrix_t *res, 
               sprintf(errorMessage, "Ram full, 1bc");
               moreInfoOnError("In function realEigenvectors:", errorMessage, NULL, NULL);
             #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+            if(matrix != res) {
+              realMatrixFree(res);
+            }
           }
         }
       }
@@ -8038,6 +8044,7 @@ static void realEigenvectors(const real34Matrix_t *matrix, real34Matrix_t *res, 
         sprintf(errorMessage, "Ram full, 3bf");
         moreInfoOnError("In function realEigenvectors:", errorMessage, NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+      goto fail;
     }
   }
   return;
@@ -8078,6 +8085,9 @@ static void complexEigenvectors(const complex34Matrix_t *matrix, complex34Matrix
         goto fail;
       }
       calculateEigenvectors((any34Matrix_t *)matrix, true, a, q, r, eig, eigenContext);
+      if(lastErrorCode == ERROR_RAM_FULL) {                                                       // RAM is full, so no eigenvectors are returned
+        goto fail;
+      }
 
       // Detect failure: calculateEigenvectors zero-fills any column where it could not find a linearly independent eigenvector (defective matrix).
       // A genuine eigenvector is never zero, so a zero column unambiguously signals failure.
@@ -8117,6 +8127,7 @@ static void complexEigenvectors(const complex34Matrix_t *matrix, complex34Matrix
         sprintf(errorMessage, "Ram full, 2bg");
         moreInfoOnError("In function complexEigenvectors:", errorMessage, NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+      goto fail;
     }
   }
   return;

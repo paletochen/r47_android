@@ -1990,7 +1990,7 @@ void longIntegerToHexDisplayString(calcRegister_t regist, char *displayString, b
 }
 
 
-void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, bool_t determineFont, uint8_t baseOverride) {
+void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, bool_t determineFont, uint8_t baseOverride, int16_t maxWidth) {   //JM maxWidth: the room the caller has, so a temporary information prefix is not painted over
   int16_t i, j, k, unit, gap, digit, bitsPerDigit, maxDigits, base;
   uint64_t orgnumber, number, sign;
 
@@ -2239,7 +2239,7 @@ void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, boo
       addBaseNumber(displayString, base);
     }
 
-    if(stringWidth(displayString, fontForShortInteger, false, false) < SCREEN_WIDTH) {
+    if(stringWidth(displayString, fontForShortInteger, false, false) < maxWidth) {
       return;
     }
 
@@ -2267,7 +2267,7 @@ void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, boo
     }
 
 
-    if(stringWidth(displayString, fontForShortInteger, false, false) < SCREEN_WIDTH) {
+    if(stringWidth(displayString, fontForShortInteger, false, false) < maxWidth) {
       return;
     }
 
@@ -2292,7 +2292,7 @@ void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, boo
       addBaseNumber(displayString, base);
     }
 
-    if(/*temporaryInformation == TI_SHOW_REGISTER_BIG ||*/ stringWidth(displayString, fontForShortInteger, false, false) < SCREEN_WIDTH) {     //JMSHOW
+    if(/*temporaryInformation == TI_SHOW_REGISTER_BIG ||*/ stringWidth(displayString, fontForShortInteger, false, false) < maxWidth) {     //JMSHOW
       return;
     }
 
@@ -2323,7 +2323,12 @@ void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, boo
       addBaseNumber(displayString, base);
     }
 
-    if(stringWidth(displayString, fontForShortInteger, false, false) < SCREEN_WIDTH) {
+    if(stringWidth(displayString, fontForShortInteger, false, false) < maxWidth) {
+      return;
+    }
+
+    if(maxWidth < SCREEN_WIDTH) {                             //JM no font fits beside the caller's prefix, so take the whole line rather than report
+      shortIntegerToDisplayString(regist, displayString, determineFont, baseOverride, SCREEN_WIDTH);
       return;
     }
 
@@ -2356,7 +2361,7 @@ void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, boo
       addBaseNumber(displayString, base);
     }
 
-    if(stringWidth(displayString, fontForShortInteger, false, false) < SCREEN_WIDTH) {
+    if(stringWidth(displayString, fontForShortInteger, false, false) < maxWidth) {
       return;
     }
 
@@ -2387,7 +2392,12 @@ void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, boo
       addBaseNumber(displayString, base);
     }
 
-    if(stringWidth(displayString, fontForShortInteger, false, false) < SCREEN_WIDTH) {
+    if(stringWidth(displayString, fontForShortInteger, false, false) < maxWidth) {
+      return;
+    }
+
+    if(maxWidth < SCREEN_WIDTH) {                             //JM no font fits beside the caller's prefix, so take the whole line rather than report
+      shortIntegerToDisplayString(regist, displayString, determineFont, baseOverride, SCREEN_WIDTH);
       return;
     }
 
@@ -3383,7 +3393,7 @@ static void showShortIntegerLine(calcRegister_t showRegis, int16_t tag, int16_t 
   else {
     tmpString[2400] = 0;
   }
-  shortIntegerToDisplayString(showRegis, tmpString + 2400 + stringByteLength(tmpString + 2400), true, noBaseOverride);
+  shortIntegerToDisplayString(showRegis, tmpString + 2400 + stringByteLength(tmpString + 2400), true, noBaseOverride, SCREEN_WIDTH);
   last = 2400 + stringByteLength(tmpString + 2400);
   source = 2400;
   tmpString[startOffset] = 0;
