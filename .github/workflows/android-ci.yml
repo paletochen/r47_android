@@ -535,8 +535,6 @@ jobs:
             src/c47/softmenus.c \
             src/c47/timer.c \
             src/c47/items.c \
-            src/c47/printing/print.c \
-            src/c47/printing/print.h \
             src/c47/c47Extensions/graphText.c
 
           git checkout -- \

@@ -1593,7 +1593,6 @@ void fnP_PrinterOnOff(uint16_t unusedButMandatoryParameter) {}
 void fnP_PrinterMode(uint16_t unusedButMandatoryParameter) {}
 void fnP_PrintAllItems(uint16_t unusedButMandatoryParameter) {}
 void fnP_PrinterList(uint16_t unusedButMandatoryParameter) {}
-void fnP_Xfn(uint16_t unusedButMandatoryParameter) {}
 void fnSetPrinter(uint16_t unusedButMandatoryParameter) {}
 void fnToPolar2(uint16_t unusedButMandatoryParameter) {}
 void fnToRect2(uint16_t unusedButMandatoryParameter) {}
@@ -1920,6 +1919,7 @@ void fnLindep(uint16_t unusedButMandatoryParameter) {}
 #define S18_fnXXfn_YRTX fnXXfn_YRTX
 #define S18_fnXXfn_RDP fnXXfn_RDP
 #define S18_fnXXfn_RSD fnXXfn_RSD
+#define S18_fnP_All_Regs fnP_All_Regs
 #else  // OPTION_XFN_1000
 #define S18_fnEdit itemToBeCoded
 #define S18_fnXXfn itemToBeCoded
@@ -1956,6 +1956,7 @@ void fnLindep(uint16_t unusedButMandatoryParameter) {}
 #define S18_fnXXfn_YRTX itemToBeCoded
 #define S18_fnXXfn_RDP itemToBeCoded
 #define S18_fnXXfn_RSD itemToBeCoded
+#define S18_fnP_All_Regs itemToBeCoded
 #endif  // OPTION_XFN_1000
 
 #if defined(OPTION_INFSUMS)
@@ -13513,9 +13514,9 @@ TO_QSPI const item_t indexOfItems[] = {
      CAT_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED |
          HG_ENABLED},
     /* 2694 */
-    {fnP_Xfn, NOPARAM, STD_PRINTER "XFN", STD_PRINTER "XFN",
+    {S18_fnP_All_Regs, PRN_XFN, STD_PRINTER "XFN", STD_PRINTER "XFN",
      (0 << TAM_MAX_BITS) | 0,
-     CAT_FNCT | SLS_ENABLED | US_ENABLED | EIM_DISABLED | PTP_NONE |
+     CAT_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_NONE |
          HG_ENABLED},
     /* 2695 */
     {fnP_Char, TM_REGISTER, STD_PRINTER "CHAR", STD_PRINTER "CHAR",
