@@ -36,6 +36,10 @@ void doNothing(void) {}
 #define _TO_ITM_ERR 1
 #define _TO_ITM_TI 2
 
+#if !defined(PRN_XFN)
+#define PRN_XFN 9
+#endif
+
 bool_t isFunctionOldParam16(uint16_t func) {
   return (func == ITM_BESTF_OLD || func == ITM_RNG_OLD ||
           func == ITM_YY_DFLT_OLD || func == ITM_DENMAX2_OLD);
