@@ -2508,13 +2508,13 @@ void createSubstrings(uint8_t number) {
       const uint16_t rows = matrix.header.matrixRows;
       const uint16_t cols = matrix.header.matrixColumns;
       bool_t smallFont = (rows >= 5);
-      int16_t dummyVal[MATRIX_MAX_COLUMNS * (MATRIX_MAX_ROWS + 1) + 1] = {};
+      int16_t dummyVal[MATRIX_MAX_COLUMNS * (MATRIX_MAX_ROWS_ON_SHOW + 1) + 1] = {};   // the width call fills ON_SHOW rows
 
       bool_t allElementsInColAreIntegers[MATRIX_MAX_COLUMNS] = {};
       getRealMatrixIntegerColumns(&matrix, displayFormat, cols, 0, 0, rows, min(cols, MATRIX_MAX_COLUMNS), allElementsInColAreIntegers);
       // same rule as showRealMatrix, else the height cache reserves stack lines for a width the viewer does not draw
 
-      const int16_t mtxWidth = getRealMatrixColumnWidths(&matrix, prefixWidth, &numericFont, dummyVal, dummyVal + MATRIX_MAX_COLUMNS, dummyVal + (MATRIX_MAX_ROWS + 1) * MATRIX_MAX_COLUMNS, cols > MATRIX_MAX_COLUMNS ? MATRIX_MAX_COLUMNS : cols, allElementsInColAreIntegers);
+      const int16_t mtxWidth = getRealMatrixColumnWidths(&matrix, prefixWidth, true, &numericFont, dummyVal, dummyVal + MATRIX_MAX_COLUMNS, dummyVal + (MATRIX_MAX_ROWS_ON_SHOW + 1) * MATRIX_MAX_COLUMNS, cols > MATRIX_MAX_COLUMNS ? MATRIX_MAX_COLUMNS : cols, allElementsInColAreIntegers);
       if(abs(mtxWidth) > MATRIX_LINE_WIDTH) {
         smallFont = true;
       }
@@ -2554,8 +2554,8 @@ void createSubstrings(uint8_t number) {
       const uint16_t rows = matrix.header.matrixRows;
       const uint16_t cols = matrix.header.matrixColumns;
       bool_t smallFont = (rows >= 5);
-      int16_t dummyVal[MATRIX_MAX_COLUMNS * (MATRIX_MAX_ROWS * 2 + 3) + 1] = {};
-      const int16_t mtxWidth = getComplexMatrixColumnWidths(&matrix, prefixWidth, &numericFont, dummyVal, dummyVal + MATRIX_MAX_COLUMNS, dummyVal + MATRIX_MAX_COLUMNS * 2, dummyVal + MATRIX_MAX_COLUMNS * 3, dummyVal + MATRIX_MAX_COLUMNS * (MATRIX_MAX_ROWS + 3), dummyVal + MATRIX_MAX_COLUMNS * (MATRIX_MAX_ROWS * 2 + 3), cols > MATRIX_MAX_COLUMNS ? MATRIX_MAX_COLUMNS : cols,  getComplexRegisterAngularMode(REGISTER_X), getComplexRegisterPolarMode(REGISTER_X) == amPolar);
+      int16_t dummyVal[MATRIX_MAX_COLUMNS * (MATRIX_MAX_ROWS_ON_SHOW * 2 + 3) + 1] = {};   // the width call fills ON_SHOW rows
+      const int16_t mtxWidth = getComplexMatrixColumnWidths(&matrix, prefixWidth, true, &numericFont, dummyVal, dummyVal + MATRIX_MAX_COLUMNS, dummyVal + MATRIX_MAX_COLUMNS * 2, dummyVal + MATRIX_MAX_COLUMNS * 3, dummyVal + MATRIX_MAX_COLUMNS * (MATRIX_MAX_ROWS_ON_SHOW + 3), dummyVal + MATRIX_MAX_COLUMNS * (MATRIX_MAX_ROWS_ON_SHOW * 2 + 3), cols > MATRIX_MAX_COLUMNS ? MATRIX_MAX_COLUMNS : cols,  getComplexRegisterAngularMode(REGISTER_X), getComplexRegisterPolarMode(REGISTER_X) == amPolar);
       if(mtxWidth > MATRIX_LINE_WIDTH) {
         smallFont = true;
       }
