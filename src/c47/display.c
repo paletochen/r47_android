@@ -3429,6 +3429,10 @@ int16_t source = 0;
 void fnC47Show(uint16_t fnShow_param) {
 #if defined(OPTION_SHOW)
     uint8_t savedDisplayFormat = displayFormat, savedDisplayFormatDigits = displayFormatDigits;
+    #if defined(OPTION_MX_SHOW)
+      showMatrixUserDisplayFormat = savedDisplayFormat;
+      showMatrixUserDisplayFormatDigits = savedDisplayFormatDigits;
+    #endif // OPTION_MX_SHOW
     uint64_t ssf0 = systemFlags0;
     uint64_t ssf1 = systemFlags1;
     int16_t dest = 0, last = 0, d, i, aa, bb, cc, dd, numberOfLines = 0;

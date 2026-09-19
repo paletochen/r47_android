@@ -145,29 +145,62 @@ void lcd_refresh_lines (uint8_t ln, uint8_t cnt) {
   }
 }
 
-void bitblt24 (uint32_t x, uint32_t dx, uint32_t y, uint32_t val, int blt_op, int fill) {
-  if (!lcd_buffer) return;
-  if (dx < 1 || dx > 24) return;
-  if (x >= SCREEN_WIDTH || x + dx > SCREEN_WIDTH) return;
+void bitblt24(uint32_t x, uint32_t dx, uint32_t y, uint32_t val, int blt_op, int fill) {
+  if(!lcd_buffer) {
+    return;
+  }
+  if(dx < 1 || dx > 24) {
+    return;
+  }
+  if(x >= SCREEN_WIDTH || x + dx > SCREEN_WIDTH) {
+    return;
+  }
   x = SCREEN_WIDTH - dx - x;
-  const uint32_t byte_i   = x >> 3;
-  const uint32_t bit_off  = x & 7u;
-  const uint32_t lowmask  = (1u << dx) - 1u;
-  uint32_t srcbits;
-  if (fill == BLT_SET && blt_op != BLT_XOR) {
-    srcbits = (blt_op == BLT_ANDN) ? lowmask << bit_off : 0u;
-  } else {
-    srcbits = (val & lowmask) << bit_off;
+
+  const uint32_t byte_i = x >> 3;
+  const uint32_t bit_off = x & 7u;
+
+  const uint32_t lowmask = (1u << dx) - 1u;
+  const uint32_t bytes_needed = (bit_off + dx + 7) / 8; // Actual bytes to write (1-4), prevents overflow at line end
+
+  const uint32_t srcbits = (val & lowmask) << bit_off;
+  const uint32_t fillbits = (fill == BLT_SET) ? lowmask << bit_off : 0u; // BLT_SET: the dx columns are cleared before BLT_OR and set before BLT_ANDN
+  uint8_t srcbytes[4] = {
+    (uint8_t)(srcbits >> 0),
+    (uint8_t)(srcbits >> 8),
+    (uint8_t)(srcbits >> 16),
+    (uint8_t)(srcbits >> 24),
+  };
+  uint8_t fillbytes[4] = {
+    (uint8_t)(fillbits >> 0),
+    (uint8_t)(fillbits >> 8),
+    (uint8_t)(fillbits >> 16),
+    (uint8_t)(fillbits >> 24),
+  };
+  uint8_t *j = &lcd_buffer[y * 52 + byte_i + 2];
+  switch(blt_op) {
+    case BLT_OR:
+      for(uint32_t i = 0; i < bytes_needed; i++) {
+        j[i] = (j[i] & ~fillbytes[i]) | srcbytes[i];
+      }
+      break;
+
+    case BLT_XOR:
+      for(uint32_t i = 0; i < bytes_needed; i++) {
+        j[i] ^= srcbytes[i];
+      }
+      break;
+
+    case BLT_ANDN:
+      for(uint32_t i = 0; i < bytes_needed; i++) {
+        j[i] = (j[i] | fillbytes[i]) & ~srcbytes[i];
+      }
+      break;
+
+    default:
+      return;
   }
-  uint8_t srcbytes[4] = { (uint8_t)(srcbits), (uint8_t)(srcbits >> 8), (uint8_t)(srcbits >> 16), (uint8_t)(srcbits >> 24) };
-  uint8_t *j = &lcd_buffer[y * (52) + byte_i + 2];
-  switch (blt_op) {
-    case BLT_OR:   for (int i = 0; i < 4; i++) j[i] |=  srcbytes[i]; break;
-    case BLT_XOR:  for (int i = 0; i < 4; i++) j[i] ^=  srcbytes[i]; break;
-    case BLT_ANDN: for (int i = 0; i < 4; i++) j[i] &= ~srcbytes[i]; break;
-    default: return;
-  }
-  lcd_buffer[y * (52)] = 1u;
+  lcd_buffer[y * 52] = 1u;
 }
 
 void lcd_fill_rect(uint32_t x, uint32_t y, uint32_t dx, uint32_t dy, int val) {
