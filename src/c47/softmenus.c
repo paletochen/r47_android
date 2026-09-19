@@ -137,6 +137,10 @@ TO_QSPI const int16_t menu_INFO[]        = { ITM_VERS,                      ITM_
 
                                              ITM_GET_ADM,                   ITM_GET_ISM,                ITM_GET_REALDF,           ITM_GET_NDEC,          ITM_GET_DMX,                  ITM_GET_GRAMOD,
                                              ITM_SET_ADM,                   ITM_SET_ISM,                ITM_SET_REALDF,           ITM_SET_NDEC,          ITM_SET_DMX,                  ITM_SET_GRAMOD,
+                                             ITM_NULL,                      ITM_NULL,                   ITM_NULL,                 ITM_NULL,              ITM_NULL,                     ITM_NULL,
+
+                                             ITM_GET_LPFCT,                 ITM_GET_DPFCT,              ITM_NULL,                 ITM_NULL,              ITM_NULL,                     ITM_NULL,
+                                             ITM_SET_LPFCT,                 ITM_SET_DPFCT,              ITM_NULL,                 ITM_NULL,              ITM_NULL,                     ITM_NULL,
 };
 
 TO_QSPI const int16_t menu_INTS[]        = { ITM_A,                         ITM_B,                      ITM_C,                    ITM_D,                 ITM_E,                       ITM_F,
@@ -1980,16 +1984,6 @@ bool_t maxfgLines(int16_t y) {
   }
 
 
-  void greyRect(int16_t x, int16_t y, int16_t dx, int16_t dy) {
-    int16_t col, row;
-    for(row=y; row<dy+y; row++) {
-      for(col=x+mod(x+row, 2); col<dx+x; col+=2) {
-        setBlackPixel(col, row);
-      }
-    }
-  }
-
-
   static void buildConversionLabel(char *dst, const char *src) {
     dst[0] = 0;
     stringCopy(dst, src);
@@ -2050,10 +2044,20 @@ bool_t maxfgLines(int16_t y) {
 
 
 static inline void drawKeyFrame(int16_t x1, int16_t x2, int16_t y1, int16_t y2, videoMode_t videoMode, bool_t topLine, bool_t bottomLine) {
-  // Draw the frame
+  // Draw the dotted frame and fill the inside, one bitblt24 copy per 24 columns of a row
   int16_t grx1 = max(0, x1), gry1 = y1 + (!bottomLine);
-  greyRect(grx1, gry1, min(x2+1, SCREEN_WIDTH) - grx1, min(y2 + topLine, SCREEN_HEIGHT) - gry1);
-  lcd_fill_rect(x1 + 1, y1 + 1, min(x2, SCREEN_WIDTH) - x1 - 1, min(y2, SCREEN_HEIGHT) - y1 - 1, (videoMode == vmNormal ? LCD_SET_VALUE : LCD_EMPTY_VALUE));
+  int16_t grx2 = min(x2+1, SCREEN_WIDTH), gry2 = min(y2 + topLine, SCREEN_HEIGHT);
+  for(int16_t col = grx1; col < grx2; col += 24) {
+    int16_t w = min(24, grx2 - col);
+    uint32_t inside = (0xFFFFFFu >> max(0, x1 + 1 - col)) & ~(0xFFFFFFu >> min(24, x2 - col));  // columns x1+1 to x2-1
+    for(int16_t row = gry1; row < gry2; row++) {
+      uint32_t bits = 0xAAAAAAu >> ((col + row) & 1);
+      if(row != y1 && row != y2) {
+        bits = (bits & ~inside) | (videoMode == vmNormal ? 0u : inside);
+      }
+      bitblt24(col, w, row, bits >> (24 - w), BLT_OR, BLT_SET);
+    }
+  }
 }
 
 

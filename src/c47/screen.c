@@ -1175,6 +1175,22 @@ return res;
   uint8_t  compressString = 0;
   uint8_t  raiseString = 0;
 
+  /* Draws the 32 columns of a glyph row, 24 columns to a bitblt24, cut at the right edge of the screen.
+   *
+   * \param[in] x      uint32_t Screen column of bit 31 of bits
+   * \param[in] y      uint32_t Screen row
+   * \param[in] bits   uint32_t The pixels, column x in bit 31
+   * \param[in] bltOp  int      BLT_OR for black pixels, BLT_ANDN for white ones
+   */
+  static void _showGlyphRow(uint32_t x, uint32_t y, uint32_t bits, int bltOp) {
+    while(bits != 0 && x < SCREEN_WIDTH) {
+      uint32_t dx = min(24, SCREEN_WIDTH - x);
+      bitblt24(x, dx, y, bits >> (32 - dx), bltOp, BLT_NONE);
+      bits <<= 24;
+      x += 24;
+    }
+  }
+
   uint32_t showGlyphCode(uint16_t charCode, const font_t *font, uint32_t x, uint32_t y, videoMode_t videoMode, bool_t showLeadingCols, bool_t showEndingCols, bool_t noPreClear) {
     uint32_t col, row, xGlyph, endingCols;
     int32_t  glyphId;
@@ -1259,70 +1275,112 @@ return res;
 
     bool_t numDouble = font == &numericFont && checkHP && temporaryInformation == TI_NO_INFO; //&& charCodeFromString(STD_MODE_G, 0)!=charCode && charCodeFromString(STD_MODE_G, 0)!=charCode; //this also triggers the vertical doubling
     uint16_t doubling = numDouble ? DOUBLING : DOUBLINGBASEX;      //this is the horizontal factor, 8 is normal, so 16 is double
+    uint32_t xEnd = x + boldString + (((doubling * (xGlyph + glyph->colsGlyph + endingCols)) >> mini) >> 3);        //JMmini
+    if(noShow) {
+      return xEnd;
+    }
 
     // Clearing the space needed by the glyph
     bool_t rep_enlarge = numDouble || (enlarge && combinationFonts != 0);                //JM ENLARGE
     uint32_t yNewMaxDx = (rep_enlarge ? 2 : 1) * (((glyph->rowsAboveGlyph + glyph->rowsGlyph + glyph->rowsBelowGlyph) >> mini) - (rep_enlarge ? 4 : 0));
-    if(!noShow && !noPreClear) {
+    if(!noPreClear) {
       lcd_fill_rect(x, max(0, yy), (uint32_t)(doubling * ((xGlyph + glyph->colsGlyph + endingCols) >> mini)) >> 3, max(0, (int32_t)(yNewMaxDx) + (yy<0 ? yy : 0)), (videoMode == vmNormal ? LCD_SET_VALUE : LCD_EMPTY_VALUE));  //JMmini
     }
     if(displaymode == numHalf) {
       y += (uint32_t)(glyph->rowsAboveGlyph*REDUCT_A/REDUCT_B*(rep_enlarge ? 2 : 1));
     }
     else {
-      y += glyph->rowsAboveGlyph*(rep_enlarge ? 2 : 1);
+      y += (glyph->rowsAboveGlyph*(rep_enlarge ? 2 : 1)) >> mini;
     }        //JM REDUCE and DOUBLE
     //x += xGlyph; //JM
 
-    // Choose pencil
-    void (*setPixel)(uint32_t, uint32_t) = (videoMode == vmNormal) ? &setBlackPixel : &setWhitePixel;
+    int bltOp = (videoMode == vmNormal) ? BLT_OR : BLT_ANDN;
     // Drawing the glyph
-    for(row=0; row<glyph->rowsGlyph; row++, y++) {
-      if(displaymode == numHalf) {
-        if((int)((REDUCT_A*row+REDUCT_OFF)) % REDUCT_B == 0) {
-          y--;
-        }
-      }                           //JM REDUCE
-      // Drawing the columns of the glyph
-      for(col=0; col<glyph->colsGlyph; col++) {
-        if(!(col%8)) {
-          byte = *(data++);
-          if(mini!=0) {
-            byte = (uint8_t)byte | (((uint8_t)byte) << 1);           //JMmini
+    bool_t secondRow = false;
+    uint32_t bits = 0;
+    uint32_t bits2 = 0;
+    uint32_t xOffset = 0;
+    uint32_t xRow = 0;
+    for(row=0; row<glyph->rowsGlyph; y++) {
+      if(!secondRow) {
+        if(displaymode == numHalf) {
+          if((int)((REDUCT_A*row+REDUCT_OFF)) % REDUCT_B == 0) {
+            y--;
           }
+        }                           //JM REDUCE
+        // The row, its first column in bit 31
+        if(bits2 != 0) {
+          bits = bits2;                                                 // the HP columns the first word leaves over, drawn 30 columns on
+          bits2 = 0;
+          xOffset = 30;
         }
-
-        if(byte & 0x80 && !noShow) { // MSB set
-          uint32_t x1 = x+((((doubling * (xGlyph+col)) >> mini)) >> 3);
-          uint32_t x2 = x1;
-          uint32_t y1 = min(SCREEN_HEIGHT-1, max(0, yy + (int32_t)min(yNewMaxDx,   ((y-y0) >> mini))));
-          uint32_t y2 = min(SCREEN_HEIGHT-1, max(0, yy + (int32_t)min(yNewMaxDx, 1+((y-y0) >> mini))));
-          if(x2 > 0) {
-            x2--;
-          }
-          setPixel(x1, y1);
-          if(boldString == 1) {
-            setPixel(x1+1, y1);
+        else {
+          xOffset = 0;
+          bits = 0;
+          for(col=0; col<glyph->colsGlyph; col+=8) {
+            byte = *(data++);
+            bits |= (uint32_t)(uint8_t)byte << (24 - col);
           }
           if(numDouble) {
-            setPixel(x2, y1);
-          }
-          if(rep_enlarge) {
-            setPixel(x1, y2);
-            if(numDouble) {
-              setPixel(x2, y2);
-            }
+            bits >>= xGlyph;
+            bits2 = bits << 16;                                         // the columns past the first 16, drawn 30 columns on
           }
         }
-
-        byte <<= 1;
+        xRow = x + xGlyph;
+        if(mini != 0) {
+          // Half width: a screen column takes a pair of glyph columns
+          bits |= (bits << 1) & 0xFEFEFEFEu;                            // each column also takes the next one in its byte
+          bits >>= xGlyph;
+          bits |= bits << 1;
+          for(col=1; col<16; col++) {
+            uint32_t right = 0xFFFFFFFFu >> col;
+            bits = (bits & ~right) | ((bits << 1) & right);
+          }
+          xRow = x;
+        }
+        else if(numDouble) {
+          // 15/8 width from x-1: a gap after each glyph column but 0 and 8, then each column doubled; 16 columns fill the word, the next 16 come 30 columns on
+          for(col=15; col>0; col--) {
+            if(col & 7) {
+              uint32_t right = 0xFFFFFFFFu >> (col + 1);
+              bits = (bits & ~right) | ((bits & right) >> 1);
+            }
+          }
+          bits |= bits >> 1;
+          if(x == 0 && xOffset == 0) {
+            bits <<= 1;
+            xRow = 0;
+          }
+          else {
+            xRow = x - 1 + xOffset;
+          }
+        }
       }
-      if(rep_enlarge && row!=3 && row!=6 && row!=9 && row!=12) {
-        y++; //JM ENLARGE vv do not advance the row counter for four rows, to match the row height of the enlarge font
+      // y is the screen row; a row above the screen, below it or below the cleared box is left out
+      if(bits != 0 && y - y0 <= yNewMaxDx && y < SCREEN_HEIGHT) {
+        _showGlyphRow(xRow, y, bits | (bits >> (boldString == 1)), bltOp);
+      }
+      if(rep_enlarge && !secondRow) {
+        secondRow = true;
+      }
+      else if(bits2 != 0) {
+        secondRow = false;
+        y -= 2;                                                        // the columns left over are drawn on the same two screen rows
+      }
+      else {
+        secondRow = false;
+        if(rep_enlarge && (row==3 || row==6 || row==9 || row==12)) {
+          y--; //JM ENLARGE vv do not advance the row counter for four rows, to match the row height of the enlarge font
+        }
+        else if(mini != 0 && !((glyph->rowsAboveGlyph + row) & 1)) {
+          y--;
+        }
+        row++;
       }
     }
-    return x + boldString + (((doubling * (xGlyph + glyph->colsGlyph + endingCols)) >> mini) >> 3);        //JMmini
+    return xEnd;
   }
+
 
 
   uint32_t showGlyph(const char *ch, const font_t *font, uint32_t x, uint32_t y, videoMode_t videoMode, bool_t showLeadingCols, bool_t showEndingCols, bool_t noPreClear) {
@@ -2156,7 +2214,11 @@ return res;
       //printf("---|%s|---\n", functionName);
 
     showFunctionNameItem = item;
+    #if defined(OPTION_LP_DP_TIMING)
+    showFunctionNameCounter = delayInMs * (10000 + longPressFactor) / 10000;  // LPFCT, so the preview outlasts the TO_CL_LONG stage it follows
+    #else // OPTION_LP_DP_TIMING
     showFunctionNameCounter = delayInMs;
+    #endif // OPTION_LP_DP_TIMING
 
 
     if(tam.alpha && ((item == ITM_BACKSPACE) || (item == ITM_T_LEFT_ARROW) || (item == ITM_T_RIGHT_ARROW))) {               // For smooth display in tam.alpha
