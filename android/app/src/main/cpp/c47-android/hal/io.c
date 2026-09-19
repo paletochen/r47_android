@@ -133,13 +133,7 @@ int ioFileOpen(ioFilePath_t path, ioFileMode_t mode) {
                 strcpy(defaultName, "C47.sav");
             #endif
         } else if (path == ioPathRegExport || path == ioPathRegImport) {
-            if (tmpStringLabelOrVariableName && tmpStringLabelOrVariableName[0] != 0) {
-                char asciiName[256];
-                stringToASCII(tmpStringLabelOrVariableName, asciiName);
-                snprintf(defaultName, sizeof(defaultName), "%s%s", asciiName, ext);
-            } else {
-                snprintf(defaultName, sizeof(defaultName), "data%s", ext);
-            }
+            snprintf(defaultName, sizeof(defaultName), "data%s", ext);
         } else {
             // For programs, try to use the current label name
             if (tmpStringLabelOrVariableName && tmpStringLabelOrVariableName[0] != 0) {

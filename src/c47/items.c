@@ -76,11 +76,12 @@ bool_t isFunctionOldParam16(uint16_t func) {
         case ITM_BUZZ:
         case ITM_PLAY:
         case ITM_BATT:
-        #endif // !ANDROID_BUILD
         case ITM_VOL:
         case ITM_VOLMINUS:
         case ITM_VOLPLUS:
-        case ITM_VOLQ:    return  _TO_ITM_TI;
+        case ITM_VOLQ:
+        #endif // !ANDROID_BUILD
+                          return  _TO_ITM_TI;
       #endif //PC_BUILD
 
       default:            return  _TO_ITM_NONE;
