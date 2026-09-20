@@ -419,9 +419,9 @@ void test_execution_yielding_hooks(void) {
 // --------------------------------------------------------------------------
 void test_battery_and_disk_info(void) {
     #if !defined(TI_DISK_INFO)
-    #define TI_DISK_INFO 145
+    #define TI_DISK_INFO 149
     #endif
-    TEST_ASSERT(TI_DISK_INFO == 145, "TI_DISK_INFO must be defined for storage metric display");
+    TEST_ASSERT(TI_DISK_INFO == 149, "TI_DISK_INFO must be defined for storage metric display");
 
     extern void fnBatteryVoltage(uint16_t unused);
     extern void fnDiskInfo(uint16_t unused);

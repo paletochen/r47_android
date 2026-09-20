@@ -4,6 +4,10 @@
 #include "c47.h"
 #include "version.h"
 
+#if !defined(TI_DISK_INFO)
+#define TI_DISK_INFO 149
+#endif
+
 static void refreshRegisterLineRestoreT(void);
 static void _refreshPemScreen(void);
 
@@ -13,11 +17,7 @@ static void _refreshPemScreen(void);
 
 //undefine FIXED_FN_NAME_SHIFT to let the function name move to the left edge with the shift
 //   The default is to keep the left offset as it looks prettier, arguably
-  #define FIXED_FN_NAME_SHIFT
-
-  #if !defined(TI_DISK_INFO)
-    #define TI_DISK_INFO 145
-  #endif
+  #undef FIXED_FN_NAME_SHIFT
 
   #define shiftOffset        17
   #define noShiftOffset      0
@@ -1382,7 +1382,6 @@ return res;
   }
 
 
-
   uint32_t showGlyph(const char *ch, const font_t *font, uint32_t x, uint32_t y, videoMode_t videoMode, bool_t showLeadingCols, bool_t showEndingCols, bool_t noPreClear) {
     return showGlyphCode(charCodeFromString(ch, 0), font, x, y, videoMode, showLeadingCols, showEndingCols, noPreClear);
   }
@@ -2546,6 +2545,17 @@ void createSubstrings(uint8_t number) {
   }
 
 
+  static void _fnShowRModeTI(char * prefix, int16_t *prefixWidth) {
+    prefix[0] = 0;
+    stringCopy(prefix, getRoundModeName(roundingMode, abbreviation));
+    stringCopy(prefix + stringByteLength(prefix), ": ");
+    stringCopy(prefix + stringByteLength(prefix), getRoundModeName(roundingMode, !abbreviation));
+    stringCopy(prefix + stringByteLength(prefix), ".");
+    *prefixWidth = stringWidth(prefix, &standardFont, true, true) + 1;
+    screenUpdatingMode |= SCRUPD_SKIP_STACK_ONE_TIME;
+  }
+
+
   void updateMatrixHeightCache(void) {
     int16_t prefixWidth = 0;
     char prefix[200];
@@ -3477,6 +3487,23 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
         }
       }
 
+      else if(temporaryInformation == TI_ROUNDING_MODE && regist == REGISTER_X) {
+        _fnShowRModeTI(prefix, &prefixWidth);
+        showString(prefix, &standardFont, 1, Y_POSITION_OF_REGISTER_X_LINE + TEMPORARY_INFO_OFFSET + 6, vmNormal, true, true);
+      }
+
+      else if(temporaryInformation == TI_DISK_INFO) {
+        if(regist == REGISTER_X) {
+          clearScreenOld(!clrStatusBar, clrRegisterLines, clrSoftkeys);
+          showSoftmenu(-MNU_SHOW);
+          showStringEnhanced(diskInfoStr, &standardFont, 1, Y_POSITION_OF_REGISTER_T_LINE + 10, vmNormal, true, true, NO_compress, NO_raise, DO_Show, NO_Bold, DO_LF);
+          screenUpdatingMode |= SCRUPD_MANUAL_MENU;
+        }
+        if(regist == REGISTER_T || regist == REGISTER_Z || regist == REGISTER_Y || regist == REGISTER_X) {
+          return;
+        }
+      }
+
       else if(temporaryInformation == TI_BATTV && regist == REGISTER_X) {
         sprintf(prefix, "V" STD_SPACE_FIGURE "=");
         displayTemporaryInformationOnX(prefix);
@@ -3510,18 +3537,6 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
           showStringEnhanced(whoStr2, &tinyFont,     1, Y_POSITION_OF_REGISTER_X_LINE +50 -62, vmNormal, true, true, NO_compress, NO_raise, DO_Show, NO_Bold, DO_LF);
           screenUpdatingMode |=  SCRUPD_MANUAL_MENU;
         } 
-        if(regist == REGISTER_T || regist == REGISTER_Z || regist == REGISTER_Y || regist == REGISTER_X) {
-          return;
-        }
-      }
-
-      else if(temporaryInformation == TI_DISK_INFO) {
-        if(regist == REGISTER_X) {
-          clearScreenOld(!clrStatusBar, clrRegisterLines, clrSoftkeys);
-          showSoftmenu(-MNU_SHOW);
-          showStringEnhanced(diskInfoStr, &standardFont, 1, Y_POSITION_OF_REGISTER_T_LINE + 10, vmNormal, true, true, NO_compress, NO_raise, DO_Show, NO_Bold, DO_LF);
-          screenUpdatingMode |= SCRUPD_MANUAL_MENU;
-        }
         if(regist == REGISTER_T || regist == REGISTER_Z || regist == REGISTER_Y || regist == REGISTER_X) {
           return;
         }
@@ -6535,7 +6550,9 @@ void fnSNAP(uint16_t unusedButMandatoryParameter) {
     testClockFrozen = true;           // the capture carries the date and time, so the test build reads a fixed clock and the stored hashes stay put
   #endif // TESTSUITE_BUILD
   if(!snapSkipRefresh && !screenHoldsDrawnPixels) {   //--snapskiprefresh, or a screen a program drew, keeps the raw graphic screen
-    screenUpdatingMode = SCRUPD_AUTO;
+    if(temporaryInformation != TI_SHOWNOTHING) {      //a SHOW page is painted once, and SCRUPD_AUTO disarms the guard in _refreshNormalScreen that keeps it on screen
+      screenUpdatingMode = SCRUPD_AUTO;
+    }
     refreshScreen(80);
   }
 
@@ -6742,6 +6759,7 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
       }
       fwrite(&uint16, 1, 2, bmp); // Padding
     }
+
 
     fclose(bmp);
   #endif // PC_BUILD || ANDROID_BUILD

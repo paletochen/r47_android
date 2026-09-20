@@ -237,6 +237,15 @@ void fnTimerStart(uint8_t nr, uint16_t param, uint32_t time) {//time is in ms
   gint64 now = g_get_monotonic_time();                        //PC time is in us
   #endif // PC_BUILD
 
+  #if defined(OPTION_LP_DP_TIMING)
+  if(nr == TO_CL_LONG || nr == TO_FN_LONG) {
+    time = time * (10000 + longPressFactor) / 10000;          // LPFCT
+  }
+  else if(nr == TO_FN_EXEC) {
+    time = time * (10000 + doublePressFactor) / 10000;        // DPFCT
+  }
+  #endif // OPTION_LP_DP_TIMING
+
   if(nr < TMR_NUMBER) {
     timer[nr].param = param;
     #if defined(DMCP_BUILD)

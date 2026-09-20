@@ -7,7 +7,6 @@
 #if defined(OPTION_IR_PRINTING)
 
   #define RETURN_IF_PRINT_OFF do { if(!getSystemFlag(FLAG_PRTACT)) { return; } } while(0)
-  #define BREAK_IF_EXIT       do { if(key_pop() == KEY_EXIT)       { break;  } } while(0)
 
   //
   // Alias table for instruction names to get nice prints
@@ -395,7 +394,13 @@
   }
 
 
+  static bool_t printExitPressed = false;   // EXIT taken at a line advance
+
   static bool_t _exitKeyPressed() {
+    if(printExitPressed) {
+      printExitPressed = false;
+      return true;
+    }
     #if defined(DMCP_BUILD)
       int key = C47PopKeyNoBuffer(!DISPLAY_WAIT_FOR_RELEASE) + 1;
       if(key == 36 || key == 33 ) {  // R/S or EXIT
@@ -472,6 +477,9 @@ void printAdvance(uint8_t nlMode) {
     printIR(nlMode ? 0x04 : '\n');
   }
   prepareNewLine();
+  if(_exitKeyPressed()) {   // once per paper line
+    printExitPressed = true;
+  }
 }
 
 
@@ -691,9 +699,13 @@ void printLine(const char *buff, int with_lf) {
 
   // Show Print SBI
   setPrinterSBI(true);
+  printExitPressed = false;   // an abort raised by the previous line has been reported by then; this line starts clean
 
   // Print line
   while((c = *((const unsigned char *)buff++)) != '\0') {
+    if(printExitPressed) {    // EXIT at the last advance: stop before the next glyph
+      break;
+    }
     w= 0;
     switch(mode) {
       case PMODE_DEFAULT:      // Mixed character and graphic printing
