@@ -261,3 +261,7 @@ docs/appnotes/sources/**/*.log
 docs/appnotes/sources/**/*.out
 docs/appnotes/sources/**/*.toc
 docs/appnotes/sources/**/*.pdf
+
+# Test build artifacts
+tests/android/items_android.c
+tests/android/test_android_invariants
