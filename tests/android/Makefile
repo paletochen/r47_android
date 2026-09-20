@@ -2,7 +2,7 @@
 
 CC ?= gcc
 CFLAGS ?= -O2 -Wall -Wextra -DANDROID_BUILD=1 -DPC_BUILD=1 -DLINUX -DOS64BIT -DWITH_PULSEAUDIO -pthread
-CFLAGS += -Iinclude -I../../src/c47 -I../../src/c47/hal -I../../src/generated -I../../build.sim/src/c47 -I../../build.sim/src/generated -I../../dep/decNumberICU
+CFLAGS += -Iinclude -I../../src/c47 -I../../src/c47/hal -I../../src/generated -I../../build.sim/src/c47 -I../../build.sim/src/generated -I../../build.sim/src/generateConstants -I../../build.sim/src/generateCatalogs -I../../android/app/src/main/cpp/generated -I../../dep/decNumberICU
 CFLAGS += -I../../android/app/src/main/cpp/c47-android -I../../android/app/src/main/cpp/c47-android/hal
 CFLAGS += $(shell pkg-config --cflags gtk+-3.0)
 

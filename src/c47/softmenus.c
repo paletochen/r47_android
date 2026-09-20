@@ -139,12 +139,12 @@ TO_QSPI const int16_t menu_INFO[]        = { ITM_VERS,                      ITM_
                                              ITM_SET_ADM,                   ITM_SET_ISM,                ITM_SET_REALDF,           ITM_SET_NDEC,          ITM_SET_DMX,                  ITM_SET_GRAMOD,
                                              ITM_NULL,                      ITM_NULL,                   ITM_NULL,                 ITM_NULL,              ITM_NULL,                     ITM_NULL,
 
-                                             ITM_GET_LPFCT,                 ITM_GET_DPFCT,              ITM_NULL,                 ITM_NULL,              ITM_NULL,                     ITM_RMQ,
-                                             ITM_SET_LPFCT,                 ITM_SET_DPFCT,              ITM_NULL,                 ITM_NULL,              ITM_NULL,                     ITM_RM,
+                                             ITM_GET_LPFCT,                 ITM_GET_DPFCT,              ITM_NULL,                 ITM_NULL,              ITM_NULL,                     ITM_GET_RM,
+                                             ITM_SET_LPFCT,                 ITM_SET_DPFCT,              ITM_NULL,                 ITM_NULL,              ITM_NULL,                     ITM_SET_RM,
 };
 
-TO_QSPI const int16_t menu_RMODE[]       = { ITM_RM_HALF_EVEN,              ITM_RM_HALF_UP,             ITM_RM_HALF_DOWN,         ITM_RM_UP,             ITM_RM_DOWN,                  ITM_RM_CEILING,   
-                                             ITM_RM_FLOOR,                  ITM_NULL,                   ITM_NULL,                 ITM_NULL,              ITM_NULL,                     ITM_NULL                     };
+TO_QSPI const int16_t menu_RMODE[]       = { ITM_RM_HALF_EVEN,              ITM_RM_HALF_UP,             ITM_RM_HALF_DOWN,         ITM_RM_UP,             ITM_RM_DOWN,                  ITM_RM_FLOOR,     
+                                             ITM_NULL,                      ITM_NULL,                   ITM_NULL,                 ITM_NULL,              ITM_NULL,                     ITM_RM_CEILING               };
 
 
 TO_QSPI const int16_t menu_INTS[]        = { ITM_A,                         ITM_B,                      ITM_C,                    ITM_D,                 ITM_E,                       ITM_F,
