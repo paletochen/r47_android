@@ -10,7 +10,7 @@
 #endif
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 
-static void ascii_clean(char *str) {
+void ascii_clean(char *str) {
     if (!str || !*str) return;
     char tmp[1024];
     char *s = str;
@@ -55,7 +55,7 @@ static void ascii_clean(char *str) {
     strcpy(str, tmp);
 }
 
-static void trimTrailingRadix(char *str) {
+void trimTrailingRadix(char *str) {
     if (!str || !*str) return;
     size_t len = strlen(str);
     while (len > 0 && (str[len-1] == ' ' || str[len-1] == '.' || str[len-1] == ',')) {
