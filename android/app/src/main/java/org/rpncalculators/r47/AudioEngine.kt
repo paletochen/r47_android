@@ -52,7 +52,7 @@ object AudioEngine {
             val audioTrack = AudioTrack.Builder()
                 .setAudioAttributes(
                     AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                         .build()
                 )
@@ -64,8 +64,13 @@ object AudioEngine {
                         .build()
                 )
                 .setBufferSizeInBytes(maxOf(minBufSize, 4096))
+                .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
                 .setTransferMode(AudioTrack.MODE_STREAM)
                 .build()
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                audioTrack.startThresholdInFrames = 1
+            }
 
             val bufferSize = 48000
             val buffer = ShortArray(bufferSize)
@@ -83,11 +88,15 @@ object AudioEngine {
                     val amplitude: Short = (beeperVolume * 163.84).toInt().toShort()
                     val totalSamples = (durationMs + 20) * sampleRate / 1000
                     val noteSamples = durationMs * sampleRate / 1000
-                    val actualSamples = minOf(totalSamples, bufferSize)
                     val period = if (frequency > 0) sampleRate / frequency else 0
 
-                    if (period > 0) {
-                        for (index in 0 until actualSamples) {
+                    // Ensure write buffer always satisfies the hardware burst / startThreshold
+                    // so AudioFlinger never waits for a second write to begin outputting sound.
+                    val minSamples = maxOf(minBufSize / 2, 2048)
+                    val writeSize = minOf(maxOf(totalSamples, minSamples), bufferSize)
+
+                    if (period > 0 && amplitude > 0) {
+                        for (index in 0 until writeSize) {
                             if (index >= noteSamples) {
                                 buffer[index] = 0
                             } else {
@@ -107,12 +116,12 @@ object AudioEngine {
                             }
                         }
                     } else {
-                        for (index in 0 until actualSamples) {
+                        for (index in 0 until writeSize) {
                             buffer[index] = 0
                         }
                     }
 
-                    audioTrack.write(buffer, 0, actualSamples)
+                    audioTrack.write(buffer, 0, writeSize)
                 }
             } catch (_: InterruptedException) {
             } catch (error: Exception) {

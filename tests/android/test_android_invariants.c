@@ -64,26 +64,72 @@ void codePointToUtf8(uint32_t codePoint, uint8_t *utf8) {
 void yieldToAndroid(void) {}
 void yieldToAndroidWithMs(int ms) { (void)ms; }
 
-static uint16_t current_volume = 5;
-void fnSetVolume(uint16_t vol) {
-    if (vol > 11) vol = 11;
-    current_volume = vol;
+static bool_t mock_system_flags[256] = {0};
+bool_t getSystemFlag(int32_t flag) {
+    int idx = flag & 0xFF;
+    return mock_system_flags[idx];
 }
+void setSystemFlag(unsigned int flag) {
+    int idx = flag & 0xFF;
+    mock_system_flags[idx] = true;
+}
+void clearSystemFlag(unsigned int flag) {
+    int idx = flag & 0xFF;
+    mock_system_flags[idx] = false;
+}
+
+static int g_mock_beeper_pct = 20;
+static uint32_t g_last_tone_freq = 0;
+static uint32_t g_last_tone_duration = 0;
+
+uint16_t getBeepVolume(void) {
+    int vol = (g_mock_beeper_pct * 11 + 50) / 100;
+    if (vol > 11) vol = 11;
+    if (vol < 0) vol = 0;
+    return (uint16_t)vol;
+}
+
+void fnSetVolume(uint16_t volume) {
+    if (volume > 11) volume = 11;
+    g_mock_beeper_pct = (volume * 100) / 11;
+}
+
 void fnGetVolume(uint16_t unused) { (void)unused; }
+
 void fnVolumeUp(uint16_t unused) {
     (void)unused;
-    if (current_volume < 11) current_volume++;
+    uint16_t vol = getBeepVolume();
+    if (vol < 11) {
+        vol++;
+        fnSetVolume(vol);
+    }
+    audioTone(440000);
 }
+
 void fnVolumeDown(uint16_t unused) {
     (void)unused;
-    if (current_volume > 0) current_volume--;
+    uint16_t vol = getBeepVolume();
+    if (vol > 0) {
+        vol--;
+        fnSetVolume(vol);
+    }
+    audioTone(440000);
 }
-void audioTone(uint32_t freq) { (void)freq; }
-void _Buzz(uint32_t freq, uint32_t delay) {
-    if (delay > 2000) delay = 2000;
-    if (freq > 20000) freq = 20000;
-    (void)freq; (void)delay;
+
+void audioTone(uint32_t frequency) {
+    if (getSystemFlag(FLAG_QUIET)) return;
+    g_last_tone_freq = frequency;
+    g_last_tone_duration = 200;
 }
+
+void _Buzz(uint32_t frequency, uint32_t ms_delay) {
+    if (getSystemFlag(FLAG_QUIET)) return;
+    if (ms_delay > 2000) ms_delay = 2000;
+    if (frequency > 20000) frequency = 20000;
+    g_last_tone_freq = frequency * 1000;
+    g_last_tone_duration = ms_delay;
+}
+
 void fnBatteryVoltage(uint16_t unused) { (void)unused; }
 
 #include "items_android.c"
@@ -310,19 +356,66 @@ void test_printer_ir_virtual_output(void) {
 // TEST 6: Audio Synthesis & Volume Range Controls
 // --------------------------------------------------------------------------
 void test_audio_and_volume_bridge(void) {
-    // Test volume boundary logic
+    // 1. Test exact bidirectional 0..11 mapping between Android percentage (0..100) and C47 volume steps (0..11)
+    for (int vol = 0; vol <= 11; vol++) {
+        fnSetVolume((uint16_t)vol);
+        uint16_t readBack = getBeepVolume();
+        TEST_ASSERT(readBack == (uint16_t)vol, "Volume step must roundtrip through Android percentage without loss or parity drift");
+    }
+
+    // 2. Test stepwise fnVolumeUp from 0 to 11
     fnSetVolume(0);
-    fnSetVolume(5);
-    fnSetVolume(11);
-    fnSetVolume(99); // should clamp to 11 without crash
-
+    for (int step = 1; step <= 11; step++) {
+        g_last_tone_freq = 0;
+        g_last_tone_duration = 0;
+        fnVolumeUp(0);
+        TEST_ASSERT(getBeepVolume() == (uint16_t)step, "fnVolumeUp must reach step");
+        TEST_ASSERT(g_last_tone_freq == 440000, "fnVolumeUp must play 440000 milliHz tone");
+        TEST_ASSERT(g_last_tone_duration == 200, "fnVolumeUp tone duration must be 200ms");
+    }
+    // Clamping at upper bound (11)
     fnVolumeUp(0);
-    fnVolumeDown(0);
+    TEST_ASSERT(getBeepVolume() == 11, "fnVolumeUp must clamp at maximum volume 11");
 
-    // Test _Buzz frequency clamping
+    // 3. Test stepwise fnVolumeDown from 11 down to 0
+    for (int step = 10; step >= 0; step--) {
+        g_last_tone_freq = 0;
+        g_last_tone_duration = 0;
+        fnVolumeDown(0);
+        TEST_ASSERT(getBeepVolume() == (uint16_t)step, "fnVolumeDown must reach step");
+        TEST_ASSERT(g_last_tone_freq == 440000, "fnVolumeDown must play 440000 milliHz tone");
+        TEST_ASSERT(g_last_tone_duration == 200, "fnVolumeDown tone duration must be 200ms");
+    }
+    // Clamping at lower bound (0)
+    fnVolumeDown(0);
+    TEST_ASSERT(getBeepVolume() == 0, "fnVolumeDown must clamp at minimum volume 0");
+
+    // 4. Test extreme volume clamping
+    fnSetVolume(99);
+    TEST_ASSERT(getBeepVolume() == 11, "fnSetVolume(99) must clamp to 11");
+
+    // 5. Test _Buzz frequency and duration clamping
+    g_last_tone_freq = 0;
+    g_last_tone_duration = 0;
     _Buzz(1000, 50);   // 1 kHz for 50ms
+    TEST_ASSERT(g_last_tone_freq == 1000000, "_Buzz must convert Hz to milliHz (1000 Hz -> 1000000 milliHz)");
+    TEST_ASSERT(g_last_tone_duration == 50, "_Buzz duration must be 50ms");
+
     _Buzz(25000, 50);  // >20000 Hz clamped to 20000 Hz
+    TEST_ASSERT(g_last_tone_freq == 20000000, "_Buzz must clamp frequency to 20000 Hz (20000000 milliHz)");
+
     _Buzz(1000, 5000); // >2000 ms clamped to 2000 ms
+    TEST_ASSERT(g_last_tone_duration == 2000, "_Buzz must clamp duration to 2000 ms");
+
+    // 6. Test FLAG_QUIET silence guarantee
+    setSystemFlag(FLAG_QUIET);
+    g_last_tone_freq = 0;
+    audioTone(440000);
+    TEST_ASSERT(g_last_tone_freq == 0, "audioTone must be silenced when FLAG_QUIET is set");
+
+    _Buzz(1000, 50);
+    TEST_ASSERT(g_last_tone_freq == 0, "_Buzz must be silenced when FLAG_QUIET is set");
+    clearSystemFlag(FLAG_QUIET);
 }
 
 // --------------------------------------------------------------------------
