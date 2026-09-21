@@ -3834,7 +3834,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
 
 
         // STATISTICAL DISTR & SOLVER
-        if(regist == REGISTER_X && lastErrorCode == 0 && calcMode != CM_PEM &&
+        if(origRegist == REGISTER_X && lastErrorCode == 0 && calcMode != CM_PEM &&
             ((PROBMENU) ||
              (currentMenu() == -MNU_Solver_TOOL && solverEstimatesUsed && temporaryInformation != TI_SOLVER_VARIABLE_RESULT)
             )) {
@@ -3937,7 +3937,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
         }
 
         // XXFN DISPLAY
-        if(regist == REGISTER_X && XXFNMODEACTIVE) {
+        if(origRegist == REGISTER_X && XXFNMODEACTIVE) {
           int tmpY = Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(REGISTER_T - REGISTER_X);
 
           angularMode_t angle;

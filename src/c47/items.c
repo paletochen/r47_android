@@ -1723,6 +1723,9 @@ bool_t isFunctionOldParam16(uint16_t func) {
   void fnSaveStackRegisters       (uint16_t unusedButMandatoryParameter) {}
   void fnSaveNRegisters           (uint16_t unusedButMandatoryParameter) {}
   void fnSaveRegister             (uint16_t unusedButMandatoryParameter) {}
+  void fnSaveGlobalFlags          (uint16_t unusedButMandatoryParameter) {}
+  void fnSaveLocalFlags           (uint16_t unusedButMandatoryParameter) {}
+  void fnSaveSystemFlags          (uint16_t unusedButMandatoryParameter) {}
   void fnLoadRegisters            (uint16_t unusedButMandatoryParameter) {}
   void fnSaveLetteredRegisters    (uint16_t unusedButMandatoryParameter) {}
   void fnSaveXFNRegister          (uint16_t unusedButMandatoryParameter) {}
@@ -4811,9 +4814,9 @@ TO_QSPI const item_t indexOfItems[] = {
 /* 2841 */  UNIT_CONV(constFactorSlinchKg    , divide           ,            "kg"                                 STD_RIGHT_ARROW                                                ,            "kg"                                 STD_RIGHT_ARROW                                                ),
 /* 2842 */  { itemToBeCoded,                   NOPARAM,                     "2842",                                        "2842",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
 /* 2843 */  { itemToBeCoded,                   NOPARAM,                     "2843",                                        "2843",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
-/* 2844 */  { itemToBeCoded,                   NOPARAM,                     "2844",                                        "2844",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
-/* 2845 */  { itemToBeCoded,                   NOPARAM,                     "2845",                                        "2845",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
-/* 2846 */  { itemToBeCoded,                   NOPARAM,                     "2846",                                        "2846",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
+/* 2844 */  { fnSaveGlobalFlags,              TM_VALUE,                     "EXPFLn",                                      "EXPFLn",                                      (0 << TAM_MAX_BITS) |   112, CAT_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_NONE         | HG_ENABLED         },
+/* 2845 */  { fnSaveLocalFlags,               TM_VALUE,                     "EXPLFLn",                                     "EXPLFLn",                                     (0 << TAM_MAX_BITS) |    32, CAT_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_NONE         | HG_ENABLED         },
+/* 2846 */  { fnSaveSystemFlags,               NOPARAM,                     "EXPSFL",                                      "EXPSFL",                                      (0 << TAM_MAX_BITS) |     0, CAT_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_NONE         | HG_ENABLED         },
 /* 2847 */  { itemToBeCoded,                   NOPARAM,                     "2847",                                        "2847",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
 /* 2848 */  { itemToBeCoded,                   NOPARAM,                     "2848",                                        "2848",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
 /* 2849 */  { itemToBeCoded,                   NOPARAM,                     "2849",                                        "2849",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
