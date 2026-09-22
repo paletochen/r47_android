@@ -1693,6 +1693,26 @@ static void _dynmenuConstructMVarsFromPgm(uint16_t label, uint16_t *numberOfByte
   }
 
 
+  static inline const char * _dynmenuLbl(userMenuItem_t *menuData) {
+    const char* lbl;
+    int16_t itemId = menuData->item;
+    if(menuData->argumentName[0] != 0) {
+      lbl = menuData->argumentName;
+    }
+    else if(itemId == ITM_NULL) { //do not include clearing NOP
+      lbl = "";
+    }
+    else {
+      const item_t *item = &indexOfItems[abs(itemId)];
+      if(item->itemCatalogName[0] == 0 || (itemId == ITM_op_j || itemId == ITM_op_j_pol || itemId == ITM_op_a || itemId == ITM_op_a2)) {
+        lbl = item->itemSoftmenuName;
+      }
+      else {
+        lbl = item->itemCatalogName;
+      }
+    }
+    return lbl;
+  }
 
   static void _dynmenuConstructUser(int16_t menu) {
     userMenuItem_t *menuData = (dynamicSoftmenu[menu].menuItem == -MNU_DYNAMIC) ? userMenus[currentUserMenu].menuItem : (dynamicSoftmenu[menu].menuItem == -MNU_MyAlpha) ? userAlphaItems : userMenuItems;
@@ -1700,35 +1720,13 @@ static void _dynmenuConstructMVarsFromPgm(uint16_t label, uint16_t *numberOfByte
     uint8_t *ptr;
 
     for(i = 0; i < 18; i++) {
-      if(menuData[i].argumentName[0] != 0) {
-        numberOfBytes += stringByteLength(menuData[i].argumentName) + 1;
-      }
-      else if(menuData[i].item == ITM_NOP || menuData[i].item == ITM_NULL) {
-        numberOfBytes += 1;
-      }
-      else if( indexOfItems[abs(menuData[i].item)].itemCatalogName[0] == 0 || (menuData[i].item == ITM_op_j || menuData[i].item == ITM_op_j_pol || menuData[i].item == ITM_op_a || menuData[i].item == ITM_op_a2)) {
-        numberOfBytes += stringByteLength(indexOfItems[abs(menuData[i].item)].itemSoftmenuName) + 1;
-      }
-      else {
-        numberOfBytes += stringByteLength(indexOfItems[abs(menuData[i].item)].itemCatalogName) + 1;
-      }
+      const char* lbl = _dynmenuLbl(&menuData[i]);
+      numberOfBytes += stringByteLength(lbl) + 1;
     }
     ptr = malloc(numberOfBytes);
     dynamicSoftmenu[menu].menuContent = ptr;
     for(i = 0; i < 18; i++) {
-      const char *lbl;
-      if(menuData[i].argumentName[0] != 0) {
-        lbl = menuData[i].argumentName;
-      }
-      else if(menuData[i].item == ITM_NULL) {
-        lbl = "";
-      }
-      else if(indexOfItems[abs(menuData[i].item)].itemCatalogName[0] == 0 || (menuData[i].item == ITM_op_j || menuData[i].item == ITM_op_j_pol || menuData[i].item == ITM_op_a || menuData[i].item == ITM_op_a2)) {
-        lbl = indexOfItems[abs(menuData[i].item)].itemSoftmenuName;
-      }
-      else {
-        lbl = indexOfItems[abs(menuData[i].item)].itemCatalogName;
-      }
+      const char *lbl = _dynmenuLbl(&menuData[i]);
       int16_t len = stringByteLength(lbl) + 1;
       xcopy(ptr, lbl, len);
       ptr += len;
