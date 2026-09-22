@@ -45,7 +45,6 @@ void doNothing(void) {
 #define PRN_XFN 9
 #endif
 
-
 bool_t isFunctionOldParam16(uint16_t func) {
     return (func == ITM_BESTF_OLD ||
             func == ITM_RNG_OLD ||
@@ -359,7 +358,7 @@ bool_t isFunctionOldParam16(uint16_t func) {
       #endif // DMCP_BUILD
 */
 
-    screenUpdatingMode = SCRUPD_AUTO;
+    screenUpdatingMode &= SCRUPD_MANUAL_MENU;                 // the stack and the status bar are drawn again; the menu keeps what btnReleased set for it
     }
 
     else { //PGM_RUNNING MODE
@@ -418,9 +417,15 @@ bool_t isFunctionOldParam16(uint16_t func) {
 
     //**RunFunction
     if(!itemNotAvail(func)) {
+      const uint64_t flags0BeforeDispatch = systemFlags0;       // a softkey marker comes either from a system flag or from a setting of its own,
+      const uint64_t flags1BeforeDispatch = systemFlags1;       //   and a value on a softkey from a third place again, so all three are compared
+      const int16_t valueBeforeDispatch = fnItemShowValue(func);
       stackWatermarkBeforeDispatch();
       indexOfItems[func].func(param);
       stackWatermarkAfterDispatch();
+      if(systemFlags0 != flags0BeforeDispatch || systemFlags1 != flags1BeforeDispatch || fnItemShowValue(func) != valueBeforeDispatch || fnCbIsSet(func) != NOVAL) {
+        screenUpdatingMode &= ~SCRUPD_MANUAL_MENU;              // fnCbIsSet returns NOVAL for everything outside the radio and checkbox catalog, so a marker
+      }                                                         //   the dispatch moved without touching a flag, such as the gap and radix characters, is covered
 
       #if defined(OPTION_IR_PRINTING)
         printTraceTI();

@@ -1457,9 +1457,9 @@ void adjustResult(calcRegister_t res, bool_t dropY, bool_t setCpxRes, calcRegist
     return;
   }
 
-  if(setCpxRes && oneArgumentIsComplex && resultDataType != dtString) {
+  // FLAG_CPXRES is one of the refreshStateFlags, so setSystemFlag draws the whole softmenu again for its marker: the flag is written only where it changes
+  if(setCpxRes && oneArgumentIsComplex && resultDataType != dtString && !getSystemFlag(FLAG_CPXRES)) {
     fnSetFlag(FLAG_CPXRES);
-    fnRefreshState();                                 //drJM
   }
 
   // Round the register value

@@ -4047,6 +4047,7 @@ void showSoftmenuCurrentPart(void) {
       if(menu(i) == userMenuId) { // if found, remove it
         xcopy(softmenuStack + i, softmenuStack + i + 1, (SOFTMENU_STACK_SIZE - i - 1) * sizeof(softmenuStack_t));
         memset(softmenuStack + SOFTMENU_STACK_SIZE - 1, 0, sizeof(softmenuStack_t)); // Put MyMenu in the last stack element
+        doRefreshSoftMenu = true;
         //printf("Blanking %i: %i %s | %i %s\n",i, softmenu[softmenuStack[i].softmenuId].menuItem, indexOfItems[abs(softmenu[softmenuStack[i].softmenuId].menuItem)].itemCatalogName, menu(i), indexOfItems[abs(menu(i))].itemCatalogName);
       }
     }

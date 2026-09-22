@@ -3139,9 +3139,8 @@ void mimShowElement(void) {
 
 #if defined(OPTION_SHOW)
 
-static void RegName(void) {    //JM using standard reg name, using showRegis, not using prefixWidth
-  int16_t tmp;
-  viewRegName2(tmpString + 2100, &tmp);
+static void RegName(void) {    //JM using standard reg name, using showRegis
+  viewRegName2(tmpString + 2100);
   //printf("|%s|%d|\n",tmpString + 2100, 2100+stringByteLength(tmpString + 2100));
 }
 
@@ -3384,11 +3383,11 @@ static void checkAndEat(int16_t *source, int16_t last, int16_t *dest) {
 
 
 static void showShortIntegerLine(calcRegister_t showRegis, int16_t tag, int16_t startOffset, int16_t numLines, bool_t showName) {
-  int16_t source, last, d, dest, prefixWidth;
+  int16_t source, last, d, dest;
   int16_t lastSlot = startOffset + (numLines - 1) * SHOWLineSize;
   setRegisterTag(showRegis, tag);
   if(showName) {
-    viewRegName2(tmpString + 2400, &prefixWidth);                       //name at 2400 so the width is taken into account
+    viewRegName2(tmpString + 2400);                                     //name at 2400, where the digits are put after it
   }
   else {
     tmpString[2400] = 0;
