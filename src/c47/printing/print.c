@@ -1186,7 +1186,7 @@ void cmdPrint(uint16_t arg, printArgument_t op) {
 
   if(!getSystemFlag(FLAG_PRTACT)) {
     if(getSystemFlag(FLAG_PRTEN) || ((programRunStop != PGM_RUNNING) && (programRunStop != PGM_SINGLE_STEP))) {
-      displayCalcErrorMessage(ERROR_PRINTING_DISABLED, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_PRINTING_DISABLED, ERR_REGISTER_LINE);
       #if defined(PC_BUILD)
         sprintf(errorMessage, "Printing is disabled");
         moreInfoOnError("In function cmdPrint:", errorMessage, NULL, NULL);
@@ -1910,7 +1910,7 @@ static uint16_t _getUnicodeValue(calcRegister_t regist) {
 
     int32ToReal34(0x8000, &maxValue34);
     if(real34CompareLessThan(REGISTER_REAL34_DATA(regist), const34_0) || real34CompareLessEqual(&maxValue34, REGISTER_REAL34_DATA(regist))) {
-      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
       #if defined(PC_BUILD)
         real34ToString(REGISTER_REAL34_DATA(regist), errorMessage);
         sprintf(tmpString, "x %" PRId16 " = %s:", regist, errorMessage);
@@ -1926,7 +1926,7 @@ static uint16_t _getUnicodeValue(calcRegister_t regist) {
 
     convertLongIntegerRegisterToLongInteger(regist, lgInt);
     if(longIntegerCompareUInt(lgInt, 0) < 0 || longIntegerCompareUInt(lgInt, 0x8000) >= 0) {
-      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
       #if defined(PC_BUILD)
         longIntegerToAllocatedString(lgInt, errorMessage, ERROR_MESSAGE_LENGTH);
         sprintf(tmpString, "register %" PRId16 " = %s:", regist, errorMessage);
@@ -1948,7 +1948,7 @@ static uint16_t _getUnicodeValue(calcRegister_t regist) {
   }
 
   else {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
     #if defined(PC_BUILD)
       sprintf(errorMessage, "register %" PRId16 " is %s:", regist, getRegisterDataTypeName(regist, true, false));
       moreInfoOnError("In function _getPositionFromRegister:", errorMessage, "not suited for addressing!", NULL);
@@ -2087,7 +2087,7 @@ void fnP_User(uint16_t unusedButMandatoryParameter) {
 
     if(!getSystemFlag(FLAG_PRTACT)) {
       if(getSystemFlag(FLAG_PRTEN) || ((programRunStop != PGM_RUNNING) && (programRunStop != PGM_SINGLE_STEP))) {
-        displayCalcErrorMessage(ERROR_PRINTING_DISABLED, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+        displayCalcErrorMessage(ERROR_PRINTING_DISABLED, ERR_REGISTER_LINE);
         #if defined(PC_BUILD)
           sprintf(errorMessage, "Printing is disabled");
           moreInfoOnError("In function fnP_User:", errorMessage, NULL, NULL);
@@ -2307,7 +2307,7 @@ void fnP_Sigma(uint16_t unusedButMandatoryParameter) {
     #if defined(OPTION_IR_PRINTING)
       uint16_t regist;
       if(!getSystemFlag(FLAG_PRTEN) && ((programRunStop == PGM_RUNNING) || (programRunStop == PGM_SINGLE_STEP))) {
-        displayCalcErrorMessage(ERROR_PRINTING_DISABLED, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+        displayCalcErrorMessage(ERROR_PRINTING_DISABLED, ERR_REGISTER_LINE);
         #if defined(PC_BUILD)
           sprintf(errorMessage, "Printing is disabled");
           moreInfoOnError("In function fnP_Sigma:", errorMessage, NULL, NULL);
@@ -2327,7 +2327,7 @@ void fnP_Sigma(uint16_t unusedButMandatoryParameter) {
     }
   }
   else {
-    displayCalcErrorMessage(ERROR_NO_SUMMATION_DATA, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_NO_SUMMATION_DATA, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function fnP_Sigma:", "There is no statistical data available!", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -2369,7 +2369,7 @@ void fnP_All_Regs(uint16_t option) {
           _printRegRange(s, (s + n) -1);
         }
         else {
-          displayCalcErrorMessage(lastErrorCode, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+          displayCalcErrorMessage(lastErrorCode, ERR_REGISTER_LINE);
         }
         break;
 
@@ -2409,7 +2409,7 @@ void fnP_All_Regs(uint16_t option) {
                 return;
               }
               default: {
-                displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_Y);
+                displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
                 #if (EXTRA_INFO_ON_CALC_ERROR == 1)
                   sprintf(errorMessage, "invalid data type %s for register Y", getRegisterDataTypeName(REGISTER_Y, true, false));
                   moreInfoOnError("In function fnP_All_Regs(PRN_XYr):", errorMessage, NULL, NULL);
@@ -2444,7 +2444,7 @@ void fnP_All_Regs(uint16_t option) {
               }
             }
             else {
-              displayCalcErrorMessage(ERROR_MATRIX_MISMATCH, ERR_REGISTER_LINE, REGISTER_X);
+              displayCalcErrorMessage(ERROR_MATRIX_MISMATCH, ERR_REGISTER_LINE);
               #if (EXTRA_INFO_ON_CALC_ERROR == 1)
                 sprintf(errorMessage, "cannot print xy when matrix size is %d x %d", x.header.matrixRows, x.header.matrixColumns);
                 moreInfoOnError("In function fnP_All_Regs(PRN_XYr):", errorMessage, NULL, NULL);
@@ -2476,7 +2476,7 @@ void fnP_All_Regs(uint16_t option) {
               }
             }
             else {
-              displayCalcErrorMessage(ERROR_MATRIX_MISMATCH, ERR_REGISTER_LINE, REGISTER_X);
+              displayCalcErrorMessage(ERROR_MATRIX_MISMATCH, ERR_REGISTER_LINE);
               #if (EXTRA_INFO_ON_CALC_ERROR == 1)
                 sprintf(errorMessage, "cannot print xy when matrix size is %d x %d", xc.header.matrixRows, xc.header.matrixColumns);
                 moreInfoOnError("In function fnP_All_Regs(PRN_XYr):", errorMessage, NULL, NULL);
@@ -2486,7 +2486,7 @@ void fnP_All_Regs(uint16_t option) {
           }
 
           default: {
-            displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+            displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
             #if (EXTRA_INFO_ON_CALC_ERROR == 1)
               sprintf(errorMessage, "invalid data type %s for register X", getRegisterDataTypeName(REGISTER_X, true, false));
               moreInfoOnError("In function fnP_All_Regs(PRN_XYr):", errorMessage, NULL, NULL);
@@ -2536,7 +2536,7 @@ void fnP_All_Regs(uint16_t option) {
           stackregister_csv_out(s, (s + n) -1 , !ONELINE);
         }
         else {
-          displayCalcErrorMessage(lastErrorCode, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+          displayCalcErrorMessage(lastErrorCode, ERR_REGISTER_LINE);
         }
         break;
 

@@ -1362,7 +1362,7 @@ void fnOpenMenu(uint16_t menu) {
   }
 
   if(softmenu[i].menuItem == 0) {                                              // Should never happen as menu is checked before the call fnOpenMenu
-    displayCalcErrorMessage(ERROR_UNDEF_MENU, ERR_REGISTER_LINE, REGISTER_X);  // No check for FLAG_IGN1ER to ensure this error case is reported if it happens anyway
+    displayCalcErrorMessage(ERROR_UNDEF_MENU, ERR_REGISTER_LINE);  // No check for FLAG_IGN1ER to ensure this error case is reported if it happens anyway
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "menu '%d' is not a valid menu item", menu);
       moreInfoOnError("In function fnOpenMenu:", errorMessage, NULL, NULL);
@@ -1403,7 +1403,7 @@ void fnOpenMenu(uint16_t menu) {
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
     }
     else {
-      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "Page Number %" PRIu16 " is not a valid page for the menu %" PRIu16 "", menuPageNumber, menu);
         moreInfoOnError("In function fnOpenMenu:", errorMessage, NULL, NULL);
@@ -1533,7 +1533,7 @@ void fnGetMenu(uint16_t funusedButMandatoryParameter) {
     }
     reallocateRegister(REGISTER_X, dtString, TO_BLOCKS(lenInBytes), amNone);
     if(lastErrorCode == ERROR_RAM_FULL) {
-      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
       fnUndo(NOPARAM);
       return;
     }
@@ -1545,7 +1545,7 @@ void fnGetMenu(uint16_t funusedButMandatoryParameter) {
 
     reallocateRegister(REGISTER_X, dtString, TO_BLOCKS(lenInBytes), amNone);
     if(lastErrorCode == ERROR_RAM_FULL) {
-      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
       fnUndo(NOPARAM);
       return;
     }
@@ -2805,7 +2805,6 @@ void changeSoftKey(int16_t itemNr, char * itemName, videoMode_t * vm, int8_t * s
     return;
   }
 }
-
 
 
 bool_t savedspace(int16_t itemNr) {  //strike out all SAVED_SPACE items
@@ -4203,7 +4202,7 @@ void showSoftmenuCurrentPart(void) {
       }
 
       if(numberOfVars > 12) {
-        displayCalcErrorMessage(ERROR_EQUATION_TOO_COMPLEX, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+        displayCalcErrorMessage(ERROR_EQUATION_TOO_COMPLEX, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function showSoftmenu:", "there are more than 12 variables in this equation!", NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -4248,7 +4247,7 @@ void showSoftmenuCurrentPart(void) {
          id == -MNU_1STDERIV   ||
          id == -MNU_2NDDERIV     ) {
         id = -MNU_EQN;
-        displayCalcErrorMessage(ERROR_VARIABLE_NOT_SELECTED, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+        displayCalcErrorMessage(ERROR_VARIABLE_NOT_SELECTED, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function showSoftmenu:", "The solver/integrator variable is not selected. Refusing access to Tools/Solver menu prior to variable selected!", NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)

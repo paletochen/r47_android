@@ -57,7 +57,7 @@ void fnGoto(uint16_t label) {
         return;
       }
 
-      displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         if(label < REGISTER_X_IN_KS_CODE) {
           sprintf(errorMessage, "there is no local label %02u in current program", label);
@@ -74,7 +74,7 @@ void fnGoto(uint16_t label) {
         return;
       }
       else {
-        displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
+        displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           sprintf(errorMessage, "label ID %u out of range", label - FIRST_LABEL);
           moreInfoOnError("In function fnGoto:", errorMessage, NULL, NULL);
@@ -82,7 +82,7 @@ void fnGoto(uint16_t label) {
       }
     }
     else {
-      displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "invalid parameter %u", label);
         moreInfoOnError("In function fnGoto:", errorMessage, NULL, NULL);
@@ -192,7 +192,7 @@ void fnExecute(uint16_t label) {
       // OUT OF MEMORY
       // May occur if nested too deeply: we don't have tail recursion optimization
       currentSubroutineLevelData = oldCurrentSubroutineLevelData;
-      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
     }
   }
   else {
@@ -348,7 +348,7 @@ static void _executeWithIndirectVariable(uint8_t *stringAddress, uint16_t op) {
       }
   }
   else {
-    displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "string '%s' is not a named variable", tmpStringLabelOrVariableName);
       moreInfoOnError("In function _executeWithIndirectVariable:", errorMessage, NULL, NULL);
@@ -377,7 +377,7 @@ static void _executeOp(uint8_t *paramAddress, uint16_t op, uint16_t paramMode) {
           reallyRunFunction(op, label);
         }
         else {
-          displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
+          displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             sprintf(errorMessage, "string '%s' is not a named label", tmpStringLabelOrVariableName);
             moreInfoOnError("In function _executeOp:", errorMessage, NULL, NULL);
@@ -497,7 +497,7 @@ static void _executeOp(uint8_t *paramAddress, uint16_t op, uint16_t paramMode) {
           reallyRunFunction(op, regist);
         }
         else {
-          displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE, REGISTER_X);
+          displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             sprintf(errorMessage, "string '%s' is not a named variable", tmpStringLabelOrVariableName);
             moreInfoOnError("In function _executeOp:", errorMessage, NULL, NULL);
@@ -537,7 +537,7 @@ static void _executeOp(uint8_t *paramAddress, uint16_t op, uint16_t paramMode) {
           reallyRunFunction(op, menu_id);
         }
         else {
-          displayCalcErrorMessage(ERROR_UNDEF_MENU, ERR_REGISTER_LINE, REGISTER_X);
+          displayCalcErrorMessage(ERROR_UNDEF_MENU, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             sprintf(errorMessage, "string '%s' is not a menu name", tmpStringLabelOrVariableName);
             moreInfoOnError("In function _executeOp:", errorMessage, NULL, NULL);
@@ -764,7 +764,7 @@ int16_t executeOneStep(uint8_t *step) {
 
   // Stop before the trace below and the switch, both of which index indexOfItems[op].
   if(op >= LAST_ITEM && op != 0x7fff) { // 0x7fff is .END., handled by its own case
-    displayCalcErrorMessage(ERROR_UNDEFINED_OPCODE, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_UNDEFINED_OPCODE, ERR_REGISTER_LINE);
     return 0;
   }
 
@@ -852,7 +852,7 @@ int16_t executeOneStep(uint8_t *step) {
         }
 
         case PTP_DISABLED: {
-          displayCalcErrorMessage(ERROR_NON_PROGRAMMABLE_COMMAND, ERR_REGISTER_LINE, REGISTER_X);
+          displayCalcErrorMessage(ERROR_NON_PROGRAMMABLE_COMMAND, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             moreInfoOnError("In function executeOneStep:", "non-programmable function", indexOfItems[op].itemCatalogName, "appeared in the program!");
           #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -874,7 +874,7 @@ int16_t executeOneStep(uint8_t *step) {
           else if(op == ITM_42APPEND) {
             if(*step++ == STRING_LABEL_VARIABLE) {
               if(getRegisterDataType(alphaRegister) != dtString) {
-                displayCalcErrorMessage(ERROR_NO_STRING_IN_ALPHA_REGISTER, ERR_REGISTER_LINE, REGISTER_T);
+                displayCalcErrorMessage(ERROR_NO_STRING_IN_ALPHA_REGISTER, ERR_REGISTER_LINE);
                 #if (EXTRA_INFO_ON_CALC_ERROR == 1)
                   sprintf(errorMessage, "cannot use 42append on %s", getRegisterDataTypeName(alphaRegister, true, false));
                   moreInfoOnError("In function executeOneStep:", errorMessage, NULL, NULL);
@@ -1021,7 +1021,7 @@ void runProgram(bool_t singleStep, uint16_t menuLabel) {
             programRunStop = PGM_WAITING;
             screenUpdatingMode = SCRUPD_AUTO;
             if(getSystemFlag(FLAG_INTING) || getSystemFlag(FLAG_SOLVING)) {
-              displayCalcErrorMessage(ERROR_SOLVER_ABORT, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+              displayCalcErrorMessage(ERROR_SOLVER_ABORT, ERR_REGISTER_LINE);
             }
             refreshScreen(1);
             lcd_refresh();

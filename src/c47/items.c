@@ -9,14 +9,14 @@ void itemToBeCoded(uint16_t unusedButMandatoryParameter) {
 
   void fnOldItemError(uint16_t unusedButMandatoryParameter) {
     #if !defined(GENERATE_CATALOGS) &&  !defined(GENERATE_TESTPGMS)
-      displayCalcErrorMessage(ERROR_OLD_ITEM_TO_REPLACE, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_OLD_ITEM_TO_REPLACE, ERR_REGISTER_LINE);
     #endif // !GENERATE_CATALOGS &&  !GENERATE_TESTPGMS
   }
 
 
 //#if !defined(GENERATE_CATALOGS)
 //void fnToBeCoded(void) {
-//  displayCalcErrorMessage(ERROR_FUNCTION_TO_BE_CODED, ERR_REGISTER_LINE, REGISTER_X);
+//  displayCalcErrorMessage(ERROR_FUNCTION_TO_BE_CODED, ERR_REGISTER_LINE);
 //  #if (EXTRA_INFO_ON_CALC_ERROR == 1)
 //    moreInfoOnError("Function to be coded", "for that data type(s)!", NULL, NULL);
 //  #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -309,7 +309,7 @@ bool_t isFunctionOldParam16(uint16_t func) {
 
       if(lastErrorCode == ERROR_RAM_FULL) {
         if((indexOfItems[func].status & US_STATUS) == US_ENABLED || calcMode == CM_CONFIRMATION) {
-          displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+          displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             moreInfoOnError("In function reallyRunFunction:", "there is not enough memory to save for undo!", NULL, NULL);
           #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -417,15 +417,10 @@ bool_t isFunctionOldParam16(uint16_t func) {
 
     //**RunFunction
     if(!itemNotAvail(func)) {
-      const uint64_t flags0BeforeDispatch = systemFlags0;       // a softkey marker comes either from a system flag or from a setting of its own,
-      const uint64_t flags1BeforeDispatch = systemFlags1;       //   and a value on a softkey from a third place again, so all three are compared
-      const int16_t valueBeforeDispatch = fnItemShowValue(func);
       stackWatermarkBeforeDispatch();
       indexOfItems[func].func(param);
       stackWatermarkAfterDispatch();
-      if(systemFlags0 != flags0BeforeDispatch || systemFlags1 != flags1BeforeDispatch || fnItemShowValue(func) != valueBeforeDispatch || fnCbIsSet(func) != NOVAL) {
-        screenUpdatingMode &= ~SCRUPD_MANUAL_MENU;              // fnCbIsSet returns NOVAL for everything outside the radio and checkbox catalog, so a marker
-      }                                                         //   the dispatch moved without touching a flag, such as the gap and radix characters, is covered
+      doRefreshSoftMenu = true;                                 // a function can move a marker or a value on any softkey, not only its own
 
       #if defined(OPTION_IR_PRINTING)
         printTraceTI();
@@ -447,7 +442,7 @@ bool_t isFunctionOldParam16(uint16_t func) {
         temporaryInformation = TI_NOT_AVAILABLE;
       }
       else if(itemERRTIVal(func) ==  _TO_ITM_ERR) {
-        displayCalcErrorMessage(notAvail, ERR_REGISTER_LINE, REGISTER_X);
+        displayCalcErrorMessage(notAvail, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           sprintf(errorMessage, "Not Available");
           moreInfoOnError("In function reallyRunFunction:", errorMessage, NULL, NULL);
@@ -685,7 +680,7 @@ bool_t isFunctionOldParam16(uint16_t func) {
             }
           }
           else {
-            displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE, REGISTER_X);
+            displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE);
             #if (EXTRA_INFO_ON_CALC_ERROR == 1)
               sprintf(errorMessage, "string '%s' is not a named variable", varCatalogItem);
               moreInfoOnError("In function runFunction:", errorMessage, NULL, NULL);
@@ -707,7 +702,7 @@ bool_t isFunctionOldParam16(uint16_t func) {
             }
           }
           else {
-            displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
+            displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE);
             #if (EXTRA_INFO_ON_CALC_ERROR == 1)
               sprintf(errorMessage, "string '%s' is not a named label", varCatalogItem);
               moreInfoOnError("In function runFunction:", errorMessage, NULL, NULL);
@@ -730,7 +725,7 @@ bool_t isFunctionOldParam16(uint16_t func) {
             temporaryInformation = TI_NOT_AVAILABLE;
           }
           else if(itemERRTIVal(func) ==  _TO_ITM_ERR) {
-            displayCalcErrorMessage(notAvail, ERR_REGISTER_LINE, REGISTER_X);
+            displayCalcErrorMessage(notAvail, ERR_REGISTER_LINE);
             #if (EXTRA_INFO_ON_CALC_ERROR == 1)
               sprintf(errorMessage, "Not Available");
               moreInfoOnError("In function runFunction:", errorMessage, NULL, NULL);
@@ -799,7 +794,7 @@ bool_t isFunctionOldParam16(uint16_t func) {
     reallyRunFunction(func, indexOfItems[func].param);
 
     if(!funcOK) {
-      displayCalcErrorMessage(ERROR_ITEM_TO_BE_CODED, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_ITEM_TO_BE_CODED, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "%" PRId16 " = %s", func, indexOfItems[func].itemCatalogName);
         moreInfoOnError("In function runFunction:", "Item not implemented", errorMessage, "to be coded");

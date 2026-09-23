@@ -49,7 +49,7 @@ void fnVarMnu(uint16_t label) {
     return;
   }
   if(!_isVarMenu(label)) {
-    displayCalcErrorMessage(ERROR_NO_MVAR_FOUND, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_NO_MVAR_FOUND, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "No MVAR menu variable instruction after the label");
       moreInfoOnError("In function fnVarMnu:", errorMessage, NULL, NULL);
@@ -69,7 +69,7 @@ void fn42VarMnu(uint16_t label) {
     return;
   }
   if(!_isVarMenu(label)) {
-    displayCalcErrorMessage(ERROR_NO_MVAR_FOUND, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_NO_MVAR_FOUND, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "No MVAR menu variable instruction after the label");
       moreInfoOnError("In function fn42VarMnu:", errorMessage, NULL, NULL);
@@ -347,7 +347,7 @@ static uint16_t _getKeyArg(uint16_t regist) {
       /* fallthrough */
     }
     default: {
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "cannot use %s for the parameter of CASE", getRegisterDataTypeName(REGISTER_X, true, false));
         moreInfoOnError("In function _getKeyArg:", errorMessage, NULL, NULL);
@@ -398,7 +398,7 @@ void fnKey(uint16_t regist) {
       lastKeyCode = 0;
     }
     else {
-      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "register %u is out of range", regist);
         moreInfoOnError("In function fnKey:", errorMessage, NULL, NULL);
@@ -474,7 +474,7 @@ void fnKeyType(uint16_t regist) {
     case 85: uInt32ToLongInteger(12u, kt); break;
 
     default: {
-      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "keycode %u is out of range", keyCode);
         moreInfoOnError("In function fnKeyType:", errorMessage, NULL, NULL);
@@ -549,7 +549,7 @@ void fnPutKey(uint16_t regist) {
       case 85: sprintf(kc, "%02u", keyCode - 81 + 32); btnClicked(NULL, kc);   break;
 
       default: {
-        displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+        displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           sprintf(errorMessage, "keycode %u is out of range", keyCode);
           moreInfoOnError("In function fnPutKey:", errorMessage, NULL, NULL);

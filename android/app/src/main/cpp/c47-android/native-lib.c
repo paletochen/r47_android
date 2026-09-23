@@ -248,8 +248,7 @@ static uint32_t _getValueFromRegister(calcRegister_t regist) {
     longIntegerToUInt32(lgInt, value);
     longIntegerFree(lgInt);
   } else {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE,
-                            REGISTER_X);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
     return (uint32_t)-1;
   }
   return value;
@@ -271,8 +270,7 @@ void fnPlay(uint16_t regist) {
       linkToRealMatrixRegister(regist, &m);
       uint16_t cols = m.header.matrixColumns;
       if ((cols != 2) && (cols != 3)) {
-        displayCalcErrorMessage(ERROR_MATRIX_MISMATCH, ERR_REGISTER_LINE,
-                                REGISTER_X);
+        displayCalcErrorMessage(ERROR_MATRIX_MISMATCH, ERR_REGISTER_LINE);
         return;
       }
       screenUpdatingMode = SCRUPD_AUTO;
@@ -290,8 +288,7 @@ void fnPlay(uint16_t regist) {
       }
     }
   } else {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE,
-                            NIM_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
   }
 }
 

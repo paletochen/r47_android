@@ -963,7 +963,7 @@ void execTimerApp(uint16_t timerType) {
         }
       }
       else {
-        displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE, REGISTER_X);
+        displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
            sprintf(errorMessage, "string '%s' is not a named variable", funcParam);
            moreInfoOnError("In function _executeItem:", errorMessage, NULL, NULL);
@@ -981,7 +981,7 @@ void execTimerApp(uint16_t timerType) {
         }
       }
       else {
-        displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
+        displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             sprintf(errorMessage, "string '%s' is not a named label", funcParam);
             moreInfoOnError("In function _executeItem:", errorMessage, NULL, NULL);
@@ -5143,6 +5143,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
                prefixWidth = 0;
           }
           else if(regist == REGISTER_T) {
+             prefix[0]=0;
              prefixWidth = indent;
           }
 
@@ -6780,7 +6781,7 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
       int32ToReal34(maxValuePlusOne, &maxValue34);
       int32ToReal34(-maxValuePlusOne, &minValue34);
       if(real34CompareLessThan(REGISTER_REAL34_DATA(regist), &minValue34) || real34CompareLessEqual(&maxValue34, REGISTER_REAL34_DATA(regist))) {
-        displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+        displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           real34ToString(REGISTER_REAL34_DATA(regist), errorMessage);
           sprintf(tmpString, "x %" PRId16 " = %s:", regist, errorMessage);
@@ -6802,7 +6803,7 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
 
       convertLongIntegerRegisterToLongInteger(regist, lgInt);
       if(longIntegerCompareInt(lgInt, -maxValuePlusOne) < 0 || longIntegerCompareInt(lgInt, maxValuePlusOne) >= 0) {
-        displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+        displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           longIntegerToAllocatedString(lgInt, errorMessage, ERROR_MESSAGE_LENGTH);
           sprintf(tmpString, "register %" PRId16 " = %s:", regist, errorMessage);
@@ -6816,7 +6817,7 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
     }
 
     else {
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "register %" PRId16 " is %s:", regist, getRegisterDataTypeName(regist, true, false));
         moreInfoOnError("In function _getPositionFromRegister:", errorMessage, "not suited for addressing!", NULL);
@@ -6949,7 +6950,7 @@ void fnAGraph(uint16_t regist) {
       }
 
       else {
-        displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+        displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           sprintf(errorMessage, "register %" PRId16 " is %s:", regist, getRegisterDataTypeName(regist, true, false));
           moreInfoOnError("In function fnAGraph:", errorMessage, "not suited for addressing!", NULL);

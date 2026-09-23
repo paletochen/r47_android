@@ -558,7 +558,7 @@ void convertReal34RegisterToDateRegister(calcRegister_t source, calcRegister_t d
   if((getSystemFlag(FLAG_YMD) && !isValidDay(&part1, &part2, &part3)) ||
     ( getSystemFlag(FLAG_MDY) && !isValidDay(&part3, &part1, &part2)) ||
     ( getSystemFlag(FLAG_DMY) && !isValidDay(&part3, &part2, &part1))) {
-      displayCalcErrorMessage(ERROR_BAD_TIME_OR_DATE_INPUT, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_BAD_TIME_OR_DATE_INPUT, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function convertReal34RegisterToDateRegister:", "Invalid date input like 30 Feb.", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -597,7 +597,7 @@ void convertReal34MatrixRegisterToReal34Matrix(calcRegister_t regist, real34Matr
     }
   }
   else {
-    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
   }
 }
 
@@ -619,7 +619,7 @@ void convertComplex34MatrixRegisterToComplex34Matrix(calcRegister_t regist, comp
     }
   }
   else {
-    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
   }
 }
 
@@ -642,7 +642,7 @@ void convertReal34MatrixToComplex34Matrix(const real34Matrix_t *source, complex3
     }
   }
   else {
-    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
   }
 }
 
@@ -1008,7 +1008,7 @@ static bool_t typeIsNumber(uint32_t type, bool_t *cmplx) {
 }
 
 void badTypeError(calcRegister_t reg) {
-  displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_T);
+  displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
 #if (EXTRA_INFO_ON_CALC_ERROR == 1)
   sprintf(errorMessage, "cannot convert Register %d from %s", reg, getRegisterDataTypeName(reg, true, false));
   moreInfoOnError("In function badTypeError:", errorMessage, NULL, NULL);
@@ -1016,7 +1016,7 @@ void badTypeError(calcRegister_t reg) {
 }
 
 void badDomainError(calcRegister_t reg) {
-  displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_T);
+  displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
 #if (EXTRA_INFO_ON_CALC_ERROR == 1)
   sprintf(errorMessage, "The input value is outside of the domain.");
   moreInfoOnError("In function badDomainError:", errorMessage, NULL, NULL);
@@ -1347,7 +1347,7 @@ bool_t getRegisterAsLongInt(calcRegister_t reg, longInteger_t val, bool_t *fract
   const int err = getRegisterAsLongIntQuiet(reg, val, fractional);
 
   if(err != ERROR_NONE) {
-    displayCalcErrorMessage(err, ERR_REGISTER_LINE, REGISTER_T);
+    displayCalcErrorMessage(err, ERR_REGISTER_LINE);
   }
 
   return err == ERROR_NONE;
@@ -1401,7 +1401,7 @@ static void longIntegerAngleReduction(calcRegister_t regist, angularMode_t angul
         if(reducedAngleTmp == NULL || reducedAngleTmp2 == NULL) {
           REAL_T_FREE(reducedAngleTmp,  2139);
           REAL_T_FREE(reducedAngleTmp2, 2139);
-          displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, REGISTER_X);
+          displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
           return;
         }
         realContext_t c = ctxtReal75;
@@ -1410,7 +1410,7 @@ static void longIntegerAngleReduction(calcRegister_t regist, angularMode_t angul
         convertLongIntegerRegisterToLongInteger(regist, angle);
 
         if(longIntegerBase10Digits(angle) > 1000) {
-          displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+          displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             moreInfoOnError("In function longIntegerAngleReduction:", "Invalid integer size for angle reduction in radians: exponent too large.", NULL, NULL);
           #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -1467,7 +1467,7 @@ bool_t getRegisterAsRealAngle(calcRegister_t reg, real_t *val, angularMode_t *xA
         *xAngularMode = currentAngularMode;
       }
       if(*xAngularMode == amRadian && realGetExponent(val) > 999) {
-        displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+        displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function getRegisterAsRealAngle:", "Invalid real input size for angle reduction in radians: exponent too large.", NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -1518,7 +1518,7 @@ void saveRegisterSnapshot(calcRegister_t reg, snap_t *s) {
       }
       else {
         s->blocks = 0;
-        displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE); // the value is not captured, so the restore would put back nothing
+        displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE); // the value is not captured, so the restore would put back nothing
       }
       break;
   }
@@ -1559,7 +1559,7 @@ void restoreRegisterSnapshot(calcRegister_t reg, snap_t *s) {
         freeC47Blocks(s->mem, s->blocks);
         s->mem = NULL;
         if(!dataPtr) {
-          displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+          displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
           return; // the register keeps the type and the value it has now
         }
       }
