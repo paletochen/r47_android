@@ -7,7 +7,6 @@
 #if !defined(TI_DISK_INFO)
 #define TI_DISK_INFO 149
 #endif
-
 static void refreshRegisterLineRestoreT(void);
 static bool_t shiftGlyphOnScreen = false;                        // set where the f or g glyph is drawn, cleared where it is taken off
 static bool_t functionNameOnScreen = false;                      // set where showFunctionName puts a name up, cleared where hideFunctionName takes it down
@@ -109,7 +108,6 @@ bool_t blockMonitoring = false;
 
 
    char diskInfoStr[256] = "";
-
    TO_QSPI static const char disclaimerStr[]     = "  " MODELTEXT " firmware is free, open source and \n  neither provided nor supported by \n  SwissMicros. Press a key to continue.";
 
    TO_QSPI static const char versionStr[]        = "  " MODELTEXT " " VERSION_STRING ".";
@@ -681,11 +679,7 @@ void execTimerApp(uint16_t timerType) {
    * The buffer is not re-entrant: no overlay draws from inside another one.
    */
   #define FUNC_FRAME_MARGIN 8                                  // blank columns between a framed box's left edge and the first glyph
-  #if defined(CHAMFERED_FN_NAME_FRAME)
-    #define FUNC_FRAME_CHAMFER 3                               // pixels taken off each corner of the box
-  #else // !CHAMFERED_FN_NAME_FRAME
-    #define FUNC_FRAME_CHAMFER 0                               // square corners
-  #endif // CHAMFERED_FN_NAME_FRAME
+
 
   static uint8_t lcdLineBuf[LCD_LINE_BUF_SIZE];
 
@@ -820,19 +814,17 @@ void execTimerApp(uint16_t timerType) {
         lineSetWhiteRange(xPos - FUNC_FRAME_MARGIN, xStart + FUNC_FRAME_MIN_WIDTH - FUNC_FRAME_MARGIN);   //   because only the glyph cells and the two margins are
         xPos = xStart + FUNC_FRAME_MIN_WIDTH;                   //   cleared to blank part of the register line showing through the widened box
       }
-      int16_t edge = min(yRel, STANDARD_FONT_HEIGHT - yRel);   // signed: the chamfer is 0 for a square box, and an unsigned min against it never compares
-      if(edge == 0) {                                          // the top row and the bottom row are the horizontal rules, each one shortened by the chamfer at both ends
+      if(yRel == 0 || yRel == STANDARD_FONT_HEIGHT) {          // the top row and the bottom row 
         uint16_t fx;
-        for(fx = xStart + FUNC_FRAME_CHAMFER; fx < xPos - FUNC_FRAME_CHAMFER; fx++) {
+        for(fx = xStart; fx < xPos; fx++) {
           lineSetBlackPixel(fx);
         }
       }
       else {
-        edge = FUNC_FRAME_CHAMFER - min(edge, FUNC_FRAME_CHAMFER);   // how far this row sets its two sides in, zero for every row below the corner
-        lineSetBlackPixel(xStart + edge);
-        lineSetWhiteRange(xStart + edge + 1, xStart + FUNC_FRAME_MARGIN);
-        lineSetWhiteRange(xPos - FUNC_FRAME_MARGIN, xPos - 1 - edge);
-        lineSetBlackPixel(xPos - 1 - edge);
+        lineSetBlackPixel(xStart);
+        lineSetWhiteRange(xStart + 1, xStart + FUNC_FRAME_MARGIN);
+        lineSetWhiteRange(xPos - FUNC_FRAME_MARGIN, xPos - 1);
+        lineSetBlackPixel(xPos - 1);
       }
       lineFlush();
     }
@@ -3595,7 +3587,6 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
           return;
         }
       }
-
       else if(temporaryInformation == TI_BATTV && regist == REGISTER_X) {
         sprintf(prefix, "V" STD_SPACE_FIGURE "=");
         displayTemporaryInformationOnX(prefix);
@@ -4165,8 +4156,8 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
     //        *(lb++) = STD_SUB_0[1] + (lastDenominator % 10);
 
             *(lb++) = 0;
-            wLastBaseNumeric  = stringWidth(lb, &numericFont,  true, true);    //fixed to lb
-            wLastBaseStandard = stringWidth(lb, &standardFont, true, true);    //fixed to lb
+            wLastBaseNumeric  = stringWidth(lastBase, &numericFont,  true, true);
+            wLastBaseStandard = stringWidth(lastBase, &standardFont, true, true);
           }
           else {
             wLastBaseNumeric  = 0;
