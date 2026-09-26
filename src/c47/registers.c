@@ -111,6 +111,35 @@ TO_QSPI const reservedVariableHeader_t allReservedVariables[] = { // MUST be in 
 
 // REMEMBER: SET LAST_RESERVED_VARIABLE in defines.h
 
+TO_QSPI const registerLetter_t registerLetter[] = {
+/*  REGISTER_X  */  { STD_X },
+/*  REGISTER_Y  */  { STD_Y },
+/*  REGISTER_Z  */  { STD_Z },
+/*  REGISTER_T  */  { STD_T },
+/*  REGISTER_A  */  { STD_A },
+/*  REGISTER_B  */  { STD_B },
+/*  REGISTER_C  */  { STD_C },
+/*  REGISTER_D  */  { STD_D },
+/*  REGISTER_L  */  { STD_L },
+/*  REGISTER_I  */  { STD_I },
+/*  REGISTER_J  */  { STD_J },
+/*  REGISTER_K  */  { STD_K },
+/*  REGISTER_M  */  { STD_M },
+/*  REGISTER_N  */  { STD_N },
+/*  REGISTER_P  */  { STD_P },
+/*  REGISTER_Q  */  { STD_Q },
+/*  REGISTER_R  */  { STD_R },
+/*  REGISTER_S  */  { STD_S },
+/*  REGISTER_E  */  { STD_E },
+/*  REGISTER_F  */  { STD_F },
+/*  REGISTER_G  */  { STD_G },
+/*  REGISTER_H  */  { STD_H },
+/*  REGISTER_O  */  { STD_O },
+/*  REGISTER_U  */  { STD_U },
+/*  REGISTER_V  */  { STD_V },
+/*  REGISTER_W  */  { STD_W }
+};
+
 
 static inline registerHeader_t *POINTER_TO_LOCAL_REGISTER(const calcRegister_t a) {
   return (registerHeader_t *)(currentLocalRegisters + a);
@@ -981,6 +1010,7 @@ calcRegister_t allocateNamedVariableOnMiss(const char *variableName) {
     return regist;
   }
   if(numberOfNamedVariables <= (LAST_NAMED_VARIABLE - FIRST_NAMED_VARIABLE)) {
+    lastErrorCode = ERROR_NONE;  // Clears an error code latched by an earlier function
     allocateNamedVariable(variableName, dtReal34, REAL34_SIZE_IN_BLOCKS);
     if(lastErrorCode == ERROR_NONE) {
       // New variables are zero by default - although this might be immediately overridden, it might require an
@@ -1014,6 +1044,9 @@ void fnDeleteVariable(uint16_t regist) {
     printStatus(0, "fnDeleteVariable", force);
   #endif //VERBOSE_REGISTERS
   if(regist >= FIRST_NAMED_VARIABLE && regist < (FIRST_NAMED_VARIABLE + numberOfNamedVariables)) {
+    if(alphaRegister == regist) {
+      alphaRegister = REGISTER_K;  // Restore the default alpha register value
+    }
     removeUserItemAssignments(ITM_RCL, (char *)allNamedVariables[regist - FIRST_NAMED_VARIABLE].variableName+1);   // Remove assignments before deleting the variable
     freeRegisterData(regist);
     for(uint16_t i = (regist - FIRST_NAMED_VARIABLE); i < (numberOfNamedVariables - 1); ++i) {
@@ -1702,7 +1735,7 @@ int16_t indirectAddressing(calcRegister_t regist, uint16_t parameterType, int16_
     value = findNamedLabel(REGISTER_STRING_DATA(regist), ALL_LABELS);
     isValidAlpha = true;
   /* [DL] remove error here to allow INVARIABLE_VARIABLE to be passed to LBL?
-          INVARIABLE_VARIABLE error is handled in the LBL, GTO, XEQ ...  
+          INVARIABLE_VARIABLE error is handled in the LBL, GTO, XEQ ...
     if(value == INVALID_VARIABLE) {
       displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -2524,6 +2557,8 @@ bool_t isFunctionAllowingNewVariable(uint16_t op) {
     case ITM_FOR:
     case ITM_FORYX:
     case ITM_FORTOP:
+    case ITM_SET_42ALPHA:
+    case ITM_SET_42ALPHAX:
       return true;
 
     default:

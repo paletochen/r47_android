@@ -21,7 +21,7 @@ TO_QSPI const int16_t menu_42[]          = { ITM_42STRING,                  ITM_
                                              ITM_42ALENG,                   ITM_42POSA,                 ITM_42AROT,               ITM_42ASHF,            ITM_42PROMPT,                ITM_42AIP,
                                              ITM_42KEYG,                    ITM_42KEYX,                 ITM_42VRMNU,              ITM_42PRA,             ITM_42ATOX,                  ITM_42XTOA,
 
-                                             ITM_M_DIMQ,                    ITM_42BITQ,                 ITM_42ROTXY,              ITM_NULL,              ITM_NULL,                    ITM_NULL                        };
+                                             ITM_M_DIMQ,                    ITM_42BITQ,                 ITM_42ROTXY,              ITM_NULL,              ITM_SET_42ALPHA,             ITM_GET_42ALPHA                };
 
 
 TO_QSPI const int16_t menu_BITS[]        = { ITM_LOGICALAND,                ITM_LOGICALOR,              ITM_LOGICALXOR,           ITM_LOGICALNOT,        ITM_MASKL,                   ITM_MASKR,
@@ -135,21 +135,20 @@ TO_QSPI const int16_t menu_INFO[]        = { ITM_VERS,                      ITM_
                                              ITM_GETRANGE,                  ITM_GETHIDE,                ITM_GETSDIGS,             ITM_GETFDIGS,          ITM_BESTFQ,                  ITM_NULL,
                                              ITM_GET_JUL_GREG,              ITM_GET_WOY,                ITM_NULL,                 ITM_NULL,              ITM_NULL,                    ITM_NULL,
 
-                                             ITM_GET_ADM,                   ITM_GET_ISM,                ITM_GET_REALDF,           ITM_GET_NDEC,          ITM_GET_DMX,                  ITM_GET_GRAMOD,
-                                             ITM_SET_ADM,                   ITM_SET_ISM,                ITM_SET_REALDF,           ITM_SET_NDEC,          ITM_SET_DMX,                  ITM_SET_GRAMOD,
-                                             ITM_NULL,                      ITM_NULL,                   ITM_NULL,                 ITM_NULL,              ITM_NULL,                     ITM_NULL,
+                                             ITM_GET_ADM,                   ITM_GET_ISM,                ITM_GET_REALDF,           ITM_GET_NDEC,          ITM_GET_DMX,                 ITM_GET_GRAMOD,
+                                             ITM_SET_ADM,                   ITM_SET_ISM,                ITM_SET_REALDF,           ITM_SET_NDEC,          ITM_SET_DMX,                 ITM_SET_GRAMOD,
+                                             ITM_NULL,                      ITM_NULL,                   ITM_NULL,                 ITM_NULL,              ITM_NULL,                    ITM_NULL,
 
-                                             ITM_GET_LPFCT,                 ITM_GET_DPFCT,              ITM_NULL,                 ITM_NULL,              ITM_NULL,                     ITM_GET_RM,
-                                             ITM_SET_LPFCT,                 ITM_SET_DPFCT,              ITM_NULL,                 ITM_NULL,              ITM_NULL,                     ITM_SET_RM,
-};
+                                             ITM_GET_LPFCT,                 ITM_GET_DPFCT,              ITM_NULL,                 ITM_NULL,              ITM_GET_42ALPHA,             ITM_GET_RM,
+                                             ITM_SET_LPFCT,                 ITM_SET_DPFCT,              ITM_NULL,                 ITM_NULL,              ITM_SET_42ALPHAX,            ITM_SET_RM                    };
 
-TO_QSPI const int16_t menu_RMODE[]       = { ITM_RM_HALF_EVEN,              ITM_RM_HALF_UP,             ITM_RM_HALF_DOWN,         ITM_RM_UP,             ITM_RM_DOWN,                  ITM_RM_FLOOR,     
-                                             ITM_NULL,                      ITM_NULL,                   ITM_NULL,                 ITM_NULL,              ITM_NULL,                     ITM_RM_CEILING               };
+TO_QSPI const int16_t menu_RMODE[]       = { ITM_RM_HALF_EVEN,              ITM_RM_HALF_UP,             ITM_RM_HALF_DOWN,         ITM_RM_UP,             ITM_RM_DOWN,                 ITM_RM_FLOOR,
+                                             ITM_NULL,                      ITM_NULL,                   ITM_NULL,                 ITM_NULL,              ITM_NULL,                    ITM_RM_CEILING                };
 
 
 TO_QSPI const int16_t menu_INTS[]        = { ITM_A,                         ITM_B,                      ITM_C,                    ITM_D,                 ITM_E,                       ITM_F,
                                              ITM_IDIV,                      ITM_RMD,                    ITM_MOD,                  ITM_XMOD,              ITM_LINT,                    ITM_LCM,
-                                             ITM_DBLDIV,                    ITM_DBLR,                   ITM_DBLMULT,              ITM_PMOD,              ITM_SINT,                    ITM_GCD                       };
+                                             ITM_DBLDIV,                    ITM_DBLR,                   ITM_DBLMULT,              ITM_PMOD,              ITM_SINT,                    ITM_GCD                        };
 
 
 TO_QSPI const int16_t menu_LOOP[]        = { ITM_DSE,                       ITM_DSZ,                    ITM_DSL,                  ITM_ISE,               ITM_ISZ,                     ITM_ISG,
@@ -1714,6 +1713,7 @@ static void _dynmenuConstructMVarsFromPgm(uint16_t label, uint16_t *numberOfByte
     return lbl;
   }
 
+
   static void _dynmenuConstructUser(int16_t menu) {
     userMenuItem_t *menuData = (dynamicSoftmenu[menu].menuItem == -MNU_DYNAMIC) ? userMenus[currentUserMenu].menuItem : (dynamicSoftmenu[menu].menuItem == -MNU_MyAlpha) ? userAlphaItems : userMenuItems;
     int16_t i, numberOfBytes = 1;
@@ -2767,6 +2767,20 @@ void changeSoftKey(int16_t itemNr, char * itemName, videoMode_t * vm, int8_t * s
                         stringCopy(showText + stringByteLength(showText), indexOfItems[roundingMode + ITM_RM_HALF_EVEN].itemSoftmenuName);
                         *showValue = NOVAL;
                         break;
+      case ITM_SET_42ALPHA:
+      case ITM_SET_42ALPHAX:
+                        if(FIRST_LETTERED_REGISTER  <= alphaRegister && alphaRegister <= REGISTER_W){
+                          sprintf(showText + stringByteLength(showText), "%s", stringToSub((const char *)&registerLetter[alphaRegister - FIRST_LETTERED_REGISTER]));
+                          *showValue = NOVAL;
+                        }
+                        else if(FIRST_NAMED_VARIABLE <= alphaRegister && alphaRegister <= LAST_NAMED_VARIABLE) {
+                          if(itemNr%10000 == ITM_SET_42ALPHA) {
+                            sprintf(showText + stringByteLength(showText), "%s", stringToSub("var"));
+                          } else {
+                            sprintf(showText + stringByteLength(showText), "%s", stringToSub("vr"));
+                          }
+                          *showValue = NOVAL;
+                        }
 
       default: ;
       }

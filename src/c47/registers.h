@@ -337,4 +337,7 @@
   void           fnRegSwap                       (uint16_t unusedButMandatoryParameter);
   bool_t         isFunctionAllowingNewVariable   (uint16_t op);
   uint8_t        getRegParam                     (bool_t *f, uint16_t *s, uint16_t *n, uint16_t *d);
+
+
+  extern const registerLetter_t registerLetter[];
 #endif // !REGISTERS_H

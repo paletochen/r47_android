@@ -7,6 +7,8 @@
 #if !defined(TI_DISK_INFO)
 #define TI_DISK_INFO 149
 #endif
+static bool_t xxfnActive   = false;                              // XXFNMODEACTIVE, worked out once a refresh instead of at each of its sites
+static bool_t xxfnOnScreen = false;                              // set where the two XFN rows are drawn over the T line, cleared where that line is redrawn without them
 static void refreshRegisterLineRestoreT(void);
 static bool_t shiftGlyphOnScreen = false;                        // set where the f or g glyph is drawn, cleared where it is taken off
 static bool_t functionNameOnScreen = false;                      // set where showFunctionName puts a name up, cleared where hideFunctionName takes it down
@@ -3528,7 +3530,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
         fnDisplayStack(3);
       }
     } else {
-      if(XXFNMODEACTIVE) {
+      if(xxfnActive) {
         fnDisplayStack(3);
       }
     }
@@ -4021,7 +4023,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
         }
 
         // XXFN DISPLAY
-        if(origRegist == REGISTER_X && XXFNMODEACTIVE) {
+        if(origRegist == REGISTER_X && xxfnActive) {
           int tmpY = Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(REGISTER_T - REGISTER_X);
 
           angularMode_t angle;
@@ -4060,6 +4062,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
           displayFormatDigits = savedDisplayFormatDigits;
           drawSinglePixelFullWidthLine(Y_POSITION_OF_REGISTER_Z_LINE - 2);
           fnDisplayStack(3);
+          xxfnOnScreen = true;
         }
 
 
@@ -5683,7 +5686,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
       }
     }
 
-    if(getRegisterDataType(REGISTER_X) == dtReal34Matrix || getRegisterDataType(REGISTER_X) == dtComplex34Matrix || calcMode == CM_MIM || distModeActive || BASEMODEACTIVE || XXFNMODEACTIVE) {
+    if(getRegisterDataType(REGISTER_X) == dtReal34Matrix || getRegisterDataType(REGISTER_X) == dtComplex34Matrix || calcMode == CM_MIM || distModeActive || BASEMODEACTIVE || xxfnActive) {
       displayStack = origDisplayStack;
     }
   }
@@ -6097,6 +6100,11 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
           }
         }
 
+        if(xxfnOnScreen && !xxfnActive) {
+          xxfnOnScreen = false;
+          refreshRegisterLine(REGISTER_T);                                             // the XFN rows and their line are drawn over the T line, and leaving the menu redraws nothing there
+        }
+
         if(BASEMODEACTIVE) {
           showFracMode();
 //          screenUpdatingMode &= ~SCRUPD_MANUAL_STATUSBAR;
@@ -6293,6 +6301,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
 
   void refreshScreen(uint16_t source) {
     updateShiftOnTline();             // LOADST, a reset and UNDO put the flags back without going through setSystemFlag
+    xxfnActive = XXFNMODEACTIVE;
     screenHoldsDrawnPixels = false;   // this repaint is what destroys anything CLLCD, PIXEL, POINT or AGRAPH drew
                               #if defined(ANALYSE_REFRESH)
                                 print_caller(NULL);

@@ -1733,7 +1733,9 @@ bool_t isFunctionOldParam16(uint16_t func) {
   void fnCheckGreaterEqualPlusZero(uint16_t unusedButMandatoryParameter) {}
   void fnAlgdep                   (uint16_t unusedButMandatoryParameter) {}
   void fnLindep                   (uint16_t unusedButMandatoryParameter) {}
-
+  void fnSet42Alpha               (uint16_t unusedButMandatoryParameter) {}
+  void fnGet42Alpha               (uint16_t unusedButMandatoryParameter) {}
+  void fnSet42AlphaX              (uint16_t unusedButMandatoryParameter) {}
 
 #endif // GENERATE_CATALOGS || defined(GENERATE_TESTPGMS)
 
@@ -3124,7 +3126,7 @@ TO_QSPI const item_t indexOfItems[] = {
 /* 1205 */  { fnStore,                         RESERVED_VARIABLE_UX,        STD_UP_ARROW "X",                              STD_UP_ARROW "X",                              (0 << TAM_MAX_BITS) |     0, CAT_RVAR | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
 /* 1206 */  { fnStore,                         RESERVED_VARIABLE_LX,        STD_DOWN_ARROW "X",                            STD_DOWN_ARROW "X",                            (0 << TAM_MAX_BITS) |     0, CAT_RVAR | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
 /* 1207 */  { itemToBeCoded,                   NOPARAM,                     "1207",                                        "1207",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
-  
+
 
 // Probability distributions
 /* 1208 */  { fnBinomialP,                     NOPARAM,                     "Binom" STD_SUB_p,                             "Binom" STD_SUB_p,                             (0 << TAM_MAX_BITS) |     0, CAT_FNCT | SLS_ENABLED   | US_ENABLED   | EIM_DISABLED | PTP_NONE         | HG_ENABLED         | RESULT_IN_X },
@@ -3252,13 +3254,13 @@ TO_QSPI const item_t indexOfItems[] = {
 /* 1324 */  { fnSetRoundingModeM,              NOPARAM,                     "PseudoMenu",                                  "RM",                                          (0 << TAM_MAX_BITS) |     0, CAT_NONE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
 /* 1325 */  { fnSetRoundingModeRegist,         REGISTER_X,                  "RM",                                          "RM",                                          (0 << TAM_MAX_BITS) |    99, CAT_FNCT | SLS_ENABLED   | US_ENABLED   | EIM_DISABLED | PTP_NONE         | HG_ENABLED         | RESULT_IN_X },
 /* 1326 */  { itemToBeCoded,                   NOPARAM,                     "1326",                                        "1326",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
-/* 1327 */  { itemToBeCoded,                   NOPARAM,                     "1327",                                        "1327",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
+/* 1327 */  { fnSet42AlphaX,                   REGISTER_X,                  STD_alpha "REGX",                              STD_alpha "REGX",                              (0 << TAM_MAX_BITS) |    99, CAT_FNCT | SLS_ENABLED   | US_ENABLED   | EIM_DISABLED | PTP_NONE         | HG_ENABLED         },
 /* 1328 */  { LPDP_fnGetLP,                    NOPARAM,                     "LP%#",                                        "LP%#",                                        (0 << TAM_MAX_BITS) |     0, LPDP_CAT | SLS_ENABLED   | US_ENABLED   | EIM_DISABLED | PTP_NONE         | HG_ENABLED         | RESULT_IN_X },
 /* 1329 */  { LPDP_fnSetLP,                    REGISTER_X,                  "LP%",                                         "LP%",                                         (0 << TAM_MAX_BITS) |    99, LPDP_CAT | SLS_ENABLED   | US_ENABLED   | EIM_DISABLED | PTP_NONE         | HG_ENABLED         | RESULT_IN_X },
 /* 1330 */  { LPDP_fnGetDP,                    NOPARAM,                     "DP%#",                                        "DP%#",                                        (0 << TAM_MAX_BITS) |     0, LPDP_CAT | SLS_ENABLED   | US_ENABLED   | EIM_DISABLED | PTP_NONE         | HG_ENABLED         | RESULT_IN_X },
 /* 1331 */  { LPDP_fnSetDP,                    REGISTER_X,                  "DP%",                                         "DP%",                                         (0 << TAM_MAX_BITS) |    99, LPDP_CAT | SLS_ENABLED   | US_ENABLED   | EIM_DISABLED | PTP_NONE         | HG_ENABLED         | RESULT_IN_X },
-/* 1332 */  { itemToBeCoded,                   NOPARAM,                     "1332",                                        "1332",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
-/* 1333 */  { itemToBeCoded,                   NOPARAM,                     "1333",                                        "1333",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
+/* 1332 */  { fnSet42Alpha,                    TM_REGISTER,                 STD_alpha "REG",                               STD_alpha "REG",                               (0 << TAM_MAX_BITS) |    99, CAT_FNCT | SLS_ENABLED   | US_ENABLED   | EIM_DISABLED | PTP_REGISTER     | HG_ENABLED         },
+/* 1333 */  { fnGet42Alpha,                    NOPARAM,                     STD_alpha "REG#",                              STD_alpha "REG#",                              (0 << TAM_MAX_BITS) |     0, CAT_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_NONE         | HG_ENABLED         | RESULT_IN_X },
 /* 1334 */  { fnBaseMenu,                      NOPARAM,                     "MyMenu",                                      "MyM",                                         (0 << TAM_MAX_BITS) |     0, CAT_NONE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
 /* 1335 */  { itemToBeCoded,                   NOPARAM,                     "1335",                                        "1335",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
 /* 1336 */  { itemToBeCoded,                   NOPARAM,                     "1336",                                        "1336",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
