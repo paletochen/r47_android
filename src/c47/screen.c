@@ -682,7 +682,6 @@ void execTimerApp(uint16_t timerType) {
    */
   #define FUNC_FRAME_MARGIN 8                                  // blank columns between a framed box's left edge and the first glyph
 
-
   static uint8_t lcdLineBuf[LCD_LINE_BUF_SIZE];
 
   static void lineLoad(uint16_t row) {
@@ -778,9 +777,11 @@ void execTimerApp(uint16_t timerType) {
   }
 
   /* Function name, drawn straight to the LCD. */
-  static void drawFuncName(const char *str) {
+  void drawFuncName(const char *str) {
     uint16_t xStart = funcNameOffset_x;
     uint16_t y = FUNC_FRAME_Y;
+    const glyph_t *ellipsis = standardFont.glyphs + findGlyphExact(&standardFont, charCodeFromString(STD_ELLIPSIS, NULL));
+    uint16_t xLimit = SCREEN_WIDTH - FUNC_FRAME_MARGIN - ellipsis->colsBeforeGlyph - ellipsis->colsGlyph;   // an ellipsis starting at or before this fits in the box
 
     if(y + STANDARD_FONT_HEIGHT >= SCREEN_HEIGHT) {           // the bottom row of the box is the one that has to fit, not the top row
       return;
@@ -797,6 +798,11 @@ void execTimerApp(uint16_t timerType) {
         }
         const glyph_t *glyph = standardFont.glyphs + glyphId;
         uint16_t advance = glyph->colsBeforeGlyph + glyph->colsGlyph + glyph->colsAfterGlyph;
+        if(xPos + advance > xLimit) {                        // no room for this glyph and an ellipsis after it: the ellipsis goes here and ends the name
+          glyph = ellipsis;
+          advance = glyph->colsBeforeGlyph + glyph->colsGlyph + glyph->colsAfterGlyph;
+          offset = stringByteLength(str);
+        }
         int16_t row     = yRel - 1 - glyph->rowsAboveGlyph;
 
         lineSetWhiteRange(xPos, xPos + advance);
@@ -830,6 +836,7 @@ void execTimerApp(uint16_t timerType) {
       }
       lineFlush();
     }
+    functionNameOnScreen = true;
   }
 
 
@@ -1172,7 +1179,7 @@ void execTimerApp(uint16_t timerType) {
         if(calcMode == CM_NORMAL && programRunStop == PGM_STOPPED && (isArrowUp(currentKeyCode))) {
           aimBuffer[0] = 0;
           fnSkip(0);
-          refreshRegisterLine(REGISTER_T);
+          hideFunctionName();
           if(JM_auto_longpress_enabled == ITM_NOP) {
             FN_timeouts_in_progress = false;
             fnTimerStop(TO_FN_LONG);
@@ -1181,7 +1188,7 @@ void execTimerApp(uint16_t timerType) {
         }
         else if(calcMode == CM_NORMAL && programRunStop == PGM_SINGLE_STEP && (isArrowDown(currentKeyCode))) {
           programRunStop = PGM_STOPPED;
-          refreshRegisterLine(REGISTER_T);
+          hideFunctionName();
           if(JM_auto_longpress_enabled == ITM_NOP) {
             FN_timeouts_in_progress = false;
             fnTimerStop(TO_FN_LONG);
@@ -1189,7 +1196,7 @@ void execTimerApp(uint16_t timerType) {
           }
         }
         else if(calcMode == CM_NORMAL && (programRunStop == PGM_STOPPED || programRunStop == PGM_SINGLE_STEP) && currentKeyCode == 35) { //R/S
-          refreshRegisterLine(REGISTER_T);
+          hideFunctionName();
           lastKeyItemDetermined = 0;
           if(JM_auto_longpress_enabled == ITM_NOP) {
             FN_timeouts_in_progress = false;
@@ -2322,7 +2329,6 @@ return res;
         _lcdRefresh();
       }
       drawFuncName(functionName);
-      functionNameOnScreen = true;
     }
     if(temporaryInformation != TI_NO_INFO) {
       if(item != ITM_SNAP) {            //SNAP captures the screen as it stands, so the long press that runs it keeps the TI

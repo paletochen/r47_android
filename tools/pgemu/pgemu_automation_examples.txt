@@ -1,0 +1,10 @@
+pgemu tips: what the README does not state. Each one measured 2026-09-27.
+
+- macOS sandbox (an agent's shell): Unicorn is killed at start, exit 132. Run pgemu outside the sandbox.
+- An A/B is two builds of one tree: check the byte count on the prog_info line differs before comparing (1128640 with fix 51b3e9c8e, 1128592 without).
+- A tree taken with git archive has no .git: its pgm_ver, and so the "built from" line, names the commit of the repository around it, not the one built.
+- Refresh faults show only on the route that has them: READP typed by name without 51b3e9c8e leaves 960 bytes of status bar, READP from the I/O menu none.
+- A STACK_WATERMARK image paints its own stack: --stack-watermark then reports that span, 8136 on a DM42 build painting 8088, not a depth.
+- DM42 without its DMCP image: malloc is the host's, so a stack overrun into heap_4 does not crash. PLOT over INT completes where the DM42 crashed.
+- DM42 engine nesting cap is 2: PLOT over INT over INT gives "Operation aborted". That is the firmware, not pgemu.
+- --choose takes the calculator's backslash: 'PROGRAMS\NAME.p47', the file placed in tools/pgemu/fs/PROGRAMS/.

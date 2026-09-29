@@ -10,6 +10,7 @@
 
   #define shiftOffset        17                                                                                   // room for the shift indicator, which is 15 px wide
   #define noShiftOffset       2                                                                                   // the plain left indent, where the indicator is not on the line
+
   bool_t   registerFMA(calcRegister_t regist, real_t* tmp1, real_t* tmp2, real34_t* tmp3, angularMode_t* angle, realContext_t *c);
 
   void     setLastintegerBasetoZero           (void);
@@ -227,6 +228,14 @@
    * \param[in] counter  number of 1/10 seconds until NOP
    */
   void     showFunctionName                   (int16_t itm, int16_t delayInMs, const char * arg);
+
+  /**
+   * Draws a text in the function name box straight to the LCD and leaves lcd_buffer as it is.
+   * A text too wide for the screen stops where an ellipsis still fits, and the ellipsis ends it. hideFunctionName takes the box down.
+   *
+   * \param[in] str  Text to draw
+   */
+  void     drawFuncName                       (const char *str);
 
   /**
    * Hides the function name.
