@@ -11,7 +11,7 @@ LBL ‘BMVAR’
   STO ‘AI’
   STO ‘AJ’
   STO ‘VV’
-  TICKS
+  TICKS#
   STO R98
   10
   STO R95
@@ -36,7 +36,7 @@ LBL ‘BMVAR’
         GTO 00
       DSZ R95
         GTO 01
-      TICKS
+      TICKS#
       RCL R98
       -
       STO R97

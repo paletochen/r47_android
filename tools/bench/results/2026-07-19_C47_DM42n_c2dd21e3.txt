@@ -7,7 +7,7 @@ firmware  : C47 00.109.03.03b0 (c2dd21e39)
 host      : macOS arm64, build.sim.t47.bench (-Os, LTO)
 suite     : iteration counts as frozen in tools/bench/genbench.py
 
-Hardware results are the TICKS values read from R80..R87 after XEQ BENCH,
+Hardware results are the TICKS# values read from R80..R87 after XEQ BENCH,
 converted to seconds (1 tick = 0.1 s). Host values are the median of five
 repetitions in the optimized headless simulator.
 

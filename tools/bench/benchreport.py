@@ -82,7 +82,7 @@ def summarize(results):
         med_s = statistics.median(us) / 1e6
         spread = (max(us) - min(us)) / statistics.median(us) if len(us) > 1 else 0.0
         ticks = pairs[-1][1]
-        # The program's own TICKS bracket must agree with wall clock to
+        # The program's own TICKS# bracket must agree with wall clock to
         # within its 0.1 s quantization (plus one tick of slack).
         if abs(ticks / 10.0 - med_s) > 0.25 and ticks / 10.0 > med_s:
             sys.exit(f"{name}: on-calc ticks {ticks} disagree with wall clock {med_s:.3f}s")

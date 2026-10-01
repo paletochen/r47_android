@@ -585,7 +585,7 @@ overRange:
             }                                            //counter at first non-'0' or end, eg. 3.14159265358979E+15
             // printf("------- 004a >>>>%s|, %i, displayFormatDigits=%i\n",tmpString100, ii, displayFormatDigits);
 
-            if(tmpString100[ii] != 0 && forceSigZeroes) {   //SIG0 clear keeps full precision for the FIX stage to round; only SIG0 set truncates here
+            if(tmpString100[ii] != 0 && forceSigZeroes) {   //TRL0 clear keeps full precision for the FIX stage to round; only TRL0 set truncates here
               //Hold the sum in int and clamp it to the terminator: displayFormatDigits is not bounded by the digits present, and an int8_t sum of the two wraps negative.
               int stringLength = (int)strlen(tmpString100);
               int digitsEnd    = ii + displayFormatDigits + 1;   //2023-06-01 added 1 digit, giving FIX one extra digit for rounding. If it does not work properly, to do rounding here.
@@ -837,7 +837,7 @@ overRange:
       }
 
       // Remove trailling zeros
-      while(numDigits > 1 && bcd[lastDigit] == 0) {
+      while(!(getSystemFlag(FLAG_SIGZEROS)) && numDigits > 1 && bcd[lastDigit] == 0) {
         lastDigit--;
         numDigits--;
       }
@@ -1193,7 +1193,7 @@ overRange:
       digitsToDisplay = displayFormatDigits;
       digitToRound    = min(firstDigit + (int16_t)displayFormatDigits, lastDigit);
     }
-    emitSciDigits(bcd, firstDigit, lastDigit, numDigits, exponent, sign, digitToRound, digitsToDisplay, frontSpace, (displayFormat == DF_SF && !forceSigZeroes) ? STRIP_TRAILING_ZEROS : KEEP_TRAILING_ZEROS, displayString, displayValueX, updateDisplayValueX);
+    emitSciDigits(bcd, firstDigit, lastDigit, numDigits, exponent, sign, digitToRound, digitsToDisplay, frontSpace, ((displayFormat == DF_SF && !forceSigZeroes) || (displayFormat == DF_ALL && !(getSystemFlag(FLAG_SIGZEROS)))) ? STRIP_TRAILING_ZEROS : KEEP_TRAILING_ZEROS, displayString, displayValueX, updateDisplayValueX);
     return;
   }
 
@@ -1229,8 +1229,8 @@ overRange:
       exponent++;
     }
 
-    // SIG no-zero: clamp to the significant digits (ignore noise past numDigits), then drop trailing zeros left by the value or by rounding
-    if(displayFormat == DF_SF && !forceSigZeroes) {
+    // SIG no-zero, and ALL without (getSystemFlag(FLAG_SIGZEROS)): clamp to the significant digits (ignore noise past numDigits), then drop trailing zeros left by the value or by rounding
+    if((displayFormat == DF_SF && !forceSigZeroes) || (displayFormat == DF_ALL && !(getSystemFlag(FLAG_SIGZEROS)))) {
       if(digitsToDisplay > numDigits - 1) {
         digitsToDisplay = numDigits - 1;
       }
@@ -2626,7 +2626,8 @@ void longIntegerToDisplayString(longInteger_t lgInt, char *displayString, int32_
     }
     exponentString[0] = 0;
     exponentToDisplayString(tenExponent, exponentString, NULL, false);
-    while(stringWidth(displayString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, false, true) + stringWidth(exponentString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, true, false) > maxWidth) {  //JM getSystemFlag(FLAG_LARGELI)
+    // the cut stops at the first digit group when no width is left for it
+    while(lastChar > stringStep && stringWidth(displayString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, false, true) + stringWidth(exponentString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, true, false) > maxWidth) {  //JM getSystemFlag(FLAG_LARGELI)
       lastChar -= stringStep;
       tenExponent += exponentStep;
       lastRemovedDigit = displayString[lastChar + (SEPARATOR_LEFT[1] == 1 ? 1 : 2)];

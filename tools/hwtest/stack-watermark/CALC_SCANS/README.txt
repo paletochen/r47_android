@@ -245,5 +245,5 @@ BUILD NOTES
   toggles and are no longer programmable. Set the fit with ResetF then BestF nn, the bit value of the model:
   1 linear, 2 exponential, 4 logarithmic and so on.
 - Measuring the depth does not distort the time. Two simulator builds differing only in STACK_WATERMARK, same
-  listing, same windows: ratio 0.967 to 1.038, median 1.000, which is the TICKS resolution. The tool's cost is
+  listing, same windows: ratio 0.967 to 1.038, median 1.000, which is the TICKS# resolution. The tool's cost is
   at every keystroke outside a run, not inside one.

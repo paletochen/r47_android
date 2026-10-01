@@ -44,6 +44,11 @@
   void       fnPixel                          (uint16_t unusedButMandatoryParameter);
   void       fnPoint                          (uint16_t unusedButMandatoryParameter);
   void       fnAGraph                         (uint16_t regist);
+  void       fnAText                          (uint16_t regist);
+  #if defined(OPTION_ATEXT_FONTS)
+    bool_t   graFontValid                     (uint32_t code);
+    void     graFontCheck                     (void);
+  #endif // OPTION_ATEXT_FONTS
   void       insertAlphaCursor                (uint16_t startAt);
 
   void       drawSinglePixelFullWidthLine     (int y);

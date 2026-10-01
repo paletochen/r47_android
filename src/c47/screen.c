@@ -5,13 +5,14 @@
 #include "version.h"
 
 #if !defined(TI_DISK_INFO)
-#define TI_DISK_INFO 149
+#define TI_DISK_INFO 154
 #endif
-static bool_t xxfnActive   = false;                              // XXFNMODEACTIVE, worked out once a refresh instead of at each of its sites
-static bool_t xxfnOnScreen = false;                              // set where the two XFN rows are drawn over the T line, cleared where that line is redrawn without them
+
 static void refreshRegisterLineRestoreT(void);
 static bool_t shiftGlyphOnScreen = false;                        // set where the f or g glyph is drawn, cleared where it is taken off
 static bool_t functionNameOnScreen = false;                      // set where showFunctionName puts a name up, cleared where hideFunctionName takes it down
+static bool_t xxfnActive   = false;                              // XXFNMODEACTIVE, worked out once a refresh instead of at each of its sites
+static bool_t xxfnOnScreen = false;                              // set where the two XFN rows are drawn over the T line, cleared where that line is redrawn without them
 static void _refreshPemScreen(void);
 
 
@@ -1274,6 +1275,19 @@ void execTimerApp(uint16_t timerType) {
   uint8_t  miniC = 0;                                                              //JM miniature letters
   uint8_t  maxiC = 0;                                                              //JM ENLARGE letters. Use Numericfont & combinationFontsDefault=2;
   bool_t   noShow = false;                                                         //JM
+#if defined(OPTION_ATEXT)
+  bool_t   allowGramodInShowString = false;                                        // GRMOD sets the glyph cell clear and the pixel operation
+  uint32_t lastShowStringY = 0;                                                    // top y of the last line of the last line feed string
+#else // !OPTION_ATEXT
+  #define allowGramodInShowString false
+#endif // OPTION_ATEXT
+#if defined(OPTION_ATEXT_FONTS)
+  uint8_t  aTextLineHeight = 20;                                                   // y-pixels from one line to the next of the font GRFNT selects
+  bool_t   aTextBold = false;                                                      // the bold numeric font GRFNT selects, used in place of the BOLD setting
+  #define NUMERIC_BOLD (allowGramodInShowString ? aTextBold : getSystemFlag(FLAG_BOLD))
+#else // !OPTION_ATEXT_FONTS
+  #define NUMERIC_BOLD getSystemFlag(FLAG_BOLD)
+#endif // OPTION_ATEXT_FONTS
   uint8_t  displaymode = stdNoEnlarge;
 
 
@@ -1362,7 +1376,7 @@ return res;
 
     glyph = NULL;
 
-    if(getSystemFlag(FLAG_BOLD) && font == &numericFont) {                             // bold is offered for the numeric font only; standardFont and every other caller path are completely unaffected
+    if(NUMERIC_BOLD && font == &numericFont) {                             // bold is offered for the numeric font only; standardFont and every other caller path are completely unaffected
       int16_t boldId = findGlyphExact(&numericFontBold, charCode);     // exact probe into the separate bold font; a miss returns -1 so it can never alias glyph index 0
       if(boldId >= 0) {
         glyph = (numericFontBold.glyphs) + boldId;                     // draw from the bold font but keep font == &numericFont so the numDouble / HP logic below reads the right identity
@@ -1409,8 +1423,9 @@ return res;
     // Clearing the space needed by the glyph
     bool_t rep_enlarge = numDouble || (enlarge && combinationFonts != 0);                //JM ENLARGE
     uint32_t yNewMaxDx = (rep_enlarge ? 2 : 1) * (((glyph->rowsAboveGlyph + glyph->rowsGlyph + glyph->rowsBelowGlyph) >> mini) - (rep_enlarge ? 4 : 0));
-    if(!noPreClear) {
-      lcd_fill_rect(x, max(0, yy), (uint32_t)(doubling * ((xGlyph + glyph->colsGlyph + endingCols) >> mini)) >> 3, max(0, (int32_t)(yNewMaxDx) + (yy<0 ? yy : 0)), (videoMode == vmNormal ? LCD_SET_VALUE : LCD_EMPTY_VALUE));  //JMmini
+    if(!noPreClear && !(allowGramodInShowString && graMod != 1 && graMod != 4)) {
+      // a reverse video box also covers the bold column
+      lcd_fill_rect(x, max(0, yy), ((uint32_t)(doubling * ((xGlyph + glyph->colsGlyph + endingCols) >> mini)) >> 3) + (videoMode == vmNormal ? 0 : boldString), max(0, (int32_t)(yNewMaxDx) + (yy<0 ? yy : 0)), (videoMode == vmNormal ? LCD_SET_VALUE : LCD_EMPTY_VALUE));  //JMmini
     }
     if(displaymode == numHalf) {
       y += (uint32_t)(glyph->rowsAboveGlyph*REDUCT_A/REDUCT_B*(rep_enlarge ? 2 : 1));
@@ -1421,6 +1436,9 @@ return res;
     //x += xGlyph; //JM
 
     int bltOp = (videoMode == vmNormal) ? BLT_OR : BLT_ANDN;
+    if(allowGramodInShowString && graMod != 4) {
+      bltOp = (graMod == 2 ? BLT_ANDN : (graMod == 3 ? BLT_XOR : BLT_OR));  // GRMOD 0 and 1 set, 2 clears and 3 inverts the glyph pixels; 4 clears them on the reverse video box
+    }
     // Drawing the glyph
     bool_t secondRow = false;
     uint32_t bits = 0;
@@ -1568,6 +1586,12 @@ return res;
     bool_t   slc, sec;
     uint32_t prevX = x;
     uint32_t orgX = x;
+    uint8_t  lineStep = (font == &tinyFont ? 8 : 20);  // y-pixels from one line to the next
+    #if defined(OPTION_ATEXT_FONTS)
+      if(allowGramodInShowString) {
+        lineStep = aTextLineHeight;
+      }
+    #endif // OPTION_ATEXT_FONTS
 
     lg = stringByteLength(string);
 
@@ -1596,7 +1620,7 @@ return res;
         if(x + showGlyphCode(charCodeFromString(string, &tmp), font, 0, 0, videoMode, slc, sec, false) - compressString > SCREEN_WIDTH) {
           x = orgX;
           prevX = x;
-          y += (font == &tinyFont ? 8 : 20);
+          y += lineStep;
         }
         noShow = false;
       }
@@ -1621,15 +1645,19 @@ return res;
         }
       }
       uint16_t tmp = ch;                                     //LF after 0x0A is recognized (/n)
-      while(LF && (charCodeFromString(string, &tmp) == 0x0A)) {   //do not touch character pointer
+      uint16_t code;
+      while(LF && ((code = charCodeFromString(string, &tmp)) == 0x0A || code == 0xA1B5)) {   //do not touch character pointer; 0xA1B5 = charCodeFromString(STD_CR, NULL), the AVIEW line break, fixed to skip a decode per glyph
         charCodeFromString(string, &ch);                       //increment character pointer to skip 0x0A
         x = orgX;
         prevX = x;
-        y += (font == &tinyFont ? 8 : 20);
+        y += lineStep;
       }
     }
     compressString = 0;        //JM compressString
     raiseString = 0;
+    #if defined(OPTION_ATEXT)
+      lastShowStringY = y;
+    #endif // OPTION_ATEXT
     return x;
   }
 
@@ -2646,6 +2674,90 @@ void createSubstrings(uint8_t number) {
   }
 
 
+  static const char grModWords[] = "set pixels\0set pixels on cleared box\0clear pixels\0invert pixels\0clear pixels on filled box";  // GRMOD 0 to 4
+
+
+  static const char *_nthWord(const char *words, uint32_t n) {  // the word after n terminating zeros
+    while(n-- > 0) {
+      words += strlen(words) + 1;
+    }
+    return words;
+  }
+
+
+  #if defined(OPTION_ATEXT_FONTS)
+    #define ATF_SIZE      0x0f  // aTextFont_t attr: the aTextFontWords index of the size word, 0 for none
+    #define ATF_BASE      0x30  // aTextFont_t attr: the base word, 0 tiny, 1 standard, 2 numeric
+    #define ATF_STANDARD  0x10
+    #define ATF_NUMERIC   0x20
+    #define ATF_BOLD      0x40  // aTextFont_t attr: every glyph column doubled
+    #define ATF_BOLDNUM   0x80  // aTextFont_t attr: the bold numeric font
+    #define ATF_TINY      5     // aTextFont_t mode of the tiny font, which has no display mode of its own
+
+    typedef struct {
+      uint8_t code;
+      uint8_t mode;  // display mode of _setStringMode, or ATF_TINY
+      uint8_t attr;
+    } aTextFont_t;
+
+    static const char aTextFontWords[] = "\0compressed \0enlarged \0reduced height \0small \0tiny\0standard\0numeric";
+    static const uint8_t aTextLineHeights[] = {20, 32, 32, 16, 24, 8};  // y-pixels from one line to the next, by mode: stdNoEnlarge to numHalf, then ATF_TINY
+
+    TO_QSPI static const aTextFont_t aTextFonts[] = {
+      {10, ATF_TINY,      0},
+      {20, stdNoEnlarge,  ATF_STANDARD},
+      {21, stdNoEnlarge,  ATF_STANDARD | 1},
+      {22, stdNoEnlarge,  ATF_STANDARD | ATF_BOLD},
+      {23, stdEnlarge,    ATF_STANDARD | 2},
+      {30, stdnumEnlarge, ATF_NUMERIC},
+      {31, numHalf,       ATF_NUMERIC | 3},
+      {32, numSmall,      ATF_NUMERIC | 4},
+      {40, stdnumEnlarge, ATF_NUMERIC | ATF_BOLDNUM},
+      {41, numHalf,       ATF_NUMERIC | ATF_BOLDNUM | 3},
+    };
+
+
+    static const aTextFont_t *_aTextFont(uint32_t code) {
+      for(uint32_t i = 0; i < nbrOfElements(aTextFonts); i++) {
+        if(aTextFonts[i].code == code) {
+          return aTextFonts + i;
+        }
+      }
+      return NULL;
+    }
+
+
+    bool_t graFontValid(uint32_t code) {
+      return _aTextFont(code) != NULL;
+    }
+  #endif // OPTION_ATEXT_FONTS
+
+
+  static void _fnShowSettingTI(char * prefix, int16_t *prefixWidth) {  // the rounding mode, GRMOD, GRFNT, LP% and DP% TIs, written in front of the value in X
+    if(temporaryInformation == TI_ROUNDING_MODE) {
+      _fnShowRModeTI(prefix, prefixWidth);
+      return;
+    }
+    if(temporaryInformation == TI_GRMOD) {
+      sprintf(prefix, "GRMOD: %s", _nthWord(grModWords, graMod));
+    }
+    #if defined(OPTION_ATEXT_FONTS)
+      else if(temporaryInformation == TI_GRFNT) {
+        uint8_t attr = _aTextFont(graFont)->attr;
+        sprintf(prefix, "GRFNT: %s%s%s", (attr & (ATF_BOLD | ATF_BOLDNUM)) ? "bold " : "", _nthWord(aTextFontWords, attr & ATF_SIZE),
+                _nthWord(aTextFontWords, 5 + ((attr & ATF_BASE) >> 4)));
+      }
+    #endif // OPTION_ATEXT_FONTS
+    #if defined(OPTION_LP_DP_TIMING)
+      else {
+        sprintf(prefix, "%s: %s press time in %%", (temporaryInformation == TI_LPFCT ? "LP%" : "DP%"), (temporaryInformation == TI_LPFCT ? "long" : "double"));
+      }
+    #endif // OPTION_LP_DP_TIMING
+    *prefixWidth = stringWidth(prefix, &standardFont, true, true) + 1;
+    screenUpdatingMode |= SCRUPD_SKIP_STACK_ONE_TIME;
+  }
+
+
   void updateMatrixHeightCache(void) {
     int16_t prefixWidth = 0;
     char prefix[200];
@@ -3582,7 +3694,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
         }
       }
 
-      else if(temporaryInformation == TI_ROUNDING_MODE && regist == REGISTER_X) {
+      else if(temporaryInformation == TI_ROUNDING_MODE_ONLY && regist == REGISTER_X) {
         _fnShowRModeTI(prefix, &prefixWidth);
         showString(prefix, &standardFont, 1, Y_POSITION_OF_REGISTER_X_LINE + TEMPORARY_INFO_OFFSET + 6, vmNormal, true, true);
       }
@@ -3598,6 +3710,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
           return;
         }
       }
+
       else if(temporaryInformation == TI_BATTV && regist == REGISTER_X) {
         sprintf(prefix, "V" STD_SPACE_FIGURE "=");
         displayTemporaryInformationOnX(prefix);
@@ -4299,6 +4412,10 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
         else if(getRegisterDataType(regist) == dtReal34) {
           if(temporaryInformation == TI_COPY_FROM_SHOW && regist == REGISTER_X) {
             _fnShowRecallTI(prefix, &prefixWidth);
+          }
+
+          else if(temporaryInformation >= TI_ROUNDING_MODE && temporaryInformation <= TI_DPFCT && temporaryInformation != TI_ROUNDING_MODE_ONLY && regist == REGISTER_X) {
+            _fnShowSettingTI(prefix, &prefixWidth);
           }
 
           else if(temporaryInformation == TI_THETA_RADIUS) {
@@ -5329,6 +5446,10 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
 
           if(temporaryInformation == TI_COPY_FROM_SHOW && regist == REGISTER_X) {
             _fnShowRecallTI(prefix, &prefixWidth);
+          }
+
+          else if(temporaryInformation >= TI_ROUNDING_MODE && temporaryInformation <= TI_DPFCT && temporaryInformation != TI_ROUNDING_MODE_ONLY && regist == REGISTER_X) {
+            _fnShowSettingTI(prefix, &prefixWidth);
           }
 
           else if(temporaryInformation == TI_SOLVER_VARIABLE) {
@@ -6929,6 +7050,7 @@ void fnAGraph(uint16_t regist) {
     int32_t x, y;
     uint32_t gramod = graMod;
     getPixelPos(&x, &y);
+    bool_t negativeX = (x < 0);
     x= abs(x);
     y= abs(y);
     if(lastErrorCode == ERROR_NONE) {
@@ -6951,11 +7073,18 @@ void fnAGraph(uint16_t regist) {
             case 0: if(val & 1)    setBlackPixel(x, SCREEN_HEIGHT - y - 1 - i); break;
             case 2: if(val & 1)    setWhitePixel(x, SCREEN_HEIGHT - y - 1 - i); break;
             case 3: if(val & 1)    flipPixel(x, SCREEN_HEIGHT - y - 1 - i);     break;
+            case 4: if(val & 1) {
+                      setWhitePixel(x, SCREEN_HEIGHT - y - 1 - i);
+                    }
+                    else {
+                      setBlackPixel(x, SCREEN_HEIGHT - y - 1 - i);
+                    }
+                    break;
           }
           val >>= 1;
         }
 
-        fnInc(REGISTER_X);
+        (negativeX ? fnDec : fnInc)(REGISTER_X);  // a negative X keeps its sign and grows in magnitude
       }
 
       else {
@@ -6967,6 +7096,91 @@ void fnAGraph(uint16_t regist) {
       }
     }
 }
+
+#if defined(OPTION_ATEXT_FONTS)
+void graFontCheck(void) {  // a stored GRFNT code missing from the font table becomes 20, the standard font
+  if(!graFontValid(graFont)) {
+    graFont = 20;
+  }
+}
+#endif // OPTION_ATEXT_FONTS
+
+
+#if defined(OPTION_ATEXT)
+
+void fnAText(uint16_t regist) {  // without OPTION_ATEXT_FONTS only the standard font is supported: every line is 20 y-pixels
+  int32_t x, y, top, nextX, nextY;
+  longInteger_t lgInt;
+  const font_t *font = &standardFont;
+  uint8_t lineHeight = 20, compress = NO_compress, bold = NO_Bold;
+
+  getPixelPos(&x, &y);
+  bool_t negativeX = (x < 0), negativeY = (y < 0);
+  x = abs(x);
+  y = abs(y);
+  if(lastErrorCode != ERROR_NONE) {
+    return;
+  }
+  if(getRegisterDataType(regist) != dtString) {
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+    return;
+  }
+  if(!saveLastX()) {
+    return;
+  }
+  #if defined(OPTION_ATEXT_FONTS)
+    const aTextFont_t *f = _aTextFont(graFont);
+    int combinationFontsM = combinationFonts;
+    aTextBold = f->attr >> 7;  // the BOLD setting is ignored: GRFNT alone selects the bold numeric font
+    bold = (f->attr >> 6) & 1;
+    compress = ((f->attr & ATF_SIZE) == 1 ? DO_compress : NO_compress);
+    _setStringMode(f->mode == ATF_TINY ? stdNoEnlarge : f->mode, compress, &font);
+    if(f->mode == ATF_TINY) {
+      font = &tinyFont;
+    }
+    lineHeight = aTextLineHeights[f->mode];
+    aTextLineHeight = lineHeight;
+  #endif // OPTION_ATEXT_FONTS
+  top = SCREEN_HEIGHT - y - lineHeight;
+
+  screenUpdatingMode |= SCRUPD_MANUAL_STACK | SCRUPD_MANUAL_MENU | SCRUPD_MANUAL_SHIFT_STATUS;
+  screenHoldsDrawnPixels = true;
+  if(top <= Y_POSITION_OF_REGISTER_T_LINE) {
+    screenUpdatingMode |= SCRUPD_MANUAL_STATUSBAR;
+  }
+  allowGramodInShowString = true;
+  nextX = showStringEnhanced(REGISTER_STRING_DATA(regist), font, x, top, (graMod == 4 ? vmReverse : vmNormal), true, true, compress, NO_raise, DO_Show, bold, DO_LF);
+  allowGramodInShowString = false;
+  #if defined(OPTION_ATEXT_FONTS)
+    combinationFonts = combinationFontsM;
+    _resetStringMode();
+  #endif // OPTION_ATEXT_FONTS
+  nextY = SCREEN_HEIGHT - lastShowStringY - lineHeight;
+  if(nextX > SCREEN_WIDTH - 20) {  // the full line test of _doShowString
+    nextX = x;
+    nextY -= lineHeight;
+  }
+  if(nextY < 0) {  // a next line below the screen hands back y 0, as a negative Y takes the other sign convention
+    nextY = 0;
+  }
+
+  copySourceRegisterToDestRegister(REGISTER_Z, TEMP_REGISTER_1);  // X and Y take the offset to nextX and nextY added in their own data type, as AGRAPH does; Z is scratch and is restored
+  copySourceRegisterToDestRegister(REGISTER_Y, REGISTER_Z);
+  longIntegerInit(lgInt);
+  int32ToLongInteger(negativeX ? x - nextX : nextX - x, lgInt);  // a negative X or Y keeps its sign and grows in magnitude
+  convertLongIntegerToLongIntegerRegister(lgInt, REGISTER_Y);
+  addition[getRegisterDataType(REGISTER_X)][getRegisterDataType(REGISTER_Y)]();
+  copySourceRegisterToDestRegister(REGISTER_Z, REGISTER_Y);
+  copySourceRegisterToDestRegister(REGISTER_X, REGISTER_Z);
+  int32ToLongInteger(negativeY ? y - nextY : nextY - y, lgInt);
+  convertLongIntegerToLongIntegerRegister(lgInt, REGISTER_X);
+  addition[getRegisterDataType(REGISTER_X)][getRegisterDataType(REGISTER_Y)]();
+  longIntegerFree(lgInt);
+  copySourceRegisterToDestRegister(REGISTER_X, REGISTER_Y);
+  copySourceRegisterToDestRegister(REGISTER_Z, REGISTER_X);
+  copySourceRegisterToDestRegister(TEMP_REGISTER_1, REGISTER_Z);
+}
+#endif // OPTION_ATEXT
 
 
 void insertAlphaCursor(uint16_t startAt) {

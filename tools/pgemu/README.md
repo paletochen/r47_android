@@ -152,7 +152,7 @@ The report ends with the file calls the run made and every DMCP entry it reached
 
 ### The clock
 
-The firmware's clock is host time since the run started, plus every sleep the firmware armed and the host did not wait out. TICKS, the stopwatch and every timeout
+The firmware's clock is host time since the run started, plus every sleep the firmware armed and the host did not wait out. TICKS#, the stopwatch and every timeout
 therefore behave as on the calculator, and a scripted `wait 400` advances the clock by what four hundred wakes take there. `--ms-per-tick N` counts it in calls
 instead, one millisecond per N, for a run that has to repeat exactly; a stopwatch measures nothing then.
 

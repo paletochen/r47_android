@@ -12,7 +12,7 @@ that device differences are not mixed with interpreter changes. Host
 values are carried over from that record; they are a property of the
 build, not of the calculator.
 
-Hardware results are the TICKS values read from R80..R87 after XEQ BENCH,
+Hardware results are the TICKS# values read from R80..R87 after XEQ BENCH,
 converted to seconds (1 tick = 0.1 s).
 
 benchmark   iterations   USB s   battery s   host s

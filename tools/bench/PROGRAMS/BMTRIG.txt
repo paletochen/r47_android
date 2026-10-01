@@ -1,7 +1,7 @@
 LBL ‘BMTRIG’
   0.7
   STO R12
-  TICKS
+  TICKS#
   STO R98
   10
   STO R95
@@ -24,7 +24,7 @@ LBL ‘BMTRIG’
         GTO 00
       DSZ R95
         GTO 01
-      TICKS
+      TICKS#
       RCL R98
       -
       STO R97

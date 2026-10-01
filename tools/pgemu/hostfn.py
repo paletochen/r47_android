@@ -617,7 +617,7 @@ def _auto_off(emu):
 def _sys_current_ms(emu):
   """Milliseconds since the run started.
 
-  Everything the firmware times arrives here: TICKS and the stopwatch through getUptimeMs in src/c47/timer.c, and every timeout beside them. So what comes back has
+  Everything the firmware times arrives here: TICKS# and the stopwatch through getUptimeMs in src/c47/timer.c, and every timeout beside them. So what comes back has
   to advance with the time a person waits. A count of the calls does not, because a whole start makes six of them, which is why tools/bench measured nothing and the
   stopwatch moved in whole seconds. The sleeps the run did not really wait out are added on top, which sys_sleep accounts for. --ms-per-tick puts the counted clock back
   where a run has to repeat exactly, and a stopwatch means nothing under it.

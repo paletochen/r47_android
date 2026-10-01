@@ -1,7 +1,7 @@
 LBL ‘BMGTO’
   0
   STO R96
-  TICKS
+  TICKS#
   STO R98
   10
   STO R95
@@ -17,7 +17,7 @@ LBL ‘BMGTO’
         GTO 00
       DSZ R95
         GTO 01
-      TICKS
+      TICKS#
       RCL R98
       -
       STO R97

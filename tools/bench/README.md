@@ -7,7 +7,7 @@ This apparatus replaces that with numbers you can reproduce.
 
 The idea is simple. A set of small RPN programs, each isolating one cost
 axis of the interpreter, runs identically in two places: on real hardware,
-where each program times itself with TICKS, and in an optimized headless
+where each program times itself with TICKS#, and in an optimized headless
 simulator build, where a script times each run to the microsecond. Run the
 suite once on your calculator to calibrate, and from then on a local run
 predicts hardware seconds per benchmark. You can evaluate an optimization
@@ -33,7 +33,7 @@ uses -Os and LTO to mirror the DMCP hardware flags.
 
 ## The benchmarks
 
-Every program follows the same shape: a TICKS bracket around a counted
+Every program follows the same shape: a TICKS# bracket around a counted
 DSZ/GTO loop, elapsed time in tenths of seconds left in X and stored in
 R97. Iteration counts are fixed inside the programs and sized from real
 DM42n measurements, so each benchmark runs long enough on hardware for

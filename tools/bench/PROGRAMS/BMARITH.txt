@@ -3,7 +3,7 @@ LBL ‘BMARITH’
   STO R10
   2.5
   STO R11
-  TICKS
+  TICKS#
   STO R98
   10
   STO R95
@@ -34,7 +34,7 @@ LBL ‘BMARITH’
         GTO 00
       DSZ R95
         GTO 01
-      TICKS
+      TICKS#
       RCL R98
       -
       STO R97

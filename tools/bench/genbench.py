@@ -5,7 +5,7 @@
 # Generate the benchmark suite programs in tools/bench/PROGRAMS/.
 #
 # Each benchmark isolates one cost axis of the program interpreter and times
-# itself with a TICKS bracket (the pattern NQueens.p47 already uses), so the
+# itself with a TICKS# bracket (the pattern NQueens.p47 already uses), so the
 # same program is measurable on the calculator (elapsed ticks in X and in
 # R97) and in the t47 headless simulator (microsecond wall clock around xeq,
 # ticks via "reg 97"). The iteration count N of every benchmark is FIXED
@@ -13,7 +13,7 @@
 # changes, so treat the N values as frozen once a calibration file has been
 # published (see tools/bench/README.md). The counts were sized from a real
 # DM42n measurement (BMGTO: ~950 iterations/s on USB power) so that each
-# benchmark runs long enough for <1% TICKS quantization (measured worst
+# benchmark runs long enough for <1% TICKS# quantization (measured worst
 # case 116 ticks); the whole suite measured about 3.5 minutes on USB power
 # and 7.5 minutes on battery.
 #
@@ -111,9 +111,9 @@ def lit_str(s):
 
 
 def harness(label, n, setup, body):
-    # LBL "label" / setup / TICKS STO 98 /
+    # LBL "label" / setup / TICKS# STO 98 /
     # CHUNKS STO 95 / LBL 01 / VIEW 95 / N/CHUNKS STO 99 / LBL 00 / body /
-    # DSZ 99 GTO 00 / DSZ 95 GTO 01 / TICKS RCL 98 - STO 97 / RTN / END
+    # DSZ 99 GTO 00 / DSZ 95 GTO 01 / TICKS# RCL 98 - STO 97 / RTN / END
     # The VIEW at each chunk boundary is the running-state indicator: the
     # display counts R95 down from CHUNKS to 1 while the benchmark runs.
     assert n % CHUNKS == 0, f"{label}: N={n} not divisible by {CHUNKS}"
@@ -147,7 +147,7 @@ def repeated(body, times):
 # Iteration counts: frozen once a calibration is published. Sized from the
 # measured DM42n BMGTO rate (~950 it/s, USB 160 MHz) with per-step cost
 # estimates for the others; all landed at 116 ticks or more on hardware,
-# keeping TICKS quantization under 1%.
+# keeping TICKS# quantization under 1%.
 ITERATIONS = {
     "BMGTO": 20000,
     "BMREG": 10000,

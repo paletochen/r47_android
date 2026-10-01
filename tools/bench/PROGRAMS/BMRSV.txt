@@ -1,7 +1,7 @@
 LBL ‘BMRSV’
   1.5
   STO ‘FV’
-  TICKS
+  TICKS#
   STO R98
   10
   STO R95
@@ -26,7 +26,7 @@ LBL ‘BMRSV’
         GTO 00
       DSZ R95
         GTO 01
-      TICKS
+      TICKS#
       RCL R98
       -
       STO R97
