@@ -19,8 +19,12 @@ all: $(TARGET)
 items_android.c: ../../src/c47/items.c
 	(sed -n '40,118p' ../../src/c47/items.c; echo "#endif") > $@
 
-$(TARGET): items_android.c $(SRC)
-	$(CC) $(CFLAGS) -o $@ $(SRC) $(shell pkg-config --libs gtk+-3.0) -lm
+keyboard_keycode.c: ../../src/c47/keyboard.c
+	(echo '#include "c47.h"'; echo 'extern uint8_t lastKeyCode;'; echo 'extern uint8_t calcModel;'; sed -n '/^void setLastKeyCode/,/^}/p' ../../src/c47/keyboard.c) > $@
+
+$(TARGET): items_android.c keyboard_keycode.c $(SRC)
+	$(CC) $(CFLAGS) -o $@ $(SRC) keyboard_keycode.c $(shell pkg-config --libs gtk+-3.0) -lm
 
 clean:
-	rm -f $(TARGET) items_android.c *.o
+	rm -f $(TARGET) items_android.c keyboard_keycode.c *.o
+

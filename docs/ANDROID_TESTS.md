@@ -44,6 +44,8 @@ To run individual suites:
 | **10** | `test_execution_yielding_hooks` | Program execution loops (`Spiralk`, `FACTORs`), `yieldToAndroid` | Verifies that non-blocking execution yield hooks run safely, and recursive `screenMutex` unlocks permit the Android UI thread to acquire the lock and refresh the screen during long loops. |
 | **11** | `test_battery_and_disk_info` | `BATT`, `BATT#`, `DISK`, `TI_DISK_INFO` | Verifies that battery voltage and disk storage temporary info screens execute without crashing or null pointer dereferences, and `TI_DISK_INFO` constant (145) is defined. |
 | **12** | `test_pip_mode_invariants` | Picture-in-Picture (PiP) window geometry | Verifies that the PiP aspect ratio in `MainActivity.kt` (`Rational(4860, 2667)` ~1.82) precisely matches the R47 hardware bezel ratio. |
+| **13** | `test_r47_last_key_code_mapping` | `lastKeyCode`, `KEY?`, R47 layout keycode parity | Verifies that `setLastKeyCode` maps R47 key layout indices (UP=23, DOWN=28, SHIFT=11, COS=18, +/-=16, E=15) to standard HP-42S/DM42 keycodes (UP=51, DOWN=61), ensuring HP-42S programs (e.g. Almanac) correctly navigate views without premature termination. |
+
 
 ---
 

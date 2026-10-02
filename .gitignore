@@ -264,4 +264,5 @@ docs/appnotes/sources/**/*.pdf
 
 # Test build artifacts
 tests/android/items_android.c
+tests/android/keyboard_keycode.c
 tests/android/test_android_invariants

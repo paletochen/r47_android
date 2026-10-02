@@ -41,6 +41,9 @@ char diskInfoStr[256] = {0};
 uint8_t temporaryInformation = 0;
 uint32_t hp82240CharMap[256] = {0};
 const font_t standardFont = {0};
+uint8_t lastKeyCode = 0;
+uint8_t calcModel = USER_R47f_g;
+extern void setLastKeyCode(int key);
 
 uint32_t getRegisterDataType(calcRegister_t regist) { (void)regist; return dtReal34; }
 uint32_t getRegisterTag(calcRegister_t regist) { (void)regist; return 0; }
@@ -538,6 +541,58 @@ void test_pip_mode_invariants(void) {
 }
 
 // --------------------------------------------------------------------------
+// TEST 13: R47 Keycode Parity for Programmed Key Inquiries (KEY?)
+// --------------------------------------------------------------------------
+void test_r47_last_key_code_mapping(void) {
+    // In R47 layout (isR47FAM), key indices map to DM42 matrix positions so
+    // programs querying lastKeyCode (e.g. Almanac via KEY?) observe exact
+    // HP-42S/DM42 keycodes (Arrow Up = 51, Arrow Down = 61).
+    calcModel = USER_R47f_g;
+
+    // Arrow UP (Slot 23 on R47) must produce 51
+    setLastKeyCode(23);
+    TEST_ASSERT(lastKeyCode == 51, "R47 Arrow UP (slot 23) must map to keycode 51");
+
+    // Arrow DOWN (Slot 28 on R47) must produce 61
+    setLastKeyCode(28);
+    TEST_ASSERT(lastKeyCode == 61, "R47 Arrow DOWN (slot 28) must map to keycode 61");
+
+    // SHIFT (Slot 11 on R47) maps to DM42 key 28 -> 71
+    setLastKeyCode(11);
+    TEST_ASSERT(lastKeyCode == 71, "R47 SHIFT (slot 11) must map to keycode 71");
+
+    // COS (Slot 18 on R47) maps to DM42 key 11 -> 35
+    setLastKeyCode(18);
+    TEST_ASSERT(lastKeyCode == 35, "R47 COS (slot 18) must map to keycode 35");
+
+    // +/- (Slot 16 on R47) maps to DM42 key 15 -> 43
+    setLastKeyCode(16);
+    TEST_ASSERT(lastKeyCode == 43, "R47 +/- (slot 16) must map to keycode 43");
+
+    // E (Slot 15 on R47) maps to DM42 key 16 -> 44
+    setLastKeyCode(15);
+    TEST_ASSERT(lastKeyCode == 44, "R47 E (slot 15) must map to keycode 44");
+
+    // EXIT (Slot 33) is unchanged -> 81
+    setLastKeyCode(33);
+    TEST_ASSERT(lastKeyCode == 81, "R47 EXIT (slot 33) must remain keycode 81");
+
+    // R/S (Slot 36) is unchanged -> 84
+    setLastKeyCode(36);
+    TEST_ASSERT(lastKeyCode == 84, "R47 R/S (slot 36) must remain keycode 84");
+
+    // Standard C47 / DM42 layout verification (!isR47FAM)
+    calcModel = USER_C47;
+    setLastKeyCode(18);
+    TEST_ASSERT(lastKeyCode == 51, "C47 Arrow UP (slot 18) must produce keycode 51");
+    setLastKeyCode(23);
+    TEST_ASSERT(lastKeyCode == 61, "C47 Arrow DOWN (slot 23) must produce keycode 61");
+
+    // Restore default R47 model
+    calcModel = USER_R47f_g;
+}
+
+// --------------------------------------------------------------------------
 // MAIN RUNNER
 // --------------------------------------------------------------------------
 int main(void) {
@@ -557,6 +612,7 @@ int main(void) {
     RUN_TEST(test_execution_yielding_hooks);
     RUN_TEST(test_battery_and_disk_info);
     RUN_TEST(test_pip_mode_invariants);
+    RUN_TEST(test_r47_last_key_code_mapping);
 
     printf("====================================================\n");
     printf("  Summary: %d Run, %d Passed, %d Failed\n", tests_run, tests_passed, tests_failed);
