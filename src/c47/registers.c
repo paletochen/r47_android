@@ -1483,10 +1483,14 @@ void adjustResult(calcRegister_t res, bool_t dropY, bool_t setCpxRes, calcRegist
   }
 
   if(lastErrorCode != 0) {
-    #if defined(DEBUGUNDO)
-      printf(">>> undo from adjustResult\n");
-    #endif // DEBUGUNDO
-    undo();
+    #if defined(TESTSUITE_BUILD)
+      if(programRunStop != PGM_RUNNING) {  // the testSuite's own error-undo, skipped inside a running program, where no per-step undo snapshot was taken
+        #if defined(DEBUGUNDO)
+          printf(">>> undo from adjustResult\n");
+        #endif // DEBUGUNDO
+        undo();
+      }
+    #endif //TESTSUITE_BUILD
     return;
   }
 

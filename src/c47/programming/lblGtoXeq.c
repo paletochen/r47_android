@@ -1050,6 +1050,9 @@ stopProgram:
   if(programRunStop == PGM_RUNNING && !nestedEngine) {
     programRunStop = PGM_STOPPED;
   }
+  if(lastErrorCode != ERROR_NONE && !nestedEngine) {
+    thereIsSomethingToUndo = false;  // a top-level program stopped by an error leaves the stack at the error point; its launcher (XEQ, R/S) must not undo it to the pre-run state
+  }
   if(programRunStop != PGM_RUNNING) {
     entryStatus &= 0xfe;
   }

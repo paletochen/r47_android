@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WP43 and C47 Authors
 
 #include "c47.h"
+#include "version.h"
 
 TO_QSPI static const char bugScreenIdMustNotBe0[] = "In function showSoftmenu: id must not be 0!";
 
@@ -57,11 +58,11 @@ TO_QSPI const int16_t menu_CPX[]         = { ITM_RE,                        ITM_
 
 TO_QSPI const int16_t menu_DISP[]        = { ITM_FIX,                       ITM_SCI,                    ITM_ENG,                  ITM_UNIT,              ITM_SIGFIG,                  ITM_ALL,
                                              ITM_FRACT,                     ITM_IRFRAC,                 ITM_PROPFR,               ITM_DENMAX2,           ITM_DENANY,                  ITM_DENFIX,
-                                             ITM_GAP_L,                     ITM_GAP_RX,                 ITM_GAP_R,                ITM_SETFDIGS,          ITM_FRCYC,                   ITM_TDISP,
+                                             ITM_GAP_L,                     ITM_GAP_RX,                 ITM_GAP_R,                ITM_SETFDIGS,          ITM_FRCYC,                   ITM_SIGZEROS,
 
                                              ITM_LARGELI,                   ITM_DREAL,                  ITM_DSTACK,               ITM_SHOIREP,           ITM_BASENR,                  ITM_CLKp2,
                                              ITM_CPXI,                      ITM_CPXJ,                   ITM_NULL,                 ITM_CPXMULT,           ITM_MULTCR,                  ITM_MULTDOT,
-                                             ITM_SCIOVR,                    ITM_ENGOVR,                 ITM_SIGZEROS,             ITM_NULL,              ITM_RNG,                     ITM_HIDE,
+                                             ITM_SCIOVR,                    ITM_ENGOVR,                 ITM_NULL,                 ITM_TDISP,             ITM_RNG,                     ITM_HIDE,
 
                                              ITM_SETCHN,                    ITM_SETEUR,                 ITM_SETIND,               ITM_SETJPN,            ITM_SETUK,                   ITM_SETUSA,
                                              ITM_NULL,                      ITM_NULL,                   ITM_NULL,                 ITM_NULL,              ITM_NULL,                    ITM_SETDFLT,
@@ -4637,4 +4638,48 @@ void fnDumpMenusAll(uint16_t newFilenameformat, const char *path) {
 
 void fnDumpMenusAllWrapper(uint16_t newFilenameformat) {
   fnDumpMenusAll(newFilenameformat, NULL);
+}
+
+
+#if defined(PC_BUILD)
+// Writes one catalog in its on-screen sequence as TSV: item code, catalog name, softmenu name. abs() takes a submenu entry's item code too.
+static void writeOneCatSequence(const char *path, const char *header, const char *title, const int16_t *catalog, int nbItems) {
+  FILE *f = fopen(path, "w");
+  if(f == NULL) {
+    printf("Cannot open %s for writing.\n", path);
+    return;
+  }
+  fprintf(f, "%s\n\n", header);
+  fprintf(f, "%s\n\n", title);
+  fprintf(f, "%s\t%s\t%s\n", "nnnn", "cat", "menu");
+  fprintf(f, "%s\t%s\t%s\n", "----", "---", "----");
+  for(int i = 0; i < nbItems; ++i) {
+    int code = abs(catalog[i]);
+    char catName[64];
+    char smName[64];
+    stringToUtf8(indexOfItems[code].itemCatalogName, (uint8_t *)catName);
+    stringToUtf8(indexOfItems[code].itemSoftmenuName, (uint8_t *)smName);
+    fprintf(f, "%d\t%s\t%s\n", code, catName, smName);
+  }
+  fprintf(f, "\n%d entries.\n", nbItems);
+  fclose(f);
+  printf("CAT sequence written to %s.\n", path);
+}
+#endif // PC_BUILD
+
+
+// Writes the CAT FCNS and CAT MENUS catalogs in catalog sequence, one TSV file each. Each file opens with a SHA, version and date header.
+void fnWriteCatSequence(const char *fcnsPath, const char *menusPath) {
+#if defined(PC_BUILD)
+  char header[128];
+  char dateStr[11];
+  time_t rawTime;
+  struct tm *timeInfo;
+  time(&rawTime);
+  timeInfo = localtime(&rawTime);
+  strftime(dateStr, sizeof(dateStr), "%Y-%m-%d", timeInfo);
+  sprintf(header, "SHA: %s\nVersion: %s\nDate: %s", VERSION_SHORT, VERSION1, dateStr);
+  writeOneCatSequence(fcnsPath,  header, "C47/R47 CAT FCNS in catalog sequence",  menu_FCNS,  sizeof(menu_FCNS )/sizeof(int16_t));
+  writeOneCatSequence(menusPath, header, "C47/R47 CAT MENUS in catalog sequence", menu_MENUS, sizeof(menu_MENUS)/sizeof(int16_t));
+#endif // PC_BUILD
 }

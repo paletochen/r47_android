@@ -266,3 +266,23 @@ docs/appnotes/sources/**/*.pdf
 tests/android/items_android.c
 tests/android/keyboard_keycode.c
 tests/android/test_android_invariants
+# Python byte-cache from running the docs/refdb47 checkers in place
+docs/refdb47/tools/__pycache__/
+
+# tools/pgemu screen captures
+tools/pgemu/out*/
+tools/pgemu/__pycache__/
+tools/pgemu/.stubs-cache/
+tools/pgemu/fs/
+
+# What the calculator creates for itself in whatever folder --fs maps, so a tools/hwtest kit runs in place. PROGRAMS is absent on purpose: its contents are kept.
+tools/hwtest/**/DATA/
+tools/hwtest/**/LIBRARY/
+tools/hwtest/**/PGEMU/
+tools/hwtest/**/SAVFILES/
+tools/hwtest/**/STATE/
+
+# rejig built with the C47 items upstream does not have yet, macOS and Windows; tracked
+!tools/rejig_patched/
+!tools/rejig_patched/rejig
+!tools/rejig_patched/rejig.exe
