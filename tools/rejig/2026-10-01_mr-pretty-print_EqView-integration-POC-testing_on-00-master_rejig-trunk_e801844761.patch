@@ -1,0 +1,20 @@
+--- a/program/ops.go
++++ b/program/ops.go
+@@ -688,6 +688,9 @@
+ 	OP_NumEnter_Dot OpCode = 840
+ 	OP_NumEnter_EEX OpCode = 990
+ )
++
++// Pretty print (items.c 984)
++const OP_PrettyVisual OpCode = 984 // VISUAL
+ 
+ // Reserved variable ops.
+ const (
+@@ -5456,6 +5459,7 @@
+ 	{OP_VecToSigmaZero, "V\u2192\u03a3=0", ARG_NONE, AliasMap{AltSpelling1: `VtoSIGMA=0`}},
+ 	{OP_VectorAngle, "\u2221\U0001D465\u0304,\U0001D466\u0304", ARG_NONE, AliasMap{HP42SName: `angle(v)`}},
+ 	{OP_View, "VIEW", ARG_REGISTER, AliasMap{HP32SIIName: ``}},
++	{OP_PrettyVisual, "VISUAL", ARG_LABEL, nil},
+ 	{OP_VolumeDown, "VOL\u2193", ARG_NONE, AliasMap{HP42SName: `VOLv`}},
+ 	{OP_VolumeUp, "VOL\u2191", ARG_NONE, AliasMap{ASCIIMathForm: `VOL^`}},
+ 	{OP_WOY, "WOY", ARG_NONE, nil},

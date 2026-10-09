@@ -1,0 +1,24 @@
+NOP ; rejig bug 6: --ops does not list items 396 to 401, the six test-and-modify flag commands.
+NOP ; The table jumps from 395 tsp(UK)->mL straight to 402 NAND. The encoder and the decoder both
+NOP ; handle all six, so this is the listing alone, but the listing is what everyone reads before
+NOP ; deciding a step cannot be written, and an auditor reported these as unbuildable because of it.
+NOP ;   ./rejig --ops | awk -F'\t' '$1>=394 && $1<=404'
+NOP ;   ./rejig BUG6_ops_table_omits_flag_tests.txt -o BUG6_ops_table_omits_flag_tests.p47
+NOP ;   ./rejig BUG6_ops_table_omits_flag_tests.p47 -o BUG6_ops_table_omits_flag_tests_decoded.txt
+# rejig bug 6
+
+LBL 'FLG'
+  FC?C 00
+  FC?S 01
+  FC?F 02
+  FS?C 03
+  FS?S 04
+  FS?F 05
+RTN
+
+NOP ; Measured 2026-08-14 on C47 branch STRUCT---Structured-programming. FC?C and FS?F were keyed by
+NOP ; hand through the FLAGS menu, f-6 then f-F6 and f-F3, and written out with WRXPall. The
+NOP ; calculator stores 129 140 0 and 129 145 0. rejig decodes both, re-encodes the same bytes, and
+NOP ; loading its file and exporting gives a listing byte for byte identical to the calculator's own.
+
+END

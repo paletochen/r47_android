@@ -2359,7 +2359,11 @@ uint8_t getRegParam(bool_t *f, uint16_t *s, uint16_t *n, uint16_t *d) {
         return ERROR_OUT_OF_RANGE;
       }
     }
-
+    // Convert KeyStroke register numbers from the user to the internal C register number (eg. 112 for R.00 to 7000)
+    *s = regKStoC(*s);
+    if(d) {
+      *d = regKStoC(*d);
+    }
     return ERROR_NONE;
   }
   else {

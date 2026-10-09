@@ -1357,8 +1357,10 @@ bool_t getRegisterAsUint32Param(uint16_t regist, uint32_t *value) {   // For set
   longInteger_t lgInt;
   bool_t ok = getRegisterAsLongInt(regist, lgInt, NULL);
   if(ok) {
-    ok = longIntegerCompareInt(lgInt, 0) >= 0;
-    longIntegerToUInt32(lgInt, *value);
+    ok = longIntegerCompareInt(lgInt, 0) >= 0 && longIntegerCompareUInt(lgInt, UINT32_MAX) <= 0;
+    if(ok) {
+      longIntegerToUInt32(lgInt, *value);
+    }
   }
   longIntegerFree(lgInt);
   return ok;
@@ -1368,7 +1370,10 @@ bool_t getRegisterAsInt32Param(uint16_t regist, int32_t *value) {     // signed 
   longInteger_t lgInt;
   bool_t ok = getRegisterAsLongInt(regist, lgInt, NULL);
   if(ok) {
-    longIntegerToInt32(lgInt, *value);
+    ok = longIntegerCompareInt(lgInt, INT32_MIN) >= 0 && longIntegerCompareInt(lgInt, INT32_MAX) <= 0;
+    if(ok) {
+      longIntegerToInt32(lgInt, *value);
+    }
   }
   longIntegerFree(lgInt);
   return ok;

@@ -1,0 +1,160 @@
+--- a/program/ops.go
++++ b/program/ops.go
+@@ -816,8 +816,28 @@
+ 	OP_CFIT_ALL
+ 	OP_CFIT_RESET
+ 	OP_CFIT_BEST // replacement for >BestF< above
++)
++
++// RM, the 42S alpha register settings and the long and double press factors (items.c 1325–1333)
++const (
++	OP_SetRM OpCode = 1325 + iota // 1325 RM
++	_                             // 1326 PTP_DISABLED
++	OP_Set42AlphaX                // 1327 αREGX
++	OP_GetLPFCT                   // 1328 LP%#
++	OP_SetLPFCT                   // 1329 LP%
++	OP_GetDPFCT                   // 1330 DP%#
++	OP_SetDPFCT                   // 1331 DP%
++	OP_Set42Alpha                 // 1332 αREG
++	OP_Get42Alpha                 // 1333 αREG#
+ )
+ 
++// Graphic primitives
++const (
++	OP_AText OpCode = 1340 + iota // 1340 ATEXT
++	OP_GetGRFNT                   // 1341 GRFNT#
++	OP_SetGRFNT                   // 1342 GRFNT
++)
++
+ // It appears that at this point, the organizing principles set out
+ // above were abandoned.  To the extent that there are logical groups
+ // of ops below, they appear to be ad hoc concatenations to the end of
+@@ -1441,8 +1461,10 @@
+ 	OP_TZYX_to_V4 OpCode = 1966 + iota
+ 	OP_V4_to_TZYX
+ 	OP_ExchangeStk_V4
+-	OP_VecToEqn     // 1969 V→EQ
+-	OP_StoreVectorX // 1970 Rₓnn→V
++	OP_VecToEqn       // 1969 V→EQ
++	OP_StoreVectorX   // 1970 Rₓnn→V
++	OP_XToPoly        // 1971 x→POLY
++	OP_VecToSigmaZero // 1972 V→Σ=0
+ )
+ 
+ // Cut here at the block of functions for switching to the experimental
+@@ -2154,7 +2176,7 @@
+ 	OP_PrintMode_TRACE
+ 	OP_PrintMode_STRACE
+ 	OP_PrintList
+-	_ // 2694 itemToBeCoded (PRNT XFN)
++	OP_PrintXFN // 2694 ⎙XFN
+ 	OP_PrintChar
+ 	OP_PrintTab
+ 	OP_PrintByte
+@@ -2336,9 +2358,9 @@
+ 	OP_CONV_KG_TO_UNSLINCH                           // 2841 kg→lbf·s²/in
+ 	_                                                // 2842 itemToBeCoded
+ 	_                                                // 2843 itemToBeCoded
+-	_                                                // 2844 SecPrp: menu
+-	_                                                // 2845 MatPrp: menu
+-	_                                                // 2846 FLoads: menu
++	OP_ExportGlobalFlags                             // 2844 EXPFLn
++	OP_ExportLocalFlags                              // 2845 EXPLFLn
++	OP_ExportSystemFlags                             // 2846 EXPSFL
+ 	_                                                // 2847 MLoads: menu
+ 	_                                                // 2848 PLoads: menu
+ 	_                                                // 2849 Struct: menu
+@@ -2372,8 +2394,8 @@
+ 	_                                                // 2877 CONV spare
+ 	_                                                // 2878 CONV spare
+ 	_                                                // 2879 CONV spare
+-	_                                                // 2880 CONV spare
+-	_                                                // 2881 CONV spare
++	OP_CONV_MW_TO_DBM                                // 2880 mW→dBm
++	OP_CONV_DBM_TO_MW                                // 2881 dBm→mW
+ 	OP_ProgrammedDeriv                               // 2882 PGMDRV
+ 	OP_1stDerivVar                                   // 2883 f'(𝑥)
+ 	OP_2ndDerivVar                                   // 2884 f"(𝑥)
+@@ -2616,6 +2638,7 @@
+ 		AltSpelling3: `ARTANH`}},
+ 	{OP_AsnViewer, "KEYMAP", ARG_NONE, nil},
+ 	{OP_Assign, "ASSIGN", ARG_NONE, AliasMap{R47MenuName: `ASN`}},
++	{OP_AText, "ATEXT", ARG_REGISTER, nil},
+ 	{OP_Atan2, "atan2(\U0001D465,\U0001D466)", ARG_NONE, AliasMap{
+ 		HP42SName: `ATAN2`, AltSpelling1: `atan2(x,y)`}},
+ 	{OP_BITS_AND, "AND", ARG_NONE, nil},
+@@ -3383,6 +3406,8 @@
+ 	{OP_CONV_V_TO_DBV, "V\u2192dBV", ARG_NONE, AliasMap{HP42SName: `V->dBV`}},
+ 	{OP_CONV_WH_TO_J, "Wh\u2192J", ARG_NONE, AliasMap{HP42SName: `Wh->J`}},
+ 	{OP_CONV_W_TO_DBW, "W\u2192dBW", ARG_NONE, AliasMap{HP42SName: `W->dBW`}},
++	{OP_CONV_MW_TO_DBM, "mW\u2192dBm", ARG_NONE, AliasMap{HP42SName: `mW->dBm`}},
++	{OP_CONV_DBM_TO_MW, "dBm\u2192mW", ARG_NONE, AliasMap{HP42SName: `dBm->mW`}},
+ 	{OP_CONV_W_TO_HPE, "W\u2192hp_e", ARG_NONE, AliasMap{
+ 		ASCIIMathForm: `W->hp_e`,
+ 		HP42SName:     `W->hp_e`,
+@@ -3751,6 +3776,9 @@
+ 	{OP_ExportReg, "EXPreg", ARG_REGISTER, nil},
+ 	{OP_ExportStackRegs, "EXPstk", ARG_NONE, nil},
+ 	{OP_ExportXFN, "EXPxfnx", ARG_NONE, nil},
++	{OP_ExportGlobalFlags, "EXPFLn", ARG_NONE, nil},
++	{OP_ExportLocalFlags, "EXPLFLn", ARG_NONE, nil},
++	{OP_ExportSystemFlags, "EXPSFL", ARG_NONE, nil},
+ 	{OP_Expt, "EXPT", ARG_NONE, nil},
+ 	{OP_ImportRegs, "IMPORTr", ARG_NONE, nil},
+ 	{OP_FLAG_2TO10, "?1024\u207F", ARG_NONE, AliasMap{
+@@ -3970,6 +3998,7 @@
+ 		AltSpelling2:  "\u03B5m"}},
+ 	{OP_GetADM, "ADM#", ARG_NONE, nil},
+ 	{OP_GetGRMOD, "GRMOD#", ARG_NONE, nil},
++	{OP_GetGRFNT, "GRFNT#", ARG_NONE, nil},
+ 	{OP_GetAlphaLeng, "\u03B1LENG", ARG_REGISTER, AliasMap{
+ 		HP42SName: `ALENG`}},
+ 	{OP_GetAlphaPos, "\u03B1POS", ARG_REGISTER, AliasMap{
+@@ -4573,6 +4602,8 @@
+ 		HP42SName: `PrintWIDTH`, AltSpelling1: "\u2399WIDTH"}},
+ 	{OP_PrintX, "\U0001F5A8x", ARG_NONE, AliasMap{
+ 		HP42SName: `PrintX`, AltSpelling1: "\u2399x"}},
++	{OP_PrintXFN, "\U0001F5A8XFN", ARG_NONE, AliasMap{
++		HP42SName: `PrintXFN`, AltSpelling1: "⎙XFN"}},
+ 	{OP_PrintXYRegs, "\U0001F5A8xy", ARG_NONE, AliasMap{
+ 		HP42SName: `PrintXY`, AltSpelling1: "\u2399xy"}},
+ 	{OP_PrinterAdvance, "\U0001F5A8ADV", ARG_NONE, AliasMap{
+@@ -5031,6 +5062,7 @@
+ 	{OP_SetHiBin, "\u2191BIN", ARG_NONE, AliasMap{ASCIIMathForm: `^BIN`}},
+ 	{OP_SetADM, "ADM", ARG_NONE, nil},
+ 	{OP_SetGRMOD, "GRMOD", ARG_NONE, nil},
++	{OP_SetGRFNT, "GRFNT", ARG_NONE, nil},
+ 	{OP_SetISM, "ISM", ARG_REGISTER, nil},
+ 	{OP_SetInlineTest, "TEST", ARG_NONE, nil},
+ 	{OP_SetInlineTestXToBs, "SetBS", ARG_NONE, nil},
+@@ -5047,6 +5079,14 @@
+ 	{OP_SetPrinter_Other, "Other", ARG_NONE, nil},
+ 	{OP_SetREALDF, "DF", ARG_REGISTER, nil},
+ 	{OP_SetRoundingMode, "RoundMode", ARG_VALUE_8, AliasMap{AltSpelling1: `RMODE`}},
++	{OP_SetRM, "RM", ARG_NONE, nil},
++	{OP_Set42AlphaX, "αREGX", ARG_NONE, nil},
++	{OP_Set42Alpha, "αREG", ARG_REGISTER, nil},
++	{OP_Get42Alpha, "αREG#", ARG_NONE, nil},
++	{OP_GetLPFCT, "LP%#", ARG_NONE, nil},
++	{OP_SetLPFCT, "LP%", ARG_NONE, nil},
++	{OP_GetDPFCT, "DP%#", ARG_NONE, nil},
++	{OP_SetDPFCT, "DP%", ARG_NONE, nil},
+ 	{OP_SetSetting_1024n, "1024\u207F", ARG_FLAG, AliasMap{
+ 		ASCIIMathForm: `1024^n`, HP42SName: `1024^n`}},
+ 	{OP_SetSetting_BASE, "BASE", ARG_FLAG, nil},
+@@ -5413,6 +5453,7 @@
+ 		ASCIIMathForm: `V->EQ`,
+ 		HP42SName:     `V->EQ`,
+ 		AltSpelling1:  `VtoEQ`}},
++	{OP_VecToSigmaZero, "V\u2192\u03a3=0", ARG_NONE, AliasMap{AltSpelling1: `VtoSIGMA=0`}},
+ 	{OP_VectorAngle, "\u2221\U0001D465\u0304,\U0001D466\u0304", ARG_NONE, AliasMap{HP42SName: `angle(v)`}},
+ 	{OP_View, "VIEW", ARG_REGISTER, AliasMap{HP32SIIName: ``}},
+ 	{OP_VolumeDown, "VOL\u2193", ARG_NONE, AliasMap{HP42SName: `VOLv`}},
+@@ -5561,6 +5602,7 @@
+ 		AltSpelling1: `root(x)(y)`,
+ 		AltSpelling2: `XthRtY`,
+ 	}},
++	{OP_XToPoly, "x\u2192POLY", ARG_VALUE_8, AliasMap{AltSpelling1: `xtoPOLY`}},
+ 	{OP_YIsFnx, "\U0001D466\u0302", ARG_NONE, AliasMap{
+ 		DM32Name:     `\\yhat;`,
+ 		HP32SIIName:  `FCSTY`,

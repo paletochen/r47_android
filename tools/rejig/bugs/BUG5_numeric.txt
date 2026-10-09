@@ -1,0 +1,16 @@
+@ BUG5, the failing case. The solved function is reached through the numeric label 01.
+@ Root of x^2 - 2, so SN must leave 1.414213562373095048801688724209698 in X.
+@ It does not: it leaves 0 and reports "unexpected parameter 1".
+@ BUG5_named.txt is the same program with the only change being how the function is named.
+LBL 01
+  MVAR 'x'
+  RCL 'x'
+  ENTER ×
+  2 -
+RTN
+
+LBL 'SN'
+  PGMSLV 01
+  0 2
+  SOLVE 'x'
+RTN

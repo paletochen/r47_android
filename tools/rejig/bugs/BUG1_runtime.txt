@@ -1,0 +1,22 @@
+NOP ; rejig bug 1, what it costs at run time. Both labels put 2026.0729 in X and convert it to a date.
+NOP ; LIT uses the literal and fails. DIV builds the same number by division and succeeds.
+NOP ;   ./rejig BUG1_runtime.txt -o BUG1_runtime.p47
+NOP ;   ./t47 --reset --exec 'readp BUG1_runtime.p47; xeq DIV; puts "DIV=[reg X]"'
+NOP ;   ./t47 --reset --exec 'readp BUG1_runtime.p47; xeq LIT; puts "LIT=[reg X]"'
+# rejig bug 1 runtime
+
+LBL 'LIT'
+  # the literal, refused
+  2026.0729
+  𝑥→𝔻
+RTN
+
+LBL 'DIV'
+  # the same value, accepted
+  20260729
+  10000
+  ÷
+  𝑥→𝔻
+RTN
+
+END

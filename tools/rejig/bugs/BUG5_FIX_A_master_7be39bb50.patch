@@ -1,0 +1,330 @@
+--- a/src/c47/programming/input.c
++++ b/src/c47/programming/input.c
+@@ -29,6 +29,9 @@
+ 
+ static bool_t _isVarMenu(uint16_t label) {
+     uint8_t *step;
++    if(label < FIRST_LABEL || (uint16_t)(label - FIRST_LABEL) >= numberOfLabels) {  // a label the list does not hold would index the array from outside it
++      return false;
++    }
+     step = labelList[label - FIRST_LABEL].instructionPointer;
+     while(checkOpCodeOfStep(step, ITM_REM)) {
+       step = findNextStep(step);
+@@ -38,6 +41,10 @@
+ 
+ 
+ void fnVarMnu(uint16_t label) {
++  label = findProgramLabel(label, "In function fnVarMnu:");
++  if(label == INVALID_VARIABLE) {
++    return;
++  }
+   if(!_isVarMenu(label)) {
+     displayCalcErrorMessage(ERROR_NO_MVAR_FOUND, ERR_REGISTER_LINE, REGISTER_X);
+     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+@@ -54,6 +61,10 @@
+ 
+ 
+ void fn42VarMnu(uint16_t label) {
++  label = findProgramLabel(label, "In function fn42VarMnu:");
++  if(label == INVALID_VARIABLE) {
++    return;
++  }
+   if(!_isVarMenu(label)) {
+     displayCalcErrorMessage(ERROR_NO_MVAR_FOUND, ERR_REGISTER_LINE, REGISTER_X);
+     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+--- a/src/c47/programming/manage.c
++++ b/src/c47/programming/manage.c
+@@ -1878,6 +1878,54 @@
+ 
+ calcRegister_t findNamedLabel(const char *labelName, uint8_t labelType) {
+   return findNamedLabelWithDuplicate(labelName, 0, labelType);
++}
++
++
++
++// The label list index of the program a command names, for every command that keeps a program rather than jumping to it: PGMSLV, PGMINT, PGMPLT, PGMDRV, VARMNU,
++// the sums and products, and the interactive arm of SOLVE, the integral, PLT f and the derivatives. A local label 00 to 99 or A to l is searched in the running
++// program the way GTO and XEQ search it, a named label arrives already resolved, and a lettered register names a global label. INVALID_VARIABLE comes back with
++// the reason already reported, so every caller stores only on a good answer and none of them repeats the three cases. caller is the "In function x:" text.
++calcRegister_t findProgramLabel(uint16_t label, const char *caller) {
++  if(label <= LAST_LOCAL_LABEL) { // Local label from 00 to 99 or from A to l
++    for(uint16_t lbl=0; lbl<numberOfLabels; lbl++) {
++      if(labelList[lbl].program > currentProgramNumber) { // After the current program
++        break;
++      }
++      if(labelList[lbl].program == currentProgramNumber && labelList[lbl].step < 0 && *(labelList[lbl].labelPointer) == label && *(labelList[lbl].labelPointer - 1) == ITM_LBL) {
++        return lbl + FIRST_LABEL;
++      }
++    }
++    displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
++    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
++      sprintf(errorMessage, "there is no local label %02u in current program", label);
++      moreInfoOnError(caller, errorMessage, NULL, NULL);
++    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
++    return INVALID_VARIABLE;
++  }
++  if(FIRST_LABEL <= label && label <= LAST_LABEL) {
++    return label;
++  }
++  if(REGISTER_X <= label && label <= REGISTER_T) { // Interactive mode
++    char buf[2];
++    buf[0] = letteredRegisterName((calcRegister_t)label);
++    buf[1] = 0;
++    label = findNamedLabel(buf, GLOBAL_LABELS);
++    if(label == INVALID_VARIABLE) {
++      displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
++      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
++        sprintf(errorMessage, "string '%s' is not a named label", buf);
++        moreInfoOnError(caller, errorMessage, NULL, NULL);
++      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
++    }
++    return label;
++  }
++  displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
++  #if (EXTRA_INFO_ON_CALC_ERROR == 1)
++    sprintf(errorMessage, "unexpected parameter %u", label);
++    moreInfoOnError(caller, errorMessage, NULL, NULL);
++  #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
++  return INVALID_VARIABLE;
+ }
+ 
+ 
+--- a/src/c47/programming/manage.h
++++ b/src/c47/programming/manage.h
+@@ -30,6 +30,7 @@
+ 
+   calcRegister_t findNamedLabel                (const char *labelName, uint8_t labelType);
+   calcRegister_t findNamedLabelWithDuplicate   (const char *labelName, int16_t dupNum, uint8_t labelType);
++  calcRegister_t findProgramLabel              (uint16_t label, const char *caller);
+   uint16_t       getNumberOfSteps              (void);
+ 
+   bool_t         isAtEndOfPrograms             (const uint8_t *step); // check for .END.
+--- a/src/c47/solver/differentiate.c
++++ b/src/c47/solver/differentiate.c
+@@ -44,37 +44,13 @@
+ static void derivativeCommon(uint16_t label, uint16_t order, uint8_t ti) {
+   currentSolverStatus &= ~SOLVER_STATUS_USES_FORMULA;
+   bool_t solving = getSystemFlag(FLAG_SOLVING);
+-  char buf[2];
+ 
+   setSystemFlag(FLAG_SOLVING);
+-  if(label >= FIRST_LABEL && label <= LAST_LABEL) {
++  label = findProgramLabel(label, "In function derivativeCommon:");
++  if(label != INVALID_VARIABLE) {
+     calcDerivOfOrder(label, order);
+     temporaryInformation = ti;
+-  }
+-  else if(REGISTER_X <= label && label <= REGISTER_T) {
+-    // Interactive mode
+-    buf[0] = letteredRegisterName((calcRegister_t)label);
+-    buf[1] = 0;
+-    label = findNamedLabel(buf, GLOBAL_LABELS);
+-    if(label == INVALID_VARIABLE) {
+-      displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
+-      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+-        sprintf(errorMessage, "string '%s' is not a named label", buf);
+-        moreInfoOnError("In function derivativeCommon:", errorMessage, NULL, NULL);
+-      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+-    }
+-    else {
+-      calcDerivOfOrder(label, order);
+-      temporaryInformation = ti;
+-    }
+   }
+-  else {
+-    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+-    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+-      sprintf(errorMessage, "unexpected parameter %u", label);
+-      moreInfoOnError("In function derivativeCommon:", errorMessage, NULL, NULL);
+-    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+-  }
+   if(!solving) {
+     clearSystemFlag(FLAG_SOLVING);
+   }
+--- a/src/c47/solver/integrate.c
++++ b/src/c47/solver/integrate.c
+@@ -11,34 +11,10 @@
+ #undef  INTEGRATEDEBUG
+ 
+ void fnPgmInt(uint16_t label) {
+-  if(FIRST_LABEL <= label && label <= LAST_LABEL) {
++  label = findProgramLabel(label, "In function fnPgmInt:");
++  if(label != INVALID_VARIABLE) {
+     currentSolverProgram = label - FIRST_LABEL;
+     currentSolverStatus &= ~SOLVER_STATUS_USES_FORMULA;
+-  }
+-  else if(REGISTER_X <= label && label <= REGISTER_T) {
+-    // Interactive mode
+-    char buf[2];
+-    buf[0] = letteredRegisterName((calcRegister_t)label);
+-    buf[1] = 0;
+-    label = findNamedLabel(buf, GLOBAL_LABELS);
+-    if(label == INVALID_VARIABLE) {
+-      displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
+-      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+-        sprintf(errorMessage, "string '%s' is not a named label", buf);
+-        moreInfoOnError("In function fnPgmInt:", errorMessage, NULL, NULL);
+-      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+-    }
+-    else {
+-      currentSolverProgram = label - FIRST_LABEL;
+-      currentSolverStatus &= ~SOLVER_STATUS_USES_FORMULA;
+-    }
+-  }
+-  else {
+-    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+-    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+-      sprintf(errorMessage, "unexpected parameter %u", label);
+-      moreInfoOnError("In function fnPgmInt:", errorMessage, NULL, NULL);
+-    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+   }
+ }
+ 
+@@ -80,7 +56,7 @@
+   //  stringToASCII(yyy, yy1);
+   //printf("currentSolverProgram %u = %s\n", currentSolverProgram, yy1);
+ 
+-  if((FIRST_LABEL <= labelOrVariable && labelOrVariable <= LAST_LABEL) || (REGISTER_X <= labelOrVariable && labelOrVariable <= REGISTER_T)) {
++  if((FIRST_UC_LOCAL_LABEL <= labelOrVariable && labelOrVariable <= LAST_LOCAL_LABEL) || (FIRST_LABEL <= labelOrVariable && labelOrVariable <= LAST_LABEL) || (REGISTER_X <= labelOrVariable && labelOrVariable <= REGISTER_T)) {
+     // Interactive mode
+     fnPgmInt(labelOrVariable);
+     if(lastErrorCode == ERROR_NONE) {
+--- a/src/c47/solver/isumprod.c
++++ b/src/c47/solver/isumprod.c
+@@ -181,38 +181,12 @@
+ 
+ 
+ static void _checkiArgument(uint16_t label, bool_t prod) {
+-    if(FIRST_LABEL <= label && label <= LAST_LABEL) {
++    label = findProgramLabel(label, "In function _checkiArgument:");
++    if(label != INVALID_VARIABLE) {
+       if(!_checkRegisters()) {
+         _programmableiSumProd(label, prod);
+       }
+     }
+-    else if(REGISTER_X <= label && label <= REGISTER_T) {
+-      // Interactive mode
+-      char buf[2];
+-      buf[0] = letteredRegisterName((calcRegister_t)label);
+-      buf[1] = 0;
+-      label = findNamedLabel(buf, GLOBAL_LABELS);
+-      if(label == INVALID_VARIABLE) {
+-        displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
+-        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+-          sprintf(errorMessage, "string '%s' is not a named label", buf);
+-          moreInfoOnError("In function _checkiArgument:", errorMessage, NULL, NULL);
+-        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+-      }
+-      else {
+-        if(!_checkRegisters()) {
+-          _programmableiSumProd(label, prod);
+-        }
+-      }
+-
+-    }
+-    else {
+-      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+-      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+-        sprintf(errorMessage, "unexpected parameter %u", label);
+-        moreInfoOnError("In function _checkiArgument:", errorMessage, NULL, NULL);
+-      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+-    }
+   }
+ 
+ void fnProgrammableiSum(uint16_t label) {
+--- a/src/c47/solver/solve.c
++++ b/src/c47/solver/solve.c
+@@ -54,35 +54,11 @@
+ 
+ 
+ void fnPgmSlv(uint16_t label) {
+-  if(FIRST_LABEL <= label && label <= LAST_LABEL) {
++  label = findProgramLabel(label, "In function fnPgmSlv:");
++  if(label != INVALID_VARIABLE) {
+     currentSolverProgram = label - FIRST_LABEL;
+     currentSolverStatus &= ~SOLVER_STATUS_USES_FORMULA;
+-  }
+-  else if(REGISTER_X <= label && label <= REGISTER_T) {
+-    // Interactive mode
+-    char buf[2];
+-    buf[0] = letteredRegisterName((calcRegister_t)label);
+-    buf[1] = 0;
+-    label = findNamedLabel(buf, GLOBAL_LABELS);
+-    if(label == INVALID_VARIABLE) {
+-      displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
+-      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+-        sprintf(errorMessage, "string '%s' is not a named label", buf);
+-        moreInfoOnError("In function fnPgmSlv:", errorMessage, NULL, NULL);
+-      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+-    }
+-    else {
+-      currentSolverProgram = label - FIRST_LABEL;
+-      currentSolverStatus &= ~SOLVER_STATUS_USES_FORMULA;
+-    }
+   }
+-  else {
+-    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+-    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+-      sprintf(errorMessage, "unexpected parameter %u", label);
+-      moreInfoOnError("In function fnPgmSlv:", errorMessage, NULL, NULL);
+-    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+-  }
+ }
+ 
+ 
+@@ -92,7 +68,7 @@
+ }
+ 
+ void fnSolve(uint16_t labelOrVariable) {
+-  if((FIRST_LABEL <= labelOrVariable && labelOrVariable <= LAST_LABEL) || (REGISTER_X <= labelOrVariable && labelOrVariable <= REGISTER_T)) {
++  if((FIRST_UC_LOCAL_LABEL <= labelOrVariable && labelOrVariable <= LAST_LOCAL_LABEL) || (FIRST_LABEL <= labelOrVariable && labelOrVariable <= LAST_LABEL) || (REGISTER_X <= labelOrVariable && labelOrVariable <= REGISTER_T)) {
+     // Interactive mode
+     fnPgmSlv(labelOrVariable);
+     if(lastErrorCode == ERROR_NONE) {
+@@ -209,7 +185,7 @@
+ // ====== === temporarily / permanently use the SOLVE's "currentSolverVariable" for plotting
+ 
+ void fnMvarPlot(uint16_t labelOrVariable) {
+-  if((FIRST_LABEL <= labelOrVariable && labelOrVariable <= LAST_LABEL) || (REGISTER_X <= labelOrVariable && labelOrVariable <= REGISTER_T)) {
++  if((FIRST_UC_LOCAL_LABEL <= labelOrVariable && labelOrVariable <= LAST_LOCAL_LABEL) || (FIRST_LABEL <= labelOrVariable && labelOrVariable <= LAST_LABEL) || (REGISTER_X <= labelOrVariable && labelOrVariable <= REGISTER_T)) {
+     // Interactive mode
+     fnPgmSlv(labelOrVariable);
+     if(lastErrorCode == ERROR_NONE) {
+--- a/src/c47/solver/sumprod.c
++++ b/src/c47/solver/sumprod.c
+@@ -306,33 +306,10 @@
+ 
+ 
+   static void _checkArgument(uint16_t label, bool_t prod, earlyAbort_t *early) {
+-    if(FIRST_LABEL <= label && label <= LAST_LABEL) {
++    label = findProgramLabel(label, "In function _checkArgument:");
++    if(label != INVALID_VARIABLE) {
+       _programmableSumProd(label, prod, early);
+     }
+-    else if(REGISTER_X <= label && label <= REGISTER_T) {
+-      // Interactive mode
+-      char buf[2];
+-      buf[0] = letteredRegisterName((calcRegister_t)label);
+-      buf[1] = 0;
+-      label = findNamedLabel(buf, GLOBAL_LABELS);
+-      if(label == INVALID_VARIABLE) {
+-        displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
+-        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+-          sprintf(errorMessage, "string '%s' is not a named label", buf);
+-          moreInfoOnError("In function _checkArgument:", errorMessage, NULL, NULL);
+-        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+-      }
+-      else {
+-        _programmableSumProd(label, prod, early);
+-      }
+-    }
+-    else {
+-      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+-      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+-        sprintf(errorMessage, "unexpected parameter %u", label);
+-        moreInfoOnError("In function _checkArgument:", errorMessage, NULL, NULL);
+-      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+-    }
+   }
+ 
+ void fnProgrammableSum(uint16_t label) {

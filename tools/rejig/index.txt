@@ -1,0 +1,29 @@
+rejig patches for the C47 op table, program/ops.go, against rejig trunk e801844761.
+
+Apply the master patch first, then one branch patch, from the rejig folder rpn/r47/rejig:
+
+  patch -p1 < 2026-09-29_00_master_rejig-trunk_e801844761.patch
+  patch -p1 < <date>_<branch>_on-00-master_rejig-trunk_e801844761.patch
+
+Each file name starts with the date its first ops were first written into a rejig patch or a rejig executable.
+
+The patches add the ops a branch needs and rename TICKS. They remove nothing that upstream rejig already contains.
+The rounding mode keys ½E ½↑ ½↓ ←0→ →0← ⌈x⌉ ⌊x⌋ (items 1317 to 1323) are in no patch.
+
+The rejig bug reports, BUG1 to BUG8, are in bugs/.
+
+Table: each patch file, what it changes, and the branches it is for.
+
+File                                                     Changes                                                          Branches
+2026-09-29_00_master_...                                 adds RM, αREGX, αREG, αREG#, LP%#, LP%, DP%#, DP%, ATEXT,        every branch
+                                                         GRFNT#, GRFNT, x→POLY, V→Σ=0, ⎙XFN, EXPFLn, EXPLFLn, EXPSFL,
+                                                         mW→dBm, dBm→mW
+2026-10-01_Add-ATEXT-to-write-text-to-the-screen_...     renames TICKS to TICKS#, TICKS still accepted                    Add-ATEXT-to-write-text-to-the-screen
+2026-10-01_Display-Rounding_...                          adds DRM, DRM#                                                   Display-Rounding, rounding-test-merge-to-master,
+                                                                                                                          decimal-context-analysis-trial-merge-with-display-rounding
+2026-09-10_FIN-12C_...                                   adds DRM, DRM#, the FIN12C block, T.PXN, T.12XN, T.12DI,         FIN-12C
+                                                         A.CLRXTP, EXPTVM, F.FRM#, F.FRM=
+2026-10-01_mr-pretty-print_EqView-integration-POC-...    adds VISUAL                                                      mr/pretty-print, EqView-integration-POC-testing
+2026-08-12_TEST-menu-extensions-to-SI-logic_...          adds ANDbits, ORbits, XORbits                                    TEST-menu-extensions-to-SI-logic
+2026-10-01_units-algebra_...                             adds UBASE→, UNIT.OP, →UBASE, UVAL, CONVERT, →UNIT, UFACT,       units/algebra, davidemerson/units branches
+                                                         UNIT.PFX

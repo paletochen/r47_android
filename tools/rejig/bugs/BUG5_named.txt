@@ -1,0 +1,15 @@
+@ BUG5, the working control. The same function, reached through the local named label :FX: instead of 01.
+@ Root of x^2 - 2. SL leaves 1.414213562373095048801688724209698 in X, which is the correct answer to 34 digits.
+@ A global quoted label 'FX' behaves the same as :FX: here.
+LBL :FX:
+  MVAR 'x'
+  RCL 'x'
+  ENTER ×
+  2 -
+RTN
+
+LBL 'SL'
+  PGMSLV :FX:
+  0 2
+  SOLVE 'x'
+RTN

@@ -1,0 +1,35 @@
+NOP ; rejig bug 4: LBL M encodes as the global label 'M' instead of the local named label :M:.
+NOP ; Local labels are numeric 00..99 and letters A to L (defines.h LAST_UC_LOCAL_LABEL 111 = L).
+NOP ; Ask the calculator for a single-letter label past L and it makes the local named label :M:.
+NOP ; rejig accepts an unquoted M and silently encodes the global label instead.
+NOP ; The case below puts all three forms in one routine.
+NOP ;   LBL M    written bare, and reached from GTO 'M'. The jump resolves, which proves bare M
+NOP ;            and quoted 'M' are the same global label. XPORTP reads the label back as LBL 'M'.
+NOP ;   LBL 'M'  the explicit global form, identical encoding to the bare M above.
+NOP ;   LBL :M:  the local named label, encoded correctly by rejig and reached from GTO :M:.
+NOP ;            It coexists with the global 'M' in the same routine, a separate namespace.
+NOP ; Expected: bare M encodes as :M:, matching what the calculator produces past L. Everything
+NOP ; after M is refused at parse time, upper and lower case alike, where it should also promote:
+NOP ;   "GTO N": invalid label: "N"    "GTO Q": invalid label: "Q"    "GTO m": invalid label: "m"
+NOP ; STILL PRESENT in rejig trunk [8421064473] of 2026-08-07 17:43, retested that evening: bugs 1,
+NOP ; 2 and 3 are fixed in that build, this one is not. Bare M still exports as LBL 'M', and
+NOP ; GTO Q still fails to parse. Local labels A to L and a to l all round trip correctly.
+NOP ; Verified 2026-08-07 against C47 built from master dd448f0a1. Read the result back with the
+NOP ; calculator's own XPORTP, not with rejig, or the substitution is invisible:
+NOP ;   ./rejig BUG4_single_letter_labels.txt -o BUG4_single_letter_labels.p47
+NOP ;   ./t47 --reset --exec 'readp BUG4_single_letter_labels.p47; xportp B4 BUG4_decoded.rtf'
+NOP ; Running it gives R01 = 1 and R02 = 2; the 99 and 98 markers must stay unwritten.
+# rejig bug 4
+
+LBL 'B4'
+  # bare M as the label, quoted 'M' as the jump target: they resolve to each other
+  GTO 'M'
+  99 STO 01
+  LBL M
+  1 STO 01
+  # the colon form is the local named label, and it coexists with the global M above
+  GTO :M:
+  98 STO 02
+  LBL :M:
+  2 STO 02
+RTN

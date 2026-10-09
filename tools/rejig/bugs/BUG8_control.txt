@@ -1,0 +1,36 @@
+NOP ; rejig bug 8: a superscript O or P in a comment gives "undefined character in input text".
+NOP ; Warning only. The container is byte for byte the same as one encoded with plain ASCII in that
+NOP ; comment, because a trailing ; comment is stripped and never reaches the program. The cost is
+NOP ; four warnings on every encode of a listing that names FOR^TOP in its comments, and a real
+NOP ; warning is easy to miss among them.
+NOP ;
+NOP ; The three characters of the rejig spelling are not treated alike:
+NOP ;   U+1D40 MODIFIER LETTER CAPITAL T   accepted, silent
+NOP ;   U+1D3C MODIFIER LETTER CAPITAL O   warned
+NOP ;   U+1D3E MODIFIER LETTER CAPITAL P   warned
+NOP ;
+NOP ; The same two are the ones C47__StandardFont.ttf has no glyph for, measured against the font's
+NOP ; own cmap, so the comment text is being mapped to C47 code points and these two find no home.
+NOP ; A comment is not calculator text and needs no such mapping.
+NOP ;
+NOP ; The inconsistency is what makes it worth a report. rejig accepts the same two characters in an
+NOP ; OP NAME: the step below encodes with no warning at all, and the warning names field=comment.
+NOP ; So the tool refuses in a comment the very spelling it writes itself.
+NOP ;
+NOP ; Reproduce, from the folder holding this file:
+NOP ;   ../../../../../rejig BUG8_superscript_in_comment.txt -o BUG8_superscript_in_comment.p47
+NOP ; Measured 2026-09-05 on rejig trunk. The two warnings below name file line 25.
+
+LBL 'BUG8'
+  1              ; FORTOP in a comment, two warnings
+  FORᵀᴼᴾ R00     ; the same characters as an op name, silent
+  NEXT R00
+RTN
+
+NOP ; The control is the identical listing with FORTOP written in ASCII in the line 25 comment. It
+NOP ; encodes silent, and cmp of the two containers reports no difference.
+NOP ;
+NOP ; Suggested fix: leave a comment field as input text and do not map it to C47 code points. Failing
+NOP ; that, add U+1D3C and U+1D3E beside U+1D40, which is already accepted.
+
+END

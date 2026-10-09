@@ -1,0 +1,107 @@
+================================================================================================================
+BUG 5 HANDOVER: TWO PREPARED PATCHES, ONE FOR MASTER AND ONE FOR THE DERIVATIVE BRANCH
+================================================================================================================
+
+Record only. Everything here was discussed in chat. Nothing was written into the working tree and no git
+operation of any kind was run. Both trees below were made with git archive and live under _scratch.
+
+
+WHAT IS PREPARED
+----------------
+
+    branch                        scratch tree                              patch
+    ---------------------------   ---------------------------------------   -----------------------------------
+    master 7be39bb50              _scratch/bug5b/base and bug5b/fix         bug5b/PATCH_pgm_label_master_7be39bb50.diff
+    derivative 67e0011c0          _scratch/bug5c/base and bug5c/fix         bug5c/PATCH_pgm_label_deriv_67e0011c0.diff
+
+Both patches touch the same eight files. The derivative one adds fnPgmDrv and the f' operand gate, which
+master does not carry. Every other hunk is identical text, so the merge of master into the branch off
+67e0011c0 will see the same lines on both sides.
+
+The merge itself is not prepared: no git operation was run. Apply the master patch to master, apply the
+derivative patch to the branch, then merge master in as planned.
+
+
+THE HELPER
+----------
+
+One function in programming/manage.c, declared in manage.h:
+
+    calcRegister_t findProgramLabel(uint16_t label, const char *caller);
+
+It resolves a local label 00 to 99 or A to l in the running program the way GTO and XEQ resolve it, passes a
+label list index through, and turns a lettered register into a global label name. It reports the miss itself
+and returns INVALID_VARIABLE, so every caller is the same three lines:
+
+    label = findProgramLabel(label, "In function fnPgmSlv:");
+    if(label != INVALID_VARIABLE) {
+      currentSolverProgram = label - FIRST_LABEL;
+      currentSolverStatus &= ~SOLVER_STATUS_USES_FORMULA;
+    }
+
+Callers: fnPgmSlv, fnPgmInt, fnPgmDrv (branch only), fnVarMnu, fn42VarMnu, _checkArgument (SUMn, PRODn) and
+_checkiArgument (iSUMn, iPRODn). PGMPLT reaches it through fnPgmSlv, unchanged. fnVarMnu also gained a bounds
+test in _isVarMenu, because labelList[label - FIRST_LABEL] read outside the array for any label the list does
+not hold, and VARMNU 01 was a SIGSEGV.
+
+The interactive arm of SOLVE, the integral, PLT f and f' takes a lettered local label as well, by adding
+FIRST_UC_LOCAL_LABEL to LAST_LOCAL_LABEL to the three range tests. A typed number there is still a register,
+which is what TAM writes for those commands, so SOLVE 45 is unchanged.
+
+
+WHAT WAS MEASURED, BOTH TREES
+-----------------------------
+
+Six label kinds through PGMSLV, PGMINT and PGMPLT, and through PGMDRV on the branch. Targets carry different
+constants so the reading names the target.
+
+    label kind                    base                          with the patch
+    ---------------------------   ---------------------------   ---------------------------
+    lettered local H              unexpected parameter 107      correct
+    numeric local 45              unexpected parameter 45       correct
+    named local :HH:              correct                       correct
+    global 'GH'                   correct                       correct
+    indirect to a register = 45   unexpected parameter 45       correct
+    indirect to a register = 'GH' correct                       correct
+
+Roots 2, 3, 4 and 5 to 34 digits; the integrals match the named controls; the plot marker is reached in every
+case; the derivatives read 6, 27, 108 and 405. VARMNU 01 opened the menu and the program ran on, where the
+base build exited 139.
+
+Shipped listings that use these commands: GRAPHS.p47u has PGMPLT 01 and INTDEMO.p47u has PGMPLT ->01 and
+PGMINT ->R01, all three broken today. TSTPLOT.rtf and AN0022 func.txt use global names and were never
+affected. No shipped listing gives SOLVE, the integral or PLT f a label: in a program those take a variable.
+
+
+THE EQN ENGINES ARE UNTOUCHED
+-----------------------------
+
+Driven by press through the EQN menu on both trees, before and after:
+
+    E1 integral   0.3333333333333333333333333333333333   unchanged
+    E2 solver     xx = 2.000000000000000000000000000000000  unchanged
+    E3 derivative NaN                                     unchanged
+    E4 graph      capture byte identical
+
+E3 reads NaN on the base build as well, on both trees, so it is a property of the route or of the build, not
+of the patch. It is recorded as a reference reading and is worth a separate look.
+
+A probe build of the master fix printed a line on every entry to findProgramLabel. The four EQN engines
+produced no line at all; PGMSLV produced one at once. That is the direct evidence that the EQN plotter,
+integrator, solver and derivative do not reach the new code. The same probe was not built for the derivative
+branch: the helper is called from the same places there, plus fnPgmDrv.
+
+
+TEST ASSETS
+-----------
+
+    _scratch/bug5b/LBLKINDS.txt and .p47      six label kinds through PGMSLV, PGMINT and PGMPLT
+    _scratch/bug5b/run_lblkinds.sh            runs them, one t47 invocation per case
+    _scratch/bug5b/run_eqn.sh                 the four EQN engines by press
+    _scratch/bug5c/DRVKINDS.txt and .p47      six label kinds through PGMDRV
+    _scratch/bug5c/run_drvkinds.sh            runs them
+    _scratch/bug5/                            the earlier single-case files behind the first report
+
+The full test suite was not run on either tree. solve_cov.txt and deriv_cov.txt assert EC=6 for the
+REGISTER_T cases and the helper still reports ERROR_LABEL_NOT_FOUND there, so both expectations hold, but
+that is a reading of the corpus, not a run.

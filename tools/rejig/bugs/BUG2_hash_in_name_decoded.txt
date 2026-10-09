@@ -1,0 +1,33 @@
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+# rejig bug 2
+LBL ‘A’
+  255
+  ShortInt
+  RTN
+
+LBL ‘B’
+  255
+  ShortInt
+  RTN
+
+LBL ‘C’
+  255
+  ShortInt
+  #B
+  RTN
+NOP
+NOP
+
+LBL ‘D’
+  2
+  2
+  M.DIM R00
+  RCL R00
+  42DIM#
+  RTN
+  END

@@ -1,0 +1,169 @@
+diff --git a/src/c47/programming/input.c b/src/c47/programming/input.c
+index 2539c306a..b3e7dc046 100644
+--- a/src/c47/programming/input.c
++++ b/src/c47/programming/input.c
+@@ -29,6 +29,9 @@ void fnInput(uint16_t regist) {
+ 
+ static bool_t _isVarMenu(uint16_t label) {
+     uint8_t *step;
++    if(label < FIRST_LABEL || (uint16_t)(label - FIRST_LABEL) >= numberOfLabels) {  // a label the list does not hold would index the array from outside
++      return false;
++    }
+     step = labelList[label - FIRST_LABEL].instructionPointer;
+     while(checkOpCodeOfStep(step, ITM_REM)) {
+       step = findNextStep(step);
+@@ -38,6 +41,12 @@ static bool_t _isVarMenu(uint16_t label) {
+ 
+ 
+ void fnVarMnu(uint16_t label) {
++  if(label <= LAST_LOCAL_LABEL) {   // Local label from 00 to 99 or from A to l, resolved in the running program as GTO and XEQ resolve it
++    label = findLocalLabel(label);
++    if(label == INVALID_VARIABLE) {
++      return;
++    }
++  }
+   if(!_isVarMenu(label)) {
+     displayCalcErrorMessage(ERROR_NO_MVAR_FOUND, ERR_REGISTER_LINE, REGISTER_X);
+     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+@@ -54,6 +63,12 @@ void fnVarMnu(uint16_t label) {
+ 
+ 
+ void fn42VarMnu(uint16_t label) {
++  if(label <= LAST_LOCAL_LABEL) {   // Local label from 00 to 99 or from A to l, resolved in the running program as GTO and XEQ resolve it
++    label = findLocalLabel(label);
++    if(label == INVALID_VARIABLE) {
++      return;
++    }
++  }
+   if(!_isVarMenu(label)) {
+     displayCalcErrorMessage(ERROR_NO_MVAR_FOUND, ERR_REGISTER_LINE, REGISTER_X);
+     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+diff --git a/src/c47/programming/manage.c b/src/c47/programming/manage.c
+index 57b988d72..48488a007 100644
+--- a/src/c47/programming/manage.c
++++ b/src/c47/programming/manage.c
+@@ -1882,6 +1882,27 @@ calcRegister_t findNamedLabel(const char *labelName, uint8_t labelType) {
+ 
+ 
+ 
++// Label list index of a numeric or lettered local label of the current program, for the callers that keep a label index rather than jump to the step.
++// Reports the miss itself, so a caller that gets INVALID_VARIABLE returns without a message of its own.
++calcRegister_t findLocalLabel(uint16_t label) {
++  for(uint16_t lbl=0; lbl<numberOfLabels; lbl++) {
++    if(labelList[lbl].program > currentProgramNumber) {   // After the current program
++      break;
++    }
++    if(labelList[lbl].program == currentProgramNumber && labelList[lbl].step < 0 && *(labelList[lbl].labelPointer) == label && *(labelList[lbl].labelPointer - 1) == ITM_LBL) {
++      return lbl + FIRST_LABEL;
++    }
++  }
++  displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
++  #if (EXTRA_INFO_ON_CALC_ERROR == 1)
++    sprintf(errorMessage, "there is no local label %02u in current program", label);
++    moreInfoOnError("In function findLocalLabel:", errorMessage, NULL, NULL);
++  #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
++  return INVALID_VARIABLE;
++}
++
++
++
+ calcRegister_t findNamedLabelWithDuplicate(const char *labelName, int16_t dupNum, uint8_t labelType) {
+   if((labelType == ALL_LABELS) || (labelType == LOCAL_LABELS)) {       // Start searching for local named labels
+     bool_t labelFound = false;
+diff --git a/src/c47/programming/manage.h b/src/c47/programming/manage.h
+index ea83b5624..49cd0d4d4 100644
+--- a/src/c47/programming/manage.h
++++ b/src/c47/programming/manage.h
+@@ -30,6 +30,7 @@
+ 
+   calcRegister_t findNamedLabel                (const char *labelName, uint8_t labelType);
+   calcRegister_t findNamedLabelWithDuplicate   (const char *labelName, int16_t dupNum, uint8_t labelType);
++  calcRegister_t findLocalLabel                (uint16_t label);
+   uint16_t       getNumberOfSteps              (void);
+ 
+   bool_t         isAtEndOfPrograms             (const uint8_t *step); // check for .END.
+diff --git a/src/c47/solver/differentiate.c b/src/c47/solver/differentiate.c
+index 8d2228728..312a55580 100644
+--- a/src/c47/solver/differentiate.c
++++ b/src/c47/solver/differentiate.c
+@@ -46,6 +46,12 @@ static void derivativeCommon(uint16_t label, uint16_t order, uint8_t ti) {
+   bool_t solving = getSystemFlag(FLAG_SOLVING);
+   char buf[2];
+ 
++  if(label <= LAST_LOCAL_LABEL) {   // Local label from 00 to 99 or from A to l, resolved in the running program as GTO and XEQ resolve it
++    label = findLocalLabel(label);
++    if(label == INVALID_VARIABLE) {
++      return;
++    }
++  }
+   setSystemFlag(FLAG_SOLVING);
+   if(label >= FIRST_LABEL && label <= LAST_LABEL) {
+     calcDerivOfOrder(label, order);
+diff --git a/src/c47/solver/integrate.c b/src/c47/solver/integrate.c
+index 39ec0d75c..c943d7c8a 100644
+--- a/src/c47/solver/integrate.c
++++ b/src/c47/solver/integrate.c
+@@ -11,6 +11,12 @@
+ #undef  INTEGRATEDEBUG
+ 
+ void fnPgmInt(uint16_t label) {
++  if(label <= LAST_LOCAL_LABEL) {   // Local label from 00 to 99 or from A to l, resolved in the running program as GTO and XEQ resolve it
++    label = findLocalLabel(label);
++    if(label == INVALID_VARIABLE) {
++      return;
++    }
++  }
+   if(FIRST_LABEL <= label && label <= LAST_LABEL) {
+     currentSolverProgram = label - FIRST_LABEL;
+     currentSolverStatus &= ~SOLVER_STATUS_USES_FORMULA;
+diff --git a/src/c47/solver/isumprod.c b/src/c47/solver/isumprod.c
+index f09b9e2f0..4d079c550 100644
+--- a/src/c47/solver/isumprod.c
++++ b/src/c47/solver/isumprod.c
+@@ -181,6 +181,12 @@ static bool_t _checkRegisters(void) {
+ 
+ 
+ static void _checkiArgument(uint16_t label, bool_t prod) {
++    if(label <= LAST_LOCAL_LABEL) {   // Local label from 00 to 99 or from A to l, resolved in the running program as GTO and XEQ resolve it
++      label = findLocalLabel(label);
++      if(label == INVALID_VARIABLE) {
++        return;
++      }
++    }
+     if(FIRST_LABEL <= label && label <= LAST_LABEL) {
+       if(!_checkRegisters()) {
+         _programmableiSumProd(label, prod);
+diff --git a/src/c47/solver/solve.c b/src/c47/solver/solve.c
+index c875d7550..19ebd3453 100644
+--- a/src/c47/solver/solve.c
++++ b/src/c47/solver/solve.c
+@@ -54,6 +54,12 @@ bool_t engineNestingRefused(bool_t isPlot) {
+ 
+ 
+ void fnPgmSlv(uint16_t label) {
++  if(label <= LAST_LOCAL_LABEL) {   // Local label from 00 to 99 or from A to l, resolved in the running program as GTO and XEQ resolve it
++    label = findLocalLabel(label);
++    if(label == INVALID_VARIABLE) {
++      return;
++    }
++  }
+   if(FIRST_LABEL <= label && label <= LAST_LABEL) {
+     currentSolverProgram = label - FIRST_LABEL;
+     currentSolverStatus &= ~SOLVER_STATUS_USES_FORMULA;
+diff --git a/src/c47/solver/sumprod.c b/src/c47/solver/sumprod.c
+index c773ce9f2..d435cc873 100644
+--- a/src/c47/solver/sumprod.c
++++ b/src/c47/solver/sumprod.c
+@@ -306,6 +306,12 @@
+ 
+ 
+   static void _checkArgument(uint16_t label, bool_t prod, earlyAbort_t *early) {
++    if(label <= LAST_LOCAL_LABEL) {   // Local label from 00 to 99 or from A to l, resolved in the running program as GTO and XEQ resolve it
++      label = findLocalLabel(label);
++      if(label == INVALID_VARIABLE) {
++        return;
++      }
++    }
+     if(FIRST_LABEL <= label && label <= LAST_LABEL) {
+       _programmableSumProd(label, prod, early);
+     }

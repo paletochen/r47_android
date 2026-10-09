@@ -422,7 +422,9 @@
   static void setPrinterSBI(bool_t status) {
     printerIconEnabled = status;
     setSystemFlagChanged(SETTING_PRINTERICON);
+    printerIconRefresh = true;   // the GTK simulator does not wait for a painted frame for the print annunciator, which changes twice per printed line
     refreshStatusBar();
+    printerIconRefresh = false;
   }
 
 
@@ -1482,7 +1484,7 @@ void _getRegisterLabel(uint16_t registerNo, char *label) {
     sprintf(label, "R%02d", registerNo);
   }
   else if(FIRST_LOCAL_REGISTER <= registerNo && registerNo <= LAST_LOCAL_REGISTER) {
-    sprintf(label, "R.%03d", registerNo-100);
+    sprintf(label, "R.%02d", registerNo - FIRST_LOCAL_REGISTER);
   }
   else if(FIRST_NAMED_VARIABLE <= registerNo && registerNo <= LAST_NAMED_VARIABLE) {
     sprintf(label, "%s", (char *)allNamedVariables[registerNo - FIRST_NAMED_VARIABLE].variableName + 1);
@@ -2236,7 +2238,7 @@ void fnP_Regs (uint16_t registerNo) {
       sprintf(label, "R%02d", registerNo);
     }
     else if(FIRST_LOCAL_REGISTER <= registerNo && registerNo <= LAST_LOCAL_REGISTER) {
-      sprintf(label, "R.%03d", registerNo-100);
+      sprintf(label, "R.%02d", registerNo - FIRST_LOCAL_REGISTER);
     }
     else if(FIRST_NAMED_VARIABLE <= registerNo && registerNo <= LAST_NAMED_VARIABLE) {
       sprintf(label, "%s", (char *)allNamedVariables[registerNo - FIRST_NAMED_VARIABLE].variableName + 1);
@@ -2340,6 +2342,7 @@ void fnP_All_Regs(uint16_t option) {
   #if defined(OPTION_IR_PRINTING)
     bool_t exited;
     uint16_t s, n;
+    currentKeyCode = 255;  // an EXIT pressed before this print does not stop it
     switch(option) {
       case PRN_ALL:
         exited = _printRegRange(REGISTER_X, REGISTER_W);  // Lettered registers

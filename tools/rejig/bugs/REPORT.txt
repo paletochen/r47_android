@@ -1,0 +1,97 @@
+================================================================================================================
+TWO REJIG FAULTS, WITH FILES TO REPRODUCE THEM
+================================================================================================================
+
+Found while generating a test program from a listing. Both are silent: the encode succeeds, the listing looks
+right when decoded, and the program does the wrong thing on the calculator.
+
+rejig version:      rejig --version, from the binary at the repository root, built 2026-07-17
+Firmware tested on: C47 Sim 00.109.04.00b0.RC2, commit e7c9921f0
+Every command below is run from the folder holding these files.
+
+
+FAULT 1: A DECIMAL LITERAL WITH FOUR OR MORE DECIMAL PLACES ENCODES AS AN ANGLE OR A TIME
+----------------------------------------------------------------------------------------
+
+Files: BUG1_decimal_literal.txt, BUG1_decimal_literal.p47, BUG1_decimal_literal_decoded.txt
+       BUG1_runtime.txt, BUG1_runtime.p47
+
+    ./rejig BUG1_decimal_literal.txt -o BUG1_decimal_literal.p47
+    ./rejig BUG1_decimal_literal.p47 -o BUG1_decimal_literal_decoded.txt
+
+Written, then read back:
+
+    written        read back          verdict
+    ------------   ----------------   -------
+    1.5            1.5                correct
+    0.375          0.375              correct
+    12.345         12.345             correct
+    2026.072       2026.072           correct
+    12.3456        12:34:56           wrong, a time
+    2026.0729      2026°7′29″         wrong, an angle
+    0.1234         0°12′34″           wrong, an angle
+    1.0000         1°0′00″            wrong, an angle
+    12.34560       12:34:56.0         wrong, a time
+    2026.072900    2026°7′29.00″      wrong, an angle
+
+Three decimal places or fewer are left alone. Four or more are converted, and whether the result is a time or an
+angle varies with the value. 1.0000 shows it plainly: a whole number written with four decimals becomes 1 degree.
+
+The round trip is therefore not the identity, and there is no warning.
+
+What it costs at run time. BUG1_runtime.txt holds the same number twice, once as a literal and once built by
+division, and converts each to a date:
+
+    ./rejig BUG1_runtime.txt -o BUG1_runtime.p47
+    ./t47 --reset --exec 'readp BUG1_runtime.p47; xeq DIV; puts "DIV=[reg X]"'
+    ./t47 --reset --exec 'readp BUG1_runtime.p47; xeq LIT; puts "LIT=[reg X]"'
+
+    DIV=2026-07-29                                          20260729 10000 ÷ then x->D
+    In function fnXToDate:
+    data type real34 cannot be converted to date!
+    LIT=0                                                   the literal 2026.0729 then x->D
+
+x->D refuses the literal because the register carries an angular tag. The same value reached any other way
+converts. A user reading the listing sees 2026.0729 and cannot see why the step fails.
+
+Expected: a plain decimal literal encodes as a plain real, whatever its number of decimal places. If an angle or
+a time literal is wanted, it should have to be written as one.
+
+
+FAULT 2: AN OP WHOSE NAME STARTS WITH A HASH IS SILENTLY DISCARDED WHEN IT IS NOT FIRST ON ITS LINE
+--------------------------------------------------------------------------------------------------
+
+Files: BUG2_hash_in_name.txt, BUG2_hash_in_name.p47, BUG2_hash_in_name_decoded.txt
+
+    ./rejig BUG2_hash_in_name.txt -o BUG2_hash_in_name.p47
+    ./rejig BUG2_hash_in_name.p47 -o BUG2_hash_in_name_decoded.txt
+
+#B is the bit count, item 422 in items.c, catalogue name #B. It is the only name in the catalogue that starts
+with a hash. Four labels, the same intent written four ways:
+
+    label   written                        read back                     verdict
+    -----   ----------------------------   ---------------------------   -------
+    A       255 ShortInt #B                255, ShortInt                 #B gone, no message at all
+    B       255 ShortInt #B DROP𝑥          255, ShortInt                 #B and DROP𝑥 gone
+    C       255 ShortInt                   255, ShortInt, #B             correct
+            #B
+    D       RCL 00 42DIM#                  RCL R00, 42DIM#               correct, the control
+
+A is the serious one: a step vanishes with no warning printed. B warns, but only by accident, because 𝑥 is a
+glyph rejig cannot put inside a comment: "undefined character in input text, field=comment". Remove the DROP𝑥
+and the warning goes with it.
+
+D is the control. 42DIM# carries a hash at the end of its name and survives inline, so it is a hash at the start
+of a token that is read as the start of a comment, not a hash anywhere in the token.
+
+Confirmed on the calculator. The bit count of 255 is 8:
+
+    ./t47 --reset --exec 'readp BUG2_hash_in_name.p47; xeq A; puts "A=[reg X]"'
+    ./t47 --reset --exec 'readp BUG2_hash_in_name.p47; xeq C; puts "C=[reg X]"'
+
+    A=00000000-000000ff (base 10)      255, the step never ran
+    C=00000000-00000008 (base 10)      8, correct
+
+Expected: either a token is matched against the op names before it is treated as the start of a comment, or a
+line whose comment introducer is not preceded by whitespace is not a comment at all. Failing either, the step
+should at least be reported rather than dropped in silence.

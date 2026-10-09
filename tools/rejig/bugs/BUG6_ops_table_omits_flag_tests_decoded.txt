@@ -1,0 +1,21 @@
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+# rejig bug 6
+LBL ‘FLG’
+  FC?C F00
+  FC?S F01
+  FC?F F02
+  FS?C F03
+  FS?S F04
+  FS?F F05
+  RTN
+NOP
+NOP
+NOP
+NOP
+  END

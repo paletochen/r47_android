@@ -1,0 +1,24 @@
+--- a/program/ops.go
++++ b/program/ops.go
+@@ -829,6 +829,12 @@
+ 	OP_SetDPFCT                   // 1331 DP%
+ 	OP_Set42Alpha                 // 1332 αREG
+ 	OP_Get42Alpha                 // 1333 αREG#
++)
++
++// Display rounding mode (items.c 1336–1337)
++const (
++	OP_SetDRM OpCode = 1336 + iota // 1336 DRM
++	OP_GetDRM                      // 1337 DRM#
+ )
+ 
+ // Graphic primitives
+@@ -5080,6 +5086,8 @@
+ 	{OP_SetREALDF, "DF", ARG_REGISTER, nil},
+ 	{OP_SetRoundingMode, "RoundMode", ARG_VALUE_8, AliasMap{AltSpelling1: `RMODE`}},
+ 	{OP_SetRM, "RM", ARG_NONE, nil},
++	{OP_SetDRM, "DRM", ARG_NONE, nil},
++	{OP_GetDRM, "DRM#", ARG_NONE, nil},
+ 	{OP_Set42AlphaX, "αREGX", ARG_NONE, nil},
+ 	{OP_Set42Alpha, "αREG", ARG_REGISTER, nil},
+ 	{OP_Get42Alpha, "αREG#", ARG_NONE, nil},

@@ -1,0 +1,10 @@
+@ Same program as the hand-keyed one, encoded by rejig: PGMSLV 01 ahead of the first label.
+PGMSLV 01
+
+LBL 'HK'
+  1
+RTN
+
+LBL 01
+  2
+RTN

@@ -1,0 +1,22 @@
+NOP ; rejig bug 3: a number pair that reads like re/im on one line folds into ONE complex literal.
+NOP ; 10 0 -1 encodes as 10 then the complex 0.-1.i (the pair 0 -1 read as 0 minus 1i), and in
+NOP ; 1 1 + 1 + the middle 1 + 1 encodes as the complex 1.+1.i, so the five steps become three.
+NOP ; Found 2026-08-07 building the STRUCT equivalence tests: a FOR setup Z Y X written on one
+NOP ; line with a negative step silently became a complex literal and the program misran.
+NOP ; Encode this file, decode the result, and compare with the lines below.
+NOP ;   ./rejig BUG3_complex_fold.txt -o BUG3_complex_fold.p47
+NOP ;   ./rejig BUG3_complex_fold.p47 -o BUG3_complex_fold_decoded.txt
+# rejig bug 3
+
+LBL 'B3'
+  # separate lines, correct: three literal steps
+  10
+  0
+  -1
+  # one line, wrong: encodes as 10 then the complex 0.-1.i
+  10 0 -1
+  # one line, wrong: the middle 1 + 1 encodes as the complex 1.+1.i, five steps become three
+  1 1 + 1 +
+RTN
+
+END

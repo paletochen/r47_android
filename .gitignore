@@ -286,3 +286,7 @@ tools/hwtest/**/STATE/
 !tools/rejig_patched/
 !tools/rejig_patched/rejig
 !tools/rejig_patched/rejig.exe
+# A PDF made from a GENERATED .ltx beside it is a reading copy of a Markdown record, kept with it and tracked.
+!docs/appnotes/sources/**/*-GENERATED.pdf
+# The keyboard reproduction of the rounding bugs is read as a PDF beside its .ltx, kept with it and tracked.
+!docs/appnotes/sources/AN0017_Display_Formats/rounding-audit/bugFix.pdf

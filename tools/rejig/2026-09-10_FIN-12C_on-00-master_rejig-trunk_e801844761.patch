@@ -1,0 +1,307 @@
+--- a/program/ops.go
++++ b/program/ops.go
+@@ -829,6 +829,12 @@
+ 	OP_SetDPFCT                   // 1331 DP%
+ 	OP_Set42Alpha                 // 1332 αREG
+ 	OP_Get42Alpha                 // 1333 αREG#
++)
++
++// Display rounding mode (items.c 1336–1337)
++const (
++	OP_SetDRM OpCode = 1336 + iota // 1336 DRM
++	OP_GetDRM                      // 1337 DRM#
+ )
+ 
+ // Graphic primitives
+@@ -844,6 +850,9 @@
+ // the item list at the time.  The groupings broken out below reflect
+ // these assorted historical needs to add several related ops at once,
+ // not any up-front planning.
++
++// FIN12C TVM: pp/a×→n (items.c 1400)
++const OP_FIN_T_PXN OpCode = 1400 // pp/a×→n
+ 
+ // TVM / finance helpers (filled after 00.109.04.00b0)
+ const (
+@@ -2441,6 +2450,137 @@
+ 	OP_ForTopNotChecked                      // 2939 FORᵀᴼᴾₓ, a FORᵀᴼᴾ that VALID has not passed
+ )
+ 
++// The FIN12C financial package (items.c 3244–3523), one menu per letter prefix: A amortisation,
++// B bond, C cash flow, D depreciation, E CAPM, F configuration, G Gordon growth, I interest
++// conversion, M multi-stage DCF, P profit, S Black-Scholes, V cost-volume-profit, W WACC,
++// X currency, Y date. Items 3504 to 3523 are the twenty menu openers and are PTP_DISABLED, so the
++// last programmable item of the package is 3482. The block is sparse, since most of the range
++// is a menu opener or a setting and PTP_DISABLED, so each constant carries its own item number
++// instead of iota with fillers. Names are the spelling XPORTP prints, which always carries the
++// menu-letter prefix: measured on a hand-built program, items 3311, 3329, 3335, 3351 and 3416
++// print as B.SDT, D.COST, D.SLN, P.COST and F.ACT#. The prefix is what keeps the names unique,
++// since the catalogue name alone collides, COST at 3329 and at 3351 and PRICE at 3352 and 3362.
++const (
++	OP_FIN_T_12XN  OpCode = 3244 // 12×→n
++	OP_FIN_T_12DI  OpCode = 3245 // 12÷→i%
++	OP_FIN_A_XTRPM OpCode = 3248 // XTRPMT
++	OP_FIN_A_CLRXT OpCode = 3261 // CLRXTP
++	OP_FIN_C_CFj   OpCode = 3264 // CFj
++	OP_FIN_C_Nj    OpCode = 3265 // Nj
++	OP_FIN_C_ipp   OpCode = 3266 // ipp
++	OP_FIN_C_NPV   OpCode = 3267 // NPV
++	OP_FIN_C_RI    OpCode = 3281 // RI
++	OP_FIN_C_ITER  OpCode = 3285 // ITER
++	OP_FIN_C_VARP  OpCode = 3286 // VAR%
++	OP_FIN_C_SEED  OpCode = 3287 // SEED
++	OP_FIN_I_CPA   OpCode = 3301 // CPA
++	OP_FIN_B_SDT   OpCode = 3311 // SDT
++	OP_FIN_B_CPN   OpCode = 3312 // CPN
++	OP_FIN_B_RDT   OpCode = 3313 // RDT
++	OP_FIN_B_RV    OpCode = 3314 // RV
++	OP_FIN_B_YLD   OpCode = 3315 // YLD
++	OP_FIN_B_PRI   OpCode = 3316 // PRI
++	OP_FIN_D_COST  OpCode = 3329 // COST
++	OP_FIN_D_SALV  OpCode = 3330 // SALV
++	OP_FIN_D_LIFE  OpCode = 3331 // LIFE
++	OP_FIN_D_FCTR  OpCode = 3332 // FCTR
++	OP_FIN_D_RATE  OpCode = 3333 // RATE
++	OP_FIN_D_PRF   OpCode = 3334 // PRF
++	OP_FIN_D_SLN   OpCode = 3335 // SLN
++	OP_FIN_D_SYD   OpCode = 3336 // SYD
++	OP_FIN_D_DBFIX OpCode = 3337 // DBFIX
++	OP_FIN_D_DBFCR OpCode = 3338 // DBFCTR
++	OP_FIN_D_DBRAT OpCode = 3339 // DBRATE
++	OP_FIN_D_DBCRS OpCode = 3340 // DBCROSS
++	OP_FIN_D_DBFXP OpCode = 3341 // DBFIX%
++	OP_FIN_D_DBFCP OpCode = 3342 // DBFCTR%
++	OP_FIN_D_XOVER OpCode = 3343 // XOVER
++	OP_FIN_D_P1    OpCode = 3345 // P1
++	OP_FIN_D_P2    OpCode = 3346 // P2
++	OP_FIN_D_SDEP  OpCode = 3347 // ΣDep
++	OP_FIN_P_COST  OpCode = 3351 // COST
++	OP_FIN_P_PRICE OpCode = 3352 // PRICE
++	OP_FIN_P_MRGNP OpCode = 3353 // MARGIN%
++	OP_FIN_P_MRKPP OpCode = 3354 // MRKUP%
++	OP_FIN_V_FCOST OpCode = 3360 // FIXCOST
++	OP_FIN_V_VCOST OpCode = 3361 // VARCOST
++	OP_FIN_V_PRICE OpCode = 3362 // PRICE
++	OP_FIN_V_PROFT OpCode = 3363 // PROFIT
++	OP_FIN_V_QTY   OpCode = 3364 // QTY
++	OP_FIN_Y_DT1   OpCode = 3368 // DT1
++	OP_FIN_Y_DT2   OpCode = 3369 // DT2
++	OP_FIN_E_RFR   OpCode = 3384 // RFR
++	OP_FIN_E_BETA  OpCode = 3385 // BETA
++	OP_FIN_E_EMR   OpCode = 3386 // EMR
++	OP_FIN_E_EROI  OpCode = 3387 // EROI
++	OP_FIN_W_MVEQT OpCode = 3391 // MVEQT
++	OP_FIN_W_MVDBT OpCode = 3392 // MVDBT
++	OP_FIN_W_MVPRF OpCode = 3393 // MVPRF
++	OP_FIN_W_TAXR  OpCode = 3394 // TAXR
++	OP_FIN_W_CEQT  OpCode = 3395 // CEQT
++	OP_FIN_W_CDBT  OpCode = 3396 // CDBT
++	OP_FIN_W_CPRF  OpCode = 3397 // CPRF
++	OP_FIN_W_WACC  OpCode = 3398 // WACC
++	OP_FIN_X_AMTA  OpCode = 3402 // AMTA
++	OP_FIN_X_RATB  OpCode = 3403 // RA⇀B
++	OP_FIN_X_RCTB  OpCode = 3404 // RC⇀B
++	OP_FIN_X_RBTA  OpCode = 3408 // RB⇀A
++	OP_FIN_X_RBTC  OpCode = 3409 // RB⇀C
++	OP_FIN_F_ACTQ  OpCode = 3416 // ACT#
++	OP_FIN_F_ACTS  OpCode = 3417 // ACT=
++	OP_FIN_F_REGDQ OpCode = 3418 // REGD#
++	OP_FIN_F_REGDS OpCode = 3419 // REGD=
++	OP_FIN_F_TMQ   OpCode = 3420 // TM#
++	OP_FIN_F_TMS   OpCode = 3421 // TM=
++	OP_FIN_F_MODQ  OpCode = 3422 // MOD#
++	OP_FIN_F_MODS  OpCode = 3423 // MOD=
++	OP_FIN_F_2CPYQ OpCode = 3424 // 2CPY#
++	OP_FIN_F_2CPYS OpCode = 3425 // 2CPY=
++	OP_FIN_F_RNSDQ OpCode = 3426 // RNSD#
++	OP_FIN_F_RNSDS OpCode = 3427 // RNSD=
++	OP_FIN_F_POOLQ OpCode = 3428 // POOL#
++	OP_FIN_F_POOLS OpCode = 3429 // POOL=
++	OP_FIN_F_FFIX  OpCode = 3434 // FFIX
++	OP_FIN_F_FSIG  OpCode = 3435 // FSIG
++	OP_FIN_F_UKCHN OpCode = 3436 // UK,CHN
++	OP_FIN_F_EUR   OpCode = 3437 // EUROP
++	OP_FIN_F_JPN   OpCode = 3438 // JAPAN
++	OP_FIN_F_USDFL OpCode = 3439 // US,DFL
++	OP_FIN_F_CAN   OpCode = 3440 // CAN
++	OP_FIN_F_CRDGS OpCode = 3441 // CRDIGS
++	OP_FIN_F_CRCNT OpCode = 3442 // CRCENT
++	OP_FIN_F_IND   OpCode = 3443 // INDIA
++	OP_FIN_D_DEP   OpCode = 3444 // Dep
++	OP_FIN_D_RBV   OpCode = 3445 // RBV
++	OP_FIN_D_RDV   OpCode = 3446 // RDV
++	OP_FIN_D_TABLE OpCode = 3447 // TABLE
++	OP_FIN_G_D1    OpCode = 3448 // D1
++	OP_FIN_G_GRWP  OpCode = 3449 // GRW%
++	OP_FIN_G_RRR   OpCode = 3450 // RRR
++	OP_FIN_G_PV0   OpCode = 3451 // PV0
++	OP_FIN_E_TAXR  OpCode = 3454 // TAXR
++	OP_FIN_E_BETAU OpCode = 3455 // BETAU
++	OP_FIN_E_DE    OpCode = 3456 // D/E
++	OP_FIN_S_SPOT  OpCode = 3459 // SPOT
++	OP_FIN_S_STRK  OpCode = 3460 // STRIKE
++	OP_FIN_S_TEXP  OpCode = 3461 // TEXP
++	OP_FIN_S_VOLP  OpCode = 3462 // VOL%
++	OP_FIN_S_RFR   OpCode = 3463 // RFR
++	OP_FIN_S_PRICE OpCode = 3467 // PRICE
++	OP_FIN_S_DIVP  OpCode = 3470 // DIV%
++	OP_FIN_M_CF0   OpCode = 3474 // CF0
++	OP_FIN_M_GR1P  OpCode = 3475 // GR1%
++	OP_FIN_M_GR2P  OpCode = 3476 // GR2%
++	OP_FIN_M_GR3P  OpCode = 3477 // GR3%
++	OP_FIN_M_RRR   OpCode = 3478 // RRR
++	OP_FIN_M_PV    OpCode = 3480 // PV
++	OP_FIN_M_N1    OpCode = 3481 // N1
++	OP_FIN_M_N2    OpCode = 3482 // N2
++	OP_FIN_EXPTVM  OpCode = 3488 // EXPTVM
++	OP_FIN_F_FRMQ  OpCode = 3493 // FRM#
++	OP_FIN_F_FRMS  OpCode = 3494 // FRM=
++)
++
+ // Maximum op code value presently defined at the end of items.c in the
+ // R47 source code.  Duplicated here as a sanity check each time we
+ // sync the tables above with new upstream releases.  Check via:
+@@ -2453,7 +2593,7 @@
+ //
+ // NOTE: Also update the tag/describe above to indicate which R47 tip
+ // corresponds to this maximum value.
+-const MaxValidOpCode OpCode = 3349
++const MaxValidOpCode OpCode = 3524
+ 
+ // Special ".END." code hardcoded in _saveProgram() in the R47 code,
+ // distinct from "END" for a single program..
+@@ -3781,6 +3921,125 @@
+ 	{OP_ExportSystemFlags, "EXPSFL", ARG_NONE, nil},
+ 	{OP_Expt, "EXPT", ARG_NONE, nil},
+ 	{OP_ImportRegs, "IMPORTr", ARG_NONE, nil},
++	{OP_FIN_A_CLRXT, "A.CLRXTP", ARG_NONE, nil},
++	{OP_FIN_A_XTRPM, "A.XTRPM", ARG_NONE, nil},
++	{OP_FIN_B_CPN, "B.CPN", ARG_NONE, nil},
++	{OP_FIN_B_PRI, "B.PRI", ARG_NONE, nil},
++	{OP_FIN_B_RDT, "B.RDT", ARG_NONE, nil},
++	{OP_FIN_B_RV, "B.RV", ARG_NONE, nil},
++	{OP_FIN_B_SDT, "B.SDT", ARG_NONE, nil},
++	{OP_FIN_B_YLD, "B.YLD", ARG_NONE, nil},
++	{OP_FIN_C_CFj, "C.CFj", ARG_NONE, nil},
++	{OP_FIN_C_ITER, "C.ITER", ARG_NONE, nil},
++	{OP_FIN_C_NPV, "C.NPV", ARG_NONE, nil},
++	{OP_FIN_C_Nj, "C.Nj", ARG_NONE, nil},
++	{OP_FIN_C_RI, "C.RI", ARG_NONE, nil},
++	{OP_FIN_C_SEED, "C.SEED", ARG_NONE, nil},
++	{OP_FIN_C_VARP, "C.VARP", ARG_NONE, nil},
++	{OP_FIN_C_ipp, "C.ipp", ARG_NONE, nil},
++	{OP_FIN_D_COST, "D.COST", ARG_NONE, nil},
++	{OP_FIN_D_DBCRS, "D.DBCRS", ARG_NONE, nil},
++	{OP_FIN_D_DBFCP, "D.DBFCP", ARG_NONE, nil},
++	{OP_FIN_D_DBFCR, "D.DBFCR", ARG_NONE, nil},
++	{OP_FIN_D_DBFIX, "D.DBFIX", ARG_NONE, nil},
++	{OP_FIN_D_DBFXP, "D.DBFXP", ARG_NONE, nil},
++	{OP_FIN_D_DBRAT, "D.DBRAT", ARG_NONE, nil},
++	{OP_FIN_D_DEP, "D.DEP", ARG_NONE, nil},
++	{OP_FIN_D_FCTR, "D.FCTR", ARG_NONE, nil},
++	{OP_FIN_D_LIFE, "D.LIFE", ARG_NONE, nil},
++	{OP_FIN_D_P1, "D.P1", ARG_NONE, nil},
++	{OP_FIN_D_P2, "D.P2", ARG_NONE, nil},
++	{OP_FIN_D_PRF, "D.PRF", ARG_NONE, nil},
++	{OP_FIN_D_RATE, "D.RATE", ARG_NONE, nil},
++	{OP_FIN_D_RBV, "D.RBV", ARG_NONE, nil},
++	{OP_FIN_D_RDV, "D.RDV", ARG_NONE, nil},
++	{OP_FIN_D_SALV, "D.SALV", ARG_NONE, nil},
++	{OP_FIN_D_SDEP, "D.SDEP", ARG_NONE, nil},
++	{OP_FIN_D_SLN, "D.SLN", ARG_NONE, nil},
++	{OP_FIN_D_SYD, "D.SYD", ARG_NONE, nil},
++	{OP_FIN_D_TABLE, "D.TABLE", ARG_NONE, nil},
++	{OP_FIN_D_XOVER, "D.XOVER", ARG_NONE, nil},
++	{OP_FIN_E_BETA, "E.BETA", ARG_NONE, nil},
++	{OP_FIN_E_BETAU, "E.BETAU", ARG_NONE, nil},
++	{OP_FIN_E_DE, "E.DE", ARG_NONE, nil},
++	{OP_FIN_E_EMR, "E.EMR", ARG_NONE, nil},
++	{OP_FIN_E_EROI, "E.EROI", ARG_NONE, nil},
++	{OP_FIN_E_RFR, "E.RFR", ARG_NONE, nil},
++	{OP_FIN_E_TAXR, "E.TAXR", ARG_NONE, nil},
++	{OP_FIN_F_2CPYQ, "F.2CPY#", ARG_NONE, nil},
++	{OP_FIN_F_2CPYS, "F.2CPY=", ARG_NONE, nil},
++	{OP_FIN_F_ACTQ, "F.ACT#", ARG_NONE, nil},
++	{OP_FIN_F_ACTS, "F.ACT=", ARG_NONE, nil},
++	{OP_FIN_F_CAN, "F.CAN", ARG_NONE, nil},
++	{OP_FIN_F_CRCNT, "F.CRCNT", ARG_VALUE_8, nil},
++	{OP_FIN_F_CRDGS, "F.CRDGS", ARG_VALUE_8, nil},
++	{OP_FIN_F_EUR, "F.EUR", ARG_NONE, nil},
++	{OP_FIN_F_FFIX, "F.FFIX", ARG_VALUE_8, nil},
++	{OP_FIN_F_FRMQ, "F.FRM#", ARG_NONE, nil},
++	{OP_FIN_F_FRMS, "F.FRM=", ARG_NONE, nil},
++	{OP_FIN_F_FSIG, "F.FSIG", ARG_VALUE_8, nil},
++	{OP_FIN_F_IND, "F.IND", ARG_NONE, nil},
++	{OP_FIN_F_JPN, "F.JPN", ARG_NONE, nil},
++	{OP_FIN_F_MODQ, "F.MOD#", ARG_NONE, nil},
++	{OP_FIN_F_MODS, "F.MOD=", ARG_NONE, nil},
++	{OP_FIN_F_POOLQ, "F.POOL#", ARG_NONE, nil},
++	{OP_FIN_F_POOLS, "F.POOL=", ARG_NONE, nil},
++	{OP_FIN_F_REGDQ, "F.REGD#", ARG_NONE, nil},
++	{OP_FIN_F_REGDS, "F.REGD=", ARG_NONE, nil},
++	{OP_FIN_F_RNSDQ, "F.RNSD#", ARG_NONE, nil},
++	{OP_FIN_F_RNSDS, "F.RNSD=", ARG_NONE, nil},
++	{OP_FIN_F_TMQ, "F.TM#", ARG_NONE, nil},
++	{OP_FIN_F_TMS, "F.TM=", ARG_NONE, nil},
++	{OP_FIN_F_UKCHN, "F.UKCHN", ARG_NONE, nil},
++	{OP_FIN_F_USDFL, "F.USDFL", ARG_NONE, nil},
++	{OP_FIN_G_D1, "G.D1", ARG_NONE, nil},
++	{OP_FIN_G_GRWP, "G.GRWP", ARG_NONE, nil},
++	{OP_FIN_G_PV0, "G.PV0", ARG_NONE, nil},
++	{OP_FIN_G_RRR, "G.RRR", ARG_NONE, nil},
++	{OP_FIN_I_CPA, "I.CPA", ARG_NONE, nil},
++	{OP_FIN_M_CF0, "M.CF0", ARG_NONE, nil},
++	{OP_FIN_M_GR1P, "M.GR1P", ARG_NONE, nil},
++	{OP_FIN_M_GR2P, "M.GR2P", ARG_NONE, nil},
++	{OP_FIN_M_GR3P, "M.GR3P", ARG_NONE, nil},
++	{OP_FIN_M_N1, "M.N1", ARG_NONE, nil},
++	{OP_FIN_M_N2, "M.N2", ARG_NONE, nil},
++	{OP_FIN_M_PV, "M.PV", ARG_NONE, nil},
++	{OP_FIN_M_RRR, "M.RRR", ARG_NONE, nil},
++	{OP_FIN_P_COST, "P.COST", ARG_NONE, nil},
++	{OP_FIN_P_MRGNP, "P.MRGNP", ARG_NONE, nil},
++	{OP_FIN_P_MRKPP, "P.MRKPP", ARG_NONE, nil},
++	{OP_FIN_P_PRICE, "P.PRICE", ARG_NONE, nil},
++	{OP_FIN_EXPTVM, "EXPTVM", ARG_NONE, nil},
++	{OP_FIN_S_DIVP, "S.DIVP", ARG_NONE, nil},
++	{OP_FIN_S_PRICE, "S.PRICE", ARG_NONE, nil},
++	{OP_FIN_S_RFR, "S.RFR", ARG_NONE, nil},
++	{OP_FIN_S_SPOT, "S.SPOT", ARG_NONE, nil},
++	{OP_FIN_S_STRK, "S.STRK", ARG_NONE, nil},
++	{OP_FIN_S_TEXP, "S.TEXP", ARG_NONE, nil},
++	{OP_FIN_S_VOLP, "S.VOLP", ARG_NONE, nil},
++	{OP_FIN_T_12DI, "T.12DI", ARG_NONE, nil},
++	{OP_FIN_T_12XN, "T.12XN", ARG_NONE, nil},
++	{OP_FIN_T_PXN, "T.PXN", ARG_NONE, nil},
++	{OP_FIN_V_FCOST, "V.FCOST", ARG_NONE, nil},
++	{OP_FIN_V_PRICE, "V.PRICE", ARG_NONE, nil},
++	{OP_FIN_V_PROFT, "V.PROFT", ARG_NONE, nil},
++	{OP_FIN_V_QTY, "V.QTY", ARG_NONE, nil},
++	{OP_FIN_V_VCOST, "V.VCOST", ARG_NONE, nil},
++	{OP_FIN_W_CDBT, "W.CDBT", ARG_NONE, nil},
++	{OP_FIN_W_CEQT, "W.CEQT", ARG_NONE, nil},
++	{OP_FIN_W_CPRF, "W.CPRF", ARG_NONE, nil},
++	{OP_FIN_W_MVDBT, "W.MVDBT", ARG_NONE, nil},
++	{OP_FIN_W_MVEQT, "W.MVEQT", ARG_NONE, nil},
++	{OP_FIN_W_MVPRF, "W.MVPRF", ARG_NONE, nil},
++	{OP_FIN_W_TAXR, "W.TAXR", ARG_NONE, nil},
++	{OP_FIN_W_WACC, "W.WACC", ARG_NONE, nil},
++	{OP_FIN_X_AMTA, "X.AMTA", ARG_NONE, nil},
++	{OP_FIN_X_RATB, "X.RATB", ARG_NONE, nil},
++	{OP_FIN_X_RBTA, "X.RBTA", ARG_NONE, nil},
++	{OP_FIN_X_RBTC, "X.RBTC", ARG_NONE, nil},
++	{OP_FIN_X_RCTB, "X.RCTB", ARG_NONE, nil},
++	{OP_FIN_Y_DT1, "Y.DT1", ARG_NONE, nil},
++	{OP_FIN_Y_DT2, "Y.DT2", ARG_NONE, nil},
+ 	{OP_FLAG_2TO10, "?1024\u207F", ARG_NONE, AliasMap{
+ 		ASCIIMathForm: `?1024^n`,
+ 		HP42SName:     `?1024^n`,
+@@ -5080,6 +5339,8 @@
+ 	{OP_SetREALDF, "DF", ARG_REGISTER, nil},
+ 	{OP_SetRoundingMode, "RoundMode", ARG_VALUE_8, AliasMap{AltSpelling1: `RMODE`}},
+ 	{OP_SetRM, "RM", ARG_NONE, nil},
++	{OP_SetDRM, "DRM", ARG_NONE, nil},
++	{OP_GetDRM, "DRM#", ARG_NONE, nil},
+ 	{OP_Set42AlphaX, "αREGX", ARG_NONE, nil},
+ 	{OP_Set42Alpha, "αREG", ARG_REGISTER, nil},
+ 	{OP_Get42Alpha, "αREG#", ARG_NONE, nil},

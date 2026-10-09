@@ -13,6 +13,10 @@
 # Three commands have no counterpart there, because the simulator has no need of them. wait lets the firmware settle where it acts after the last key,
 # which is what turning the calculator off needs; snap captures at that point in the sequence rather than at every refresh; and mark lays the stack pattern again, so what
 # --stack-watermark reports is the depth of what follows and not of the whole run. mark is the STCKGO 1 of src/c47/memory.c, written from outside.
+#
+# hold takes the words of the simulator's hold <key> <ms> [<name>]: it presses the key, keeps it down for that many milliseconds of the firmware's own clock, then
+# releases it, so a longpress runs through its stages as on the keyboard, and a name captures the screen while the key is still down. Any key that is one press
+# here can be kept down, a name included, where the simulator takes only @k NN and F1 to F6.
 
 import re
 
@@ -65,8 +69,8 @@ BY_NAME = {'C47': C47, 'R47': R47}
 
 KEY_RE = re.compile(r'^@k\s*(\d+)$')
 
-# A step is one of these. A key press, an idle wait, or a capture.
-PRESS, WAIT, SNAP, MARK = 'press', 'wait', 'snap', 'mark'
+# A step is one of these. A key press, the key-down, time and key-up a hold expands to, an idle wait, or a capture.
+PRESS, WAIT, SNAP, MARK, DOWN, HOLD, UP = 'press', 'wait', 'snap', 'mark', 'down', 'hold', 'up'
 
 
 class ScriptError(Exception):
@@ -93,6 +97,16 @@ def _step(word, layout):
     return [(SNAP, argument or None)]
   if head == 'mark':
     return [(MARK, argument or None)]
+  if head == 'hold':
+    words = argument.split()
+    if words[:1] == ['@k'] and len(words) > 1:
+      words[:2] = ['@k ' + words[1]]                          # @k NN is one key with its space, as press takes it
+    if len(words) not in (2, 3) or not words[1].isdigit():
+      raise ScriptError('hold takes a key, the milliseconds and an optional capture name, not %s' % argument)
+    codes = _keys(words[0], layout)
+    if len(codes) != 1:
+      raise ScriptError('hold takes one key, not %s' % words[0])
+    return [(DOWN, codes[0]), (HOLD, int(words[1]))] + [(SNAP, name) for name in words[2:]] + [(UP, codes[0])]
   if head == 'press':
     word = argument
   return [(PRESS, key) for key in _keys(word, layout)]

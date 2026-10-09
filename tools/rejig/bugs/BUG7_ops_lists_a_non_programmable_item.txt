@@ -1,0 +1,77 @@
+================================================================================================================================================================
+REJIG BUG 7: --ops LISTS AN ITEM THE CALCULATOR REFUSES IN A PROGRAM
+================================================================================================================================================================
+
+Found while checking a renumbering of the item table against the tool's op table. The entry is silent: nothing in --ops marks it, and a
+reader building a step from the table gets a program the calculator will not load.
+
+rejig version:      trunk branch [23451730a2]
+Firmware tested on: C47 Sim, master ab8390f8b with the menu re-layout in the working tree. Re-measured 2026-08-16 after the menus were laid out
+                    a second time; both results below are from that build.
+Files:              BUG7_ops_lists_a_menu.p47, BUG7_ops_lists_a_menu.rtf, BUG7_control.p47, BUG7_control.rtf
+Every command below is run from the repository root.
+
+
+THE ENTRY
+---------
+
+    ./rejig --ops | awk -F'\t' '$1==2238'
+
+    2238	136 190	TamNonRegTrk	none	none
+
+Item 2238 was the TAM softmenu TamNonRegTrk. Its row in items.c read, before the menus were moved into their own block:
+
+    /* 2238 */  { itemToBeCoded, NOPARAM, "", "TamNonRegTrk", (0 << TAM_MAX_BITS) | 0,
+                  CAT_NONE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_NONE | HG_ENABLED },
+
+The rule this project applies to the op table is that an item marked PTP_DISABLED needs no entry, because the calculator will not put it in a
+program. This item is marked PTP_NONE, which means no parameters, so the flag alone does not exclude it. The decoder excludes it anyway.
+
+
+THE MEASUREMENT
+---------------
+
+BUG7_ops_lists_a_menu.p47 is hand-built. Its one step is the two bytes the table gives, 136 190, between LBL 'B7' and RTN:
+
+    LBL 'B7'    1, 253, 2, 66, 55
+    the step    136, 190
+    RTN         4
+    END         133, 178
+
+    ./t47 --reset --exec 'readp tools/rejig-patches/bugs/BUG7_ops_lists_a_menu.p47; xportp B7 tools/rejig-patches/bugs/BUG7_ops_lists_a_menu.rtf'
+
+    ERROR in decodeOneStep: instruction 2238:2238 is not programmable!
+
+The calculator's own export of the loaded program, BUG7_ops_lists_a_menu.rtf, prints the step as an empty line at 0002 and then repeats the
+0001 LBL line under it. RTN and END follow. So the refused step reaches the listing as damage, not as a step.
+
+The control is the identical file shape with a step the calculator does accept, item 2587 3DROP, bytes 138 27:
+
+    ./t47 --reset --exec 'readp tools/rejig-patches/bugs/BUG7_control.p47; xportp B8 tools/rejig-patches/bugs/BUG7_control.rtf'
+
+BUG7_control.rtf shows LBL 'B8', 3DROP and RTN, with no error. The two runs differ only in the opcode, so the refusal belongs to item 2238 and
+not to the file.
+
+
+THE NAME IS ALSO OUT OF DATE
+----------------------------
+
+The menus were renumbered in the item table and all of them now sit in one block above 2945. Item 2238 is a general spare, which is why the
+error text reads 2238:2238: the second field is the item's own name, and a spare is named after its number. Its row now reads:
+
+    /* 2238 */  { itemToBeCoded, NOPARAM, "2238", "2238", (0 << TAM_MAX_BITS) | 0,
+                  CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED | HG_ENABLED },
+
+A decode of a hand-built step with bytes 136 190 still reports TamNonRegTrk.
+
+2238 is the only number a menu vacated that appears in the op table at all. The other 186 have no entry, so no other program step is affected.
+
+Nine of the vacated menu numbers are marked PTP_NONE rather than PTP_DISABLED: 2102, 2103, 2106, 2107, 2108, 2109, 2225, 2226 and 2238. Each was
+built into its own hand-encoded program and loaded. The listing decoder refuses all nine, and a run of each program completes, so the step is
+inert rather than harmful. That is the evidence for the rule below.
+
+
+EXPECTED
+--------
+
+--ops omits an item the decoder refuses. PTP_DISABLED is not a sufficient test on its own: this item is marked PTP_NONE and is refused.

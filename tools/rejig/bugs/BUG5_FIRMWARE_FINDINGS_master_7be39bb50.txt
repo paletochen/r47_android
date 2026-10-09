@@ -1,0 +1,80 @@
+================================================================================================================
+BUG 5 FOLLOW-UP: WHERE THE FIRMWARE LOSES A LOCAL LABEL, MEASURED ON MASTER 7be39bb50
+================================================================================================================
+
+Record only. Everything here was discussed in chat; this file exists for provenance.
+
+Base:   master 7be39bb50, ./t47 built with make simc47 t47, all runs --reset from
+        _Project_Improvements/_scratch/bug5/. rejig at the repository root.
+A/B:    _scratch/bug5/pre/t47 (base), post3/t47 (candidate fix). Patch:
+        BUG5_candidate_fix_master_7be39bb50.diff beside this file.
+
+
+WHAT WAS MEASURED
+-----------------
+
+    case                             base                                          candidate fix
+    ------------------------------   -------------------------------------------   -----------------------
+    PGMSLV 01                        0, "unexpected parameter 1"                   1.414213562373095048801688724209698
+    PGMSLV :FX:  (control)           1.414213562373095048801688724209698           unchanged
+    PGMSLV A                         0, "string 'X' is not a named label"          1.414213562373095048801688724209698
+    PGMSLV A, a global 'X' present   3, no error at all: the wrong program ran     1.414213562373095048801688724209698
+    PGMSLV 07, no such label         0, "unexpected parameter 7"                   0, "there is no local label 07 in current program"
+    PGMINT 01                        0, "unexpected parameter 1"                   2.66666655
+    PGMINT :FI:  (control)           2.66666655                                    unchanged
+    SUMn 01                          0, "unexpected parameter 1"                   10
+    SUMn :FS:    (control)           10                                            unchanged
+    VARMNU 01                        SIGSEGV, exit 139                             menu opens, program runs on
+    VARMNU :FV:  (control)           runs on                                       unchanged
+    res/PROGRAMS/GRAPHS              2 captures of 10, stops at PGMPLT 01          10 captures
+
+PGMDRV could not be run: it is item 2882 in the rejig table and LAST_ITEM on master is 2870, so the loader
+refuses the container. The same code shape serves f'(x) and f"(x) here through derivativeCommon.
+
+
+THE SHAPE THAT IS WRONG
+-----------------------
+
+_executeOp case PARAM_LABEL (programming/lblGtoXeq.c) passes a local label 00 to 99 and A to l as the raw
+operand byte, 0 to 123. fnGoto, fnExecute and fnCheckLabel all test label <= LAST_LOCAL_LABEL first and
+search the current program. Six functions do not:
+
+    solve.c        fnPgmSlv            PGMSLV, and PGMPLT through fnPgmPlt
+    integrate.c    fnPgmInt            PGMINT
+    differentiate.c derivativeCommon   f'(x), f"(x), and PGMDRV on the derivative branch
+    sumprod.c      _checkArgument      SUMn, PRODn
+    isumprod.c     _checkiArgument     iSUMn, iPRODn
+    input.c        fnVarMnu            VARMNU, and fn42VarMnu
+
+The first five test FIRST_LABEL to LAST_LABEL (2200 to 6999) and then REGISTER_X to REGISTER_T (100 to 103).
+A numeric label falls past both and reaches the out of range branch. A lettered label A to D IS 100 to 103,
+so it is read as a stack register and the letter is looked up as a GLOBAL label name: with no such label the
+run stops, with one it runs the wrong program and says nothing. E to L land out of range.
+
+fnVarMnu has no range test at all: _isVarMenu indexes labelList[label - FIRST_LABEL], and for label 1 that
+subtraction wraps, so the read is far outside the array.
+
+
+THE STEP DECODER DISAGREES WITH THE ENCODER
+-------------------------------------------
+
+Keying SOLVE and then the A key in PEM stores operand 100 and the calculator lists the step as "SOLVE X".
+TAM writes 100 for the local label A (ui/tam.c, the LOCAL_LABEL arm of registerLookup), while SOLVE carries
+PTP_REGISTER so the decoder renders 100 as the register X. Measured base behaviour: that step selects the
+global label 'X'. Under the candidate fix it selects the local label A, which is what was typed. The listing
+still prints "SOLVE X"; that decoder is not touched by the patch.
+
+
+THE CANDIDATE FIX
+-----------------
+
+One helper, findLocalLabel in programming/manage.c, returning the label list index of a numeric or lettered
+local label of the current program and reporting ERROR_LABEL_NOT_FOUND itself. Five lines at each of the six
+sites, plus a bounds test in _isVarMenu. In derivativeCommon the resolution goes ahead of setSystemFlag so
+the early return cannot leak FLAG_SOLVING.
+
+The corpus cases solve_cov.txt and deriv_cov.txt assert EC=6 for fnPgmSlv(REGISTER_T) and fn1stDeriv
+(REGISTER_T). The helper reports ERROR_LABEL_NOT_FOUND, which is EC=6, so both keep their expected code.
+The full test suite was not run: this is a candidate for discussion, not a settled package.
+
+After the fix the REGISTER_X to REGISTER_T arm of the five label-only functions is unreachable.

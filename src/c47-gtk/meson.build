@@ -5,7 +5,8 @@ c47_gtk_src = files(
   'hal/gui.c',
   'hal/lcd.c',
   'hal/io.c',
-  'hal/print_ir.c')
+  'hal/print_ir.c',
+  'hal/printerWindow.c')
 
 override_opts = ['b_coverage=false']
 cflags        = []

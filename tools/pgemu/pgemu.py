@@ -187,6 +187,7 @@ class Emulator:
     self.last_frame = None
     self.script_at = 0
     self.script_wait = 0
+    self.held_until = None                                    # where the firmware's clock lets the key of a hold go, once the hold has started
     self.marked_at = None
     self.key_gap = key_gap
     self.gap_left = 0
@@ -575,7 +576,8 @@ class Emulator:
 
     A press goes in every --key-gap idle rounds, one by default, which is how a person uses the calculator: the firmware takes a key, acts on it, finds the buffer
     empty and comes back here for the next. One round has been enough for everything driven so far, alpha name entry included; the option is there for a sequence
-    that turns out to need longer. A wait lasts that many rounds on top, for a step the firmware acts on after the last key.
+    that turns out to need longer. A wait lasts that many rounds on top, for a step the firmware acts on after the last key. A hold keeps its key down until the
+    firmware's own clock has advanced by its milliseconds, so a longpress lands on the same stage with --ms-per-tick or without it.
     """
     while self.script_at < len(self.script):
       kind, value = self.script[self.script_at]
@@ -586,6 +588,26 @@ class Emulator:
         self.script_at += 1
         self.gap_left = self.key_gap
         self._push_key(value)
+        return True
+      if kind == keyscript.DOWN:
+        if self.gap_left > 0:
+          self.gap_left -= 1                                  # let the screen settle before the key goes down, as a press does
+          return True
+        self.script_at += 1
+        self.gap_left = self.key_gap
+        self._push_raw(value)                                 # the press with no release, so the key stays down through the hold that follows
+        return True
+      if kind == keyscript.HOLD:
+        if self.held_until is None:
+          self.held_until = self.run_ms() + value              # counted from the first round after the key went down, as the simulator counts from its press
+        if self.run_ms() < self.held_until:
+          return True
+        self.held_until = None
+        self.script_at += 1
+        continue
+      if kind == keyscript.UP:
+        self.script_at += 1
+        self._push_raw(0)                                     # the release that ends a hold, which a longpress runs its staged key on
         return True
       if kind == keyscript.WAIT:
         if self.script_wait == 0:

@@ -1,0 +1,9 @@
+@ Base for the hand-keyed comparison. Carries the two labels and nothing else, so the PGMSLV step can be
+@ added by keypress at the end and the container compared against the same program encoded by rejig.
+LBL 'HK'
+  1
+RTN
+
+LBL 01
+  2
+RTN

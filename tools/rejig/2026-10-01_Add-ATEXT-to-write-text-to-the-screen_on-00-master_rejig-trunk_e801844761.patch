@@ -1,0 +1,11 @@
+--- a/program/ops.go
++++ b/program/ops.go
+@@ -5294,7 +5294,7 @@
+ 		HP32SIIName:  `TANH`,
+ 		HP42SName:    `TANH`,
+ 		AltSpelling1: `tanh(x)`}},
+-	{OP_Ticks, "TICKS", ARG_NONE, nil},
++	{OP_Ticks, "TICKS#", ARG_NONE, AliasMap{AltSpelling1: `TICKS`}},
+ 	{OP_Time, "Time\u2192\U0001D54B", ARG_NONE, AliasMap{
+ 		HP42SName:    `TIME`,
+ 		AltSpelling1: `Time->T`,

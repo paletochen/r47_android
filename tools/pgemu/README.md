@@ -89,6 +89,7 @@ itself does.
 | `wait [N]` | N idle rounds, 20 without a number, for what the firmware does after the last key |
 | `snap [name]` | a capture at this point, written as `name.bmp` in `--out` |
 | `mark [name]` | lays the stack pattern again and starts the function records, the malloc counts, the overflow and the instruction counts again, so what follows is measured on its own |
+| `hold KEY MS [name]` | KEY pressed and kept down for MS milliseconds of the firmware's own clock, then released, so a longpress reaches its stages; a name captures `name.bmp` before the key release |
 
 Steps are separated by `;` or a new line, and `#` starts a comment. A press goes in with its release, one key per idle round; `--key-gap` adds rounds between keys.
 `--keys` takes raw DMCP key codes separated by commas instead of a script: `--keys 28,33 --idle 60` is f then EXIT, which turns the calculator off.

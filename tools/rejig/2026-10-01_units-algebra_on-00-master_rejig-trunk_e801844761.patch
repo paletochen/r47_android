@@ -1,0 +1,36 @@
+--- a/program/ops.go
++++ b/program/ops.go
+@@ -2439,6 +2439,18 @@
+ 	_                                        // 2937 CLSTRUC, PTP_DISABLED
+ 	OP_ForTop                                // 2938 FORᵀᴼᴾ, a FOR that tests before the first pass
+ 	OP_ForTopNotChecked                      // 2939 FORᵀᴼᴾₓ, a FORᵀᴼᴾ that VALID has not passed
++)
++
++// Unit algebra (items.c 3182–3189); UNIT.OP and UNIT.PFX are PTP_NUMBER_16
++const (
++	OP_UBaseFrom OpCode = 3182 + iota // 3182 UBASE→
++	OP_UnitOp                         // 3183 UNIT.OP
++	OP_UBase                          // 3184 →UBASE
++	OP_UVal                           // 3185 UVAL
++	OP_UnitConvert                    // 3186 CONVERT
++	OP_ToUnit                         // 3187 →UNIT
++	OP_UFact                          // 3188 UFACT
++	OP_UnitPfx                        // 3189 UNIT.PFX
+ )
+ 
+ // Maximum op code value presently defined at the end of items.c in the
+@@ -5387,6 +5399,14 @@
+ 		AltSpelling1: "tzyx\u2006\u2192\u2006\u03814",
+ 		AltSpelling2: "tzyx\u2192\u03814"}},
+ 	{OP_Undo, "UNDO", ARG_NONE, AliasMap{R47MenuName: "\u238C"}},
++	{OP_UBaseFrom, "UBASE\u2192", ARG_NONE, AliasMap{AltSpelling1: `UBASE->`}},
++	{OP_UnitOp, "UNIT.OP", ARG_VALUE_16, nil},
++	{OP_UBase, "\u2192UBASE", ARG_NONE, AliasMap{AltSpelling1: `->UBASE`}},
++	{OP_UVal, "UVAL", ARG_NONE, nil},
++	{OP_UnitConvert, "CONVERT", ARG_NONE, nil},
++	{OP_ToUnit, "\u2192UNIT", ARG_NONE, AliasMap{AltSpelling1: `->UNIT`}},
++	{OP_UFact, "UFACT", ARG_NONE, nil},
++	{OP_UnitPfx, "UNIT.PFX", ARG_VALUE_16, nil},
+ 	{OP_Unfm_Inv, "Unfm\u207B\u00B9", ARG_NONE, AliasMap{
+ 		ASCIIMathForm: `Unfm^-1`,
+ 		HP42SName:     `Unfm^-1`,

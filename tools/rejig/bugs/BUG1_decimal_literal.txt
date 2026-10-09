@@ -1,0 +1,23 @@
+NOP ; rejig bug 1: a decimal literal with four or more decimal places encodes as an angle or a time.
+NOP ; Encode this file, decode the result, and compare with the lines below.
+NOP ;   ./rejig BUG1_decimal_literal.txt -o BUG1_decimal_literal.p47
+NOP ;   ./rejig BUG1_decimal_literal.p47 -o BUG1_decimal_literal_decoded.txt
+# rejig bug 1
+
+LBL 'B1'
+  # three decimals, correct
+  1.5
+  0.375
+  12.345
+  2026.072
+  # four decimals, wrong
+  12.3456
+  2026.0729
+  0.1234
+  1.0000
+  # five and six decimals, wrong
+  12.34560
+  2026.072900
+RTN
+
+END

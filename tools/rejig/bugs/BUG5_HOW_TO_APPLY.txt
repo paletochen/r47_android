@@ -1,0 +1,76 @@
+================================================================================================================
+BUG 5: HOW TO PUT THE FIX ON THE TWO BRANCHES
+================================================================================================================
+
+Everything needed is in this folder. Nothing depends on the session that produced it.
+
+Two patches, one per branch. Both were written with repository relative paths and both were proved to apply
+to a fresh extract of their own commit, and the master one was proved NOT to apply to the derivative branch,
+so they cannot be swapped by accident.
+
+    branch                 patch file                                base commit
+    --------------------   ---------------------------------------   -----------
+    master                 BUG5_FIX_A_master_7be39bb50.patch         7be39bb50
+    derivative             BUG5_FIX_B_deriv_67e0011c0.patch          67e0011c0
+
+Both touch the same eight files:
+
+    src/c47/programming/input.c
+    src/c47/programming/manage.c
+    src/c47/programming/manage.h
+    src/c47/solver/differentiate.c
+    src/c47/solver/integrate.c
+    src/c47/solver/isumprod.c
+    src/c47/solver/solve.c
+    src/c47/solver/sumprod.c
+
+
+APPLYING ONE
+------------
+
+From the root of the branch working tree, with nothing else uncommitted in those eight files:
+
+    patch -p1 --dry-run < <path to the patch>
+    patch -p1           < <path to the patch>
+
+The dry run prints one "patching file" line per file and nothing else when it is clean. Anything else means
+the branch has moved and the patch needs regenerating rather than forcing.
+
+Order for the merge you wanted: apply A to master, apply B to the derivative branch, then merge master into
+the branch. The seven shared hunks are byte identical in both patches, so the merge sees the same lines on
+both sides. The two hunks that differ are fnPgmDrv and the f' operand gate, which exist only on the
+derivative branch.
+
+
+IF A PATCH NO LONGER APPLIES
+----------------------------
+
+The full before and after trees are kept, so a patch can be rebuilt at any time without the session:
+
+    _Project_Improvements/_scratch/bug5b/base and bug5b/fix    master 7be39bb50
+    _Project_Improvements/_scratch/bug5c/base and bug5c/fix    derivative 67e0011c0
+
+Regenerate with _scratch/bug5d/mkpatch.sh, which diffs the eight files with a/ and b/ labels:
+
+    sh _Project_Improvements/_scratch/bug5d/mkpatch.sh _Project_Improvements/_scratch/bug5b <output file>
+
+The fix trees also hold working simulator and DM42 builds, so the behaviour can be re-measured without
+rebuilding from the patch.
+
+
+CHECKING IT AFTERWARDS
+----------------------
+
+    _scratch/bug5e/MATRIX.p47 and run_matrix.sh    66 cases, twelve commands by six label kinds
+    _scratch/bug5e/INF.p47 and run_inf.sh          the infinite sum, seven more cases
+
+    sh run_matrix.sh <path to the built t47>
+
+Every case must read its expected value. On an unfixed build 33 of the 66 fail and three of those exit 139.
+
+
+WHAT IS SUPERSEDED
+------------------
+
+SUPERSEDED_BUG5_first_draft_master_7be39bb50.diff.txt is the first attempt, before the shared helper. It is
+kept only as a record. Do not apply it.

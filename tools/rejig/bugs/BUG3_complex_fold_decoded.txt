@@ -1,0 +1,23 @@
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+# rejig bug 3
+LBL ‘B3’
+  # separate lines, correct: three literal steps
+  10
+  0
+  -1
+  # one line, wrong: encodes as 10 then the complex 0.-1.i
+  10
+  0.-1.𝒾
+  # one line, wrong: the middle 1 + 1 encodes as the complex 1.+1.i, five steps become three
+  1
+  1.+1.𝒾
+  +
+  RTN
+  END

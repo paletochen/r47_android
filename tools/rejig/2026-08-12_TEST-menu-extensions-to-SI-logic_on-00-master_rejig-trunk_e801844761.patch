@@ -1,0 +1,27 @@
+--- a/program/ops.go
++++ b/program/ops.go
+@@ -2439,6 +2439,13 @@
+ 	_                                        // 2937 CLSTRUC, PTP_DISABLED
+ 	OP_ForTop                                // 2938 FORᵀᴼᴾ, a FOR that tests before the first pass
+ 	OP_ForTopNotChecked                      // 2939 FORᵀᴼᴾₓ, a FORᵀᴼᴾ that VALID has not passed
++)
++
++// Bit tests on a register (items.c 3233–3235), TM_STORCL and PTP_REGISTER like STO
++const (
++	OP_AndBits OpCode = 3233 + iota // 3233 ANDbits
++	OP_OrBits                       // 3234 ORbits
++	OP_XorBits                      // 3235 XORbits
+ )
+ 
+ // Maximum op code value presently defined at the end of items.c in the
+@@ -2641,7 +2648,10 @@
+ 	{OP_AText, "ATEXT", ARG_REGISTER, nil},
+ 	{OP_Atan2, "atan2(\U0001D465,\U0001D466)", ARG_NONE, AliasMap{
+ 		HP42SName: `ATAN2`, AltSpelling1: `atan2(x,y)`}},
++	{OP_AndBits, "ANDbits", ARG_REGISTER, nil},
+ 	{OP_BITS_AND, "AND", ARG_NONE, nil},
++	{OP_OrBits, "ORbits", ARG_REGISTER, nil},
++	{OP_XorBits, "XORbits", ARG_REGISTER, nil},
+ 	{OP_BITS_ASRn, "ASRn", ARG_VALUE_8, nil},
+ 	{OP_BITS_BC, "BC?", ARG_VALUE_8, nil},
+ 	{OP_BITS_BS, "BS?", ARG_VALUE_8, nil},

@@ -1,0 +1,30 @@
+NOP ; rejig bug 2: an op whose name starts with a hash is silently discarded when it is not the
+NOP ; first token on its line. #B, the bit count, is the only such name in the catalogue, item 422.
+NOP ; A loses the step with no message at all. B loses it and warns only about an unrelated glyph.
+NOP ; C is the same step on its own line and encodes correctly, so the two forms differ.
+NOP ;   ./rejig BUG2_hash_in_name.txt -o BUG2_hash_in_name.p47
+NOP ;   ./rejig BUG2_hash_in_name.p47 -o BUG2_hash_in_name_decoded.txt
+# rejig bug 2
+
+LBL 'A'
+  255 ShortInt #B
+RTN
+
+LBL 'B'
+  255 ShortInt #B DROP𝑥
+RTN
+
+LBL 'C'
+  255 ShortInt
+  #B
+RTN
+
+NOP ; The control: an op with a hash at the END of its name survives inline, so it is the leading
+NOP ; hash that is read as the start of a comment and not a hash anywhere in the token.
+
+LBL 'D'
+  2 2 M.DIM 00
+  RCL 00 42DIM#
+RTN
+
+END

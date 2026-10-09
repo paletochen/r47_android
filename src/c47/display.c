@@ -285,12 +285,84 @@ typedef enum {
   STRIP_TRAILING_ZEROS = 1
 } trailingZeros_t;
 
+static bool_t hp35Round10 = false;  // HP35 profile on the real34 route: roundBcdAt rounds a value kept with 10 digits or more to 10 digits
+static bool_t polarTieWatch = false;  // a polar line computed to POLAR_DISPLAY_COMPUTE_DIGITS is being formatted
+static bool_t polarNearTie  = false;  // set under polarTieWatch: the dropped digits are a tie, or zero under UP, DOWN, CEIL and FLOOR; the exact value may round either way
+
+/********************************************//**
+ * \brief True when the kept digit d[kept] goes up by one under DRM, d[kept+1] to d[last] being dropped
+ *
+ * \param[in] d const uint8_t* Digits, one per byte, MSD first; a byte that is not a digit is skipped
+ * \param[in] kept int16_t Index of the last kept digit
+ * \param[in] last int16_t Index of the last dropped digit
+ * \param[in] sign bool_t True for a negative value
+ * \param[in] zero uint8_t 0 for bcd[] and '0' for text
+ * \param[in] sticky bool_t True when a dropped digit after d[last] is not zero
+ * \return bool_t
+ ***********************************************/
+static bool_t roundUpDrm(const uint8_t *d, int16_t kept, int16_t last, bool_t sign, uint8_t zero, bool_t sticky) {
+  uint8_t next = 10, tail = sticky, m = displayRoundingMode;
+  for(int16_t i = kept + 1; i <= last; i++) {
+    uint8_t v = d[i] - zero;
+    if(v > 9) {
+      continue;
+    }
+    if(next == 10) {
+      next = v;
+    }
+    else {
+      tail |= v;
+    }
+  }
+  if(next == 10) {
+    next = 0;
+  }
+  if(polarTieWatch && (m >= RM_UP ? !(next | tail) : (next == 5 && !tail))) {
+    polarNearTie = true;
+  }
+  if(m >= RM_UP) {  // UP, DOWN, CEIL and FLOOR test only for a non-zero dropped digit: UP goes up, CEIL for a positive and FLOOR for a negative value, DOWN never
+    return (next | tail) && (m == RM_UP || (m == RM_CEIL && !sign) || (m == RM_FLOOR && sign));
+  }
+  return next > 5 || (next == 5 && (m == RM_HALF_UP || tail || (m == RM_HALF_EVEN && ((d[kept] - zero) & 1))));
+}
+
+/********************************************//**
+ * \brief Rounds bcd[] at d under DRM; a digit that reaches 10 becomes 0 and adds one on its left
+ *
+ * \param[in,out] bcd uint8_t* Digits, one per byte, MSD first
+ * \param[in] d int16_t Index of the last kept digit
+ * \param[in] last int16_t Index of the last dropped digit
+ * \param[in] sign bool_t True for a negative value
+ * \return int16_t Index of the leftmost digit changed, d when no digit reaches 10
+ ***********************************************/
+static int16_t roundBcdAt(uint8_t *bcd, int16_t d, int16_t last, bool_t sign) {
+  int16_t first = 0;
+  while(hp35Round10 && first < d && bcd[first] == 0) {
+    first++;
+  }
+  if(hp35Round10 && d - first >= 9) {  // HP35 profile, 10 digits or more kept: the value to 10 digits, a tie rounded away from zero, and the digits after it cleared
+    d = first + 9;
+    if(bcd[d + 1] >= 5) {
+      bcd[d]++;
+    }
+    memset(bcd + d + 1, 0, last - d);
+  }
+  else if(roundUpDrm(bcd, d, last, sign, 0, false)) {
+    bcd[d]++;
+  }
+  while(bcd[d] == 10) {
+    bcd[d--] = 0;
+    bcd[d]++;
+  }
+  return d;
+}
+
 // emitSciDigits: the DF_SCI body lifted out, fed from a digit-per-byte bcd[] (MSD first) so a long real can supply up to digitsToDisplay digits.
 static void emitSciDigits(uint8_t *bcd, int16_t firstDigit, int16_t lastDigit, int16_t numDigits, int32_t exponent, bool_t sign,
                           int16_t digitToRound, int16_t digitsToDisplay, bool_t frontSpace, trailingZeros_t stripTrailingZeros,
                           char *displayString, char *displayValueX, bool_t updateDisplayValueX) {
   int32_t charIndex  = 0;
-  int32_t valueIndex = 0;
+  int32_t valueIndex = (updateDisplayValueX ? strlen(displayValueX) : 0);   // displayValueX appends to any existing prefix
   int16_t digitCount, digitPointer;
   bool_t  firstDigitAfterPeriod = true;
 
@@ -298,15 +370,9 @@ static void emitSciDigits(uint8_t *bcd, int16_t firstDigit, int16_t lastDigit, i
   int sepLen   = (SEPARATOR_RIGHT[0] != 1) ? ((SEPARATOR_RIGHT[1] != 1) ? 2 : 1) : 0;
 
   // Round the displayed number
-  if(bcd[digitToRound + 1] >= 5) {
-    bcd[digitToRound]++;
-  }
-  // Transfert the carry
-  while(bcd[digitToRound] == 10) {
-    bcd[digitToRound--] = 0;
-    numDigits--;
-    bcd[digitToRound]++;
-  }
+  int16_t roundedAt = roundBcdAt(bcd, digitToRound, lastDigit, sign);
+  numDigits -= digitToRound - roundedAt;
+  digitToRound = roundedAt;
   // Case when 9.9999 rounds to 10.0000
   if(digitToRound < firstDigit) {
     firstDigit--;
@@ -411,14 +477,15 @@ static void real34ToDisplayString2(const real34_t *real34, char *displayString, 
   #define MAX_DIGITS 37 // 34 + 1 before (used when rounding from 9.999 to 10.000) + 2 after (used for rounding and ENG display mode)
   #define exponentUNlimit1024max (getSystemFlag(FLAG_PFX_ALL) ? 7 : 5) //1024^7 is the maximum UNIT_1024^n before skipping over to standard unit presentation
 
-  uint8_t charIndex, valueIndex;
+  uint8_t charIndex, valueIndex, valueStart;
   int16_t digitToRound=0;
   uint8_t *bcd;
-  int16_t digitsToDisplay=0, numDigits, digitPointer, firstDigit, lastDigit, i, digitCount, digitsToTruncate, exponent;
+  int16_t digitsToDisplay=0, numDigits, digitPointer, firstDigit, lastDigit, i, digitCount, digitsToTruncate=0, exponent, roundedAt;
   int32_t sign;
   bool_t  ovrSCI=false, ovrENG=false, firstDigitAfterPeriod=true;
   real34_t value34;
 
+  hp35Round10 = checkHP;
 
   //Convert the incoming number in decimal, to the equivalent number in base 1024, multipled by 1000.
   //Example: 1025 -> 1024^1.000140819 -> 1024^.000140819 * 1024^1 -> 1.000976559 * Ki -> 1.001 Ki
@@ -470,6 +537,9 @@ static void real34ToDisplayString2(const real34_t *real34, char *displayString, 
       if(neg) {
         realSetNegativeSign(&x);
       }
+      c.digits = 34;
+      c.round = DEC_ROUND_05UP;
+      realPlus(&x, &x, &c);                                // 05UP at 34 digits, so realToReal34 takes the value exactly and the display rounds it once
       realToReal34(&x, real34);
     }
     else {
@@ -559,8 +629,21 @@ overRange:
       real34ToReal(real34, &tmp1);
       decContext c = ctxtReal39;
       c.digits = (SHOWMODE ? 39 : NUMBER_OF_DISPLAY_REAL_CONTEXT_DIGITS);
-      if(forceSigZeroes) {
+      if(forceSigZeroes && !(checkHP && displayFormatDigits >= 9)) {
+        uint8_t savedRoundingMode = roundingMode;
+        if(polarTieWatch) {
+          real_t away, toward;
+          roundingMode = (displayRoundingMode >= RM_UP ? RM_UP : RM_HALF_UP);
+          roundToSignificantDigits(&tmp1, &away, displayFormatDigits+1, &c);
+          roundingMode = (displayRoundingMode >= RM_UP ? RM_DOWN : RM_HALF_DOWN);
+          roundToSignificantDigits(&tmp1, &toward, displayFormatDigits+1, &c);
+          if(realCompareEqual(&away, &toward) == (displayRoundingMode >= RM_UP)) {  // UP equal to DOWN: nothing dropped; HALF_UP unequal to HALF_DOWN: a tie
+            polarNearTie = true;
+          }
+        }
+        roundingMode = displayRoundingMode;
         roundToSignificantDigits(&tmp1, &tmp1, displayFormatDigits+1, &c); //  &ctxtReal75);
+        roundingMode = savedRoundingMode;
       }
       realToReal34(&tmp1, &reduced);
       // printReal34ToConsole(&reduced, " ------- 002b >>>>>", " <<<<<\n");   //JM
@@ -626,11 +709,12 @@ overRange:
   }
   //printRealToConsole(&value, " ------- 006 >>>>>", " <<<<<\n\n");   //JM
 
-  if(checkHP) {
-    // Forced rounding at 10 digits when HP35 selected, to not risk any guard digits or digit noise in the last digits, see 'decNumberPlus'
-    ctxtReal39.digits = min(10, displayHasNDigits);
-    realPlus(&value, &value, &ctxtReal39);
-    ctxtReal39.digits = 39;
+  if(checkHP && (displayFormat == DF_ALL ? displayHasNDigits >= 10 : displayFormat == DF_SF && displayFormatDigits >= 9)) {
+    // HP35 profile, 10 digits or more shown in ALL or SIG: the value to 10 digits, a tie rounded away from zero; roundBcdAt takes this step in the other formats
+    decContext c = ctxtReal39;
+    c.digits = 10;
+    c.round = DEC_ROUND_HALF_UP;
+    realPlus(&value, &value, &c);
   }
 
   realToReal34(&value, &value34);
@@ -773,6 +857,7 @@ overRange:
   // Reset output indices; displayValueX appends to any existing prefix
   charIndex = 0;
   valueIndex = (updateDisplayValueX ? strlen(displayValueX) : 0);
+  valueStart = valueIndex;
 
   //////////////
   // ALL mode //
@@ -785,24 +870,28 @@ overRange:
 
     // Round the final 9s.
     if(bcd[lastDigit+1] == 9) {
-      // Clearing lastDigit+1 to prevent the "Round the displayed number"
+      roundedAt = roundBcdAt(bcd, lastDigit, lastDigit + digitsToTruncate, sign);
+      // Clearing the dropped digits to prevent the "Round the displayed number"
       // step to bump the same digit a second time.
-      bcd[lastDigit+1] = 0;
-      bcd[lastDigit]++;
-
-      // Transfert the carry
-      while(bcd[lastDigit] == 10) {
-        bcd[lastDigit--] = 0;
-        numDigits--;
-        bcd[lastDigit]++;
+      memset(bcd + lastDigit + 1, 0, digitsToTruncate);
+      if(getSystemFlag(FLAG_SIGZEROS)) {  // TRL0 set: the zeros a round up leaves are shown digits
+        if(roundedAt < firstDigit) {  // 9.9999 rounds to 10.000: one digit more on the left, one less on the right
+          firstDigit--;
+          lastDigit--;
+          exponent++;
+        }
       }
+      else {
+        numDigits -= lastDigit - roundedAt;
+        lastDigit = roundedAt;
 
-      // Case when 9.9999 rounds to 10.0000
-      if(lastDigit < firstDigit) {
-        firstDigit--;
-        lastDigit = firstDigit;
-        numDigits = 1;
-        exponent++;
+        // Case when 9.9999 rounds to 10.0000
+        if(lastDigit < firstDigit) {
+          firstDigit--;
+          lastDigit = firstDigit;
+          numDigits = 1;
+          exponent++;
+        }
       }
     }
 
@@ -817,23 +906,25 @@ overRange:
     }
     else { // display all digits without ten exponent factor
       // Round the displayed number
-      if(bcd[lastDigit+1] >= 5) {
-        bcd[lastDigit]++;
+      roundedAt = roundBcdAt(bcd, lastDigit, lastDigit + digitsToTruncate, sign);
+      if(getSystemFlag(FLAG_SIGZEROS)) {  // TRL0 set: the zeros a round up leaves are shown digits
+        if(roundedAt < firstDigit) {  // 9.9999 rounds to 10.000: one digit more on the left, one less on the right
+          firstDigit--;
+          lastDigit--;
+          exponent++;
+        }
       }
+      else {
+        numDigits -= lastDigit - roundedAt;
+        lastDigit = roundedAt;
 
-      // Transfert the carry
-      while(bcd[lastDigit] == 10) {
-        bcd[lastDigit--] = 0;
-        numDigits--;
-        bcd[lastDigit]++;
-      }
-
-      // Case when 9.9999 rounds to 10.0000
-      if(lastDigit < firstDigit) {
-        firstDigit--;
-        lastDigit = firstDigit;
-        numDigits = 1;
-        exponent++;
+        // Case when 9.9999 rounds to 10.0000
+        if(lastDigit < firstDigit) {
+          firstDigit--;
+          lastDigit = firstDigit;
+          numDigits = 1;
+          exponent++;
+        }
       }
 
       // Remove trailling zeros
@@ -968,7 +1059,7 @@ overRange:
          #if defined(SIG_VARIABLE_JUMP)
            exponent < -(int32_t)displayFormatDigits ||                                           //allow zero digits .00...1 to track n
          #else
-           ((displayFormat == DF_SF) && (exponent < (getSystemFlag(FLAG_ENGOVR) ? -2 : -3))) ||  //in SIG & ENGOVR,  allow 2 zero digits .001 then jump, in SIG & !ENGOVR, allow 3 zero digits .0001 then jump
+           ((displayFormat == DF_SF) && (exponent < (getSystemFlag(FLAG_ENGOVR) ? -2 : -3))) ||  //in SIG & ENGOVR,  allow 1 zero digit .01 then jump, in SIG & !ENGOVR, allow 2 zero digits .001 then jump
            ((displayFormat != DF_SF) && (exponent < -(int32_t)(displayFormatDigits))) ||
          #endif //SIG_VARIABLE_JUMP
          ( displayFormat == DF_SF && exponent -(int32_t)displayFormatDigits < -(checkHP ? 10+1 : displayHasNDigits)) ||
@@ -1008,18 +1099,11 @@ overRange:
       //printf("\n");
 
       // Round the displayed number
-      if(bcd[digitToRound+1] >= 5) {
-        bcd[digitToRound]++;
+      roundedAt = roundBcdAt(bcd, digitToRound, lastDigit + digitsToTruncate, sign);
+      if(displayFormat == DF_SF) {
+        numDigits -= digitToRound - roundedAt;
       }
-
-      // Transfer the carry
-      while(bcd[digitToRound] == 10) {
-        bcd[digitToRound--] = 0;
-        if(displayFormat == DF_SF) {
-          numDigits--;
-        }
-        bcd[digitToRound]++;
-      }
+      digitToRound = roundedAt;
 
       if(displayFormat == DF_SF && forceSigZeroes) {
         lastDigit = digitToRound;
@@ -1034,8 +1118,21 @@ overRange:
           displayFormatDigits_Active--;
         }
         exponent++;
+        if(displayFormat == DF_FIX && !checkHP && exponent >= displayHasNDigits) {  // the rounding took the integer part past its limit: the exponent form, as for any larger number
+          digitsToTruncate = 0;                                           // the value is rounded already, and the dropped digits are not read again
+          digitsToDisplay  = min(displayFormatDigits, displayHasNDigits - 1);
+          digitToRound     = min(firstDigit + digitsToDisplay, lastDigit);
+          ovrSCI = !getSystemFlag(FLAG_ENGOVR);
+          ovrENG = getSystemFlag(FLAG_ENGOVR);
+          goto fixCarriedPastLimit;
+        }
       }
 
+      if(displayFormat == DF_SF && !forceSigZeroes) {                     // no-zero: a kept decimal the rounding leaves as 0 is a trailing zero as well
+        while(lastDigit > firstDigit && lastDigit > firstDigit + exponent && bcd[lastDigit] == 0) {
+          lastDigit--;
+        }
+      }
 
       //JM SIGFIG - blank out non-sig digits to the right                 //JM SIGFIGNEW vv
       if(displayFormat == DF_SF && forceSigZeroes) {
@@ -1185,6 +1282,7 @@ overRange:
     }
   }
 
+fixCarriedPastLimit:
   //////////////
   // SCI mode //
   //////////////
@@ -1193,7 +1291,7 @@ overRange:
       digitsToDisplay = displayFormatDigits;
       digitToRound    = min(firstDigit + (int16_t)displayFormatDigits, lastDigit);
     }
-    emitSciDigits(bcd, firstDigit, lastDigit, numDigits, exponent, sign, digitToRound, digitsToDisplay, frontSpace, ((displayFormat == DF_SF && !forceSigZeroes) || (displayFormat == DF_ALL && !(getSystemFlag(FLAG_SIGZEROS)))) ? STRIP_TRAILING_ZEROS : KEEP_TRAILING_ZEROS, displayString, displayValueX, updateDisplayValueX);
+    emitSciDigits(bcd, firstDigit, lastDigit + digitsToTruncate, numDigits, exponent, sign, digitToRound, digitsToDisplay, frontSpace, ((displayFormat == DF_SF && !forceSigZeroes) || (displayFormat == DF_ALL && !(getSystemFlag(FLAG_SIGZEROS)))) ? STRIP_TRAILING_ZEROS : KEEP_TRAILING_ZEROS, displayString, displayValueX, updateDisplayValueX);
     return;
   }
 
@@ -1207,20 +1305,14 @@ overRange:
       digitToRound    = min(firstDigit + digitsToDisplay, lastDigit);
     }
 
-    if(bcd[digitToRound + 1] >= 5) {
-      bcd[digitToRound]++;
-    }
+    roundedAt = roundBcdAt(bcd, digitToRound, lastDigit + digitsToTruncate, sign);
 
     // Ensure rounding before the radix mark for DSP 0 & DSP 1
     bcd[digitToRound + 1] = 0;
     bcd[digitToRound + 2] = 0;
 
-    // Transfert the carry
-    while(bcd[digitToRound] == 10) {
-      bcd[digitToRound--] = 0;
-      numDigits--;
-      bcd[digitToRound]++;
-    }
+    numDigits -= digitToRound - roundedAt;
+    digitToRound = roundedAt;
 
     // Case when 9.9999 rounds to 10.0000
     if(digitToRound < firstDigit) {
@@ -1357,7 +1449,15 @@ overRange:
         }
       }                                                                                 //JM UNIT
       else {  //DF_UN                                                                   //JM UNIT
-        exponentToUnitDisplayString(exponent, flag2To10, displayString + charIndex, displayValueX + valueIndex, false);          //JM UNIT
+        exponentToUnitDisplayString(exponent, flag2To10, displayString + charIndex, updateDisplayValueX ? displayValueX + valueIndex : NULL, false);          //JM UNIT
+        if(updateDisplayValueX && flag2To10) {                                          // the value shown is the mantissa times 1024^(exponent/3)
+          real_t shown;
+          stringToReal(displayValueX + valueStart, &shown, &ctxtReal75);
+          for(int32_t k = exponent / 3; k > 0; k--) {
+            realMultiply(&shown, const_1024, &shown, &ctxtReal75);
+          }
+          realToString(&shown, displayValueX + valueStart);
+        }
       }                                                                                 //JM UNIT
     }
 
@@ -1486,7 +1586,10 @@ static void complex34ToDisplayString2(const complex34_t *complex34, char *displa
   int16_t imagOffset = 100;
   real34_t real34, imag34, absimag34;
   real_t real, imagIc;
+  bool_t polarAt39 = false;
+  size_t valueXLength = strlen(displayValueX);
 
+polarFormat:
   if(tagPolar) { // polar mode
     real34ToReal(VARIABLE_REAL34_DATA(complex34), &real);
     real34ToReal(VARIABLE_IMAG34_DATA(complex34), &imagIc);
@@ -1498,6 +1601,11 @@ static void complex34ToDisplayString2(const complex34_t *complex34, char *displa
     // (MR !1615; gated by polar_display_cov) while the repeated-input calls hit
     // the trig cache. SHOW keeps its full 39 digits.
     c.digits = min(displayHasNDigits + 2, (SHOWMODE ? 39 : POLAR_DISPLAY_COMPUTE_DIGITS));
+    if(polarAt39) {
+      c.digits = 39;
+    }
+    polarTieWatch = (c.digits < 39);  // a value within one unit of its last computed digit from a rounding boundary is computed again at 39 digits
+    polarNearTie = false;
     realRectangularToPolarCached(&real, &imagIc, &real, &imagIc, &c, cache); // imagIc in radian
     // convertAngleFromTo runs at the same c.digits; radian->grad (x 200/pi) is
     // the worst case for the conversion and stays inside that precision.
@@ -1521,7 +1629,10 @@ static void complex34ToDisplayString2(const complex34_t *complex34, char *displa
     }
   }
 
+  const bool_t savedUpdateDisplayValueX = updateDisplayValueX;
+  updateDisplayValueX = updateDisplayValueX && !tagPolar;              // the polar angle is written into displayValueX by angle34ToDisplayString2 below
   real34ToDisplayString2(&imag34, displayString + imagOffset, displayHasNDigits, limitExponent, false, !FRONTSPACE, isComplex, limitIrfrac);
+  updateDisplayValueX = savedUpdateDisplayValueX;
 
   #if defined(PC_BUILD_TELLTALE)
     printTempDisplayString(displayString, displayString + imagOffset);
@@ -1550,6 +1661,13 @@ static void complex34ToDisplayString2(const complex34_t *complex34, char *displa
     if(strncmp(displayString + kk, STD_ALMOST_EQUAL, 2) == 0) {          //if almost equal char in front of IM part, transfer it to the Left (Real) side
       displayString[kk] = STD_NOCHAR;    //0x01 is the new 'no char' character
       displayString[kk+1] = STD_NOCHAR;  //0x01 is the new 'no char' character
+    }
+    polarTieWatch = false;
+    if(polarNearTie) {
+      polarNearTie = false;
+      polarAt39 = true;
+      displayValueX[valueXLength] = 0;  // the first formatting appended to displayValueX
+      goto polarFormat;
     }
   }
   else { // rectangular mode
@@ -1798,11 +1916,15 @@ void angle34ToDisplayString2(const real34_t *angle34, uint8_t modeIn, char *disp
     char degStr[100];
     uint32_t m, s, fs;
     int16_t sign;
-    real34_t angle34Dms;
     real_t angleDms, degrees, minutes, seconds;
 
-    real34FromDegToDms(angle34, &angle34Dms);
-    real34ToReal(&angle34Dms, &angleDms);
+    if(real34IsSpecial(angle34)) {
+      real34ToDisplayString2(angle34, displayString, displayHasNDigits, limitExponent, false, frontSpace, true, limitIrfrac);
+      strcat(displayString, STD_DEGREE);
+      return;
+    }
+
+    real34ToReal(angle34, &angleDms);
 
     sign = realIsNegative(&angleDms);
     realSetPositiveSign(&angleDms);
@@ -1812,12 +1934,12 @@ void angle34ToDisplayString2(const real34_t *angle34, uint8_t modeIn, char *disp
 
     // Get the minutes
     realSubtract(&angleDms, &degrees, &angleDms, &ctxtReal39);
-    angleDms.exponent += 2; // angleDms = angleDms * 100
+    realMultiply(&angleDms, const_60, &angleDms, &ctxtReal39);
     realToIntegralValue(&angleDms, &minutes, DEC_ROUND_DOWN, &ctxtReal39);
 
     // Get the seconds
     realSubtract(&angleDms, &minutes, &angleDms, &ctxtReal39);
-    angleDms.exponent += 2; // angleDms = angleDms * 100
+    realMultiply(&angleDms, const_60, &angleDms, &ctxtReal39);
     realToIntegralValue(&angleDms, &seconds, DEC_ROUND_DOWN, &ctxtReal39);
 
     // Get the fractional seconds
@@ -1852,7 +1974,19 @@ void angle34ToDisplayString2(const real34_t *angle34, uint8_t modeIn, char *disp
     //format without decimals
     displayFormatDigits = 0;
     displayFormat = DF_ALL;
+    const size_t dmsValueStart = (updateDisplayValueX ? strlen(displayValueX) : 0);
     real34ToDisplayString2(&tmp, degStr, displayHasNDigits, limitExponent, false, frontSpace, true, limitIrfrac);
+    if(updateDisplayValueX) {                                         // displayValueX takes the angle the line shows: (d x 360000 + m x 6000 + s x 100 + fs) / 360000
+      real_t shown, part;
+      realMultiply(&degrees, const_360000, &shown, &ctxtReal75);
+      int32ToReal(m * 6000 + s * 100 + fs, &part);
+      realAdd(&shown, &part, &shown, &ctxtReal75);
+      if(sign) {
+        realSetNegativeSign(&shown);
+      }
+      realDivide(&shown, const_360000, &shown, &ctxtReal34);
+      realToString(&shown, displayValueX + dmsValueStart);
+    }
     if(degStr[0] == ' ' && degStr[1] != 0) {       //degStr has a leading space as it is always positive, and the sign is separately handled.
       memmove(degStr, degStr + 1, strlen(degStr));
     }
@@ -2424,6 +2558,7 @@ void realSCIToDisplayString(const real_t *work, char *displayString, int16_t dig
   int16_t numDigits, digitPointer, firstDigit, lastDigit, digitToRound, exponent;
   int32_t sign;
 
+  hp35Round10 = false;
   memset(bcd, 0, maxDigits);
 
   // A real_t is left significant: realGetCoefficient writes work->digits digit-bytes MSD first at bcd[1] with no leading zeros, and the place value of the last written digit bcd[work->digits] is work->exponent. This mirrors the real34 path where bcd[1] is the MSD and real34GetExponent gives the LSD place value; only the right edge moves from a fixed 34 to work->digits.
@@ -2473,7 +2608,9 @@ void longIntegerRegisterToRealDisplayString(calcRegister_t regist, char *display
   longIntegerToAllocatedString(lgInt, displayString, strLg);
   longIntegerFree(lgInt);
   real_t tmp4, tmpReal;
-  stringToReal(displayString, &tmpReal, &ctxtReal75);
+  decContext c = ctxtReal75;
+  c.round = DEC_ROUND_05UP;  // a dropped digit that is not zero leaves the last kept digit neither 0 nor 5, so a later rounding to fewer digits gives that of the exact integer
+  stringToReal(displayString, &tmpReal, &c);
   int32ToReal(minimum, &tmp4);
   if(minimum == 0 || !realCompareAbsLessThan(&tmpReal, &tmp4)) {
     const font_t *font = getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont;
@@ -2481,7 +2618,6 @@ void longIntegerRegisterToRealDisplayString(calcRegister_t regist, char *display
     if(displayFormat == DF_ALL && displayFormatDigits > DSP_MAX) {
       const int16_t regDispMaxDigits = 48; // buffer ceiling for shown digits; the wide-LI caller's cap (max 42) starts the width iteration
       char bcdScratch[100];
-      decContext c = ctxtReal75;
       c.digits = regDispMaxDigits;
       realPlus(&tmpReal, &tmpReal, &c);
       int16_t digitsToDisplay = regDispMaxDigits - 1; // fill the width; -1 drops the leading digit to get digits after the radix
@@ -2495,6 +2631,8 @@ void longIntegerRegisterToRealDisplayString(calcRegister_t regist, char *display
     }
     else {
       real34_t tmpReal34;
+      c.digits = 34;
+      realPlus(&tmpReal, &tmpReal, &c);  // 05UP at 34 digits as well, so realToReal34 takes the value exactly and the display rounds it once
       realToReal34(&tmpReal, &tmpReal34);
       real34ToDisplayString(&tmpReal34, amNone, displayString, font, maxWidth, 34, LIMITEXP, !FRONTSPACE, NOIRFRAC);
     }
@@ -2558,7 +2696,7 @@ static void insertSepsIntoIntegerText(char *displayString){
 
 void longIntegerToDisplayString(longInteger_t lgInt, char *displayString, int32_t strLg, int16_t max_Width, int16_t maxExp, bool_t allowLARGELI) { //JM mod max_Width;   //JM added last parameter: Allow LARGELI
   int16_t exponentStep, exponentStep1;
-  uint32_t exponentShift, exponentShiftLimit;
+  uint32_t exponentShift, exponentShiftLimit, shiftRemainder = 0;
   int16_t maxWidth;                   //JM align longints
 
   if(longIntegerIsNegative(lgInt)) {  //JM align longints
@@ -2585,15 +2723,15 @@ void longIntegerToDisplayString(longInteger_t lgInt, char *displayString, int32_
     //longIntegerFree(divisor);
     for(int32_t i=(int32_t)exponentShift; i>=1; i--) {
       if(i >= 9) {
-        longIntegerDivideUInt(lgInt, 1000000000, lgInt);
+        shiftRemainder |= longIntegerDivideUInt(lgInt, 1000000000, lgInt);
         i -= 8;
       }
       else if(i >= 4) {
-        longIntegerDivideUInt(lgInt,      10000, lgInt);
+        shiftRemainder |= longIntegerDivideUInt(lgInt,      10000, lgInt);
         i -= 3;
       }
       else {
-        longIntegerDivideUInt(lgInt,         10, lgInt);
+        shiftRemainder |= longIntegerDivideUInt(lgInt,         10, lgInt);
       }
     }
   }
@@ -2613,13 +2751,13 @@ void longIntegerToDisplayString(longInteger_t lgInt, char *displayString, int32_
 
   //for any exponent display, further manipulation of GRP is not needed
   if(stringWidth(displayString, allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, false, false) > maxWidth) {      //JM
-    char exponentString[14], lastRemovedDigit;
-    int16_t lastChar, stringStep, tenExponent;
+    char exponentString[24];                    // ×, ₁₀, the sign, five digits and a gap at 2 bytes each, and the terminator: any int16_t exponent
+    int16_t lastChar, stringStep, tenExponent, lastIndex = strlen(displayString) - 1;
 
     stringStep = (GROUPLEFT_DISABLED ? 1 : GROUPWIDTH_LEFT + (SEPARATOR_LEFT[1] == 1 ? 1 : 2));
     tenExponent = exponentStep + exponentShift;
     lastChar = strlen(displayString) - stringStep;
-    lastRemovedDigit = displayString[lastChar + (SEPARATOR_LEFT[1] == 1 ? 1 : 2)];
+    char cutChar = displayString[lastChar];
     displayString[lastChar] = 0;
     if(updateDisplayValueX) {
       displayValueX[strlen(displayValueX) - max(GROUPWIDTH_LEFT, 1)] = 0;
@@ -2628,9 +2766,10 @@ void longIntegerToDisplayString(longInteger_t lgInt, char *displayString, int32_
     exponentToDisplayString(tenExponent, exponentString, NULL, false);
     // the cut stops at the first digit group when no width is left for it
     while(lastChar > stringStep && stringWidth(displayString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, false, true) + stringWidth(exponentString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, true, false) > maxWidth) {  //JM getSystemFlag(FLAG_LARGELI)
+      displayString[lastChar] = cutChar;  // the byte under the previous cut is written back: with the separator NONE it is a dropped digit, which roundUpDrm takes into the rounding
       lastChar -= stringStep;
       tenExponent += exponentStep;
-      lastRemovedDigit = displayString[lastChar + (SEPARATOR_LEFT[1] == 1 ? 1 : 2)];
+      cutChar = displayString[lastChar];
       displayString[lastChar] = 0;
       if(updateDisplayValueX) {
         displayValueX[strlen(displayValueX) - max(GROUPWIDTH_LEFT, 1)] = 0;
@@ -2639,7 +2778,10 @@ void longIntegerToDisplayString(longInteger_t lgInt, char *displayString, int32_
       exponentToDisplayString(tenExponent, exponentString, NULL, false);
     }
 
-    if(lastRemovedDigit >= '5') { // Round up
+    displayString[lastChar] = cutChar;  // the first dropped byte is written back for roundUpDrm and cut again after it
+    bool_t roundUp = roundUpDrm((const uint8_t *)displayString, lastChar - 1, lastIndex, displayString[0] == '-', '0', shiftRemainder != 0);
+    displayString[lastChar] = 0;
+    if(roundUp) {  // Round up
       lastChar = strlen(displayString) - 1;
       displayString[lastChar]++;
       while(displayString[lastChar] > '9') {
@@ -2805,8 +2947,8 @@ void timeToDisplayString(calcRegister_t regist, char *displayString, bool_t igno
   bool_t isValid12hTime = false, isAfternoon = false;
   uint8_t savedDisplayFormat = displayFormat, savedDisplayFormatDigits = displayFormatDigits;
 
-  // The fraction loop below never ends on a NaN, and under ignoreTDisp there is no digit cap to stop it.
-  if(real34IsNaN(REGISTER_REAL34_DATA(regist))) {
+  // A special value has no HMS decomposition.
+  if(real34IsSpecial(REGISTER_REAL34_DATA(regist))) {
     real34ToString(REGISTER_REAL34_DATA(regist), displayString);
     return;
   }
@@ -2896,6 +3038,11 @@ void timeToDisplayString(calcRegister_t regist, char *displayString, bool_t igno
         tDigits = 0u;
       }
     }
+  }
+  if(!ignoreTDisp && timeDisplayFormatDigits == 0) {
+    realDivide(&real, const_3600, &h, &ctxtReal39);
+    realSetPositiveSign(&h);
+    realToIntegralValue(&h, &h, DEC_ROUND_DOWN, &ctxtReal39);
   }
   realSetPositiveSign(&real);
 
@@ -3422,6 +3569,10 @@ static void showShortIntegerLine(calcRegister_t showRegis, int16_t tag, int16_t 
 int16_t startingLine = 0;
 int16_t IntShowMode = 0;
 int16_t source = 0;
+uint16_t savedShowRegis = 0;        // the SHOW paging of the page now on screen, kept by storeShowStatus() on every fnC47Show() paint so recallShowStatus() repaints that same page
+int16_t savedSource = 0;
+int16_t savedStartingLine = 0;
+int16_t savedIntShowMode = 0;
 #define SHOWAUTO 0
 #define SHOWSML 1
 #define SHOWTNY 2
@@ -3549,6 +3700,8 @@ void fnC47Show(uint16_t fnShow_param) {
         break;
     }
     #pragma GCC diagnostic pop
+
+    storeShowStatus();                                 // the switch above has chosen the page; keep its start so a later recallShowStatus() repaints this same page, not the next one
 
 // printf("fnC47Show: fnShow_param=%i startingLine=%i IntShowMode=%i source=%i\n",fnShow_param, startingLine, IntShowMode, source);
 
@@ -3994,6 +4147,20 @@ goBreak1:
 #else
     fnView(REGISTER_X); // Re-direct to use VIEW instead. No more accuracy though
 #endif // !OPTION_SHOW
+}
+
+void storeShowStatus(void) {     //keep the SHOW paging of the page now on screen, so recallShowStatus() can repaint that same page after a capture or a preview label overwrote it
+  savedShowRegis = showRegis;
+  savedSource = source;
+  savedStartingLine = startingLine;
+  savedIntShowMode = IntShowMode;
+}
+
+void recallShowStatus(void) {    //put back the paging storeShowStatus() kept; fnC47Show(ITM_NOP) then re-renders the page that was on screen, from its own start
+  showRegis = savedShowRegis;
+  source = savedSource;
+  startingLine = savedStartingLine;
+  IntShowMode = savedIntShowMode;
 }
 
 void _view(uint16_t regist) {

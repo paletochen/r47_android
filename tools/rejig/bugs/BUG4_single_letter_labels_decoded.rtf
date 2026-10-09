@@ -1,0 +1,47 @@
+{\rtf1\ansi\ansicpg1252\deff0\nouicompat{\fonttbl{\f0\fnil\fcharset0 C47__StandardFont;}}{\pard\sl240\slmult1\f0\fs24\lang9\f0\loch
+C47 Program file export: Export format version 3, C47 program version 1.
+ \par
+0000: { Prgm #2/2: 273 bytes / 39 steps } \par
+0001:    NOP\par
+0002:    NOP\par
+0003:    NOP\par
+0004:    NOP\par
+0005:    NOP\par
+0006:    NOP\par
+0007:    NOP\par
+0008:    NOP\par
+0009:    NOP\par
+0010:    NOP\par
+0011:    NOP\par
+0012:    NOP\par
+0013:    NOP\par
+0014:    NOP\par
+0015:    NOP\par
+0016:    NOP\par
+0017:    NOP\par
+0018:    NOP\par
+0019:    NOP\par
+0020:    NOP\par
+0021:    NOP\par
+0022:    REM \u8216?rejig bug 4\u8217?\par
+\par
+0023:  LBL \u8216?B4\u8217?\par
+0024:    REM \u8216?bare M as the label, quoted 'M' as the jump target: they resolve to each other\u8217?\par
+0025:  GTO \u8216?M\u8217?\par
+0026:    99\par
+0027:    STO 01\par
+\par
+0028:  LBL \u8216?M\u8217?\par
+0029:    1\par
+0030:    STO 01\par
+0031:    REM \u8216?the colon form is the local named label, and it coexists with the global M above\u8217?\par
+0032:  GTO :M:\par
+0033:    98\par
+0034:    STO 02\par
+\par
+0035:  LBL :M:\par
+0036:    2\par
+0037:    STO 02\par
+0038:  RTN\par
+0039:  END\par
+}}

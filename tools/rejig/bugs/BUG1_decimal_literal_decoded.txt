@@ -1,0 +1,21 @@
+NOP
+NOP
+NOP
+NOP
+# rejig bug 1
+LBL ‘B1’
+  # three decimals, correct
+  1.5
+  0.375
+  12.345
+  2026.072
+  # four decimals, wrong
+  12:34:56
+  2026°7′29″
+  0°12′34″
+  1°0′00″
+  # five and six decimals, wrong
+  12:34:56.0
+  2026°7′29.00″
+  RTN
+  END

@@ -322,6 +322,38 @@ void fnStopProgram(uint16_t unusedButMandatoryParameter) {
 
 
 
+void fnFinish(uint16_t unusedButMandatoryParameter) {
+  if(programRunStop != PGM_RUNNING) {                  // FINISH keyed in by hand has no string argument, so it does nothing, as REM does
+    return;
+  }
+  char *msg = tmpStringLabelOrVariableName;
+  int32_t len = 0;
+  int16_t glyphs;
+
+  for(glyphs = 0; glyphs < MAX_NUMBER_OF_GLYPHS_IN_STRING && msg[len] != 0; glyphs++) {
+    const int32_t step = (msg[len] & 0x80) ? 2 : 1;
+    if(len + step >= ERROR_MESSAGE_LENGTH) {
+      break;
+    }
+    len += step;
+  }
+  xcopy(errorMessage, msg, len);
+  errorMessage[len] = 0;
+  if(len > 0) {                                        // an empty string shows no message; the termination below still runs
+    temporaryInformation = TI_FINISH;
+  }
+  const uint16_t theProgram = currentProgramNumber;  // the FINISH op's own program, read before the unwind moves the pointer
+  forClearLoops();                                   // every open FOR gives up its row and its two local registers
+  while(currentSubroutineLevel > 0) {                // every subroutine that has not returned is unwound, the same as an error does
+    fnReturn(0);
+  }
+  cleanLocalFlagsAndRegisters();                     // the level the run started in gives up its locals
+  programRunStop = PGM_STOPPED;                      // terminated, not paused: the ! icon is cleared and R/S does not resume it
+  goToPgmStep(theProgram, 1);                        // the step pointer sits at the top of that program
+}
+
+
+
 static void _executeWithIndirectRegister(uint8_t *paramAddress, uint16_t op) {
   uint8_t opParam = *(uint8_t *)paramAddress;
   bool_t  tryAllocate = isFunctionAllowingNewVariable(op);
@@ -885,6 +917,13 @@ int16_t executeOneStep(uint8_t *step) {
               fn42Append(NOPARAM);
             }
           }
+          else if(op == ITM_FINISH) {
+            if(*step++ == STRING_LABEL_VARIABLE) {
+              getStringLabelOrVariableName(step);
+              fnFinish(NOPARAM);
+              return -1; // fnFinish has stopped the run and set the step pointer; the engine must not advance it
+            }
+          }
           else {  // REM
                   // just ignore it
           }
@@ -974,15 +1013,17 @@ void runProgram(bool_t singleStep, uint16_t menuLabel) {
     }
     stepsToBeAdvanced = executeOneStep(currentStep);
     #if defined(ANDROID_BUILD)
-    {
-      static int androidYieldCounter = 0;
-      if (androidYieldCounter++ > 10) { // exactly 10 steps as per Master Guide 3.13
-        androidYieldCounter = 0;
-        void yieldToAndroid();
-        yieldToAndroid();
+      extern void yieldToAndroid(void);
+      static int stepCount = 0;
+      if (++stepCount >= 10) {
+          stepCount = 0;
+          yieldToAndroid();
       }
-    }
     #endif
+    if((lastErrorCode != ERROR_NONE) && (getSystemFlag(FLAG_IGN1ER))) {  // to catch an opcode parameter error detected before reallyRunFunction is called
+      lastErrorCode = ERROR_NONE;
+      clearSystemFlag(FLAG_IGN1ER);
+    }
     if(lastErrorCode == ERROR_NONE) {
       switch(stepsToBeAdvanced) {
         case -1: { // Already the pointer is set
@@ -1105,7 +1146,7 @@ void fnCheckLabel(uint16_t label) {
   if(dynamicMenuItem >= 0) {
     label = findNamedLabel(dynmenuGetLabel(dynamicMenuItem),ALL_LABELS);
   }
-  
+
   // Local Label 00 to 99 and A to l
   if(label <= LAST_LOCAL_LABEL) {
     // Search for local label

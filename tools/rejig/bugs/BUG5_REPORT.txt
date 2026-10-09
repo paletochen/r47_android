@@ -1,0 +1,101 @@
+================================================================================================================
+BUG 5: PGMSLV, PGMPLT, PGMINT AND PGMDRV REFUSE A NUMERIC LABEL. REJIG IS NOT AT FAULT.
+================================================================================================================
+
+Short version: a program reached through a numeric label, PGMSLV 01, does not run. The engine reports
+"unexpected parameter 1" and returns nothing. The same program reached through a named label runs correctly.
+The encoding rejig produces for PGMSLV 01 was checked against what the calculator itself stores when the step
+is keyed in by hand, and the two are identical. The fault is therefore in the firmware, not in rejig.
+
+rejig version:      the binary at the repository root, checkout c0885a6f9d
+Firmware tested on: the working tree build, and the alpha, both give the same result
+Every command below is run from the folder holding these files.
+
+
+THE FAILURE
+-----------
+
+Files: BUG5_numeric.txt, BUG5_numeric.p47      the failing case, function reached as label 01
+       BUG5_named.txt,   BUG5_named.p47        the control, the same function reached as :FX:
+
+Both solve x^2 - 2 = 0 between 0 and 2, so both must return the square root of two.
+
+    ./rejig BUG5_numeric.txt -o BUG5_numeric.p47
+    ./t47 --reset --exec "readp BUG5_numeric.p47; xeq SN"
+
+    ./rejig BUG5_named.txt -o BUG5_named.p47
+    ./t47 --reset --exec "readp BUG5_named.p47; xeq SL"
+
+    case                      X after the run                                  message
+    -----------------------   ---------------------------------------------   --------------------------
+    PGMSLV 01                 0                                               unexpected parameter 1
+    PGMSLV :FX:               1.414213562373095048801688724209698             none
+
+The named answer is correct to 34 digits. The numeric case produces nothing at all.
+
+The same pair was run on the alpha build as well, with identical results, so this is not a recent change.
+
+PGMPLT fails the same way, because fnPgmPlt calls fnPgmSlv. A plot written as
+
+    PGMPLT 01
+    -5 5
+    PLTf 'x'
+
+draws nothing and reports the same message. res/PROGRAMS/GRAPHS is affected: as committed it is meant to
+produce ten captures and produces two, stopping at its PGMPLT 01 step.
+
+
+WHY THIS IS NOT A REJIG FAULT
+-----------------------------
+
+Files: BUG5_identity_base.txt, BUG5_identity_base.p47   two labels and nothing else, the skeleton to key into
+       BUG5_identity.txt, BUG5_identity.p47             the same program with PGMSLV 01 added by rejig
+       BUG5_handkeyed.rtf                               the calculator's listing of the hand-keyed program, GUI
+       BUG5_handkeyed_t47.rtf                           the same, keyed in the headless build
+       BUG5_rejig.rtf                                   the calculator's listing of the rejig-encoded program
+
+The base program was loaded, program entry mode was opened with f P/R, the ADV menu was opened with f 8,
+PGMSLV was chosen from softkey 6 of the second row, and 0 1 was typed at the prompt. That is the ordinary way
+a user writes the step. The result was exported with the calculator's own program exporter. The same program
+was then encoded by rejig from BUG5_identity.txt and exported the same way. Both the headless t47 and the GUI
+c47 were used for the hand-keyed half, and the three exports are all identical.
+
+    ./t47 --reset --exec 'readp BUG5_identity_base.p47;
+                          press @f; press {@k 35}; press @f; press {@k 19}; press @f; press F6;
+                          press {@k 33}; press {@k 28}; press @f; press {@k 35};
+                          xportp HK handkeyed.rtf'
+
+    BUG5_handkeyed.rtf, BUG5_handkeyed_t47.rtf and BUG5_rejig.rtf are all byte for byte identical.
+
+Both report the program as 22 bytes over 8 steps, and rejig's container is 22 bytes. The step is written as
+
+    134 11 1        PGMSLV, then the label operand 1
+
+by rejig and by the calculator alike. rejig is writing exactly what the calculator writes.
+
+
+WHERE IT GOES WRONG IN THE FIRMWARE
+-----------------------------------
+
+fnPgmSlv in src/c47/solver/solve.c accepts its parameter in only two ranges: FIRST_LABEL to LAST_LABEL, which
+is the index of a label in the label list, and REGISTER_X to REGISTER_T for the interactive lettered form.
+FIRST_LABEL is defined in src/c47/defines.h just past INVALID_VARIABLE = 2199. A numeric label arrives as the
+small number it was written as, 1 here, which is in neither range, so the function falls through to the
+out-of-range branch and prints the number back at the user.
+
+fnPgmPlt is a one-line wrapper around fnPgmSlv, so plotting inherits the same limitation. PGMINT and PGMDRV
+were not tested but read the same way and are declared TM_LBLONLY in the same manner.
+
+Note that GTO 01 and XEQ 01 both work: numeric labels are fine everywhere else. It is only the four commands
+that take a program as their operand that reject them.
+
+
+WHAT WE WOULD LIKE
+------------------
+
+Nothing from rejig. This is recorded here because the hunt started as a suspected rejig encoding fault, and
+the evidence that clears rejig is worth keeping with the other rejig material.
+
+For the firmware: either accept a numeric label in fnPgmSlv by resolving it to its label-list index the way
+the named forms are resolved, or refuse it at entry time so the step cannot be written in the first place.
+Silently accepting the keystrokes and then failing at run time is the worst of the three.
