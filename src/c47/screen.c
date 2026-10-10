@@ -2134,7 +2134,7 @@ return res;
       }
 
       //lcd_refresh();
-      fnTimerStart(TO_KB_ACTV, TO_KB_ACTV, TO_KB_ACTV_MEDIUM); //PROGRAM_KB_ACTV
+      fnTimerStart(TO_KB_ACTV, TO_KB_ACTV, TO_KB_ACTV_ZERO); //PROGRAM_KB_ACTV
       if(disp && !blockMonitoring) {
         sprintf(tmps, "%s %" PRIi32 "  ", txt, loop);
         showString(tmps, &standardFont, 20, /*145-7*/ Y_POSITION_OF_REGISTER_T_LINE + mode * 20, vmNormal, false, false);  //note: displays info 1 line down, if "force" parameter is set
@@ -3639,10 +3639,12 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
     char prefix[200], lastBase[20];
 
     #if defined(DMCP_BUILD)
+      const int pendingKey = key_tail();                          // peek the DMCP buffer before the pop empties it: >0 a press, 0 a release, -1 nothing
       keyBuffer_pop();                                            // This causes key updates while the longer time processing register updates happen
       if( !skippedStackLines && (calcMode == CM_NORMAL || calcMode == CM_MIM) &&
           !(regist == REGISTER_X)&&// || regist == REGISTER_Y) &&
-          !runningOnSimOrUSB &&                                   // Automatically, when on battery (hence low processor), change to skip long processing register printing, recovering the fragmented screen here: See timer.c fnTimerEndOfActivity()
+          !runningOnSimOrUSB &&                                   // Not on USB: a polar complex or polar vector line takes a rectangular to polar conversion per draw, so defer it and reach the X line and the waiting key sooner: See timer.c fnTimerEndOfActivity()
+          pendingKey > 0 &&                                       // a press, not a release: the file chooser returns without waiting for the release of the key that closed it, and deferring a line does nothing for a release
           !emptyKeyBuffer() &&
           key_empty() == 1
           ) {
@@ -4832,14 +4834,14 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
           //else if(temporaryInformation == TI_SXY) {
           //  if(regist == REGISTER_X) {
           //    strcpy(prefix, "s" STD_SUB_x STD_SUB_y " =");
-          //    prefixWidth = prefixWidthAt(prefix, indent);
+          //    prefixWidth = stringWidth(prefix, &standardFont, true, true) + 1;
           //  }
           //}
 
           //else if(temporaryInformation == TI_COV) {
           //  if(regist == REGISTER_X) {
           //    strcpy(prefix, "s" STD_SUB_m STD_SUB_w " =");
-          //    prefixWidth = prefixWidthAt(prefix, indent);
+          //    prefixWidth = stringWidth(prefix, &standardFont, true, true) + 1;
           //  }
           //}
 

@@ -8,6 +8,7 @@ env = environment()
 env.append('CFLAGS',
   '-Os',
   '-std=gnu17',
+  '-Wno-overflow',  # the MP_SIZE_T_MAX thresholds of mpn/generic/gmp-mparam.h overflow in constant expressions whose values go unused or only pick a split point
   separator : ' ')
 
 mod = import('unstable-external_project')

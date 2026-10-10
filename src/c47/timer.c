@@ -183,7 +183,7 @@ void fnTimerEndOfActivity(uint16_t param) {
                                   powerMarkerMsF(1, 10000);
                                 #endif //DM42_POWERMARKS
 
-  if(skippedStackLines) {       //update screen after 1 or 2 sec timout, to restore the half-updated screen in battery mode. See refreshRegisterLine() in screen.c
+  if(skippedStackLines) {       //repaint the register lines deferred by the skip in refreshRegisterLine() in screen.c, when TO_KB_ACTV expires, TO_KB_ACTV_MEDIUM/5 after a key release
     screenUpdatingMode = SCRUPD_AUTO | SCRUPD_MANUAL_MENU;
     skippedStackLines = false;
     refreshScreen(32);
