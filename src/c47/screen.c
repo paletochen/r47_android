@@ -171,9 +171,7 @@ TO_QSPI static const char *nameOfWday_pt[8] = {"dia inv" STD_a_ACUTE "lido da se
     #endif // BIG_SCREEN_COEF != 1
     cairo_set_source_surface(cr, imageSurface, 0, 0);
     cairo_surface_mark_dirty(imageSurface);
-    #if (BIG_SCREEN_COEF != 1)
-      cairo_pattern_set_filter(cairo_get_source(cr), CAIRO_FILTER_FAST);
-    #endif // BIG_SCREEN_COEF != 1
+    cairo_pattern_set_filter(cairo_get_source(cr), CAIRO_FILTER_FAST);  // Quartz antialiases GOOD at device scale, so a 1 px damage strip covers its row only in part.
     cairo_paint(cr);
     cairo_surface_destroy(imageSurface);
 
@@ -5341,7 +5339,9 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
             //This is for the VIEW line, drawn after the register name and not at the right margin
             if(temporaryInformation == TI_VIEW_REGISTER && origRegist == REGISTER_T && (w = stringWidthWithLimitC47(REGISTER_STRING_DATA(regist), stdnumEnlarge, nocompress, SCREEN_WIDTH - prefixWidth, false, true)) < SCREEN_WIDTH - prefixWidth) {
               lineWidth = w;
-              showStringC47(REGISTER_STRING_DATA(regist), stdnumEnlarge, nocompress, prefixWidth, baseY + 2 - checkHPoffset, vmNormal, false, true);
+              COPY_REGISTER_STRING_TO(tmpString, regist);
+              createSubstrings(1);
+              showStringC47(tmpString, stdnumEnlarge, nocompress, prefixWidth, baseY + 2 - checkHPoffset, vmNormal, false, true);
             }
             else                                                                  //JM
           #endif // STACK_X_STR_LRG_FONT
