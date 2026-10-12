@@ -212,7 +212,7 @@ TO_QSPI static const char *nameOfWday_pt[8] = {"dia inv" STD_a_ACUTE "lido da se
   static void angularUnitToString(angularMode_t angularMode, char *string) {
     switch(angularMode) {
       case amRadian: strcpy(string, "r");        break;
-      case amMultPi: strcpy(string, STD_pi "r"); break;
+      case amMultPi: strcpy(string, STD_pi);     break;
       case amGrad:   strcpy(string, "g");        break;
       case amDegree: strcpy(string, STD_DEGREE); break;
       case amDMS:    strcpy(string, "d.ms");     break;

@@ -95,8 +95,8 @@ static void angularUnitToString(angularMode_t angularMode, char *string) {
 }
 
 char* getXRegisterString() {
-    static char result[2048]; // Increased size for UTF-8 conversion
-    char coreBuf[1024];
+    static char result[32768]; // Increased size for UTF-8 conversion & matrices
+    static char coreBuf[32768];
     coreBuf[0] = '\0';
     
     if (!ram) return "0";
@@ -182,13 +182,24 @@ char* getXRegisterString() {
             dateToDisplayString(regist, coreBuf);
             break;
             
+        case dtReal34Matrix:
+        case dtComplex34Matrix: {
+            extern void copyRegisterToClipboardString(calcRegister_t regist, char *clipboardString, bool_t forPrinter);
+            copyRegisterToClipboardString(regist, coreBuf, false);
+            break;
+        }
+
         default:
             sprintf(coreBuf, "[%s]", getDataTypeName(dataType, false, false));
             break;
     }
     
-    ascii_clean(coreBuf);
-    trimTrailingRadix(coreBuf);
+    if (dataType != dtReal34Matrix && dataType != dtComplex34Matrix) {
+        ascii_clean(coreBuf);
+        trimTrailingRadix(coreBuf);
+    } else {
+        ascii_clean(coreBuf);
+    }
 
     // Convert core glyphs to valid UTF-8
     extern void stringToUtf8(const char *str, uint8_t *utf8);

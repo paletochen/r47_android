@@ -152,4 +152,7 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(JNIEnv *env,
                                                          jobject thiz,
                                                          jstring text);
 
+extern void restoreRegister(calcRegister_t regist, char *type, char *value);
+extern void reallocateRegister(calcRegister_t regist, uint32_t dataType, uint32_t dataSizeWithoutDataLenBlocks, uint32_t tag);
+
 #endif

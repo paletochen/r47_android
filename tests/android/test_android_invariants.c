@@ -48,6 +48,8 @@ extern void setLastKeyCode(int key);
 real_t *statisticalSumsPointer = NULL;
 subroutineLevelHeader_t *currentSubroutineLevelData = NULL;
 
+static uint32_t mock_register_datatype = dtReal34;
+
 char letteredRegisterName(calcRegister_t regist) {
     (void)regist;
     return 'X';
@@ -57,7 +59,11 @@ void copyRegisterToClipboardString(calcRegister_t regist, char *clipboardString,
     (void)regist;
     (void)forPrinter;
     if (clipboardString) {
-        strcpy(clipboardString, "0");
+        if (mock_register_datatype == dtReal34Matrix) {
+            strcpy(clipboardString, "2x2\n0.\n0.\n0.\n0.");
+        } else {
+            strcpy(clipboardString, "0");
+        }
     }
 }
 
@@ -85,7 +91,6 @@ char *decQuadToString(const decQuad *df, char *string) {
     return string;
 }
 
-static uint32_t mock_register_datatype = dtReal34;
 uint32_t getRegisterDataType(calcRegister_t regist) { (void)regist; return mock_register_datatype; }
 uint32_t getRegisterTag(calcRegister_t regist) { (void)regist; return 0; }
 const char* getDataTypeName(uint16_t dt, bool_t a, bool_t b) { (void)dt; (void)a; (void)b; return "Real"; }
@@ -556,6 +561,52 @@ void test_copy_x_register_conversions(void) {
 
         TEST_ASSERT(strcmp(typeTag, "Real:MULTPI") == 0, "Type tag must be Real:MULTPI");
         TEST_ASSERT(strcmp(s, expectedScalars[i]) == 0, "Extracted scalar must match expected scalar");
+    }
+
+    // Verify dtReal34Matrix copying in getXRegisterString
+    mock_register_datatype = dtReal34Matrix;
+    char *matStr = getXRegisterString();
+    TEST_ASSERT(strcmp(matStr, "2x2\n0.\n0.\n0.\n0.") == 0, "dtReal34Matrix must copy formatted matrix elements instead of placeholder");
+
+    // Verify matrix parsing invariants across diverse formats
+    const char *testMatrixInputs[] = {
+        "2x2\n0.\n0.\n0.\n0.",
+        "X = 2x2\n0.\n0.\n0.\n0.",
+        "X = 2 x 2\n1.5\n-2.5\n3.0\n-4.0",
+        "3x1\n10.\n20.\n30.",
+        "2x2 1. 2. 3. 4.",
+        "2x2"
+    };
+    unsigned long expectedRows[] = {2, 2, 2, 3, 2, 2};
+    unsigned long expectedCols[] = {2, 2, 2, 1, 2, 2};
+
+    for (size_t m = 0; m < sizeof(testMatrixInputs) / sizeof(testMatrixInputs[0]); m++) {
+        const char *p = testMatrixInputs[m];
+        while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') p++;
+
+        const char *lineEnd = strpbrk(p, "\r\n");
+        const char *eq = strchr(p, '=');
+        if (eq != NULL && (lineEnd == NULL || eq < lineEnd)) {
+            p = eq + 1;
+            while (*p == ' ' || *p == '\t') p++;
+        }
+        if (*p == '[') {
+            p++;
+            while (*p == ' ' || *p == '\t') p++;
+        }
+
+        char *endRows = NULL;
+        unsigned long r = strtoul(p, &endRows, 10);
+        TEST_ASSERT(r == expectedRows[m], "Parsed matrix rows must match");
+
+        while (*endRows == ' ' || *endRows == '\t') endRows++;
+        TEST_ASSERT(*endRows == 'x' || *endRows == 'X', "Dimension separator must be x");
+        endRows++;
+        while (*endRows == ' ' || *endRows == '\t') endRows++;
+
+        char *endCols = NULL;
+        unsigned long c = strtoul(endRows, &endCols, 10);
+        TEST_ASSERT(c == expectedCols[m], "Parsed matrix cols must match");
     }
 
     // Reset RAM and datatype

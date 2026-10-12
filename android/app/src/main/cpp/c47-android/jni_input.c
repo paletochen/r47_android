@@ -109,6 +109,289 @@ JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_sendKey(
   currentPressedKeyStr[0] = 0;
 }
 
+static bool_t tryPasteMatrix(const char *str) {
+  if(!str || !*str) {
+    return false;
+  }
+
+  const char *p = str;
+  while(*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') {
+    p++;
+  }
+
+  // Check for optional register prefix e.g. "X = ", "x = ", "R01 = ", "RegX = "
+  const char *lineEnd = strpbrk(p, "\r\n");
+  const char *eq = strchr(p, '=');
+  if(eq != NULL && (lineEnd == NULL || eq < lineEnd)) {
+    p = eq + 1;
+    while(*p == ' ' || *p == '\t') {
+      p++;
+    }
+  }
+
+  // Check for optional '[' e.g. "[2x2]"
+  if(*p == '[') {
+    p++;
+    while(*p == ' ' || *p == '\t') {
+      p++;
+    }
+  }
+
+  // Read rows
+  char *endRows = NULL;
+  unsigned long rows = strtoul(p, &endRows, 10);
+  if(rows == 0 || endRows == NULL || endRows == p) {
+    return false;
+  }
+  while(*endRows == ' ' || *endRows == '\t') {
+    endRows++;
+  }
+
+  // Dimension separator must be 'x' or 'X'
+  if(*endRows != 'x' && *endRows != 'X') {
+    return false;
+  }
+  endRows++; // skip 'x'
+  while(*endRows == ' ' || *endRows == '\t') {
+    endRows++;
+  }
+
+  // Read cols
+  char *endCols = NULL;
+  unsigned long cols = strtoul(endRows, &endCols, 10);
+  if(cols == 0 || endCols == NULL || endCols == endRows) {
+    return false;
+  }
+
+  while(*endCols == ' ' || *endCols == '\t' || *endCols == ']') {
+    endCols++;
+  }
+
+  // Must be followed by newline, whitespace or end of string
+  if(*endCols != '\r' && *endCols != '\n' && *endCols != ' ' && *endCols != '\t' && *endCols != '\0') {
+    return false;
+  }
+
+  // Dimension and storage overflow sanity check
+  if((uint64_t)rows * cols * REAL34_SIZE_IN_BLOCKS + TO_BLOCKS(sizeof(matrixHeader_t)) > 0xFFFFu) {
+    return false;
+  }
+
+  uint32_t totalElements = (uint32_t)(rows * cols);
+  const char *curr = endCols;
+
+  // Count non-empty lines following the header to choose reading strategy
+  const char *scan = curr;
+  uint32_t lineCount = 0;
+  while(*scan) {
+    while(*scan == ' ' || *scan == '\t') {
+      scan++;
+    }
+    if(*scan == '\r' || *scan == '\n') {
+      while(*scan == '\r' || *scan == '\n') {
+        scan++;
+      }
+      continue;
+    }
+    if(*scan == '\0') {
+      break;
+    }
+    lineCount++;
+    while(*scan && *scan != '\r' && *scan != '\n') {
+      scan++;
+    }
+  }
+
+  bool_t lineByLine = (lineCount >= totalElements);
+
+  // Allocate temporary element buffers
+  real34_t *realElements = (real34_t *)malloc(totalElements * sizeof(real34_t));
+  real34_t *imagElements = (real34_t *)calloc(totalElements, sizeof(real34_t));
+  if(!realElements || !imagElements) {
+    if(realElements) {
+      free(realElements);
+    }
+    if(imagElements) {
+      free(imagElements);
+    }
+    return false;
+  }
+
+  bool_t isComplex = false;
+
+  for(uint32_t i = 0; i < totalElements; i++) {
+    char elemBuf[256];
+    elemBuf[0] = '\0';
+
+    // Skip leading delimiters/whitespace
+    while(*curr == ' ' || *curr == '\t' || *curr == '\r' || *curr == '\n' || *curr == ';' || *curr == ',') {
+      curr++;
+    }
+
+    if(*curr == '\0') {
+      real34SetZero(&realElements[i]);
+      real34SetZero(&imagElements[i]);
+      continue;
+    }
+
+    if(lineByLine) {
+      const char *nl = strpbrk(curr, "\r\n");
+      size_t elen = nl ? (size_t)(nl - curr) : strlen(curr);
+      if(elen >= sizeof(elemBuf)) {
+        elen = sizeof(elemBuf) - 1;
+      }
+      strncpy(elemBuf, curr, elen);
+      elemBuf[elen] = '\0';
+      curr += elen;
+    }
+    else {
+      const char *delim = curr;
+      while(*delim && *delim != ' ' && *delim != '\t' && *delim != '\r' && *delim != '\n' && *delim != ';' && *delim != ',') {
+        delim++;
+      }
+      size_t elen = (size_t)(delim - curr);
+      if(elen >= sizeof(elemBuf)) {
+        elen = sizeof(elemBuf) - 1;
+      }
+      strncpy(elemBuf, curr, elen);
+      elemBuf[elen] = '\0';
+      curr = delim;
+    }
+
+    // Trim trailing whitespace
+    char *e = elemBuf + strlen(elemBuf);
+    while(e > elemBuf && (*(e - 1) == ' ' || *(e - 1) == '\t')) {
+      *(--e) = '\0';
+    }
+
+    // Check if element contains a complex unit
+    char *cpxUnit = strstr(elemBuf, "jx");
+    if(!cpxUnit) {
+      cpxUnit = strstr(elemBuf, "ix");
+    }
+    if(!cpxUnit) {
+      cpxUnit = strstr(elemBuf, "\x83\xc1");
+    }
+
+    if(cpxUnit != NULL) {
+      isComplex = true;
+      // Search backwards from cpxUnit for '+' or '-'
+      char *signPtr = NULL;
+      for(char *c = cpxUnit - 1; c >= elemBuf; c--) {
+        if(*c == '+' || *c == '-') {
+          signPtr = c;
+          break;
+        }
+      }
+
+      if(signPtr != NULL) {
+        char realPart[128];
+        size_t rLen = signPtr - elemBuf;
+        if(rLen >= sizeof(realPart)) {
+          rLen = sizeof(realPart) - 1;
+        }
+        strncpy(realPart, elemBuf, rLen);
+        realPart[rLen] = '\0';
+
+        char *reEnd = realPart + strlen(realPart);
+        while(reEnd > realPart && (*(reEnd - 1) == ' ' || *(reEnd - 1) == '\t')) {
+          *(--reEnd) = '\0';
+        }
+        stringToReal34(realPart, &realElements[i]);
+
+        char *imagVal = cpxUnit + (cpxUnit[1] == 'x' || cpxUnit[1] == 'X' ? 2 : 1);
+        while(*imagVal == ' ' || *imagVal == '\t') {
+          imagVal++;
+        }
+        if(*imagVal == '\0') {
+          real34Copy(const34_1, &imagElements[i]);
+          if(*signPtr == '-') {
+            real34SetNegativeSign(&imagElements[i]);
+          }
+        }
+        else {
+          stringToReal34(imagVal, &imagElements[i]);
+          if(*signPtr == '-') {
+            real34SetNegativeSign(&imagElements[i]);
+          }
+        }
+      }
+      else {
+        // Pure imaginary element e.g. "jx2" or "-jx3"
+        real34SetZero(&realElements[i]);
+        char *imagVal = cpxUnit + (cpxUnit[1] == 'x' || cpxUnit[1] == 'X' ? 2 : 1);
+        while(*imagVal == ' ' || *imagVal == '\t') {
+          imagVal++;
+        }
+        if(*imagVal == '\0') {
+          real34Copy(const34_1, &imagElements[i]);
+        }
+        else {
+          stringToReal34(imagVal, &imagElements[i]);
+        }
+        if(elemBuf[0] == '-') {
+          real34SetNegativeSign(&imagElements[i]);
+        }
+      }
+    }
+    else {
+      // Real element: normalize comma radix if needed
+      char *lastDot = strrchr(elemBuf, '.');
+      char *lastComma = strrchr(elemBuf, ',');
+      if(lastComma != NULL && lastDot == NULL) {
+        for(char *c = elemBuf; *c; c++) {
+          if(*c == ',') {
+            *c = '.';
+          }
+        }
+      }
+      stringToReal34(elemBuf, &realElements[i]);
+      real34SetZero(&imagElements[i]);
+    }
+  }
+
+  pthread_mutex_lock(&screenMutex);
+  if(calcMode == CM_NORMAL && getSystemFlag(FLAG_ASLIFT)) {
+    liftStack();
+  }
+
+  if(isComplex) {
+    reallocateRegister(REGISTER_X, dtComplex34Matrix, COMPLEX34_SIZE_IN_BLOCKS * rows * cols, amNone);
+    REGISTER_MATRIX_HEADER(REGISTER_X)->matrixRows = (uint16_t)rows;
+    REGISTER_MATRIX_HEADER(REGISTER_X)->matrixColumns = (uint16_t)cols;
+    complex34_t *dst = REGISTER_COMPLEX34_MATRIX_ELEMENTS(REGISTER_X);
+    for(uint32_t i = 0; i < totalElements; i++) {
+      real34Copy(&realElements[i], VARIABLE_REAL34_DATA(dst + i));
+      real34Copy(&imagElements[i], VARIABLE_IMAG34_DATA(dst + i));
+    }
+  }
+  else {
+    reallocateRegister(REGISTER_X, dtReal34Matrix, REAL34_SIZE_IN_BLOCKS * rows * cols, amNone);
+    REGISTER_MATRIX_HEADER(REGISTER_X)->matrixRows = (uint16_t)rows;
+    REGISTER_MATRIX_HEADER(REGISTER_X)->matrixColumns = (uint16_t)cols;
+    real34_t *dst = REGISTER_REAL34_MATRIX_ELEMENTS(REGISTER_X);
+    for(uint32_t i = 0; i < totalElements; i++) {
+      real34Copy(&realElements[i], dst + i);
+    }
+  }
+
+  free(realElements);
+  free(imagElements);
+
+  setSystemFlag(FLAG_ASLIFT);
+
+  extern bool_t reDraw;
+  extern gboolean refreshLcd(gpointer unusedData);
+  reDraw = true;
+  screenUpdatingMode = SCRUPD_AUTO;
+  refreshScreen(1);
+  refreshLcd(NULL);
+  lcd_refresh();
+  pthread_mutex_unlock(&screenMutex);
+
+  return true;
+}
+
 JNIEXPORT void JNICALL
 Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
     JNIEnv *env, jobject thiz, jstring text) {
@@ -122,10 +405,16 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
     return;
   }
 
-  char buf[512];
+  size_t rawLen = strlen(rawText);
+  char *buf = (char *)malloc(rawLen * 2 + 64);
+  if (!buf) {
+    (*env)->ReleaseStringUTFChars(env, text, rawText);
+    return;
+  }
+
   size_t len = 0;
   const char *p = rawText;
-  while (*p && len + 1 < sizeof(buf)) {
+  while (*p) {
     unsigned char c = (unsigned char)*p;
     if (c == 0xC2 && (unsigned char)*(p + 1) == 0xB0) {
       buf[len++] = ':';
@@ -184,6 +473,12 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
     *(--e) = '\0';
   }
   if (!*s) {
+    free(buf);
+    return;
+  }
+
+  if (tryPasteMatrix(s)) {
+    free(buf);
     return;
   }
 
@@ -501,4 +796,6 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
   refreshLcd(NULL);
   lcd_refresh();
   pthread_mutex_unlock(&screenMutex);
+
+  free(buf);
 }
