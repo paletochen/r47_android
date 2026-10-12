@@ -162,15 +162,15 @@ Powered by the 34-digit `decQuad` arithmetic engine, R47 supports rich data type
 
 | Feature / Data Type | Description | Screen Preview |
 | :--- | :--- | :---: |
-| **Main Stack & Reals** | 4-level or 8-level RPN stack with up to 34 decimal digits of precision. | <img src="manual/images/ss_main_screen.png" width="220" /> |
-| **Complex Numbers** | Full complex arithmetic supporting both Cartesian and Polar representations. | <img src="manual/images/ss_datatype_complex.png" width="220" /> |
-| **Matrix Operations** | Real and complex matrices with inversion, LU decomposition, and determinants. | <img src="manual/images/ss_datatype_matrix.png" width="220" /> |
-| **Arbitrary Precision Long Integers** | Arbitrary-length integers with customizable base and word length up to 64 bits. | <img src="manual/images/ss_datatype_longint.png" width="220" /> |
-| **Base & Bit Logic** | Hexadecimal, decimal, octal, and binary operations with bitwise masking. | <img src="manual/images/ss_menu_base_p1.png" width="220" /> |
-| **Plotting & Graphics** | On-screen function graphing, numerical differentiation, and curve exploration. | <img src="manual/images/ss_menu_plot_p1.png" width="220" /> |
-| **Financial / TVM** | Time Value of Money, amortization tables, and cash flow analysis. | <img src="manual/images/ss_menu_tvm_p1.png" width="220" /> |
-| **Root Finding & Solver** | Numerical equation solving, polynomial roots, and numerical integration. | <img src="manual/images/ss_menu_solve_p1.png" width="220" /> |
-| **Clock, Time & Dates** | Comprehensive calendar, day-of-week, intervals, and real-time clock functions. | <img src="manual/images/ss_menu_clk_p1.png" width="220" /> |
+| **Main Stack & Reals** | 4-level or 8-level RPN stack with up to 34 decimal digits of precision. | <img src="docs/screens/ss_main_screen.png" width="220" /> |
+| **Complex Numbers** | Full complex arithmetic supporting both Cartesian and Polar representations. | <img src="docs/screens/ss_datatype_complex.png" width="220" /> |
+| **Matrix Operations** | Real and complex matrices with inversion, LU decomposition, and determinants. | <img src="docs/screens/ss_datatype_matrix.png" width="220" /> |
+| **Arbitrary Precision Long Integers** | Arbitrary-length integers with customizable base and word length up to 64 bits. | <img src="docs/screens/ss_datatype_longint.png" width="220" /> |
+| **Base & Bit Logic** | Hexadecimal, decimal, octal, and binary operations with bitwise masking. | <img src="docs/screens/ss_menu_base_p1.png" width="220" /> |
+| **Plotting & Graphics** | On-screen function graphing, numerical differentiation, and curve exploration. | <img src="docs/screens/ss_menu_plot_p1.png" width="220" /> |
+| **Financial / TVM** | Time Value of Money, amortization tables, and cash flow analysis. | <img src="docs/screens/ss_menu_tvm_p1.png" width="220" /> |
+| **Root Finding & Solver** | Numerical equation solving, polynomial roots, and numerical integration. | <img src="docs/screens/ss_menu_solve_p1.png" width="220" /> |
+| **Clock, Time & Dates** | Comprehensive calendar, day-of-week, intervals, and real-time clock functions. | <img src="docs/screens/ss_menu_clk_p1.png" width="220" /> |
 
 ---
 
