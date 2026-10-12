@@ -233,20 +233,6 @@ jobs:
           git cat-file -e "$upstream_commit^{commit}"
           git archive --format=tar "$upstream_commit" | tar -xf -
 
-          # RESTORE local Android-specific fixes that were overwritten by upstream sync
-          git checkout HEAD -- \
-            src/c47/programming/input.c \
-            src/c47/programming/lblGtoXeq.c \
-            src/c47/screen.c \
-            src/c47/screen.h \
-            src/c47/display.c \
-            src/c47/core/freeList.c \
-            src/c47/registerValueConversions.c \
-            src/c47/registers.c \
-            src/c47/registers.h \
-            src/c47/softmenus.c \
-            src/c47/timer.c
-
           git checkout -- \
             .gitignore \
             README.md \
