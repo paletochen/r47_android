@@ -397,6 +397,24 @@ void test_copy_x_register_conversions(void) {
     trimTrailingRadix(out);
     TEST_ASSERT(strcmp(out, "100g") == 0, "trimTrailingRadix must strip trailing period before 'g'");
 
+    // Verify trimTrailingRadix preserves radix mark before STD_pi and UTF-8 pi
+    strcpy(out, "2.\x83\xc0r");
+    trimTrailingRadix(out);
+    TEST_ASSERT(strcmp(out, "2.\x83\xc0r") == 0, "trimTrailingRadix must preserve period before STD_pi r");
+
+    strcpy(out, "2.πr");
+    trimTrailingRadix(out);
+    TEST_ASSERT(strcmp(out, "2.πr") == 0, "trimTrailingRadix must preserve period before UTF-8 πr");
+
+    strcpy(out, "2.π");
+    trimTrailingRadix(out);
+    TEST_ASSERT(strcmp(out, "2.π") == 0, "trimTrailingRadix must preserve period before UTF-8 π");
+
+    // Verify ascii_clean normalizes STD_SUP_pir to STD_pi "r"
+    strcpy(out, "\xac\x66");
+    ascii_clean(out);
+    TEST_ASSERT(strcmp(out, "\x83\xc0r") == 0, "ascii_clean must normalize STD_SUP_pir to STD_pi r");
+
     // Verify sanitization logic for pasted numbers (stripping spaces and normalizing commas/periods)
     char testClean1[] = "-0.989 36";
     char cleanBuf1[256];
@@ -475,6 +493,70 @@ void test_copy_x_register_conversions(void) {
     }
     *wT = '\0';
     TEST_ASSERT(strcmp(cleanT1, "2026") == 0, "Hours part must have internal spaces stripped to 2026");
+
+    // Verify MULTPI paste sanitization and scalar extraction
+    const char *testMultpiInputs[] = {
+        "2.πr", "2.π", "2πr", "2π", "πr", "π", "-πr", "-π", "+π", "-2.πr", "2.5πr", "2 * π", "2:MULTPI", "2pir", "2pi", "pi", "-pi"
+    };
+    const char *expectedScalars[] = {
+        "2", "2", "2", "2", "1", "1", "-1", "-1", "1", "-2", "2.5", "2", "2", "2", "2", "1", "-1"
+    };
+    for (size_t i = 0; i < sizeof(testMultpiInputs) / sizeof(testMultpiInputs[0]); i++) {
+        char sBuf[128];
+        strcpy(sBuf, testMultpiInputs[i]);
+        char *s = sBuf;
+        char typeTag[32];
+        strcpy(typeTag, "Real");
+        char multpiDefaultBuf[8] = "";
+
+        char *multpiTag = strstr(s, ":MULTPI");
+        char *piUtf8 = strstr(s, "\xcf\x80");
+        if (!piUtf8) {
+            piUtf8 = strstr(s, "\xce\xa0");
+        }
+
+        if (multpiTag) {
+            strcpy(typeTag, "Real:MULTPI");
+            *multpiTag = '\0';
+        } else if (piUtf8) {
+            strcpy(typeTag, "Real:MULTPI");
+            *piUtf8 = '\0';
+        } else {
+            size_t slen = strlen(s);
+            if (slen >= 3 && strcasecmp(s + slen - 3, "pir") == 0) {
+                strcpy(typeTag, "Real:MULTPI");
+                s[slen - 3] = '\0';
+            } else if (slen >= 2 && strcasecmp(s + slen - 2, "pi") == 0) {
+                strcpy(typeTag, "Real:MULTPI");
+                s[slen - 2] = '\0';
+            }
+        }
+
+        if (strcmp(typeTag, "Real:MULTPI") == 0) {
+            char *end = s + strlen(s);
+            while (end > s && (*(end - 1) == ' ' || *(end - 1) == '\t' || *(end - 1) == '*')) {
+                *(--end) = '\0';
+            }
+            while (*s == ' ' || *s == '\t') {
+                s++;
+            }
+            if (*s == '\0' || strcmp(s, "+") == 0) {
+                strcpy(multpiDefaultBuf, "1.");
+                s = multpiDefaultBuf;
+            } else if (strcmp(s, "-") == 0) {
+                strcpy(multpiDefaultBuf, "-1.");
+                s = multpiDefaultBuf;
+            }
+        }
+
+        char *end = s + strlen(s);
+        while (end > s && (*(end - 1) == ' ' || *(end - 1) == '\t' || *(end - 1) == '.' || *(end - 1) == ',')) {
+            *(--end) = '\0';
+        }
+
+        TEST_ASSERT(strcmp(typeTag, "Real:MULTPI") == 0, "Type tag must be Real:MULTPI");
+        TEST_ASSERT(strcmp(s, expectedScalars[i]) == 0, "Extracted scalar must match expected scalar");
+    }
 
     // Reset RAM and datatype
     ram = NULL;

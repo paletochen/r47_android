@@ -45,6 +45,8 @@ void ascii_clean(char *str) {
             *d++ = 'r'; s += 2;
         } else if (c1 == 0x9D && c2 == 0x4D) { // STD_SUP_BOLD_g
             *d++ = 'g'; s += 2;
+        } else if (c1 == 0xAC && c2 == 0x66) { // STD_SUP_pir
+            *d++ = (char)0x83; *d++ = (char)0xC0; *d++ = 'r'; s += 2;
         } else if (c1 == 0xA0 && (c2 >= 0x03 && c2 <= 0x08)) { // STD_SPACE_EM..STD_SPACE_PUNCTUATION
             *d++ = ' '; s += 2;
         } else if (c1 == 0xA0 && c2 == 0x0A) { // STD_SPACE_HAIR
@@ -70,7 +72,9 @@ void trimTrailingRadix(char *str) {
         while (*p == '.' || *p == ',' || *p == ' ' || *p == '\t') {
             p++;
         }
-        if (*p == 'd' || *p == 'r' || *p == 'g' || (unsigned char)*p >= 0x80) {
+        if (*p == 'd' || *p == 'r' || *p == 'g' ||
+            (unsigned char)*p == 0x80 ||
+            ((unsigned char)*p == 0xC2 && (unsigned char)*(p + 1) == 0xB0)) {
             memmove(radixPos, p, strlen(p) + 1);
         } else {
             break;
@@ -81,7 +85,7 @@ void trimTrailingRadix(char *str) {
 static void angularUnitToString(angularMode_t angularMode, char *string) {
   switch(angularMode) {
     case amRadian: strcpy(string, "r");        break;
-    case amMultPi: strcpy(string, STD_pi);     break;
+    case amMultPi: strcpy(string, STD_pi "r"); break;
     case amGrad:   strcpy(string, "g");        break;
     case amDegree: strcpy(string, STD_DEGREE); break;
     case amDMS:    strcpy(string, "d.ms");     break;

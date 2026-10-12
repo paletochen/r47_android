@@ -139,6 +139,27 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
       buf[len++] = 'E';
       buf[len++] = 'G';
       p += 2;
+    } else if (c == 0xAC && (unsigned char)*(p + 1) == 0x66) { // STD_SUP_pir
+      buf[len++] = ':';
+      buf[len++] = 'M';
+      buf[len++] = 'U';
+      buf[len++] = 'L';
+      buf[len++] = 'T';
+      buf[len++] = 'P';
+      buf[len++] = 'I';
+      p += 2;
+    } else if (c == 0x83 && (unsigned char)*(p + 1) == 0xC0) { // STD_pi
+      buf[len++] = ':';
+      buf[len++] = 'M';
+      buf[len++] = 'U';
+      buf[len++] = 'L';
+      buf[len++] = 'T';
+      buf[len++] = 'P';
+      buf[len++] = 'I';
+      p += 2;
+      if (*p == 'r' || *p == 'R') {
+        p++;
+      }
     } else if (c == 0xE2 && (unsigned char)*(p + 1) == 0x80 && ((unsigned char)*(p + 2) >= 0x80 && (unsigned char)*(p + 2) <= 0x8B)) {
       // UTF-8 U+2000..U+200B (punctuation spaces, thin space, hair space, zero-width space)
       buf[len++] = ' ';
@@ -169,10 +190,25 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
   char typeTag[32];
   strcpy(typeTag, "Real");
 
+  char multpiDefaultBuf[8] = "";
+
   char *degTag = strstr(s, ":DEG");
   char *radTag = strstr(s, ":RAD");
   char *gradTag = strstr(s, ":GRAD");
-  if (degTag) {
+  char *multpiTag = strstr(s, ":MULTPI");
+
+  char *piUtf8 = strstr(s, "\xcf\x80");     // UTF-8 lowercase pi 'π'
+  if (!piUtf8) {
+    piUtf8 = strstr(s, "\xce\xa0");         // UTF-8 uppercase pi 'Π'
+  }
+
+  if (multpiTag) {
+    strcpy(typeTag, "Real:MULTPI");
+    *multpiTag = '\0';
+  } else if (piUtf8) {
+    strcpy(typeTag, "Real:MULTPI");
+    *piUtf8 = '\0';
+  } else if (degTag) {
     strcpy(typeTag, "Real:DEG");
     *degTag = '\0';
   } else if (radTag) {
@@ -183,7 +219,13 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
     *gradTag = '\0';
   } else {
     size_t slen = strlen(s);
-    if (slen >= 3 && strcasecmp(s + slen - 3, "deg") == 0) {
+    if (slen >= 3 && strcasecmp(s + slen - 3, "pir") == 0) {
+      strcpy(typeTag, "Real:MULTPI");
+      s[slen - 3] = '\0';
+    } else if (slen >= 2 && strcasecmp(s + slen - 2, "pi") == 0) {
+      strcpy(typeTag, "Real:MULTPI");
+      s[slen - 2] = '\0';
+    } else if (slen >= 3 && strcasecmp(s + slen - 3, "deg") == 0) {
       strcpy(typeTag, "Real:DEG");
       s[slen - 3] = '\0';
     } else if (slen >= 3 && strcasecmp(s + slen - 3, "rad") == 0) {
@@ -201,6 +243,23 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
     } else if (slen >= 1 && (s[slen - 1] == 'd' || s[slen - 1] == 'D')) {
       strcpy(typeTag, "Real:DEG");
       s[slen - 1] = '\0';
+    }
+  }
+
+  if (strcmp(typeTag, "Real:MULTPI") == 0) {
+    char *end = s + strlen(s);
+    while (end > s && (*(end - 1) == ' ' || *(end - 1) == '\t' || *(end - 1) == '*')) {
+      *(--end) = '\0';
+    }
+    while (*s == ' ' || *s == '\t') {
+      s++;
+    }
+    if (*s == '\0' || strcmp(s, "+") == 0) {
+      strcpy(multpiDefaultBuf, "1.");
+      s = multpiDefaultBuf;
+    } else if (strcmp(s, "-") == 0) {
+      strcpy(multpiDefaultBuf, "-1.");
+      s = multpiDefaultBuf;
     }
   }
 
