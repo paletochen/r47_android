@@ -396,6 +396,8 @@ int register_main_activity_natives(JNIEnv* env) {
        (void*)Java_org_rpncalculators_r47_MainActivity_onFileSelectedNative},
       {"onFileCancelledNative", "()V",
        (void*)Java_org_rpncalculators_r47_MainActivity_onFileCancelledNative},
+      {"pasteTextNative", "(Ljava/lang/String;)V",
+       (void*)Java_org_rpncalculators_r47_MainActivity_pasteTextNative},
   };
 
   jclass clazz = (*env)->FindClass(env, MAIN_ACTIVITY_CLASS);

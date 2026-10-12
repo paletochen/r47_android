@@ -61,6 +61,19 @@ void trimTrailingRadix(char *str) {
     while (len > 0 && (str[len-1] == ' ' || str[len-1] == '.' || str[len-1] == ',')) {
         str[--len] = '\0';
     }
+    // Also remove any trailing radix marks preceding an angle tag (e.g. "86.°" -> "86°", "45.,deg" -> "45deg")
+    char *radixPos;
+    while ((radixPos = strpbrk(str, ".,")) != NULL) {
+        char *p = radixPos;
+        while (*p == '.' || *p == ',' || *p == ' ' || *p == '\t') {
+            p++;
+        }
+        if (*p == 'd' || *p == 'r' || *p == 'g' || (unsigned char)*p >= 0x80) {
+            memmove(radixPos, p, strlen(p) + 1);
+        } else {
+            break;
+        }
+    }
 }
 
 char* getXRegisterString() {

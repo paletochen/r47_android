@@ -320,6 +320,7 @@ void test_snap_screenshot_bmp_format(void) {
 // --------------------------------------------------------------------------
 void test_copy_x_register_conversions(void) {
     extern void stringToASCII(const char *in, char *out);
+    extern void trimTrailingRadix(char *str);
 
     char out[128];
 
@@ -330,6 +331,19 @@ void test_copy_x_register_conversions(void) {
     // Verify negative numbers
     stringToASCII("-987.654e+02", out);
     TEST_ASSERT(strcmp(out, "-987.654e+02") == 0, "Negative scientific notation must be preserved");
+
+    // Verify trimTrailingRadix cleans trailing period before degree and angle tags
+    strcpy(out, "86.°");
+    trimTrailingRadix(out);
+    TEST_ASSERT(strcmp(out, "86°") == 0, "trimTrailingRadix must strip radix mark before degree symbol");
+
+    strcpy(out, "45.,deg");
+    trimTrailingRadix(out);
+    TEST_ASSERT(strcmp(out, "45deg") == 0, "trimTrailingRadix must strip radix mark before deg tag");
+
+    strcpy(out, "123.450.");
+    trimTrailingRadix(out);
+    TEST_ASSERT(strcmp(out, "123.450") == 0, "trimTrailingRadix must strip trailing period");
 
     // Verify getXRegisterString returns "0" safely when RAM is null or uninitialized
     char *xStr = getXRegisterString();

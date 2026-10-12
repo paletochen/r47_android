@@ -8,17 +8,123 @@ import android.util.Log
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.util.Locale
 
+internal enum class PasteAction {
+    Key,
+    Func
+}
+
+internal data class PasteStep(val action: PasteAction, val id: String, val funcId: Int = 0)
+
 internal class DisplayActionController(
     private val context: Context,
     private val mainHandler: Handler,
     private val offerCoreTask: (Runnable) -> Unit,
     private val getXRegisterNative: () -> String,
+    private val pasteTextNative: (String) -> Unit = {},
     private val sendSimFuncNative: (Int) -> Unit,
     private val sendSimKeyNative: (String, Boolean, Boolean) -> Unit,
     private val enterPiP: () -> Unit,
 ) {
     companion object {
         private const val TAG = "R47DisplayActions"
+
+        internal fun parsePasteSteps(text: String): List<PasteStep> {
+            val steps = mutableListOf<PasteStep>()
+            var inExponent = false
+            var mantissaNeg = false
+            var exponentNeg = false
+            var signEmitted = false
+
+            fun emitPendingSigns() {
+                if (mantissaNeg && !signEmitted) {
+                    steps.add(PasteStep(PasteAction.Key, "35")) // CHS key
+                    signEmitted = true
+                }
+                if (exponentNeg) {
+                    steps.add(PasteStep(PasteAction.Key, "35")) // CHS key
+                    exponentNeg = false
+                }
+            }
+
+            var i = 0
+            while (i < text.length) {
+                val char = text[i]
+
+                // Check for multi-character or degree symbols
+                if (char == '°') {
+                    emitPendingSigns()
+                    steps.add(PasteStep(PasteAction.Func, "", 115)) // ITM_DEG2 (⇒DEG)
+                    i++
+                    continue
+                }
+
+                if (char.equals('d', ignoreCase = true) && i + 2 < text.length &&
+                    text[i + 1].equals('e', ignoreCase = true) &&
+                    text[i + 2].equals('g', ignoreCase = true)) {
+                    emitPendingSigns()
+                    steps.add(PasteStep(PasteAction.Func, "", 115)) // ITM_DEG2 (⇒DEG)
+                    i += 3
+                    continue
+                }
+
+                if (char == 'i' || char == 'j') {
+                    emitPendingSigns()
+                    steps.add(PasteStep(PasteAction.Func, "", if (char == 'i') 1159 else 1160))
+                    inExponent = false
+                    signEmitted = false
+                    i++
+                    continue
+                }
+
+                if (char == '-') {
+                    if (!inExponent && (i == 0 || text[i - 1] == ' ' || text[i - 1] == '(' || text[i - 1] == 'i' || text[i - 1] == 'j')) {
+                        mantissaNeg = true
+                        i++
+                        continue
+                    } else if (inExponent && (text[i - 1] == 'e' || text[i - 1] == 'E')) {
+                        exponentNeg = true
+                        i++
+                        continue
+                    }
+                }
+
+                if (char == 'e' || char == 'E') {
+                    if (mantissaNeg && !signEmitted) {
+                        steps.add(PasteStep(PasteAction.Key, "35")) // CHS for mantissa
+                        signEmitted = true
+                    }
+                    inExponent = true
+                    steps.add(PasteStep(PasteAction.Key, "15")) // EEX
+                    i++
+                    continue
+                }
+
+                val simIdNumber = when (char.lowercaseChar()) {
+                    '0' -> 33
+                    '1' -> 28
+                    '2' -> 29
+                    '3' -> 30
+                    '4' -> 23
+                    '5' -> 24
+                    '6' -> 25
+                    '7' -> 18
+                    '8' -> 19
+                    '9' -> 20
+                    '.', ',' -> 34
+                    '+' -> 37
+                    else -> null
+                }
+
+                if (simIdNumber != null) {
+                    val simId = String.format(Locale.US, "%02d", simIdNumber)
+                    steps.add(PasteStep(PasteAction.Key, simId))
+                }
+                i++
+            }
+
+            emitPendingSigns()
+            return steps
+        }
     }
 
     fun bindOverlay(overlay: ReplicaOverlay) {
@@ -76,39 +182,7 @@ internal class DisplayActionController(
 
         offerCoreTask(
             Runnable {
-                for (char in text) {
-                    if (char == 'i' || char == 'j') {
-                        sendSimFuncNative(if (char == 'i') 1159 else 1160)
-                        Thread.sleep(50)
-                        continue
-                    }
-
-                    val simIdNumber = when (char.lowercaseChar()) {
-                        '0' -> 33
-                        '1' -> 28
-                        '2' -> 29
-                        '3' -> 30
-                        '4' -> 23
-                        '5' -> 24
-                        '6' -> 25
-                        '7' -> 18
-                        '8' -> 19
-                        '9' -> 20
-                        '.', ',' -> 34
-                        '-' -> 35
-                        'e' -> 15
-                        '+' -> 37
-                        else -> null
-                    }
-
-                    if (simIdNumber != null) {
-                        val simId = String.format(Locale.US, "%02d", simIdNumber)
-                        sendSimKeyNative(simId, false, false)
-                        Thread.sleep(50)
-                        sendSimKeyNative(simId, false, true)
-                        Thread.sleep(50)
-                    }
-                }
+                pasteTextNative(text)
             }
         )
     }

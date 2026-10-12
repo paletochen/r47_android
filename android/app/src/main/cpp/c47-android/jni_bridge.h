@@ -51,6 +51,7 @@ extern void setupUI(void);
 extern void lcd_clear_buf(void);
 extern void lcd_refresh(void);
 extern void refreshScreen(uint16_t reason);
+extern gboolean refreshLcd(gpointer unusedData);
 
 extern void JNICALL Java_org_rpncalculators_r47_MainActivity_setLcdColors(
     JNIEnv *env, jobject thiz, jint text, jint bg);
@@ -141,5 +142,9 @@ Java_org_rpncalculators_r47_MainActivity_onFileSelectedNative(JNIEnv *env,
 JNIEXPORT void JNICALL
 Java_org_rpncalculators_r47_MainActivity_onFileCancelledNative(JNIEnv *env,
                                                                jobject thiz);
+JNIEXPORT void JNICALL
+Java_org_rpncalculators_r47_MainActivity_pasteTextNative(JNIEnv *env,
+                                                         jobject thiz,
+                                                         jstring text);
 
 #endif
