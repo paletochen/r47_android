@@ -141,6 +141,9 @@ echo "--- Fixing function call signatures ---"
 sed -i 's|gtk_widget_queue_draw(screen);|// stub|g' "$CPP_DIR/c47/softmenus.c"
 sed -i 's|while(gtk_events_pending())|if(0)|g' "$CPP_DIR/c47/softmenus.c"
 
+# 6. Make restoreRegister non-static for JNI pasteTextNative
+sed -i 's/^[[:space:]]*static void restoreRegister(/  void restoreRegister(/' "$CPP_DIR/c47/saveRestoreCalcState.c"
+
 # Copy decNumberICU
 rm -rf "$CPP_DIR/decNumberICU"
 cp -r dep/decNumberICU "$CPP_DIR/"
