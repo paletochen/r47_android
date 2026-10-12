@@ -424,6 +424,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             mainHandler = mainHandler,
             offerCoreTask = ::offerCoreTask,
             getXRegisterNative = ::getXRegisterNative,
+            getAllRegistersNative = ::getAllRegistersNative,
             pasteTextNative = ::pasteTextNative,
             sendSimFuncNative = ::sendSimFuncNative,
             sendSimKeyNative = ::sendSimKeyNative,
@@ -729,6 +730,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     private external fun forceRefreshNative()
     private external fun setSlotNative(slot: Int)
     private external fun getXRegisterNative(): String
+    private external fun getAllRegistersNative(): String
     private external fun pasteTextNative(text: String)
     private external fun getDisplayPixels(pixels: IntArray)
     private external fun setLcdColors(text: Int, bg: Int)

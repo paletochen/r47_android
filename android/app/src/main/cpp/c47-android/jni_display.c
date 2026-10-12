@@ -1276,6 +1276,22 @@ Java_org_rpncalculators_r47_MainActivity_getXRegisterNative(
 }
 
 JNIEXPORT jstring JNICALL
+Java_org_rpncalculators_r47_MainActivity_getAllRegistersNative(
+    JNIEnv *env, jobject thiz) {
+  (void)thiz;
+  if (!ram || isCoreBlockingForIo) {
+    return (*env)->NewStringUTF(env, "");
+  }
+
+  pthread_mutex_lock(&screenMutex);
+  extern char *getAllRegistersString(void);
+  char *allRegsText = getAllRegistersString();
+  jstring result = (*env)->NewStringUTF(env, allRegsText ? allRegsText : "");
+  pthread_mutex_unlock(&screenMutex);
+  return result;
+}
+
+JNIEXPORT jstring JNICALL
 Java_org_rpncalculators_r47_MainActivity_getButtonLabelNative(JNIEnv *env,
                                                               jobject thiz,
                                                               jint keyCode,

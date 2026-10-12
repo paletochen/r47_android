@@ -378,6 +378,8 @@ int register_main_activity_natives(JNIEnv* env) {
        (void*)Java_org_rpncalculators_r47_MainActivity_setSlotNative},
       {"getXRegisterNative", "()Ljava/lang/String;",
        (void*)Java_org_rpncalculators_r47_MainActivity_getXRegisterNative},
+      {"getAllRegistersNative", "()Ljava/lang/String;",
+       (void*)Java_org_rpncalculators_r47_MainActivity_getAllRegistersNative},
       {"getDisplayPixels", "([I)V",
        (void*)Java_org_rpncalculators_r47_MainActivity_getDisplayPixels},
       {"setLcdColors", "(II)V",

@@ -108,6 +108,9 @@ JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_setSlotNative(
 JNIEXPORT jstring JNICALL
 Java_org_rpncalculators_r47_MainActivity_getXRegisterNative(JNIEnv *env,
                                                             jobject thiz);
+JNIEXPORT jstring JNICALL
+Java_org_rpncalculators_r47_MainActivity_getAllRegistersNative(JNIEnv *env,
+                                                               jobject thiz);
 JNIEXPORT void JNICALL
 Java_org_rpncalculators_r47_MainActivity_getDisplayPixels(JNIEnv *env,
                                                           jobject thiz,

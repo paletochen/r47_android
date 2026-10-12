@@ -45,7 +45,48 @@ uint8_t lastKeyCode = 0;
 uint8_t calcModel = USER_R47f_g;
 extern void setLastKeyCode(int key);
 
-uint32_t getRegisterDataType(calcRegister_t regist) { (void)regist; return dtReal34; }
+real_t *statisticalSumsPointer = NULL;
+subroutineLevelHeader_t *currentSubroutineLevelData = NULL;
+
+char letteredRegisterName(calcRegister_t regist) {
+    (void)regist;
+    return 'X';
+}
+
+void copyRegisterToClipboardString(calcRegister_t regist, char *clipboardString, bool_t forPrinter) {
+    (void)regist;
+    (void)forPrinter;
+    if (clipboardString) {
+        strcpy(clipboardString, "0");
+    }
+}
+
+char *decNumberToString(const decNumber *dn, char *string) {
+    (void)dn;
+    if (string) {
+        strcpy(string, "0");
+    }
+    return string;
+}
+
+decContext ctxtReal34;
+decQuad *decQuadReduce(decQuad *df, const decQuad *dn, decContext *set) {
+    (void)set;
+    if (df && dn) {
+        *df = *dn;
+    }
+    return df;
+}
+char *decQuadToString(const decQuad *df, char *string) {
+    (void)df;
+    if (string) {
+        strcpy(string, "-0.98936");
+    }
+    return string;
+}
+
+static uint32_t mock_register_datatype = dtReal34;
+uint32_t getRegisterDataType(calcRegister_t regist) { (void)regist; return mock_register_datatype; }
 uint32_t getRegisterTag(calcRegister_t regist) { (void)regist; return 0; }
 const char* getDataTypeName(uint16_t dt, bool_t a, bool_t b) { (void)dt; (void)a; (void)b; return "Real"; }
 void stringToUtf8(const char *str, uint8_t *utf8) { if (utf8 && str) strcpy((char*)utf8, str); }
@@ -54,6 +95,8 @@ void* getRegisterDataPointer(calcRegister_t regist) { (void)regist; return NULL;
 void real34ToDisplayString(const real34_t *real34, uint32_t tag, char *displayString, const font_t *font, int16_t maxWidth, int16_t displayHasNDigits, bool_t limitExponent, bool_t frontSpace, irfracOption_t limitIrfrac) { (void)real34; (void)tag; (void)font; (void)maxWidth; (void)displayHasNDigits; (void)limitExponent; (void)frontSpace; (void)limitIrfrac; if (displayString) strcpy(displayString, "0"); }
 void complex34ToDisplayString(const complex34_t *complex34, char *displayString, const font_t *font, int16_t maxWidth, int16_t displayHasNDigits, bool_t limitExponent, bool_t frontSpace, irfracOption_t limitIrfrac, const uint16_t tagAngle, const bool_t tagPolar) { (void)complex34; (void)font; (void)maxWidth; (void)displayHasNDigits; (void)limitExponent; (void)frontSpace; (void)limitIrfrac; (void)tagAngle; (void)tagPolar; if (displayString) strcpy(displayString, "0"); }
 void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, bool_t determineFont, uint8_t baseOverride, int16_t maxWidth) { (void)regist; (void)determineFont; (void)baseOverride; (void)maxWidth; if (displayString) strcpy(displayString, "0"); }
+void timeToDisplayString(calcRegister_t regist, char *displayString, bool_t ignoreTDisp) { (void)regist; (void)ignoreTDisp; if (displayString) strcpy(displayString, "2026:10:11"); }
+void dateToDisplayString(calcRegister_t regist, char *displayString) { (void)regist; if (displayString) strcpy(displayString, "2026-10-11"); }
 
 void stringToASCII(const char *in, char *out) {
     if (!in || !out) return;
@@ -149,6 +192,7 @@ extern void yieldToAndroidWithMs(int ms);
 extern void sendByteIR(uint8_t byte);
 extern void bitblt24(uint32_t x, uint32_t dx, uint32_t y, uint32_t bits, int blt_op, int fill);
 extern char* getXRegisterString(void);
+extern char* getAllRegistersString(void);
 extern void ascii_clean(char *str);
 extern void trimTrailingRadix(char *str);
 
@@ -345,9 +389,86 @@ void test_copy_x_register_conversions(void) {
     trimTrailingRadix(out);
     TEST_ASSERT(strcmp(out, "123.450") == 0, "trimTrailingRadix must strip trailing period");
 
+    strcpy(out, "8.r");
+    trimTrailingRadix(out);
+    TEST_ASSERT(strcmp(out, "8r") == 0, "trimTrailingRadix must strip trailing period before 'r'");
+
+    strcpy(out, "100.g");
+    trimTrailingRadix(out);
+    TEST_ASSERT(strcmp(out, "100g") == 0, "trimTrailingRadix must strip trailing period before 'g'");
+
+    // Verify sanitization logic for pasted numbers (stripping spaces and normalizing commas/periods)
+    char testClean1[] = "-0.989 36";
+    char cleanBuf1[256];
+    char *r1 = testClean1, *w1 = cleanBuf1;
+    while (*r1) { if (*r1 != ' ' && *r1 != '\t') *w1++ = *r1; r1++; }
+    *w1 = '\0';
+    TEST_ASSERT(strcmp(cleanBuf1, "-0.98936") == 0, "Pasting with internal grouping spaces must be sanitized to -0.98936");
+
+    char testClean2[] = "1.234,56"; // European thousands dot + comma radix
+    char cleanBuf2[256];
+    char *r2 = testClean2, *w2 = cleanBuf2;
+    while (*r2) { if (*r2 != ' ' && *r2 != '\t') *w2++ = *r2; r2++; }
+    *w2 = '\0';
+    char *lastDot2 = strrchr(cleanBuf2, '.');
+    char *lastComma2 = strrchr(cleanBuf2, ',');
+    if (lastDot2 && lastComma2 && lastComma2 > lastDot2) {
+        char *src = cleanBuf2, *dst = cleanBuf2;
+        while (*src) {
+            if (*src == '.') src++;
+            else if (*src == ',') { *dst++ = '.'; src++; }
+            else *dst++ = *src++;
+        }
+        *dst = '\0';
+    }
+    TEST_ASSERT(strcmp(cleanBuf2, "1234.56") == 0, "European thousands dot and comma radix must normalize to 1234.56");
+
+    char testClean3[] = "1,234.56"; // US thousands comma + dot radix
+    char cleanBuf3[256];
+    char *r3 = testClean3, *w3 = cleanBuf3;
+    while (*r3) { if (*r3 != ' ' && *r3 != '\t') *w3++ = *r3; r3++; }
+    *w3 = '\0';
+    char *lastDot3 = strrchr(cleanBuf3, '.');
+    char *lastComma3 = strrchr(cleanBuf3, ',');
+    if (lastDot3 && lastComma3 && lastDot3 > lastComma3) {
+        char *src = cleanBuf3, *dst = cleanBuf3;
+        while (*src) {
+            if (*src == ',') src++;
+            else *dst++ = *src++;
+        }
+        *dst = '\0';
+    }
+    TEST_ASSERT(strcmp(cleanBuf3, "1234.56") == 0, "US thousands comma and dot radix must normalize to 1234.56");
+
+    // Verify dtTime and dtDate formatting in getXRegisterString
+    static uint32_t dummyRam[100];
+    ram = dummyRam;
+
+    mock_register_datatype = dtTime;
+    char *timeStr = getXRegisterString();
+    TEST_ASSERT(strcmp(timeStr, "2026:10:11") == 0, "dtTime must copy formatted time string without colons stripped");
+
+    mock_register_datatype = dtDate;
+    char *dateStr = getXRegisterString();
+    TEST_ASSERT(strcmp(dateStr, "2026-10-11") == 0, "dtDate must copy formatted date string without dashes stripped");
+
+    // Verify ascii_clean maps punctuation spaces (e.g. from display digit grouping) to standard spaces
+    char rawCoreTime[] = " 2\xa0\x08" "026:10:11";
+    ascii_clean(rawCoreTime);
+    TEST_ASSERT(strcmp(rawCoreTime, " 2 026:10:11") == 0, "ascii_clean must map STD_SPACE_PUNCTUATION to ASCII space");
+
+    // Reset RAM and datatype
+    ram = NULL;
+    mock_register_datatype = dtReal34;
+
     // Verify getXRegisterString returns "0" safely when RAM is null or uninitialized
     char *xStr = getXRegisterString();
     TEST_ASSERT(xStr != NULL, "getXRegisterString must not return NULL");
+
+    // Verify getAllRegistersString returns "" safely when RAM is null or uninitialized
+    char *allStr = getAllRegistersString();
+    TEST_ASSERT(allStr != NULL, "getAllRegistersString must not return NULL");
+    TEST_ASSERT(strcmp(allStr, "") == 0, "getAllRegistersString must return empty string when RAM is uninitialized");
 }
 
 // --------------------------------------------------------------------------

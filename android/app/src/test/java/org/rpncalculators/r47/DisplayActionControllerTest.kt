@@ -37,6 +37,24 @@ class DisplayActionControllerTest {
     }
 
     @Test
+    fun testCopyAllRegistersAction() {
+        val expectedRegistersDump = "Z = 0\nY = 0\nX = 123.45\nR00 = 0"
+        val copiedValue = AtomicReference<String>()
+        val getAllNative = { expectedRegistersDump }
+
+        val taskQueue = mutableListOf<Runnable>()
+        val offerTask: (Runnable) -> Unit = { taskQueue.add(it) }
+
+        offerTask(Runnable {
+            copiedValue.set(getAllNative())
+        })
+
+        assertEquals(1, taskQueue.size)
+        taskQueue[0].run()
+        assertEquals(expectedRegistersDump, copiedValue.get())
+    }
+
+    @Test
     fun testPasteNumberMapping() {
         // 1. Complex number 12.5i
         val complexSteps = DisplayActionController.parsePasteSteps("12.5i")

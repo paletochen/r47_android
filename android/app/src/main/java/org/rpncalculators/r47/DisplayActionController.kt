@@ -20,6 +20,7 @@ internal class DisplayActionController(
     private val mainHandler: Handler,
     private val offerCoreTask: (Runnable) -> Unit,
     private val getXRegisterNative: () -> String,
+    private val getAllRegistersNative: () -> String = { "" },
     private val pasteTextNative: (String) -> Unit = {},
     private val sendSimFuncNative: (Int) -> Unit,
     private val sendSimKeyNative: (String, Boolean, Boolean) -> Unit,
@@ -142,11 +143,12 @@ internal class DisplayActionController(
     private fun showDisplayActionsDialog() {
         MaterialAlertDialogBuilder(context)
             .setTitle("Display & Clipboard")
-            .setItems(arrayOf("Copy X Register", "Paste Number", "Enter PiP Mode")) { _, which ->
+            .setItems(arrayOf("Copy X Register", "Copy All Registers", "Paste Number", "Enter PiP Mode")) { _, which ->
                 when (which) {
                     0 -> copyXToClipboard()
-                    1 -> pasteFromClipboard()
-                    2 -> enterPiP()
+                    1 -> copyAllRegistersToClipboard()
+                    2 -> pasteFromClipboard()
+                    3 -> enterPiP()
                 }
             }
             .setNegativeButton("Cancel", null)
@@ -170,6 +172,28 @@ internal class DisplayActionController(
                     }
                 } catch (error: Exception) {
                     Log.e(TAG, "Copy error", error)
+                }
+            }
+        )
+    }
+
+    private fun copyAllRegistersToClipboard() {
+        offerCoreTask(
+            Runnable {
+                try {
+                    val allRegistersValue = getAllRegistersNative()
+                    mainHandler.post {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clip = ClipData.newPlainText("R47 All Registers", allRegistersValue)
+                        clipboard.setPrimaryClip(clip)
+                        android.widget.Toast.makeText(
+                            context,
+                            "Copied All Registers",
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                } catch (error: Exception) {
+                    Log.e(TAG, "Copy all registers error", error)
                 }
             }
         )
