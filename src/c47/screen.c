@@ -10,6 +10,10 @@
 #define TI_DISK_INFO 162
 #endif
 
+#if !defined(SNAP_REGISTERS_OK)
+#define SNAP_REGISTERS_OK (currentMenu() != -MNU_SHOW && calcMode == CM_NORMAL && !tam.mode)
+#endif
+
 static void refreshRegisterLineRestoreT(void);
 static bool_t shiftGlyphOnScreen = false;                        // set where the f or g glyph is drawn, cleared where it is taken off
 static bool_t functionNameOnScreen = false;                      // set where showFunctionName puts a name up, cleared where hideFunctionName takes it down
@@ -6795,10 +6799,33 @@ void fnSNAP(uint16_t unusedButMandatoryParameter) {
 
 
   // SNAPX writes the band above the menu, the register X line in the big bold numericFont, rows 132 to 170. Everything else is SNAP, the file names and the TSV included.
-  void fnSNAPX(uint16_t unusedButMandatoryParameter) {
-    snapRowFirst = Y_POSITION_OF_REGISTER_X_LINE;
-    snapRowLast  = Y_POSITION_OF_MENU_TOP - 1;
-    fnSNAP(unusedButMandatoryParameter);
+  void fnSNAPX(uint16_t new) {
+    if(SNAP_REGISTERS_OK) {
+      bool_t boldWasSet = getSystemFlag(FLAG_BOLD);                                 // X line is the bold numericFont band, so force BOLD for the capture and put the flag back after
+      if(new) {
+        setSystemFlag(FLAG_BOLD);
+        snapRowFirst = Y_POSITION_OF_REGISTER_X_LINE - (getRegisterDataType(REGISTER_X) == dtString ? 0 : 0+3);
+        snapRowLast  = Y_POSITION_OF_MENU_TOP        - (getRegisterDataType(REGISTER_X) == dtString ? 1 : 1+3);
+      } else {
+        snapRowFirst = Y_POSITION_OF_REGISTER_X_LINE;
+        snapRowLast  = Y_POSITION_OF_MENU_TOP - 1;
+      }
+      fnSNAP(new);
+      printf("X snapped.\n");
+      if(!boldWasSet) {
+        clearSystemFlag(FLAG_BOLD);
+      }
+    }
+    else {
+      printf("X not snapped. Snap not active in this mode.\n");
+    }
+  }
+
+  void fnSNAPXBold(uint16_t unusedButMandatoryParameter) {
+    fnSNAPX(1); // 1 iis new bold
+  }
+  void fnSNAPXNonBold(uint16_t unusedButMandatoryParameter) {
+    fnSNAPX(0); // 0 iis old non-bold
   }
 #endif // PC_BUILD
 
