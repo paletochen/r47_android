@@ -245,41 +245,72 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
         strcpy(part3, "0");
       }
 
-      // Trim any whitespace inside extracted parts
-      char *t1 = part1; while (*t1 == ' ') t1++;
-      char *te1 = t1 + strlen(t1); while (te1 > t1 && *(te1 - 1) == ' ') *(--te1) = '\0';
-      char *t2 = part2; while (*t2 == ' ') t2++;
-      char *te2 = t2 + strlen(t2); while (te2 > t2 && *(te2 - 1) == ' ') *(--te2) = '\0';
-      char *t3 = part3; while (*t3 == ' ') t3++;
-      char *te3 = t3 + strlen(t3); while (te3 > t3 && *(te3 - 1) == ' ') *(--te3) = '\0';
-
-      uint32_t n1 = (uint32_t)strtoul(t1, NULL, 10);
-      uint32_t n2 = (uint32_t)strtoul(t2, NULL, 10);
-      uint32_t n3 = (uint32_t)strtoul(t3, NULL, 10);
-
-      if (secondColon && n1 > 31) {
-        // Date formatted as YYYY:MM:DD -> convert to DYMD (YYYY.MMDD)
-        snprintf(dateFmtBuf, sizeof(dateFmtBuf), "%u.%02u%02u", n1, n2, n3);
-        strcpy(typeTag, "DYMD");
-        s = dateFmtBuf;
-      } else {
-        real34_t rH, rM, rS, totalSec;
-        stringToReal34(t1, &rH);
-        stringToReal34(t2, &rM);
-        stringToReal34(t3, &rS);
-
-        if (!real34IsNaN(&rH) && !real34IsNaN(&rM) && !real34IsNaN(&rS)) {
-          real34Multiply(&rH, const34_3600, &totalSec);
-          real34Multiply(&rM, const34_60, &rM);
-          real34Add(&totalSec, &rM, &totalSec);
-          real34Add(&totalSec, &rS, &totalSec);
-          if (isNeg) {
-            real34SetNegativeSign(&totalSec);
-          }
-          real34ToString(&totalSec, timeSecBuf);
-          strcpy(typeTag, "Time");
-          s = timeSecBuf;
+      // Trim any whitespace inside extracted parts and remove internal spaces
+      char *t1 = part1;
+      while (*t1 == ' ' || *t1 == '\t') {
+        t1++;
+      }
+      char *te1 = t1 + strlen(t1);
+      while (te1 > t1 && (*(te1 - 1) == ' ' || *(te1 - 1) == '\t')) {
+        *(--te1) = '\0';
+      }
+      char cleanP1[32], cleanP2[32], cleanP3[32];
+      char *w = cleanP1;
+      for (char *r = t1; *r; r++) {
+        if (*r != ' ' && *r != '\t') {
+          *w++ = *r;
         }
+      }
+      *w = '\0';
+
+      char *t2 = part2;
+      while (*t2 == ' ' || *t2 == '\t') {
+        t2++;
+      }
+      char *te2 = t2 + strlen(t2);
+      while (te2 > t2 && (*(te2 - 1) == ' ' || *(te2 - 1) == '\t')) {
+        *(--te2) = '\0';
+      }
+      w = cleanP2;
+      for (char *r = t2; *r; r++) {
+        if (*r != ' ' && *r != '\t') {
+          *w++ = *r;
+        }
+      }
+      *w = '\0';
+
+      char *t3 = part3;
+      while (*t3 == ' ' || *t3 == '\t') {
+        t3++;
+      }
+      char *te3 = t3 + strlen(t3);
+      while (te3 > t3 && (*(te3 - 1) == ' ' || *(te3 - 1) == '\t')) {
+        *(--te3) = '\0';
+      }
+      w = cleanP3;
+      for (char *r = t3; *r; r++) {
+        if (*r != ' ' && *r != '\t') {
+          *w++ = *r;
+        }
+      }
+      *w = '\0';
+
+      real34_t rH, rM, rS, totalSec;
+      stringToReal34(cleanP1, &rH);
+      stringToReal34(cleanP2, &rM);
+      stringToReal34(cleanP3, &rS);
+
+      if (!real34IsNaN(&rH) && !real34IsNaN(&rM) && !real34IsNaN(&rS)) {
+        real34Multiply(&rH, const34_3600, &totalSec);
+        real34Multiply(&rM, const34_60, &rM);
+        real34Add(&totalSec, &rM, &totalSec);
+        real34Add(&totalSec, &rS, &totalSec);
+        if (isNeg) {
+          real34SetNegativeSign(&totalSec);
+        }
+        real34ToString(&totalSec, timeSecBuf);
+        strcpy(typeTag, "Time");
+        s = timeSecBuf;
       }
     }
   } else if (strchr(s, '-') || strchr(s, '/')) {

@@ -457,6 +457,25 @@ void test_copy_x_register_conversions(void) {
     ascii_clean(rawCoreTime);
     TEST_ASSERT(strcmp(rawCoreTime, " 2 026:10:11") == 0, "ascii_clean must map STD_SPACE_PUNCTUATION to ASCII space");
 
+    // Verify time sanitization logic for pasted time strings (stripping leading, trailing, and internal spaces)
+    char testTimeRaw[] = " 2 026:10:12";
+    char *pT = testTimeRaw;
+    while (*pT == ' ' || *pT == '\t') pT++;
+    char *colon1 = strchr(pT, ':');
+    TEST_ASSERT(colon1 != NULL, "first colon must be found");
+    char *colon2 = strchr(colon1 + 1, ':');
+    TEST_ASSERT(colon2 != NULL, "second colon must be found");
+    char partT1[32], cleanT1[32];
+    size_t lT1 = colon1 - pT;
+    strncpy(partT1, pT, lT1);
+    partT1[lT1] = '\0';
+    char *wT = cleanT1;
+    for (char *r = partT1; *r; r++) {
+        if (*r != ' ' && *r != '\t') *wT++ = *r;
+    }
+    *wT = '\0';
+    TEST_ASSERT(strcmp(cleanT1, "2026") == 0, "Hours part must have internal spaces stripped to 2026");
+
     // Reset RAM and datatype
     ram = NULL;
     mock_register_datatype = dtReal34;

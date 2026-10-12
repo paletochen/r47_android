@@ -159,6 +159,19 @@ char* getXRegisterString() {
             
         case dtTime:
             timeToDisplayString(regist, coreBuf, false);
+            {
+                char *src = coreBuf, *dst = coreBuf;
+                while (*src == ' ' || *src == '\t') {
+                    src++;
+                }
+                while (*src) {
+                    if (*src != ' ' && *src != '\t') {
+                        *dst++ = *src;
+                    }
+                    src++;
+                }
+                *dst = '\0';
+            }
             break;
             
         case dtDate:
