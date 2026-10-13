@@ -1398,6 +1398,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
           strcat(aimBuffer, "3.141592653589793238462643383279503");
           reallyRunFunction(ITM_EXIT1, NOPARAM);
           setLastintegerBasetoZero();
+          return;  // NIM is closed and the value is on the stack, skip the buffer-to-display conversion
         }
         break;
       }

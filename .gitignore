@@ -224,3 +224,27 @@ tools/hwtest/**/STATE/
 !tools/rejig_patched/
 !tools/rejig_patched/rejig
 !tools/rejig_patched/rejig.exe
+
+# --- R47 Private & Android Environment ---
+.git_backup/
+.git_private/
+.google_env
+.google_env*
+.google_play_env
+.google_play_env*
+**/.cxx/
+**/build/
+**/.gradle/
+**/local.properties
+**/*.apk
+**/*.aab
+**/*.so
+**/*.o
+**/*.obj
+**/*.pyc
+**/__pycache__/
+android/build_output.txt
+tests/android/items_android.c
+tests/android/test_android_invariants
+/tmp/
+

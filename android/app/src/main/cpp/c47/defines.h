@@ -9,7 +9,7 @@
 // VARIOUS OPTIONS
 //*********************************
 
-#define VERSION1 "00.109.05.00a0.ALPHA"       // major release . minor release . tracked build . internal OR un/tracked OR subrelease : Alpha / Beta / RC1
+#define VERSION1 "00.109.05.00b2"       // major release . minor release . tracked build . internal OR un/tracked OR subrelease : Alpha / Beta / RC1
 
 // Version 00.109.02.07b11   Public Release C47 & R47
 // Version 00.109.02.07b12   Public Release C47 & R47 launch
@@ -26,6 +26,10 @@
 // Version 00.109.03.03b0    Public C47 & R47
 // Version 00.109.04.00b0    Public C47 & R47
 // Version 00.109.05.00a0    Internal alpha C47 & R47
+// Version 00.109.05.00a1    Collecting bugfixes for roll up into BETA
+// Version 00.109.05.00b0    Public C47 & R47
+// Version 00.109.05.00b1    Public C47 & R47
+// Version 00.109.05.00b2    Public C47 & R47 updated certificates; fix botched merge of #658
 
 #if !defined(CALCMODEL)
   #define CALCMODEL USER_C47               // USER_C47 or USER_R47
@@ -163,18 +167,18 @@
   #endif
 
 
-//    Info 2026-08-03 00.109.04.00b
+//    Info 2026-10-12 00.109.05.00b0
 //
-//       Pkg │ DIST    │ X.FN     │ FIN    │ EIGEN │ ELEC │ IR │ STRUCT
-//      ─────┼─────────┼──────────┼────────┼───────┼──────┼────┼────────
-//        1  │ all     │ no ellip │ fast   │   ✅  │  ✅  │ ✅ │   ✅
-//        2  │ limit   │ full     │ fast   │   ✅  │  ✅  │ ✅ │   ✅
-//        3  │ all     │ full     │ slow   │   ✅  │  ✅  │ ❌ │   ✅
-//        4  │ none    │ no e-B-O │ slow   │   ❌  │  ❌  │ ✅ │   ✅
+//       Pkg │ DIST    │ X.FN              │ FIN   │ EIGEN │ ELEC │ IR │ STRUCT
+//      ─────┼─────────┼──────────---------┼───────┼───────┼──────┼────┼────────
+//        1  │ all     │ no ellip & bessel │ ✅    │   ✅  │  ✅  │ ✅ │   ✅
+//        2  │ limit   │ full              │ ✅    │   ✅  │  ✅  │ ✅ │   ✅
+//        3  │ all     │ full              │ slow  │   ✅  │  ✅  │ ❌ │   ✅
+//        4  │ none    │ no e-B-O          │ slow  │   ❌  │  ✅  │ ✅ │   ✅
 //
 //
 //      DIST   all      every distribution
-//             limit    Normal, StdNormal, LogNormal, t, chi, expo, weibull, cauchy, logis
+//             limit    Normal, StdNormal, LogNormal
 //             none     no distributions
 //      X.FN   full     includes elliptic, Bessel, Orthogonal
 //             no ellip without elliptic
@@ -191,14 +195,14 @@
 //      All C47 / DM42 packages (common to 1–4): no 2D/3D VECTOR conversions (matrix functions stay), no number editing, no 1000-digit XFN math.
 
 //Flash table
-// Package 1: Free flash: 680   less Elliptical
-// Package 2: Free flash: 168   less 50% if DIST (less F BINOM HYPER POISS GEOM GEV PARETO UNIFORM DISUNIFORM)
-// Package 3: Free flash: 848   less IR printing
-// Package 4: Free flash: 69648 git pipelines mo math 
+// Package 1: Free flash: 4944   less Elliptical
+// Package 2: Free flash: 6520   less 50% if DIST (less F BINOM HYPER POISS GEOM GEV PARETO UNIFORM DISUNIFORM)
+// Package 3: Free flash: 2416   less IR printing
+// Package 4: Free flash: 62744  git pipelines mo math 
 
-  #if defined(DMCP_PACKAGE1)             // PACKAGE 1 (free 680)
+  #if defined(DMCP_PACKAGE1)             // PACKAGE 1 (free 4944)
             #undef  OPTION_ELLIPTIC      // ✓ 13112 bytes // Without ELLIPTIC
-    #define OPTION_BESSEL                // ☑  5000 bytes // Without X.FN BESSEL
+            #undef  OPTION_BESSEL        // ☑  5000 bytes // Without X.FN BESSEL
     #define OPTION_ORTHO                 // ☑   504 bytes // Without X.FN ORTHO MENU
     #define OPTION_DISTRIBUTIONS         // ✓     0 bytes // Without the DIST menu top-level link; the subsets below carry the code
     #define OPTION_DIST_NORMAL           // ☑ 22096 bytes // (1) Without Norml, LgNrm, StdNorml: 12 items, submenus NORML STDNORML; base set, undefines DIST_B/C/D
@@ -215,13 +219,13 @@
             #define  OPTION_IR_PRINTING   // ✓ 10040 bytes // Remove IR printing for old hardware
   #endif // DMCP_PACKAGE1
 
-  #if defined(DMCP_PACKAGE2)             // PACKAGE 2 (free 168 ☑)
+  #if defined(DMCP_PACKAGE2)             // PACKAGE 2 (free 6520 ☑)
     #define OPTION_ELLIPTIC              // ☑ 13192 bytes // Without ELLIPTIC
     #define OPTION_BESSEL                // ☑  4984 bytes // Without X.FN BESSEL
     #define OPTION_ORTHO                 // ☑   696 bytes // Without X.FN ORTHO MENU
     #define OPTION_DISTRIBUTIONS         // ✓     0 bytes // Without the DIST menu top-level link; the subsets below carry the code
     #define OPTION_DIST_NORMAL           // ☑  9264 bytes // Without (1) Norml, LgNrm, StdNorml: 12 items, submenus NORML STDNORML; base set, undefines DIST_B/C/D
-    #define OPTION_DIST_B                // ☑  7080 bytes // Without (2) Cauch, chi2, Expon, Weibl, Logis, t: 24 items, submenus CAUCH CHI2 EXPON WEIBL LOGIS T; +DIST_C
+            #undef  OPTION_DIST_B        // ☑  7080 bytes // Without (2) Cauch, chi2, Expon, Weibl, Logis, t: 24 items, submenus CAUCH CHI2 EXPON WEIBL LOGIS T; +DIST_C
             #undef  OPTION_DIST_C        // ✓  9624 bytes // Without (3) F, Binom, NBin, Hyper, Poiss, Geom: 24 items, submenus F BINOM HYPER POISS GEOM
             #undef  OPTION_DIST_D        // ✓  3280 bytes // Without (4) GEV, Prto, Prto2, Unfm, DisU: 20 items, submenus GEV PARETO UNIFORM DISUNIFORM
     #define OPTION_TVM_FORMULAS          // ✓  2744 bytes // Use TVM analytical formulas where possible
@@ -234,7 +238,7 @@
     #define OPTION_IR_PRINTING           // ✓ 10040 bytes // Remove IR printing for old hardware
   #endif // DMCP_PACKAGE2
 
-  #if defined(DMCP_PACKAGE3)             // PACKAGE 3 (free 848)
+  #if defined(DMCP_PACKAGE3)             // PACKAGE 3 (free 2416)
     #define  OPTION_ELLIPTIC             // ✓ 13112 bytes // Without ELLIPTIC
     #define OPTION_BESSEL                // ☑  5008 bytes // Without X.FN BESSEL
     #define OPTION_ORTHO                 // ☑   696 bytes // Without X.FN ORTHO MENU
@@ -244,7 +248,7 @@
     #define OPTION_DIST_C                // ✓  9624 bytes // Without (3) F, Binom, NBin, Hyper, Poiss, Geom: 24 items, submenus F BINOM HYPER POISS GEOM
     #define OPTION_DIST_D                // ✓  3280 bytes // Without (4) GEV, Prto, Prto2, Unfm, DisU: 20 items, submenus GEV PARETO UNIFORM DISUNIFORM
             #undef  OPTION_TVM_FORMULAS  // ☑  2744 bytes // Use TVM analytical formulas where possible
-    #define OPTION_TVM_NEWTON            // ☑  2088 bytes // Use TVM additional newton raphson in the brent solver for tvm where possible
+            #undef  OPTION_TVM_NEWTON    // ☑  2088 bytes // Use TVM additional newton raphson in the brent solver for tvm where possible
     #define OPTION_TVM_AMORT      // ✓  1648 bytes // Use additional AMORT in tvm
     #define OPTION_ELEC                  // ☑  6824 bytes // ELEC   see below
     #define OPTION_EIGEN                 // ☑ 17464 bytes // Without EIGVAL, EIGVEC, M.QR, MSQRT
@@ -258,7 +262,7 @@
             //  1    0       6240     26452   ELEC only
             //  1    1      15808     16884   both (ELEC+VECTOR share 3384)
 
-  #if defined(DMCP_PACKAGE4_NOOPT)       // PACKAGE 4 (free 30472) // Minimal, no math options included, IR PRINTING; FOR GITLAB PIPELINE COMPILE
+  #if defined(DMCP_PACKAGE4_NOOPT)       // PACKAGE 4 (free 62744) // Minimal, no math options included, IR PRINTING; FOR GITLAB PIPELINE COMPILE
             #undef  OPTION_ELLIPTIC      // ✓ 13112 bytes // Without ELLIPTIC
             #undef  OPTION_BESSEL        // ✓  4968 bytes // Without X.FN BESSEL
             #undef  OPTION_ORTHO         // ✓   656 bytes // Without X.FN ORTHO MENU
@@ -273,7 +277,7 @@
             #undef  OPTION_ELEC          // ✓  6816 bytes // ELEC   6240 saving if VECTOR is not in; 2856 saving if VECTOR is in
             #undef  OPTION_EIGEN         // ✓ 17440 bytes // Without EIGVAL, EIGVEC, M.QR, MSQRT
             #undef  OPTION_SLVP_POLY     // ✓  2024 bytes // SLVP general polynomial roots (companion matrix through the EIGEN QR solver)
-            #undef  OPTION_STRUCTURED_PGM// ✓  5873 bytes // The DM42 can include STRUCT at 10 nesting levels, 4 FOR loops, and 10 IF, 10 DO and 10 REPEAT numbers
+    #define OPTION_STRUCTURED_PGM        // ✓  5873 bytes // The DM42 can include STRUCT at 10 nesting levels, 4 FOR loops, and 10 IF, 10 DO and 10 REPEAT numbers
     #define OPTION_IR_PRINTING           // ✓ 10040 bytes // Remove IR printing for old hardware
   #endif // DMCP_PACKAGE4_NOOPT
 
