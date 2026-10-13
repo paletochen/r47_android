@@ -270,8 +270,10 @@ The test suite validates:
 
 ---
 
-## 📜 Acknowledgments & License
+## 📜 Acknowledgments & Reference Documentation
 
-- Based on the pioneering work by the [WP43/C43/C47 team](https://gitlab.com/rpncalculators/c43) and [SwissMicros](https://www.swissmicros.com/).
-- This Android port is licensed under the **GNU General Public License v3.0 (GPL-3.0)**.
+- **SwissMicros C43/C47 Core**: Based on the mathematical engine by the [WP43/C47 team](https://gitlab.com/rpncalculators/c43) and [SwissMicros](https://www.swissmicros.com/).
+- **Official Owner's Manual**: The comprehensive 259-page reference manual (`C47_R47_calc.pdf`) is available under `docs/manual/` (built with `make -C docs/manual pdf` or `make pdf`), detailing RPN stack mechanics, registers, flags, menus, TVM, solvers, and structured programming.
+- **Application Notes**: Extensive technical notes and specifications covering all advanced subsystems are available under `docs/appnotes/` (including AN0007 for structured programming, AN0012 for TVM, AN0020 for Matrix/Vector, and AN0025 for `.d47` register file formats).
+- **License**: This Android port is licensed under the **GNU General Public License v3.0 (GPL-3.0)**.
 - Independent community contribution; not officially affiliated with SwissMicros.

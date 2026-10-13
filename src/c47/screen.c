@@ -10,10 +10,6 @@
 #define TI_DISK_INFO 162
 #endif
 
-#if !defined(SNAP_REGISTERS_OK)
-#define SNAP_REGISTERS_OK (currentMenu() != -MNU_SHOW && calcMode == CM_NORMAL && !tam.mode)
-#endif
-
 static void refreshRegisterLineRestoreT(void);
 static bool_t shiftGlyphOnScreen = false;                        // set where the f or g glyph is drawn, cleared where it is taken off
 static bool_t functionNameOnScreen = false;                      // set where showFunctionName puts a name up, cleared where hideFunctionName takes it down
@@ -198,6 +194,10 @@ TO_QSPI static const char *nameOfWday_pt[8] = {"dia inv" STD_a_ACUTE "lido da se
     cairo_surface_t *imageSurface;
     GtkClipboard *clipboard;
 
+    if(!SNAP_MENUS_OK) {
+      return;
+    }
+
     clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
     gtk_clipboard_clear(clipboard);
     gtk_clipboard_set_text(clipboard, "", 0); //JM FOUND TIP TO PROPERLY CLEAR CLIPBOARD: https://stackoverflow.com/questions/2418487/clear-the-system-clipboard-using-the-gtk-lib-in-c/2419673#2419673
@@ -265,7 +265,7 @@ TO_QSPI static const char *nameOfWday_pt[8] = {"dia inv" STD_a_ACUTE "lido da se
         sprintf(string, "%" PRIu32 "x%" PRIu32, rows, columns);
 
         for(uint32_t i=0; i<rows*columns; i++) {
-          strcat(string, LINEBREAK);
+          strcat(string, CLIPBOARD_LINEBREAK);
           len = strlen(string);
 
           real34Reduce(real34++, &reduced);
@@ -289,7 +289,7 @@ TO_QSPI static const char *nameOfWday_pt[8] = {"dia inv" STD_a_ACUTE "lido da se
         sprintf(string, "%" PRIu32 "x%" PRIu32, rows, columns);
 
         for(uint32_t i=0; i<rows*columns; i++, complex34++) {
-          strcat(string, LINEBREAK);
+          strcat(string, CLIPBOARD_LINEBREAK);
           len = strlen(string);
 
           // Real part
@@ -447,7 +447,7 @@ char letteredRegisterName(calcRegister_t regist) {
       ptr += sprintf(ptr, "%s%c = ", sep, letteredRegisterName(r));
       copyRegisterToClipboardString(r, ptr, false);
       ptr = strchr(ptr, '\0');
-      sep = LINEBREAK;
+      sep = CLIPBOARD_LINEBREAK;
     }
   }
 
@@ -460,7 +460,7 @@ char letteredRegisterName(calcRegister_t regist) {
     gtk_clipboard_clear(clipboard);
     gtk_clipboard_set_text(clipboard, "", 0); //JM FOUND TIP TO PROPERLY CLEAR CLIPBOARD: https://stackoverflow.com/questions/2418487/clear-the-system-clipboard-using-the-gtk-lib-in-c/2419673#2419673
 
-    copyStackRegistersToClipboardString(clipboardString, REGISTER_K);
+    copyStackRegistersToClipboardString(clipboardString, LAST_SPARE_REGISTER);
 
     gtk_clipboard_set_text(clipboard, clipboardString, -1);
   }
@@ -478,14 +478,14 @@ char letteredRegisterName(calcRegister_t regist) {
 
     for(int32_t regist=99; regist>=0; --regist) {
       ptr += strlen(ptr);
-      sprintf(ptr, LINEBREAK "R%02d = ", regist);
+      sprintf(ptr, CLIPBOARD_LINEBREAK "R%02d = ", regist);
       ptr += strlen(ptr);
       copyRegisterToClipboardString(regist, ptr, false);
     }
 
     for(int32_t regist=currentNumberOfLocalRegisters-1; regist>=0; --regist) {
       ptr += strlen(ptr);
-      sprintf(ptr, LINEBREAK "R.%02d = ", regist);
+      sprintf(ptr, CLIPBOARD_LINEBREAK "R.%02d = ", regist);
       ptr += strlen(ptr);
       copyRegisterToClipboardString(FIRST_LOCAL_REGISTER + regist, ptr, false);
     }
@@ -526,7 +526,7 @@ char letteredRegisterName(calcRegister_t regist) {
         ptr += strlen(ptr);
         strcpy(sumName, StatSumNames[sum]);
 
-        sprintf(ptr, LINEBREAK "SR%02d = ", sum);
+        sprintf(ptr, CLIPBOARD_LINEBREAK "SR%02d = ", sum);
         ptr += strlen(ptr);
         stringToUtf8(sumName, (uint8_t *)ptr);
         ptr += strlen(ptr);
@@ -1023,7 +1023,7 @@ void execTimerApp(uint16_t timerType) {
 
         int16_t item;
         if((shiftF || shiftG)                                                           // this is for R47 ShiftF or shiftG, adding long press assignments - DL 2025/12/03
-            && (calcMode != CM_EIM) && (calcMode != CM_MIM)) {  // f and g longpress temporarily disabled in EIM and MIM
+            && !GRAPHMODE && (calcMode != CM_EIM) && (calcMode != CM_MIM)) {  // f and g longpress temporarily disabled in EIM and MIM
           //leaveTamModeIfEnabled();
           keyCode = (shiftF ? 10 : 11);  // R47 'f' or 'g' keyCode
           calcKey_t *key = kbd_usr + keyCode;
@@ -3883,6 +3883,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
       else if(temporaryInformation == TI_FINISH && regist == ERR_REGISTER_LINE) { // the message sits at the ERR line, left-aligned, the way a calc error does
         const int16_t errorY = Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(ERR_REGISTER_LINE - REGISTER_X) + 6;
         showString(errorMessage, &standardFont, 1, errorY, vmNormal, true, true);
+        // showStringEnhanced(errorMessage, &standardFont, 1, errorY, vmNormal, true, true, 0, 0, 0, 0, true);  // lf: break the line on STD_CR and wrap when the line fills; Note, it works but needs the Y-line to be cleared if used, so not in service right now.
       }
       #endif // FINISH_LOCATION_TI
 
@@ -6736,6 +6737,9 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
 // PIXEL etc.:    screenHoldsDrawnPixels keeps a CLLCD, PIXEL, POINT or AGRAPH screen blank. snapSkipRefresh keeps the raw screen.
 // testSuite:     TESTSUITE_BUILD freezes the clock across fnSNAP (testClockFrozen) so stored capture hashes hold.
 void fnSNAP(uint16_t unusedButMandatoryParameter) {
+  if(!SNAP_PROPER_OK) {
+    return;
+  }
   #if defined(PC_BUILD)
     printf("fnSNAP!\n");
   #endif // PC_BUILD
@@ -6792,9 +6796,14 @@ void fnSNAP(uint16_t unusedButMandatoryParameter) {
 #if defined(PC_BUILD)
   // SNAPMENU writes the softkey menu band alone, rows 171 to 239, the band fnMenuDump() writes for --dumpMenus1. Everything else is SNAP, the file names included.
   void fnSNAPMENU(uint16_t unusedButMandatoryParameter) {
-    snapRowFirst = Y_POSITION_OF_MENU_TOP;
-    snapRowLast  = SCREEN_HEIGHT - 1;
-    fnSNAP(unusedButMandatoryParameter);
+    if(SNAP_MENUS_OK) {
+      snapRowFirst = Y_POSITION_OF_MENU_TOP;
+      snapRowLast  = SCREEN_HEIGHT - 1;
+      fnSNAP(unusedButMandatoryParameter);
+      printf("Menu snapped.\n");
+    } else {
+      printf("Menu not snapped. Snap not active in this mode.\n");
+    }
   }
 
 
@@ -6814,9 +6823,10 @@ void fnSNAP(uint16_t unusedButMandatoryParameter) {
       printf("X snapped.\n");
       if(!boldWasSet) {
         clearSystemFlag(FLAG_BOLD);
+        screenUpdatingMode = SCRUPD_AUTO;                                          // force a full repaint, else refreshScreen keeps the skip-stack mode fnSNAP left and the X line stays bold on screen
+        refreshScreen(164);
       }
-    }
-    else {
+    } else {
       printf("X not snapped. Snap not active in this mode.\n");
     }
   }
@@ -6827,6 +6837,7 @@ void fnSNAP(uint16_t unusedButMandatoryParameter) {
   void fnSNAPXNonBold(uint16_t unusedButMandatoryParameter) {
     fnSNAPX(0); // 0 iis old non-bold
   }
+
 #endif // PC_BUILD
 
 

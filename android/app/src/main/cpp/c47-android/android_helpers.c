@@ -95,245 +95,274 @@ static void angularUnitToString(angularMode_t angularMode, char *string) {
   }
 }
 
+static void formatRegisterString(calcRegister_t regist, char *result, size_t maxLen) {
+  static char coreBuf[32768];
+  coreBuf[0] = '\0';
+  result[0] = '\0';
+
+  if (!ram) {
+    snprintf(result, maxLen, "0");
+    return;
+  }
+
+  uint8_t dataType = getRegisterDataType(regist);
+  uint8_t tag = getRegisterTag(regist);
+
+  switch(dataType) {
+    case dtReal34: {
+      real34_t reduced;
+      real34Reduce((const real34_t *)getRegisterDataPointer(regist), &reduced);
+      real34ToString(&reduced, coreBuf);
+      if(strchr(coreBuf, '.') == NULL && strchr(coreBuf, 'E') == NULL) {
+        strcat(coreBuf, ".");
+      }
+      angularUnitToString(tag & amAngleMask, coreBuf + strlen(coreBuf));
+      break;
+    }
+
+    case dtComplex34: {
+      bool_t isPolar = ((tag & amPolar) == amPolar) || getSystemFlag(FLAG_POLAR);
+      if(isPolar) {
+        angularMode_t angMode = (tag & amAngleMask);
+        if(angMode == amNone) {
+          angMode = currentAngularMode;
+        }
+        real_t real, imagIc;
+        real34_t mag34, ang34, reduced;
+        real34ToReal((const real34_t *)getRegisterDataPointer(regist), &real);
+        real34ToReal(((const real34_t *)getRegisterDataPointer(regist)) + 1, &imagIc);
+
+        decContext c = ctxtReal39;
+        c.digits = 39;
+        realRectangularToPolar(&real, &imagIc, &real, &imagIc, &c);
+        convertAngleFromTo(&imagIc, amRadian, angMode, &c);
+
+        realToReal34(&real, &mag34);
+        realToReal34(&imagIc, &ang34);
+
+        char tmpMag[100];
+        real34Reduce(&mag34, &reduced);
+        real34ToString(&reduced, tmpMag);
+        if(strchr(tmpMag, '.') == NULL && strchr(tmpMag, 'E') == NULL) {
+          strcat(tmpMag, ".");
+        }
+
+        char tmpAng[100];
+        real34Reduce(&ang34, &reduced);
+        real34ToString(&reduced, tmpAng);
+        char unitStr[32] = "";
+        angularUnitToString(angMode, unitStr);
+        if(unitStr[0] == 0 && strchr(tmpAng, '.') == NULL && strchr(tmpAng, 'E') == NULL) {
+          strcat(tmpAng, ".");
+        }
+
+        sprintf(coreBuf, "%s " STD_MEASURED_ANGLE " %s%s", tmpMag, tmpAng, unitStr);
+      } else {
+        real34_t reduced;
+        int len;
+        char tmpStr[100];
+
+        // Real part
+        real34Reduce((const real34_t *)getRegisterDataPointer(regist), &reduced);
+        real34ToString(&reduced, tmpStr);
+        if(strchr(tmpStr, '.') == NULL && strchr(tmpStr, 'E') == NULL) {
+          strcat(tmpStr, ".");
+        }
+        len = strlen(tmpStr);
+
+        // Imaginary part
+        real34Reduce(((const real34_t *)getRegisterDataPointer(regist)) + 1, &reduced);
+        if(real34IsNegative(&reduced)) {
+          sprintf(coreBuf, "%s - %sx", tmpStr, COMPLEX_UNIT);
+          len += 5;
+          real34SetPositiveSign(&reduced);
+          real34ToString(&reduced, coreBuf + len);
+        } else {
+          sprintf(coreBuf, "%s + %sx", tmpStr, COMPLEX_UNIT);
+          len += 5;
+          real34ToString(&reduced, coreBuf + len);
+        }
+        if(strchr(coreBuf + len, '.') == NULL && strchr(coreBuf + len, 'E') == NULL) {
+          strcat(coreBuf + len, ".");
+        }
+      }
+      break;
+    }
+
+    case dtString:
+      strncpy(coreBuf, REGISTER_STRING_DATA(regist), 1023);
+      coreBuf[1023] = '\0';
+      break;
+
+    case dtShortInteger:
+      shortIntegerToDisplayString(regist, coreBuf, false, 0, SCREEN_WIDTH);
+      break;
+
+    case dtLongInteger:
+      longIntegerRegisterToDisplayString(regist, coreBuf, sizeof(coreBuf), 9999, 50, true);
+      break;
+
+    case dtTime:
+      timeToDisplayString(regist, coreBuf, false);
+      {
+        char *src = coreBuf, *dst = coreBuf;
+        while(*src == ' ' || *src == '\t') {
+          src++;
+        }
+        while(*src) {
+          if(*src != ' ' && *src != '\t') {
+            *dst++ = *src;
+          }
+          src++;
+        }
+        *dst = '\0';
+      }
+      break;
+
+    case dtDate:
+      dateToDisplayString(regist, coreBuf);
+      break;
+
+    case dtReal34Matrix:
+    case dtComplex34Matrix: {
+      extern void copyRegisterToClipboardString(calcRegister_t regist, char *clipboardString, bool_t forPrinter);
+      copyRegisterToClipboardString(regist, coreBuf, false);
+      break;
+    }
+
+    default:
+      sprintf(coreBuf, "[%s]", getDataTypeName(dataType, false, false));
+      break;
+  }
+
+  if(dataType != dtReal34Matrix && dataType != dtComplex34Matrix) {
+    ascii_clean(coreBuf);
+    trimTrailingRadix(coreBuf);
+  } else {
+    ascii_clean(coreBuf);
+  }
+
+  // Convert core glyphs to valid UTF-8
+  extern void stringToUtf8(const char *str, uint8_t *utf8);
+  static char utf8Buf[32768];
+  stringToUtf8(coreBuf, (uint8_t *)utf8Buf);
+  snprintf(result, maxLen, "%s", utf8Buf);
+}
+
 char* getXRegisterString() {
-    static char result[32768]; // Increased size for UTF-8 conversion & matrices
-    static char coreBuf[32768];
-    coreBuf[0] = '\0';
-    
-    if (!ram) return "0";
-
-    calcRegister_t regist = REGISTER_X;
-    uint8_t dataType = getRegisterDataType(regist);
-    uint8_t tag = getRegisterTag(regist);
-    
-    switch(dataType) {
-        case dtReal34: {
-            real34_t reduced;
-            real34Reduce((const real34_t *)getRegisterDataPointer(regist), &reduced);
-            real34ToString(&reduced, coreBuf);
-            if(strchr(coreBuf, '.') == NULL && strchr(coreBuf, 'E') == NULL) {
-                strcat(coreBuf, ".");
-            }
-            angularUnitToString(tag & amAngleMask, coreBuf + strlen(coreBuf));
-            break;
-        }
-            
-        case dtComplex34: {
-            bool_t isPolar = ((tag & amPolar) == amPolar) || getSystemFlag(FLAG_POLAR);
-            if (isPolar) {
-                angularMode_t angMode = (tag & amAngleMask);
-                if (angMode == amNone) {
-                    angMode = currentAngularMode;
-                }
-                real_t real, imagIc;
-                real34_t mag34, ang34, reduced;
-                real34ToReal((const real34_t *)getRegisterDataPointer(regist), &real);
-                real34ToReal(((const real34_t *)getRegisterDataPointer(regist)) + 1, &imagIc);
-
-                decContext c = ctxtReal39;
-                c.digits = 39;
-                realRectangularToPolar(&real, &imagIc, &real, &imagIc, &c);
-                convertAngleFromTo(&imagIc, amRadian, angMode, &c);
-
-                realToReal34(&real, &mag34);
-                realToReal34(&imagIc, &ang34);
-
-                char tmpMag[100];
-                real34Reduce(&mag34, &reduced);
-                real34ToString(&reduced, tmpMag);
-                if (strchr(tmpMag, '.') == NULL && strchr(tmpMag, 'E') == NULL) {
-                    strcat(tmpMag, ".");
-                }
-
-                char tmpAng[100];
-                real34Reduce(&ang34, &reduced);
-                real34ToString(&reduced, tmpAng);
-                char unitStr[32] = "";
-                angularUnitToString(angMode, unitStr);
-                if (unitStr[0] == 0 && strchr(tmpAng, '.') == NULL && strchr(tmpAng, 'E') == NULL) {
-                    strcat(tmpAng, ".");
-                }
-
-                sprintf(coreBuf, "%s " STD_MEASURED_ANGLE " %s%s", tmpMag, tmpAng, unitStr);
-            } else {
-                real34_t reduced;
-                int len;
-                char tmpStr[100];
-
-                // Real part
-                real34Reduce((const real34_t *)getRegisterDataPointer(regist), &reduced);
-                real34ToString(&reduced, tmpStr);
-                if(strchr(tmpStr, '.') == NULL && strchr(tmpStr, 'E') == NULL) {
-                    strcat(tmpStr, ".");
-                }
-                len = strlen(tmpStr);
-
-                // Imaginary part
-                real34Reduce(((const real34_t *)getRegisterDataPointer(regist)) + 1, &reduced);
-                if(real34IsNegative(&reduced)) {
-                    sprintf(coreBuf, "%s - %sx", tmpStr, COMPLEX_UNIT);
-                    len += 5;
-                    real34SetPositiveSign(&reduced);
-                    real34ToString(&reduced, coreBuf + len);
-                } else {
-                    sprintf(coreBuf, "%s + %sx", tmpStr, COMPLEX_UNIT);
-                    len += 5;
-                    real34ToString(&reduced, coreBuf + len);
-                }
-                if(strchr(coreBuf + len, '.') == NULL && strchr(coreBuf + len, 'E') == NULL) {
-                    strcat(coreBuf + len, ".");
-                }
-            }
-            break;
-        }
-            
-        case dtString:
-            strncpy(coreBuf, REGISTER_STRING_DATA(regist), 1023);
-            coreBuf[1023] = '\0';
-            break;
-            
-        case dtShortInteger:
-            shortIntegerToDisplayString(regist, coreBuf, false, 0, SCREEN_WIDTH);
-            break;
-            
-        case dtLongInteger:
-            longIntegerRegisterToDisplayString(regist, coreBuf, sizeof(coreBuf), 9999, 50, true);
-            break;
-            
-        case dtTime:
-            timeToDisplayString(regist, coreBuf, false);
-            {
-                char *src = coreBuf, *dst = coreBuf;
-                while (*src == ' ' || *src == '\t') {
-                    src++;
-                }
-                while (*src) {
-                    if (*src != ' ' && *src != '\t') {
-                        *dst++ = *src;
-                    }
-                    src++;
-                }
-                *dst = '\0';
-            }
-            break;
-            
-        case dtDate:
-            dateToDisplayString(regist, coreBuf);
-            break;
-            
-        case dtReal34Matrix:
-        case dtComplex34Matrix: {
-            extern void copyRegisterToClipboardString(calcRegister_t regist, char *clipboardString, bool_t forPrinter);
-            copyRegisterToClipboardString(regist, coreBuf, false);
-            break;
-        }
-
-        default:
-            sprintf(coreBuf, "[%s]", getDataTypeName(dataType, false, false));
-            break;
-    }
-    
-    if (dataType != dtReal34Matrix && dataType != dtComplex34Matrix) {
-        ascii_clean(coreBuf);
-        trimTrailingRadix(coreBuf);
-    } else {
-        ascii_clean(coreBuf);
-    }
-
-    // Convert core glyphs to valid UTF-8
-    extern void stringToUtf8(const char *str, uint8_t *utf8);
-    stringToUtf8(coreBuf, (uint8_t*)result);
-
-    LOGI("getXRegisterString: Result='%s'", result);
-    return result;
+  static char result[32768];
+  formatRegisterString(REGISTER_X, result, sizeof(result));
+  LOGI("getXRegisterString: Result='%s'", result);
+  return result;
 }
 
 char* getAllRegistersString(void) {
-    static char result[32768];
-    char *ptr = result;
-    result[0] = '\0';
+  static char result[65536];
+  char regVal[8192];
+  char *ptr = result;
+  size_t remaining = sizeof(result);
+  result[0] = '\0';
 
-    if (!ram) {
-        return "";
+  if(!ram) {
+    return "";
+  }
+
+  extern char letteredRegisterName(calcRegister_t regist);
+  extern void stringToUtf8(const char *str, uint8_t *utf8);
+
+  // 1. Stack registers: LAST_SPARE_REGISTER down to REGISTER_X
+  const char *sep = "";
+  for(calcRegister_t r = LAST_SPARE_REGISTER; r >= REGISTER_X; r--) {
+    formatRegisterString(r, regVal, sizeof(regVal));
+    int written = snprintf(ptr, remaining, "%s%c = %s", sep, letteredRegisterName(r), regVal);
+    if(written > 0 && (size_t)written < remaining) {
+      ptr += written;
+      remaining -= written;
+    } else {
+      break;
     }
+    sep = "\n";
+  }
 
-    extern char letteredRegisterName(calcRegister_t regist);
-    extern void copyRegisterToClipboardString(calcRegister_t regist, char *clipboardString, bool_t forPrinter);
-    extern void stringToUtf8(const char *str, uint8_t *utf8);
-
-    // 1. Stack registers: LAST_SPARE_REGISTER down to REGISTER_X
-    const char *sep = "";
-    for(calcRegister_t r = LAST_SPARE_REGISTER; r >= REGISTER_X; r--) {
-        ptr += sprintf(ptr, "%s%c = ", sep, letteredRegisterName(r));
-        copyRegisterToClipboardString(r, ptr, false);
-        ptr = strchr(ptr, '\0');
-        sep = "\n";
+  // 2. Global registers: 99 down to 0
+  for(int32_t regist = 99; regist >= 0; --regist) {
+    formatRegisterString(regist, regVal, sizeof(regVal));
+    int written = snprintf(ptr, remaining, "\nR%02d = %s", regist, regVal);
+    if(written > 0 && (size_t)written < remaining) {
+      ptr += written;
+      remaining -= written;
+    } else {
+      break;
     }
+  }
 
-    // 2. Global registers: 99 down to 0
-    for(int32_t regist = 99; regist >= 0; --regist) {
-        ptr += sprintf(ptr, "\nR%02d = ", regist);
-        copyRegisterToClipboardString(regist, ptr, false);
-        ptr = strchr(ptr, '\0');
-    }
-
-    // 3. Local registers: currentNumberOfLocalRegisters - 1 down to 0
+  // 3. Local registers: currentNumberOfLocalRegisters - 1 down to 0
+  if(currentSubroutineLevelData != NULL) {
     for(int32_t regist = currentNumberOfLocalRegisters - 1; regist >= 0; --regist) {
-        ptr += sprintf(ptr, "\nR.%02d = ", regist);
-        copyRegisterToClipboardString(FIRST_LOCAL_REGISTER + regist, ptr, false);
-        ptr = strchr(ptr, '\0');
+      formatRegisterString(FIRST_LOCAL_REGISTER + regist, regVal, sizeof(regVal));
+      int written = snprintf(ptr, remaining, "\nR.%02d = %s", regist, regVal);
+      if(written > 0 && (size_t)written < remaining) {
+        ptr += written;
+        remaining -= written;
+      } else {
+        break;
+      }
     }
+  }
 
-    // 4. Statistical sums: SR00..SR26
-    if(statisticalSumsPointer != NULL) {
-        TO_QSPI const char * const StatSumNames[NUMBER_OF_STATISTICAL_SUMS] = {
-            /* 0*/ "n             ",
-            /* 1*/ STD_SIGMA "(x)          ",
-            /* 2*/ STD_SIGMA "(y)          ",
-            /* 3*/ STD_SIGMA "(x" STD_SUP_2 ")         ",
-            /* 4*/ STD_SIGMA "(x" STD_SUP_2 "y)        ",
-            /* 5*/ STD_SIGMA "(y" STD_SUP_2 ")         ",
-            /* 6*/ STD_SIGMA "(xy)         ",
-            /* 7*/ STD_SIGMA "(ln(x)" STD_CROSS "ln(y))",
-            /* 8*/ STD_SIGMA "(ln(x))      ",
-            /* 9*/ STD_SIGMA "(ln" STD_SUP_2 "(x))     ",
-            /*10*/ STD_SIGMA "(y ln(x))    ",
-            /*11*/ STD_SIGMA "(ln(y))      ",
-            /*12*/ STD_SIGMA "(ln" STD_SUP_2 "(y))     ",
-            /*13*/ STD_SIGMA "(x ln(y))    ",
-            /*14*/ STD_SIGMA "(ln(y)/x)    ",
-            /*15*/ STD_SIGMA "(x" STD_SUP_2 "/y)       ",
-            /*16*/ STD_SIGMA "(1/x)        ",
-            /*17*/ STD_SIGMA "(1/x" STD_SUP_2 ")       ",
-            /*18*/ STD_SIGMA "(x/y)        ",
-            /*19*/ STD_SIGMA "(1/y)        ",
-            /*20*/ STD_SIGMA "(1/y" STD_SUP_2 ")       ",
-            /*21*/ STD_SIGMA "(x" STD_SUP_3 ")         ",
-            /*22*/ STD_SIGMA "(x" STD_SUP_4 ")         ",
-            /*23*/ "x min         ",
-            /*24*/ "x max         ",
-            /*25*/ "y min         ",
-            /*26*/ "y max         "
-        };
+  // 4. Statistical sums: SR00..SR26
+  if(statisticalSumsPointer != NULL) {
+    TO_QSPI const char * const StatSumNames[NUMBER_OF_STATISTICAL_SUMS] = {
+      /* 0*/ "n             ",
+      /* 1*/ STD_SIGMA "(x)          ",
+      /* 2*/ STD_SIGMA "(y)          ",
+      /* 3*/ STD_SIGMA "(x" STD_SUP_2 ")         ",
+      /* 4*/ STD_SIGMA "(x" STD_SUP_2 "y)        ",
+      /* 5*/ STD_SIGMA "(y" STD_SUP_2 ")         ",
+      /* 6*/ STD_SIGMA "(xy)         ",
+      /* 7*/ STD_SIGMA "(ln(x)" STD_CROSS "ln(y))",
+      /* 8*/ STD_SIGMA "(ln(x))      ",
+      /* 9*/ STD_SIGMA "(ln" STD_SUP_2 "(x))     ",
+      /*10*/ STD_SIGMA "(y ln(x))    ",
+      /*11*/ STD_SIGMA "(ln(y))      ",
+      /*12*/ STD_SIGMA "(ln" STD_SUP_2 "(y))     ",
+      /*13*/ STD_SIGMA "(x ln(y))    ",
+      /*14*/ STD_SIGMA "(ln(y)/x)    ",
+      /*15*/ STD_SIGMA "(x" STD_SUP_2 "/y)       ",
+      /*16*/ STD_SIGMA "(1/x)        ",
+      /*17*/ STD_SIGMA "(1/x" STD_SUP_2 ")       ",
+      /*18*/ STD_SIGMA "(x/y)        ",
+      /*19*/ STD_SIGMA "(1/y)        ",
+      /*20*/ STD_SIGMA "(1/y" STD_SUP_2 ")       ",
+      /*21*/ STD_SIGMA "(x" STD_SUP_3 ")         ",
+      /*22*/ STD_SIGMA "(x" STD_SUP_4 ")         ",
+      /*23*/ "x min         ",
+      /*24*/ "x max         ",
+      /*25*/ "y min         ",
+      /*26*/ "y max         "
+    };
 
-        char sumName[40];
-        char tmpRealStr[1024];
-        for(int32_t sum = 0; sum < NUMBER_OF_STATISTICAL_SUMS; sum++) {
-            strcpy(sumName, StatSumNames[sum]);
+    char sumName[40];
+    char sumUtf8[128];
+    char tmpRealStr[1024];
+    for(int32_t sum = 0; sum < NUMBER_OF_STATISTICAL_SUMS; sum++) {
+      strcpy(sumName, StatSumNames[sum]);
+      stringToUtf8(sumName, (uint8_t *)sumUtf8);
 
-            ptr += sprintf(ptr, "\nSR%02d = ", sum);
-            stringToUtf8(sumName, (uint8_t *)ptr);
-            ptr += strlen(ptr);
-            strcpy(ptr, " = ");
-            ptr += strlen(ptr);
-            realToString(statisticalSumsPointer + sum, tmpRealStr);
-            if(strchr(tmpRealStr, '.') == NULL && strchr(tmpRealStr, 'E') == NULL) {
-                strcat(tmpRealStr, ".");
-            }
-            strcpy(ptr, tmpRealStr);
-            ptr = strchr(ptr, '\0');
-        }
+      realToString(statisticalSumsPointer + sum, tmpRealStr);
+      if(strchr(tmpRealStr, '.') == NULL && strchr(tmpRealStr, 'E') == NULL) {
+        strcat(tmpRealStr, ".");
+      }
+
+      int written = snprintf(ptr, remaining, "\nSR%02d = %s = %s", sum, sumUtf8, tmpRealStr);
+      if(written > 0 && (size_t)written < remaining) {
+        ptr += written;
+        remaining -= written;
+      } else {
+        break;
+      }
     }
+  }
 
-    return result;
+  return result;
 }

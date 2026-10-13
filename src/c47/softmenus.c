@@ -437,7 +437,7 @@ TO_QSPI const int16_t menu_MULTSTK[]     = { ITM_3STO,                      ITM_
 /*                                          <---------------------------------------------------------------------- 6 g shifted functions ------------------------------------------------------------------------->  */
 
 TO_QSPI const int16_t menu_TEST[]        = { ITM_XLT,                       ITM_XLE,                    ITM_XEQU,                 ITM_XNE,               ITM_XGE,                     ITM_XGT,
-                                             ITM_XEQUM0,                    ITM_XEQUP0,                 ITM_XAEQU,                ITM_PRIME,             ITM_XGEP0,                   ITM_XLEM0,
+                                             ITM_XEQUM0,                    ITM_XEQUP0,                 ITM_XAEQU,                ITM_PRIME,             ITM_XLEM0,                   ITM_XGEP0,
                                              ITM_ENTRY,                     ITM_KEYQ,                   ITM_LBLQ,                 ITM_TOP,               ITM_LEAPQ,                   ITM_CONVG,
 
                                              ITM_SINTQ,                     ITM_LINTQ,                  ITM_REALQ,                ITM_CPXQ,              ITM_DATEQ,                   ITM_TIMEQ,

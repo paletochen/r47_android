@@ -36,7 +36,6 @@
   void     fnSNAP                             (uint16_t unusedButMandatoryParameter);
   #if defined(PC_BUILD)
     void   fnSNAPMENU                         (uint16_t unusedButMandatoryParameter);
-    void   fnSNAPX                            (uint16_t unusedButMandatoryParameter);
     void   fnSNAPXBold                        (uint16_t unusedButMandatoryParameter);
     void   fnSNAPXNonBold                     (uint16_t unusedButMandatoryParameter);
   #endif // PC_BUILD
