@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "mathematics/toRect.h"
 
 extern void btnFnPressed(GtkWidget *notUsed, GdkEvent *event, gpointer data);
 extern void btnFnReleased(GtkWidget *notUsed, GdkEvent *event, gpointer data);
@@ -392,6 +393,481 @@ static bool_t tryPasteMatrix(const char *str) {
   return true;
 }
 
+// Helper to normalize a numeric token: remove thousand separators, convert European decimal comma to dot,
+// strip spaces, trim trailing radix marks.
+static bool_t normalizeNumericToken(const char *src, char *dst, size_t dstSize) {
+  if(!src || !*src || dstSize < 2) {
+    return false;
+  }
+
+  char buf[256];
+  const char *r = src;
+  char *w = buf;
+  while(*r && (size_t)(w - buf) < sizeof(buf) - 1) {
+    if(*r != ' ' && *r != '\t' && *r != '\r' && *r != '\n') {
+      *w++ = *r;
+    }
+    r++;
+  }
+  *w = '\0';
+
+  if(buf[0] == '\0') {
+    return false;
+  }
+
+  char *lastDot = strrchr(buf, '.');
+  char *lastComma = strrchr(buf, ',');
+
+  if(lastComma != NULL && lastDot == NULL) {
+    // Lone comma radix (e.g. "1234,56") -> convert to '.'
+    for(char *p = buf; *p; p++) {
+      if(*p == ',') {
+        *p = '.';
+      }
+    }
+  }
+  else if(lastDot != NULL && lastComma != NULL) {
+    if(lastComma > lastDot) {
+      // European format: "1.234,56" -> thousand dots stripped, comma to '.'
+      char *s = buf;
+      char *d = buf;
+      while(*s) {
+        if(*s == '.') {
+          s++;
+        }
+        else if(*s == ',') {
+          *d++ = '.';
+          s++;
+        }
+        else {
+          *d++ = *s++;
+        }
+      }
+      *d = '\0';
+    }
+    else {
+      // US format: "1,234.56" -> thousand commas stripped
+      char *s = buf;
+      char *d = buf;
+      while(*s) {
+        if(*s == ',') {
+          s++;
+        }
+        else {
+          *d++ = *s++;
+        }
+      }
+      *d = '\0';
+    }
+  }
+
+  // Trim trailing radix marks unless string is just "."
+  size_t blen = strlen(buf);
+  while(blen > 1 && (buf[blen - 1] == '.' || buf[blen - 1] == ',')) {
+    buf[--blen] = '\0';
+  }
+
+  if(blen >= dstSize) {
+    return false;
+  }
+  strcpy(dst, buf);
+  return true;
+}
+
+// Find imaginary unit ('i', 'j', 'I', 'J', STD_op_i, STD_op_j)
+// Returns pointer to unit, or NULL if none.
+// Ensures unit is not part of "pi", "PI", "pir", or ":MULTPI".
+static const char *findImaginaryUnit(const char *s) {
+  const char *p = s;
+  while(*p) {
+    if((unsigned char)p[0] == 0x83 && ((unsigned char)p[1] == 0xC1 || (unsigned char)p[1] == 0xC2)) {
+      return p;
+    }
+    char c = *p;
+    if(c == 'i' || c == 'I' || c == 'j' || c == 'J') {
+      if(p == s || (p[-1] != 'p' && p[-1] != 'P')) {
+        if(p < s + 5 || strncmp(p - 5, ":MULT", 5) != 0) {
+          return p;
+        }
+      }
+    }
+    p++;
+  }
+  return NULL;
+}
+
+// Find '+' or '-' separating Real and Imaginary parts (index > 0, not after 'e' or 'E').
+static const char *findRealImagSeparator(const char *s) {
+  size_t len = strlen(s);
+  for(size_t i = 1; i < len; i++) {
+    char c = s[i];
+    if(c == '+' || c == '-') {
+      size_t prev = i - 1;
+      while(prev > 0 && (s[prev] == ' ' || s[prev] == '\t')) {
+        prev--;
+      }
+      char prevChar = s[prev];
+      if(prevChar == 'e' || prevChar == 'E') {
+        continue;
+      }
+      size_t next = i + 1;
+      while(next < len && (s[next] == ' ' || s[next] == '\t')) {
+        next++;
+      }
+      if(next < len) {
+        return s + i;
+      }
+    }
+  }
+  return NULL;
+}
+
+static bool_t parseRealToken(const char *tok, real34_t *valOut) {
+  if(!tok) {
+    return false;
+  }
+  char cleanBuf[256];
+  if(!normalizeNumericToken(tok, cleanBuf, sizeof(cleanBuf))) {
+    return false;
+  }
+  stringToReal34(cleanBuf, valOut);
+  return !real34IsNaN(valOut);
+}
+
+static bool_t parseImaginaryToken(const char *tok, real34_t *valOut) {
+  if(!tok) {
+    return false;
+  }
+
+  bool_t isNeg = false;
+  const char *p = tok;
+  while(*p == ' ' || *p == '\t') {
+    p++;
+  }
+  if(*p == '-') {
+    isNeg = true;
+    p++;
+  }
+  else if(*p == '+') {
+    p++;
+  }
+
+  char magBuf[256];
+  char *w = magBuf;
+  while(*p && (size_t)(w - magBuf) < sizeof(magBuf) - 1) {
+    if((unsigned char)p[0] == 0x83 && ((unsigned char)p[1] == 0xC1 || (unsigned char)p[1] == 0xC2)) {
+      p += 2;
+      continue;
+    }
+    char c = *p;
+    if(c == 'i' || c == 'I' || c == 'j' || c == 'J' || c == '*' || c == ' ' || c == '\t') {
+      p++;
+      continue;
+    }
+    if((c == 'x' || c == 'X') && (w == magBuf)) {
+      p++;
+      continue;
+    }
+    *w++ = *p++;
+  }
+  *w = '\0';
+
+  if(magBuf[0] == '-') {
+    isNeg = !isNeg;
+    memmove(magBuf, magBuf + 1, strlen(magBuf));
+  }
+  else if(magBuf[0] == '+') {
+    memmove(magBuf, magBuf + 1, strlen(magBuf));
+  }
+
+  if(magBuf[0] == '\0') {
+    real34Copy(const34_1, valOut);
+  }
+  else {
+    char cleanBuf[256];
+    if(!normalizeNumericToken(magBuf, cleanBuf, sizeof(cleanBuf))) {
+      return false;
+    }
+    stringToReal34(cleanBuf, valOut);
+    if(real34IsNaN(valOut)) {
+      return false;
+    }
+  }
+
+  if(isNeg) {
+    real34SetNegativeSign(valOut);
+  }
+  else {
+    real34SetPositiveSign(valOut);
+  }
+  return true;
+}
+
+static bool_t tryPasteComplex(const char *rawInput) {
+  if(!rawInput || !*rawInput) {
+    return false;
+  }
+
+  char buf[512];
+  const char *start = rawInput;
+  while(*start == ' ' || *start == '\t' || *start == '\r' || *start == '\n') {
+    start++;
+  }
+  if(!*start) {
+    return false;
+  }
+
+  size_t inLen = strlen(start);
+  if(inLen >= sizeof(buf)) {
+    return false;
+  }
+  strcpy(buf, start);
+  char *end = buf + strlen(buf);
+  while(end > buf && (*(end - 1) == ' ' || *(end - 1) == '\t' || *(end - 1) == '\r' || *(end - 1) == '\n')) {
+    *(--end) = '\0';
+  }
+
+  bool_t hasOuterParens = false;
+  size_t len = strlen(buf);
+  if(buf[0] == '(' && len > 2 && buf[len - 1] == ')') {
+    hasOuterParens = true;
+    buf[len - 1] = '\0';
+    memmove(buf, buf + 1, len - 1);
+    char *s = buf;
+    while(*s == ' ' || *s == '\t') {
+      s++;
+    }
+    if(s > buf) {
+      memmove(buf, s, strlen(s) + 1);
+    }
+    end = buf + strlen(buf);
+    while(end > buf && (*(end - 1) == ' ' || *(end - 1) == '\t')) {
+      *(--end) = '\0';
+    }
+  }
+
+  real34_t reVal, imVal;
+  uint32_t tag = amNone;
+  bool_t parsed = false;
+
+  // 1. Polar notation: angle indicators \xe2\x88\xa1 (∡), \xe2\x88\xa0 (∠), /_, or ' < '
+  const char *polarSep = NULL;
+  size_t polarSepLen = 0;
+  if((polarSep = strstr(buf, "\xe2\x88\xa1")) != NULL) {
+    polarSepLen = 3;
+  }
+  else if((polarSep = strstr(buf, "\xe2\x88\xa0")) != NULL) {
+    polarSepLen = 3;
+  }
+  else if((polarSep = strstr(buf, "/_")) != NULL) {
+    polarSepLen = 2;
+  }
+  else if((polarSep = strstr(buf, " < ")) != NULL) {
+    polarSepLen = 3;
+  }
+
+  if(polarSep != NULL) {
+    char magStr[256];
+    char angStr[256];
+    size_t mlen = (size_t)(polarSep - buf);
+    if(mlen < sizeof(magStr)) {
+      strncpy(magStr, buf, mlen);
+      magStr[mlen] = '\0';
+      strncpy(angStr, polarSep + polarSepLen, sizeof(angStr) - 1);
+      angStr[sizeof(angStr) - 1] = '\0';
+
+      angularMode_t angMode = currentAngularMode;
+      char *degP = strstr(angStr, ":DEG");
+      char *radP = strstr(angStr, ":RAD");
+      char *gradP = strstr(angStr, ":GRAD");
+      char *multpiP = strstr(angStr, ":MULTPI");
+      char *piUtf8 = strstr(angStr, "\xcf\x80");
+      if(!piUtf8) {
+        piUtf8 = strstr(angStr, "\xce\xa0");
+      }
+
+      if(multpiP) {
+        angMode = amMultPi;
+        *multpiP = '\0';
+      }
+      else if(piUtf8) {
+        angMode = amMultPi;
+        *piUtf8 = '\0';
+      }
+      else if(degP) {
+        angMode = amDegree;
+        *degP = '\0';
+      }
+      else if(radP) {
+        angMode = amRadian;
+        *radP = '\0';
+      }
+      else if(gradP) {
+        angMode = amGrad;
+        *gradP = '\0';
+      }
+      else {
+        size_t alen = strlen(angStr);
+        while(alen > 0 && (angStr[alen - 1] == ' ' || angStr[alen - 1] == '\t')) {
+          angStr[--alen] = '\0';
+        }
+        if(alen >= 3 && strcasecmp(angStr + alen - 3, "deg") == 0) {
+          angMode = amDegree;
+          angStr[alen - 3] = '\0';
+        }
+        else if(alen >= 3 && strcasecmp(angStr + alen - 3, "rad") == 0) {
+          angMode = amRadian;
+          angStr[alen - 3] = '\0';
+        }
+        else if(alen >= 4 && strcasecmp(angStr + alen - 4, "grad") == 0) {
+          angMode = amGrad;
+          angStr[alen - 4] = '\0';
+        }
+        else if(alen >= 3 && strcasecmp(angStr + alen - 3, "pir") == 0) {
+          angMode = amMultPi;
+          angStr[alen - 3] = '\0';
+        }
+        else if(alen >= 2 && strcasecmp(angStr + alen - 2, "pi") == 0) {
+          angMode = amMultPi;
+          angStr[alen - 2] = '\0';
+        }
+        else if(alen >= 1 && (angStr[alen - 1] == 'r' || angStr[alen - 1] == 'R')) {
+          angMode = amRadian;
+          angStr[alen - 1] = '\0';
+        }
+        else if(alen >= 1 && (angStr[alen - 1] == 'g' || angStr[alen - 1] == 'G')) {
+          angMode = amGrad;
+          angStr[alen - 1] = '\0';
+        }
+        else if(alen >= 1 && (angStr[alen - 1] == 'd' || angStr[alen - 1] == 'D')) {
+          angMode = amDegree;
+          angStr[alen - 1] = '\0';
+        }
+      }
+
+      if(angMode == amMultPi) {
+        char *ae = angStr + strlen(angStr);
+        while(ae > angStr && (*(ae - 1) == ' ' || *(ae - 1) == '\t' || *(ae - 1) == '*')) {
+          *(--ae) = '\0';
+        }
+        char *as = angStr;
+        while(*as == ' ' || *as == '\t') {
+          as++;
+        }
+        if(*as == '\0' || strcmp(as, "+") == 0) {
+          strcpy(angStr, "1.");
+        }
+        else if(strcmp(as, "-") == 0) {
+          strcpy(angStr, "-1.");
+        }
+      }
+
+      real34_t mag34, ang34;
+      if(parseRealToken(magStr, &mag34) && parseRealToken(angStr, &ang34)) {
+        convertAngle34FromTo(&ang34, angMode, amRadian);
+        real_t rMag, rAng, rRe, rIm;
+        real34ToReal(&mag34, &rMag);
+        real34ToReal(&ang34, &rAng);
+        realPolarToRectangular(&rMag, &rAng, &rRe, &rIm, &ctxtReal39);
+        realToReal34(&rRe, &reVal);
+        realToReal34(&rIm, &imVal);
+        tag = (angMode & amAngleMask) | amPolar;
+        parsed = true;
+      }
+    }
+  }
+
+  // 2. Coordinate / Tuple format: "(re, im)" or "re; im"
+  if(!parsed && (hasOuterParens || strchr(buf, ';') != NULL)) {
+    char *coordSep = strchr(buf, ';');
+    if(!coordSep && hasOuterParens) {
+      coordSep = strchr(buf, ',');
+    }
+    if(coordSep != NULL) {
+      char part1[256], part2[256];
+      size_t l1 = (size_t)(coordSep - buf);
+      if(l1 < sizeof(part1)) {
+        strncpy(part1, buf, l1);
+        part1[l1] = '\0';
+        strncpy(part2, coordSep + 1, sizeof(part2) - 1);
+        part2[sizeof(part2) - 1] = '\0';
+
+        if(parseRealToken(part1, &reVal) && parseRealToken(part2, &imVal)) {
+          tag = amNone;
+          parsed = true;
+        }
+      }
+    }
+  }
+
+  // 3. Cartesian notation with imaginary unit ('i', 'j', STD_op_i, STD_op_j)
+  if(!parsed) {
+    const char *unitPtr = findImaginaryUnit(buf);
+    if(unitPtr != NULL) {
+      const char *sep = findRealImagSeparator(buf);
+      if(sep == NULL) {
+        real34SetZero(&reVal);
+        if(parseImaginaryToken(buf, &imVal)) {
+          tag = amNone;
+          parsed = true;
+        }
+      }
+      else {
+        char part1[256], part2[256];
+        size_t l1 = (size_t)(sep - buf);
+        if(l1 < sizeof(part1)) {
+          strncpy(part1, buf, l1);
+          part1[l1] = '\0';
+          strncpy(part2, sep, sizeof(part2) - 1);
+          part2[sizeof(part2) - 1] = '\0';
+
+          const char *u1 = findImaginaryUnit(part1);
+          const char *u2 = findImaginaryUnit(part2);
+
+          if(u2 != NULL && u1 == NULL) {
+            if(parseRealToken(part1, &reVal) && parseImaginaryToken(part2, &imVal)) {
+              tag = amNone;
+              parsed = true;
+            }
+          }
+          else if(u1 != NULL && u2 == NULL) {
+            if(parseRealToken(part2, &reVal) && parseImaginaryToken(part1, &imVal)) {
+              tag = amNone;
+              parsed = true;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if(!parsed) {
+    return false;
+  }
+
+  pthread_mutex_lock(&screenMutex);
+  if(calcMode == CM_NORMAL && getSystemFlag(FLAG_ASLIFT)) {
+    liftStack();
+  }
+
+  reallocateRegister(REGISTER_X, dtComplex34, 0, tag);
+  real34Copy(&reVal, REGISTER_REAL34_DATA(REGISTER_X));
+  real34Copy(&imVal, REGISTER_IMAG34_DATA(REGISTER_X));
+
+  setSystemFlag(FLAG_ASLIFT);
+
+  extern bool_t reDraw;
+  extern gboolean refreshLcd(gpointer unusedData);
+  reDraw = true;
+  screenUpdatingMode = SCRUPD_AUTO;
+  refreshScreen(1);
+  refreshLcd(NULL);
+  lcd_refresh();
+  pthread_mutex_unlock(&screenMutex);
+
+  return true;
+}
+
 JNIEXPORT void JNICALL
 Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
     JNIEnv *env, jobject thiz, jstring text) {
@@ -478,6 +954,11 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
   }
 
   if (tryPasteMatrix(s)) {
+    free(buf);
+    return;
+  }
+
+  if (tryPasteComplex(s)) {
     free(buf);
     return;
   }

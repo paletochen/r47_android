@@ -23,11 +23,11 @@ Choose between authentic hardware aesthetics or clean, modern high-contrast inte
 
 | Skin | Style | Description | Preview |
 | :--- | :--- | :--- | :---: |
-| **SwissMicros (Replica)** | Hardware Photographic | 1:1 photographic reproduction of the textured bezel and physical keys of the SwissMicros hardware. | <img src="android/app/src/main/res/drawable/r47_texture.png" width="100" /> |
-| **SwissMicros (Dynamic Labels)** | Hybrid Photographic | Authentic textured shell paired with on-the-fly dynamically rewriting keycap labels. | <img src="android/app/src/main/res/drawable/r47_black_edition.png" width="100" /> |
-| **Chrome (Dynamic Labels)** | Modern Bezel | Sleek, dark anodized bezel with high-visibility dynamic keycap typography. | <img src="android/app/src/main/res/drawable/r47_black_edition.png" width="100" /> |
-| **Simulator (Dynamic Labels)** | Clean Desktop Style | High-clarity vector key outlines based on the desktop simulator with separated shift indicators. | <img src="android/app/src/main/res/drawable/r47_background_v2.png" width="100" /> |
-| **Das Kalkulator** | Industrial Custom | Distinctive brushed dark aesthetic with custom typography and tactile accents. | <img src="android/app/src/main/res/drawable/r47_das_kalkulator.png" width="100" /> |
+| **SwissMicros (Replica)** | Hardware Photographic | 1:1 photographic reproduction of the textured bezel and physical keys of the SwissMicros hardware. | <img src="docs/skins/r47_replica.jpg" width="160" /> |
+| **SwissMicros (Dynamic Labels)** | Hybrid Photographic | Authentic textured shell paired with on-the-fly dynamically rewriting keycap labels. | <img src="docs/skins/r47_dynamic.jpg" width="160" /> |
+| **Chrome (Dynamic Labels)** | Modern Bezel | Sleek, dark anodized bezel with high-visibility dynamic keycap typography. | <img src="docs/skins/r47_chrome.jpg" width="160" /> |
+| **Simulator (Dynamic Labels)** | Clean Desktop Style | High-clarity vector key outlines based on the desktop simulator with separated shift indicators. | <img src="docs/skins/r47_simulator.jpg" width="160" /> |
+| **Das Kalkulator** | Industrial Custom | Distinctive brushed dark aesthetic with custom typography and tactile accents. | <img src="docs/skins/r47_das_kalkulator.jpg" width="160" /> |
 
 ---
 

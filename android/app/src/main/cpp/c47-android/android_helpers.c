@@ -4,6 +4,7 @@
 #include <android/log.h>
 #include "display.h"
 #include "fonts.h"
+#include "mathematics/toPolar.h"
 
 #ifndef LOG_TAG
 #define LOG_TAG "R47Helpers"
@@ -118,32 +119,70 @@ char* getXRegisterString() {
         }
             
         case dtComplex34: {
-            real34_t reduced;
-            int len;
-            char tmpStr[100];
+            bool_t isPolar = ((tag & amPolar) == amPolar) || getSystemFlag(FLAG_POLAR);
+            if (isPolar) {
+                angularMode_t angMode = (tag & amAngleMask);
+                if (angMode == amNone) {
+                    angMode = currentAngularMode;
+                }
+                real_t real, imagIc;
+                real34_t mag34, ang34, reduced;
+                real34ToReal((const real34_t *)getRegisterDataPointer(regist), &real);
+                real34ToReal(((const real34_t *)getRegisterDataPointer(regist)) + 1, &imagIc);
 
-            // Real part
-            real34Reduce((const real34_t *)getRegisterDataPointer(regist), &reduced);
-            real34ToString(&reduced, tmpStr);
-            if(strchr(tmpStr, '.') == NULL && strchr(tmpStr, 'E') == NULL) {
-                strcat(tmpStr, ".");
-            }
-            len = strlen(tmpStr);
+                decContext c = ctxtReal39;
+                c.digits = 39;
+                realRectangularToPolar(&real, &imagIc, &real, &imagIc, &c);
+                convertAngleFromTo(&imagIc, amRadian, angMode, &c);
 
-            // Imaginary part
-            real34Reduce(((const real34_t *)getRegisterDataPointer(regist)) + 1, &reduced);
-            if(real34IsNegative(&reduced)) {
-                sprintf(coreBuf, "%s - %sx", tmpStr, COMPLEX_UNIT);
-                len += 5;
-                real34SetPositiveSign(&reduced);
-                real34ToString(&reduced, coreBuf + len);
+                realToReal34(&real, &mag34);
+                realToReal34(&imagIc, &ang34);
+
+                char tmpMag[100];
+                real34Reduce(&mag34, &reduced);
+                real34ToString(&reduced, tmpMag);
+                if (strchr(tmpMag, '.') == NULL && strchr(tmpMag, 'E') == NULL) {
+                    strcat(tmpMag, ".");
+                }
+
+                char tmpAng[100];
+                real34Reduce(&ang34, &reduced);
+                real34ToString(&reduced, tmpAng);
+                char unitStr[32] = "";
+                angularUnitToString(angMode, unitStr);
+                if (unitStr[0] == 0 && strchr(tmpAng, '.') == NULL && strchr(tmpAng, 'E') == NULL) {
+                    strcat(tmpAng, ".");
+                }
+
+                sprintf(coreBuf, "%s " STD_MEASURED_ANGLE " %s%s", tmpMag, tmpAng, unitStr);
             } else {
-                sprintf(coreBuf, "%s + %sx", tmpStr, COMPLEX_UNIT);
-                len += 5;
-                real34ToString(&reduced, coreBuf + len);
-            }
-            if(strchr(coreBuf + len, '.') == NULL && strchr(coreBuf + len, 'E') == NULL) {
-                strcat(coreBuf + len, ".");
+                real34_t reduced;
+                int len;
+                char tmpStr[100];
+
+                // Real part
+                real34Reduce((const real34_t *)getRegisterDataPointer(regist), &reduced);
+                real34ToString(&reduced, tmpStr);
+                if(strchr(tmpStr, '.') == NULL && strchr(tmpStr, 'E') == NULL) {
+                    strcat(tmpStr, ".");
+                }
+                len = strlen(tmpStr);
+
+                // Imaginary part
+                real34Reduce(((const real34_t *)getRegisterDataPointer(regist)) + 1, &reduced);
+                if(real34IsNegative(&reduced)) {
+                    sprintf(coreBuf, "%s - %sx", tmpStr, COMPLEX_UNIT);
+                    len += 5;
+                    real34SetPositiveSign(&reduced);
+                    real34ToString(&reduced, coreBuf + len);
+                } else {
+                    sprintf(coreBuf, "%s + %sx", tmpStr, COMPLEX_UNIT);
+                    len += 5;
+                    real34ToString(&reduced, coreBuf + len);
+                }
+                if(strchr(coreBuf + len, '.') == NULL && strchr(coreBuf + len, 'E') == NULL) {
+                    strcat(coreBuf + len, ".");
+                }
             }
             break;
         }
