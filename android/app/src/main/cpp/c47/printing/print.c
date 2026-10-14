@@ -689,7 +689,16 @@ static void wrap(int width) {
 //
 //  Print a complete line using character set translation
 //
+#if defined(ANDROID_BUILD)
+extern void printPrettyLine(const char *str);
+#endif
+
 void printLine(const char *buff, int with_lf) {
+  #if defined(ANDROID_BUILD)
+  if(with_lf) {
+    printPrettyLine(buff);
+  }
+  #endif
   const int mode = printerState.print_mode;
   uint8_t c;
   //unsigned short int posns[257];
