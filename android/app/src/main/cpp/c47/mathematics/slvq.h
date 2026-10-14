@@ -10,6 +10,18 @@
   void fnSlvq                (uint16_t unusedButMandatoryParameter);
 
   /**
+   * Solve quadratic equation a x^2 + b x + c = 0 at the precision the build options select:
+   * 159 digits under OPTION_SQUARE_159, 75 otherwise, results rounded to 39 digits.
+   * Parameters as solveQuadraticEquation, without the context.
+   */
+  void solveQuadratic(const real_t *aReal, const real_t *aImag,
+                      const real_t *bReal, const real_t *bImag,
+                      const real_t *cReal, const real_t *cImag,
+                            real_t *rReal,       real_t *rImag,
+                            real_t *x1Real,      real_t *x1Imag,
+                            real_t *x2Real,      real_t *x2Imag);
+
+  /**
    * Solve quadratic equation a x^2 + b x + c = 0.
    *
    * \param[in] aReal the real part of the quadratic coefficient

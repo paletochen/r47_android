@@ -9,4 +9,4 @@
 
   void   fnDenMax            (uint16_t D);
   bool_t fraction            (calcRegister_t regist, int16_t *sign, uint64_t *intPart, uint64_t *numer, uint64_t *denom, int16_t *lessEqualGreater);
-#endif // FRACTIONS_H
+#endif // !FRACTIONS_H

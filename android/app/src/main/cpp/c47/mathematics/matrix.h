@@ -21,6 +21,7 @@
    *
    * \param[in] regist
    */
+  bool_t     getSingleDimension             (calcRegister_t reg, uint32_t *d);
   bool_t     getDimensionArg                (uint32_t *rows, uint32_t *cols);
   void       fnSetMatrixDimensions          (uint16_t regist);
   void       fnSetMatrixDimensionsGr        (uint16_t regist);
@@ -61,12 +62,6 @@
    */
   void       fnInvertMatrix                 (uint16_t unusedParamButMandatory);
   void       fnMatrixSquareRoot             (uint16_t unusedParamButMandatory);
-
-  /**
-   * Euclidean norm of matrix X.
-   *
-   * \param[in] unusedParamButMandatory
-   */
 
   void       fnPNorm                        (uint16_t unusedParamButMandatory);
   void       fnVectorDist                   (uint16_t unusedParamButMandatory);
@@ -150,6 +145,21 @@
   void       fnEigenvalues                  (uint16_t unusedParamButMandatory);
 
   void       fnEigenvectors                 (uint16_t unusedParamButMandatory);
+
+  // Linkage of calculateEigenvalues, decided here beside its prototype so that the qualifier reaches the definition as
+  // one token. Spelling it as a bare "static" inside its own #if above the function in matrix.c reads the same but is
+  // not: anything later inserted between that #if and the function orphans the qualifier, and the only builds that
+  // notice are the ones that emit it - EIGEN on, SLVP off, which is DMCP package 3 alone.
+  #if defined(OPTION_SLVP_POLY)
+  #define EIGENVALUES_LINKAGE
+  /**
+   * Eigenvalues of a size x size matrix held as caller-allocated interleaved re/im real_t arrays; results land on the diagonal of eig.
+   * SLVP feeds its companion matrix through here; on builds without SLVP the engine stays file-local.
+   */
+  void       calculateEigenvalues           (real_t *a, real_t *scratch, real_t *eig, uint16_t size, bool_t shifted, bool_t reducedSignificantDigits, realContext_t *realContext);
+  #else // OPTION_SLVP_POLY
+  #define EIGENVALUES_LINKAGE static
+  #endif // OPTION_SLVP_POLY
 
   /**
    * Saves the STATS matrix if STATS is available.
@@ -245,8 +255,8 @@
    * \param[in] prefixWidth
    */
   #define regXp true
-  #define toDisplayVectorMatrix true
-  void     showRealMatrix                 (const real34Matrix_t *matrix, int16_t prefixWidth, bool_t toDisplay, bool_t regXposition);
+  void     showRealMatrix                 (const real34Matrix_t *matrix, int16_t prefixWidth, bool_t regXposition, char *dest);
+  void     getRealMatrixIntegerColumns    (const real34Matrix_t *matrix, uint16_t dispFormat, uint16_t cols, uint16_t sRow, uint16_t sCol, uint16_t maxRows, uint16_t maxCols, bool_t *allElementsInColAreIntegers);
 
   /**
    * Calculates width of columns of a real matrix.
@@ -255,12 +265,12 @@
    * \param[in] prefixWidth
    * \param[in] font
    * \param[out] colWidth Column width. This must be initialized as int16_t[MATRIX_MAX_COLUMNS].
-   * \param[out] rPadWidth Right padding of each elements. This is for alignment of decimal points. This must be initialized as int16_t[MATRIX_MAX_ROWS * MATRIX_MAX_COLUMNS].
+   * \param[out] rPadWidth Right padding of each elements. This is for alignment of decimal points. This must be initialized as int16_t[MATRIX_MAX_ROWS_ON_SHOW * MATRIX_MAX_COLUMNS].
    * \param[out] digits Number of digits which will be shown. This is for adjustment in ALL mode.
    * \param[in] maxCols Maximum number of columns to allow
    * \return Width of the matrix excluding brackets
    */
-  int16_t  getRealMatrixColumnWidths      (const real34Matrix_t *matrix, int16_t prefixWidth, const font_t *font, int16_t *colWidth, int16_t *rPadWidth, int16_t *digits, uint16_t maxCols, bool_t *allElementsInColAreIntegers);
+  int16_t  getRealMatrixColumnWidths      (const real34Matrix_t *matrix, int16_t prefixWidth, bool_t regXposition, const font_t *font, int16_t *colWidth, int16_t *rPadWidth, int16_t *digits, uint16_t maxCols, bool_t *allElementsInColAreIntegers);
 
   /**
    * Displays a complex matrix.
@@ -279,13 +289,13 @@
    * \param[out] colWidth Column width. This must be initialized as int16_t[MATRIX_MAX_COLUMNS].
    * \param[out] colWidth_r Column width of real part. This must be initialized as int16_t[MATRIX_MAX_COLUMNS].
    * \param[out] colWidth_i Column width of imaginary part. This must be initialized as int16_t[MATRIX_MAX_COLUMNS].
-   * \param[out] rPadWidth_r Right padding of real part of each elements. This is for alignment of decimal points. This must be initialized as int16_t[MATRIX_MAX_ROWS * MATRIX_MAX_COLUMNS].
-   * \param[out] rPadWidth_i Right padding of imaginary part of each elements. This is for alignment of decimal points. This must be initialized as int16_t[MATRIX_MAX_ROWS * MATRIX_MAX_COLUMNS].
+   * \param[out] rPadWidth_r Right padding of real part of each elements. This is for alignment of decimal points. This must be initialized as int16_t[MATRIX_MAX_ROWS_ON_SHOW * MATRIX_MAX_COLUMNS].
+   * \param[out] rPadWidth_i Right padding of imaginary part of each elements. This is for alignment of decimal points. This must be initialized as int16_t[MATRIX_MAX_ROWS_ON_SHOW * MATRIX_MAX_COLUMNS].
    * \param[out] digits Number of digits which will be shown. This is for adjustment in ALL mode.
    * \param[in] maxCols Maximum number of columns to allow
    * \return Width of the matrix excluding brackets
    */
-  int16_t  getComplexMatrixColumnWidths   (const complex34Matrix_t *matrix, int16_t prefixWidth, const font_t *font, int16_t *colWidth, int16_t *colWidth_r, int16_t *colWidth_i,
+  int16_t  getComplexMatrixColumnWidths   (const complex34Matrix_t *matrix, int16_t prefixWidth, bool_t regXposition, const font_t *font, int16_t *colWidth, int16_t *colWidth_r, int16_t *colWidth_i,
                                             int16_t *rPadWidth_r, int16_t *rPadWidth_i, int16_t *digits, uint16_t maxCols, angularMode_t angleMode, bool_t polarMode);
 
   void     getMatrixFromRegister          (calcRegister_t regist);

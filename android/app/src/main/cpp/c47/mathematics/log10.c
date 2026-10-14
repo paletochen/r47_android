@@ -22,7 +22,7 @@ void logxyReal(const real_t *denom) {
       realSetMinusInfinity(&a);
     }
     else {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function logxyReal:", "cannot calculate log2(0)", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -32,9 +32,9 @@ void logxyReal(const real_t *denom) {
 
   else if(realIsInfinite(&a)) {
     if(!getSystemFlag(FLAG_SPCRES)) {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-        moreInfoOnError("In function logxyReal:", "cannot use " STD_PLUS_MINUS STD_INFINITY " as X input of log2 when flag D is not set", NULL, NULL);
+        moreInfoOnError("In function logxyReal:", "cannot use " STD_PLUS_MINUS STD_INFINITY " as X input of log2 when flag SPCRES is not set", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
       return;
     }
@@ -56,8 +56,14 @@ void logxyReal(const real_t *denom) {
 
   else {
     if(realIsPositive(&a)) {
+      real_t k, p;
+      realCopy(&a, &b);
       WP34S_Ln(&a, &a, &ctxtReal39);
       realDivide(&a, denom, &a, &ctxtReal39);
+      realRescale(&a, &k, const_0, &ctxtReal39);
+      if(realIntegerPowerExact(denom == const39_ln2 ? const_2 : const_10, &k, &p) && realCompareEqual(&p, &b)) {   // X an exact power of the base gives the integer
+        realCopy(&k, &a);
+      }
     }
     else if(getFlag(FLAG_CPXRES)) {
       realSetPositiveSign(&a);
@@ -71,7 +77,7 @@ void logxyReal(const real_t *denom) {
       realSetNaN(&a);
     }
     else {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function logxyReal:", "cannot calculate log2 of a negative number when CPXRES is not set!", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -96,7 +102,7 @@ void logxyCplx(const real_t *denom) {
       realSetZero(&b);
     }
     else {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function logxyCplx:", "cannot calculate log2(0)", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -124,13 +130,30 @@ void logxyLonI(const real_t *denom) {
     return;
   }
 
+  real_t x34;
+  realContext_t c = ctxtReal34;
+  c.round = DEC_ROUND_HALF_EVEN;            // the test for an exact integer takes no mode from RM
   WP34S_Ln(&x, &x, &ctxtReal39);
-  realDivide(&x, denom, &x, &ctxtReal34);   /* Round using the 34 digit context */
-  if(!realIsAnInteger(&x)) {
+  realDivide(&x, denom, &x, &ctxtReal39);
+  realPlus(&x, &x34, &c);                   /* Round using the 34 digit context */
+  if(!realIsAnInteger(&x34)) {
     convertRealToResultRegister(&x, REGISTER_X, amNone);
   }
   else {
-    convertRealToLongIntegerRegister(&x, REGISTER_X, DEC_ROUND_HALF_EVEN);
+    longInteger_t lgInt, power;
+    int32_t k = realToInt32C47(&x34, NULL);
+
+    getRegisterAsLongInt(REGISTER_X, lgInt, NULL);
+    longIntegerInit(power);
+    longIntegerPowerUIntUInt(denom == const39_ln2 ? 2 : 10, k, power);
+    if(longIntegerCompare(power, lgInt) == 0) {   // an integer result only where X is the base to that power
+      convertRealToLongIntegerRegister(&x34, REGISTER_X, DEC_ROUND_HALF_EVEN);
+    }
+    else {
+      convertRealToResultRegister(&x, REGISTER_X, amNone);
+    }
+    longIntegerFree(power);
+    longIntegerFree(lgInt);
   }
 }
 

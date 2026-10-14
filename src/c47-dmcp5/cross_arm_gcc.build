@@ -2,7 +2,7 @@
 c       = ['ccache', 'arm-none-eabi-gcc']
 cpp     = ['ccache', 'arm-none-eabi-g++']
 ld      = 'arm-none-eabi-ld'
-ar      = 'arm-none-eabi-ar'
+ar      = 'arm-none-eabi-gcc-ar'
 as      = 'arm-none-eabi-as'
 size    = 'arm-none-eabi-size'
 objdump = 'arm-none-eabi-objdump'

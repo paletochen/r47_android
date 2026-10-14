@@ -21,6 +21,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import org.rpncalculators.r47.databinding.ActivityMainBinding
 import android.content.SharedPreferences
 import android.content.res.Configuration
+import java.io.File
 
 @Keep
 class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceChangeListener {
@@ -146,6 +147,36 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     @Keep
     fun stopTone() {}
 
+    @Keep
+    fun setBeeperVolume(volume: Int) {
+        AudioEngine.setBeeperVolume(volume)
+        beeperVolume = volume.coerceIn(0, 100)
+        appPreferences.edit().putInt("beeper_volume", beeperVolume).apply()
+    }
+
+    @Keep
+    fun getBeeperVolume(): Int {
+        return AudioEngine.getBeeperVolume()
+    }
+
+    @Keep
+    fun getBatteryVoltageMv(): Int {
+        val intent = registerReceiver(null, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        return intent?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 3800) ?: 3800
+    }
+
+    @Keep
+    fun getStorageInfo(): String {
+        return try {
+            val stat = StatFs(filesDir.absolutePath)
+            val freeMb = stat.availableBytes / (1024 * 1024)
+            val totalMb = stat.totalBytes / (1024 * 1024)
+            "Disk Info\n\nInternal Flash:\nFree: ${freeMb} MB\nTotal: ${totalMb} MB"
+        } catch (e: Exception) {
+            "Disk Info\n\nInternal Flash:\nUnavailable"
+        }
+    }
+
     private fun applyLcdMode(mode: String, luminancePercent: Int) {
         lcdMode = mode
         val palette = resolveLcdPalette(mode, luminancePercent)
@@ -242,6 +273,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     override fun onSharedPreferenceChanged(prefs: SharedPreferences?, key: String?) {
         if (prefs == null || key == null) return
         when (key) {
+            WorkDirectory.KEY_TREE_URI -> checkPendingAutoLoad()
             "haptic_enabled" -> isHapticEnabled = prefs.getBoolean(key, true)
             "haptic_hifi_enabled" -> isHighFidelityHapticEnabled = prefs.getBoolean(key, true)
             "haptic_intensity" -> hapticIntensity = prefs.getInt(key, DEFAULT_HAPTIC_INTENSITY)
@@ -392,6 +424,8 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             mainHandler = mainHandler,
             offerCoreTask = ::offerCoreTask,
             getXRegisterNative = ::getXRegisterNative,
+            getAllRegistersNative = ::getAllRegistersNative,
+            pasteTextNative = ::pasteTextNative,
             sendSimFuncNative = ::sendSimFuncNative,
             sendSimKeyNative = ::sendSimKeyNative,
             enterPiP = ::enterPiP,
@@ -400,19 +434,16 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         factoryResetController = FactoryResetController(
             activity = this,
             onResetRequested = {
-                coreRuntime.dispose(stopApp = true)
-                AudioEngine.stop()
+                // Let onDestroy handle dispose and stop
             },
             onDestroyFactoryReset = {
-                AudioEngine.stop()
-                releaseNativeRuntime()
                 NativeCoreRuntime.resetSharedState()
             },
             onDestroyFinish = {
-                AudioEngine.stop()
-                releaseNativeRuntime()
+                // Handled by onActualStop in dispose
             },
         )
+
         
         window.attributes.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         val isFullscreen = prefs.getBoolean("fullscreen_mode", true)
@@ -442,6 +473,19 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
 
         syncAudioSettings()
         
+        val testPgmsDest = File(filesDir, "testPgms.bin")
+        if (!testPgmsDest.exists()) {
+            try {
+                assets.open("testPgms.bin").use { input ->
+                    testPgmsDest.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to copy testPgms.bin asset: ${e.message}")
+            }
+        }
+
         replicaOverlay.setChromeMode(chromeMode)
         setupInteractiveZones()
         slotsList = slotStore.loadSlots()
@@ -493,11 +537,19 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     override fun onDestroy() { 
         Log.i(TAG, "onDestroy: isFinishing=$isFinishing isFactoryResetInProgress=${factoryResetController.isResetInProgress}")
         val shouldStopApp = isFinishing || factoryResetController.isResetInProgress
-        coreRuntime.dispose(stopApp = shouldStopApp)
+        coreRuntime.dispose(
+            stopApp = shouldStopApp,
+            onActualStop = {
+                Log.i(TAG, "Actual stop of native core: running cleanup")
+                AudioEngine.stop()
+                releaseNativeRuntime()
+            }
+        )
         appPreferences.unregisterOnSharedPreferenceChangeListener(this)
         factoryResetController.handleDestroy(shouldStopApp)
         super.onDestroy() 
     }
+
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -511,7 +563,23 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         super.onResume()
         coreRuntime.requestForceRefresh()
         storageAccessCoordinator.handleResume()
+        checkPendingAutoLoad()
     }
+
+    private fun checkPendingAutoLoad() {
+        if (WorkDirectory.consumePendingAutoLoad(this)) {
+            Log.i(TAG, "Triggering auto-load of auto-save file from Work Directory")
+            offerCoreTask {
+                val success = loadAutoSaveNative()
+                mainHandler.post {
+                    if (success) {
+                        android.widget.Toast.makeText(this, "Auto-loaded calculator state from SAVFILES", android.widget.Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
+    }
+
 
     override fun onPause() {
         super.onPause()
@@ -523,6 +591,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             coreRuntime.saveStateOnPause(autoSaveEnabled = true)
         }
     }
+
 
     private val slotCreateLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
@@ -581,6 +650,38 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     }
 
     @Keep
+    fun openDirectDocumentFd(fileType: Int, fileName: String, mode: String): Int {
+        if (fileType == 4 && (fileName.endsWith(".tsv", ignoreCase = true) || fileName.endsWith(".csv", ignoreCase = true))) {
+            val tsvEnabled = appPreferences.getBoolean("export_tsv_data", false)
+            Log.i(TAG, "openDirectDocumentFd: TSV export check for $fileName: enabled=$tsvEnabled")
+            if (!tsvEnabled) {
+                return -1
+            }
+        }
+        val treeUriString = WorkDirectory.readTreeUriString(this)
+        val fd = WorkDirectory.openDirectDocumentFd(
+            contentResolver = contentResolver,
+            treeUriString = treeUriString,
+            fileType = fileType,
+            fileName = fileName,
+            mode = mode,
+        )
+        Log.i(TAG, "openDirectDocumentFd: fileType=$fileType, fileName=$fileName, mode=$mode -> fd=$fd")
+        return fd
+    }
+
+    @Keep
+    fun deleteDirectDocument(fileType: Int, fileName: String): Boolean {
+        val treeUriString = WorkDirectory.readTreeUriString(this)
+        return WorkDirectory.deleteDirectDocument(
+            contentResolver = contentResolver,
+            treeUriString = treeUriString,
+            fileType = fileType,
+            fileName = fileName,
+        )
+    }
+
+    @Keep
     fun processCoreTasks() {
         coreRuntime.processCoreTasks()
     }
@@ -625,9 +726,12 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     private external fun sendSimFuncNative(funcId: Int)
     private external fun saveStateNative()
     private external fun loadStateNative()
+    private external fun loadAutoSaveNative(): Boolean
     private external fun forceRefreshNative()
     private external fun setSlotNative(slot: Int)
     private external fun getXRegisterNative(): String
+    private external fun getAllRegistersNative(): String
+    private external fun pasteTextNative(text: String)
     private external fun getDisplayPixels(pixels: IntArray)
     private external fun setLcdColors(text: Int, bg: Int)
     

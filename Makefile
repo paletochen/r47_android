@@ -1,4 +1,4 @@
-.PHONY: all clean sim test test_asan dmcp dmcpr47 dmcp5 dmcp5r47 docs testPgms both_asan dist_windows dist_macos dist_linux dist_dmcp dist_dmcpr47 dist_dmcp5 dist_dmcp5r47 repeattest simc47 simr47 t47
+.PHONY: all clean sim test test_asan dmcp dmcpr47 dmcp5 dmcp5r47 docs testPgms both_asan dist_windows dist_macos dist_linux dist_dmcp dist_dmcpr47 dist_dmcp5 dist_dmcp5r47 repeattest simc47 simr47 t47 benchbin bench
 
 all: sim
 both: sim simr47
@@ -6,6 +6,13 @@ both: sim simr47
 EXE =
 ifeq ($(OS),Windows_NT)
   EXE = .exe
+endif
+
+# Silence meson reconfigure output, except on Windows/MSYS2 where
+# redirecting to /dev/null deadlocks the gmp external subproject.
+DEVNULL = >/dev/null
+ifeq ($(OS),Windows_NT)
+  DEVNULL =
 endif
 
 BUILD_PC = build.sim
@@ -37,8 +44,8 @@ clean: $(GMP_MESON_BUILD)
 	rm -rf wp43-windows* wp43-macos* wp43-linux* wp43-dm42*
 	rm -rf c47-windows* c47-macos* c47-linux* c47-dmcp* r47-dmcp*
 	rm -rf build build.sim build.sim.t47 build.dmcp build.dmcp.* build.dmcp5 build.rel build.rel.debug
+	rm -rf res/testPgms/ALLPGMS
 	rm -f src/generated/*.c src/generated/constantPointers.h src/generated/softmenuCatalogs.h
-	rm -rf PROGRAMS/ALLPGMS
 	rm -f src_files_stamp testPgms_stamp
 
 build.sim:
@@ -46,6 +53,19 @@ build.sim:
 
 build.sim.t47:
 	meson setup $(BUILD_PC) --buildtype=custom -DRASPBERRY=`tools/onARaspberry` -DDECNUMBER_FASTMUL=true -Dc_args="-DT47"
+
+# Optimized headless build for the benchmark suite: mirrors the DMCP hardware
+# flags (-Os, LTO) as closely as a native build can, so that relative timings
+# track the calculator rather than an unoptimized debug build.
+build.sim.t47.bench:
+	meson setup build.sim.t47.bench --buildtype=custom -DRASPBERRY=`tools/onARaspberry` -DDECNUMBER_FASTMUL=true -Db_lto=true -Dc_args="-DT47 -Os"
+
+benchbin: build.sim.t47.bench
+	cd build.sim.t47.bench && ninja sim
+	cp build.sim.t47.bench/src/c47-gtk/c47$(EXE) ./t47bench$(EXE)
+
+bench: benchbin
+	python3 tools/bench/benchreport.py
 
 both_asan: clean
 ifeq ($(OS),Windows_NT)
@@ -86,10 +106,10 @@ build.rel.debug:
 	meson setup $(BUILD_PC) --buildtype=custom  -DCI_COMMIT_TAG=$(CI_COMMIT_TAG) -DDECNUMBER_FASTMUL=true
 
 build.dmcp:
-	meson setup build.dmcp.p$(DMCP_PACKAGE)  --cross-file=src/c47-dmcp/cross_arm_gcc.build  -DDMCPVERSION=dmcp  -DCI_COMMIT_TAG=$(CI_COMMIT_TAG) -DDECNUMBER_FASTMUL=true -DDMCP_PACKAGE=$(DMCP_PACKAGE)
+	$(if $(f),test -d build.dmcp.p$(DMCP_PACKAGE) ||,rm -rf build.dmcp.p$(DMCP_PACKAGE);) meson setup build.dmcp.p$(DMCP_PACKAGE)  --cross-file=src/c47-dmcp/cross_arm_gcc.build  -DDMCPVERSION=dmcp  -DCI_COMMIT_TAG=$(CI_COMMIT_TAG) -DDECNUMBER_FASTMUL=true -DDMCP_PACKAGE=$(DMCP_PACKAGE) -Dmem=$(if $(filter-out 0,$(Mem)),true,false)
 
 build.dmcp5:
-	meson setup build.dmcp5 --cross-file=src/c47-dmcp5/cross_arm_gcc.build -DDMCPVERSION=dmcp5 -DCI_COMMIT_TAG=$(CI_COMMIT_TAG) -DDECNUMBER_FASTMUL=true
+	$(if $(f),test -d build.dmcp5 ||,rm -rf build.dmcp5;) meson setup build.dmcp5 --cross-file=src/c47-dmcp5/cross_arm_gcc.build -DDMCPVERSION=dmcp5 -DCI_COMMIT_TAG=$(CI_COMMIT_TAG) -DDECNUMBER_FASTMUL=true
 
 sim: $(BUILD_PC)
 	cd $(BUILD_PC) && ninja sim
@@ -121,6 +141,7 @@ t47:
 endif
 
 dmcp: build.dmcp
+	meson setup --reconfigure build.dmcp.p$(DMCP_PACKAGE) -Dmem=$(if $(filter-out 0,$(Mem)),true,false) $(DEVNULL)
 	cd build.dmcp.p$(DMCP_PACKAGE) && ninja dmcp
 
 dmcpr47: build.dmcp
@@ -142,6 +163,7 @@ testPgms: build.sim
 
 test: clean build.sim testPgms
 	cd $(BUILD_PC) && ninja test
+	@grep "NUMBER OF TESTS" $(BUILD_PC)/meson-logs/testlog.txt
 
 test_asan: clean testPgms
 	meson setup $(BUILD_PC)
@@ -169,6 +191,7 @@ testPgms_stamp: build.sim src_files_stamp
 
 repeattest: build.sim testPgms_stamp
 	cd $(BUILD_PC) && ninja test
+	@grep "NUMBER OF TESTS" $(BUILD_PC)/meson-logs/testlog.txt
 
 build.rel/wiki: build.rel
 	rm -fr $(BUILD_PC)/wiki
@@ -213,7 +236,7 @@ dist_install_PC: sim simr47
 dist_testPgms_PC: testPgms dist_install_PC
 	mkdir -p $(DIST_DIR_PC)/res/testPgms/
 	cp res/testPgms/testPgms.bin res/testPgms/testPgms.txt $(DIST_DIR_PC)/res/testPgms/
-	cd $(DIST_DIR_PC) && $(XVFB) ./c47$(EXE) --writeexportall
+	cd $(DIST_DIR_PC) && $(XVFB) ./c47$(EXE) --headless --writeexportall
 	cd $(DIST_DIR_PC)/PROGRAMS/ && zip -r ../res/testPgms/testPgms.zip ALLPGMS
 	cp $(DIST_DIR_PC)/res/testPgms/testPgms.zip res/testPgms/
 
@@ -327,14 +350,16 @@ dist_dmcp5r47: dmcp5r47 $(DIST_TESTPGMS_DM)
 
 build.dmcp.p$(PKG): DMCP_PACKAGE = $(PKG)
 build.dmcp.p$(PKG):
-	meson setup build.dmcp.p$(PKG) \
+	$(if $(f),test -d build.dmcp.p$(PKG) ||,rm -rf build.dmcp.p$(PKG);) meson setup build.dmcp.p$(PKG) \
 	  --cross-file=src/c47-dmcp/cross_arm_gcc.build \
 	  -DDMCPVERSION=dmcp \
 	  -DCI_COMMIT_TAG=$(CI_COMMIT_TAG) \
 	  -DDECNUMBER_FASTMUL=true \
-	  -DDMCP_PACKAGE=$(PKG)
+	  -DDMCP_PACKAGE=$(PKG) \
+	  -Dmem=$(if $(filter-out 0,$(Mem)),true,false)
 
 dmcp_pkg$(PKG): build.dmcp.p$(PKG)
+	meson setup --reconfigure build.dmcp.p$(PKG) -Dmem=$(if $(filter-out 0,$(Mem)),true,false) $(DEVNULL)
 	cd build.dmcp.p$(PKG) && ninja dmcp
 
 dist_dmcp_pkg$(PKG): dmcp_pkg$(PKG)

@@ -22,9 +22,11 @@
   void fnLogNormalR  (uint16_t unusedButMandatoryParameter);
   void fnLogNormalI  (uint16_t unusedButMandatoryParameter);
 
+  #if defined(OPTION_DIST_NORMAL)
   void WP34S_Pdf_Q   (const real_t *x, real_t *res, realContext_t *realContext);
   void WP34S_Cdfu_Q  (const real_t *x, real_t *res, realContext_t *realContext);
   void WP34S_Cdf_Q   (const real_t *x, real_t *res, realContext_t *realContext);
   void WP34S_qf_q_est(const real_t *x, real_t *res, real_t* resY, realContext_t *realContext);
   void WP34S_Qf_Q    (const real_t *x, real_t *res, realContext_t *realContext);
+  #endif // OPTION_DIST_NORMAL
 #endif // !NORMAL_H

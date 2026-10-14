@@ -4,10 +4,11 @@
 #include "c47.h"
 
 static void curtShoI(void) {
-  real_t x;
+  real_t x, operand, nearest, cube;
   int32_t cubeRoot;
 
   convertShortIntegerRegisterToReal(REGISTER_X, &x, &ctxtReal39);
+  realCopy(&x, &operand);
 
   if(realIsPositive(&x)) {
     PowerReal(&x, const39_1on3, &x, &ctxtReal39);
@@ -16,6 +17,13 @@ static void curtShoI(void) {
     realSetPositiveSign(&x);
     PowerReal(&x, const39_1on3, &x, &ctxtReal39);
     realSetNegativeSign(&x);
+  }
+
+  realToIntegralValue(&x, &nearest, DEC_ROUND_HALF_UP, &ctxtReal39);   // PowerReal() lands a hair under an exact cube
+  realMultiply(&nearest, &nearest, &cube, &ctxtReal39);
+  realMultiply(&cube, &nearest, &cube, &ctxtReal39);
+  if(realCompareEqual(&cube, &operand)) {                             // the operand is a cube, so its root is exact
+    realCopy(&nearest, &x);
   }
 
   cubeRoot = realToInt32C47(&x, NULL);
@@ -38,13 +46,16 @@ void curtReal(void) {
   }
 
   if(realIsInfinite(&x) && !getSystemFlag(FLAG_SPCRES)) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      moreInfoOnError("In function curtReal:", "cannot use " STD_PLUS_MINUS STD_INFINITY " as X input of curt when flag D is not set", NULL, NULL);
+      moreInfoOnError("In function curtReal:", "cannot use " STD_PLUS_MINUS STD_INFINITY " as X input of curt when flag SPCRES is not set", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
     return;
   }
 
+  real_t a;
+
+  realCopyAbs(&x, &a);
   if(realIsPositive(&x)) {
     PowerReal(&x, const39_1on3, &x, &ctxtReal39);
   }
@@ -52,6 +63,14 @@ void curtReal(void) {
     realSetPositiveSign(&x);
     PowerReal(&x, const39_1on3, &x, &ctxtReal39);
     realSetNegativeSign(&x);
+  }
+  if(!realIsZero(&a) && !realIsSpecial(&a)) {                     // a cube of a number of 34 digits gives that number
+    const bool_t negative = realIsNegative(&x);
+    realSetPositiveSign(&x);
+    realExactRoot(&a, const_3, &x);
+    if(negative) {
+      realSetNegativeSign(&x);
+    }
   }
   convertRealToResultRegister(&x, REGISTER_X, amNone);
 }

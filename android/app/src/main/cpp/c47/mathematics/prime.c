@@ -7,12 +7,15 @@
 
 #include "c47.h"
 
-#if defined(SAVE_SPACE_DM42_12PRIME)
+#if !defined(OPTION_PRIME)
   void fnIsPrime      (uint16_t unusedButMandatoryParameter){;}
   void fnNextPrime    (uint16_t unusedButMandatoryParameter){;}
+#endif // !OPTION_PRIME
+#if !defined(OPTION_FACTOR)
   void fnPrimeFactors (uint16_t unusedButMandatoryParameter){;}
   void fnEvPFacts     (uint16_t unusedButMandatoryParameter){;}
-#else
+#endif // !OPTION_FACTOR
+#if defined(OPTION_PRIME)
 
 
 #define maximumPrime 308   //10^308
@@ -200,7 +203,7 @@ static bool_t getIntArg(longInteger_t x, calcRegister_t regist) {
 
   if(!getRegisterAsLongInt(regist, x, &fractional)) {
     if(getRegisterDataType(regist) != dtReal34Matrix) {
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "The input value is invalid for storage into a longinteger!");
         moreInfoOnError("In function getIntArg:", errorMessage, NULL, NULL);
@@ -210,7 +213,7 @@ static bool_t getIntArg(longInteger_t x, calcRegister_t regist) {
   }
 
   if(fractional) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "The input value is fractional and invalid for storage into a longinteger!");
       moreInfoOnError("In function getIntArg:", errorMessage, NULL, NULL);
@@ -222,7 +225,7 @@ static bool_t getIntArg(longInteger_t x, calcRegister_t regist) {
 
 
 void fnIsPrime(uint16_t unusedButMandatoryParameter) {
-  #if !defined(SAVE_SPACE_DM42_12PRIME)
+  #if defined(OPTION_PRIME)
     longInteger_t tmp, primeCandidate;
 
     if(!getIntArg(primeCandidate, REGISTER_X)) {
@@ -243,7 +246,7 @@ void fnIsPrime(uint16_t unusedButMandatoryParameter) {
     longIntegerFree(tmp);
   abort1:
     longIntegerFree(primeCandidate);
-  #endif // !SAVE_SPACE_DM42_12PRIME
+  #endif // OPTION_PRIME
 }
 
 void SQUFOF(longInteger_t result, const longInteger_t N, const real34_t lastAdded);
@@ -252,7 +255,7 @@ void complete_factorization2(const longInteger_t N);
 
 
 void fnNextPrime(uint16_t unusedButMandatoryParameter) {
-  #if !defined(SAVE_SPACE_DM42_12PRIME)
+  #if defined(OPTION_PRIME)
     real_t x;
     longInteger_t tmp, currentNumber, nextPrime;
 
@@ -303,7 +306,7 @@ void fnNextPrime(uint16_t unusedButMandatoryParameter) {
     longIntegerFree(tmp);
   abort1:
     longIntegerFree(currentNumber);
-  #endif // !SAVE_SPACE_DM42_12PRIME
+  #endif // OPTION_PRIME
 }
 
 
@@ -584,18 +587,17 @@ void calculateNextPrime(longInteger_t currentNumber, longInteger_t nextPrime) {
       if(longIntegerIsPrime(nextPrime)) {
         return;
       }
-      longIntegerAddUInt(nextPrime, offsets[o % 48], nextPrime);
-
-      if(monitorExit(&loop, "Iter: ")) {
-        displayCalcErrorMessage(ERROR_SOLVER_ABORT, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+      if(monitorExit(&loop, "Iter: ")) { // poll before the advance so an abort returns the last tested composite; NEXTP on that value resumes at the first untested candidate
+        displayCalcErrorMessage(ERROR_SOLVER_ABORT, ERR_REGISTER_LINE);
         return;
       }
+      longIntegerAddUInt(nextPrime, offsets[o % 48], nextPrime);
     }
   }
 }
 
 
-  #if !defined(SAVE_SPACE_DM42_12PRIME)
+  #if defined(OPTION_FACTOR)
     static void _showProgress(const real34_t *ss, longInteger_t nextp) {
       real34_t rr;
       clearRegisterLine(REGISTER_Z, true, true);
@@ -616,12 +618,13 @@ void calculateNextPrime(longInteger_t currentNumber, longInteger_t nextPrime) {
 
       displayFormatDigits = savedDisplayFormatDigits;
     }
-  #endif //SAVE_SPACE_DM42_12PRIME
+  #endif // OPTION_FACTOR
 
 
 
 
 
+#if defined(OPTION_FACTOR)
 // *** This is used with the Euler sigma function
 void longIntegerSumPowers(longInteger_t base, longInteger_t exponent, uint32_t k, longInteger_t result) {
   longInteger_t count, sum, pwr, tmp, tmpbase;
@@ -670,7 +673,7 @@ void longIntegerSumPowers(longInteger_t base, longInteger_t exponent, uint32_t k
  * the result as a long integer.
  */
 static void _doFnEvPFacts     (uint16_t param) {
-  #if !defined(SAVE_SPACE_DM42_12PRIME)
+  #if defined(OPTION_PRIME)
     real_t factorR, factorI, baseR, expR, prodR, prodI;
 
     //parameter X required for k
@@ -761,7 +764,7 @@ static void _doFnEvPFacts     (uint16_t param) {
               }
             }
             else {
-              displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+              displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
               #if (EXTRA_INFO_ON_CALC_ERROR == 1)
                 moreInfoOnError("In function _doFnEvPFacts:", "cannot do complex results if CPXRES is not set", NULL, NULL);
               #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -794,7 +797,7 @@ static void _doFnEvPFacts     (uint16_t param) {
         longIntegerFree(tmp_prod);
       }
       else {
-        displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X); // Invalid input data type for this operation
+        displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE); // Invalid input data type for this operation
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           sprintf(errorMessage, "Only 2" STD_CROSS "n matrix supported: %" PRIu32 STD_CROSS "%" PRIu32 " matrix", rows, cols);
           moreInfoOnError("In function _doFnEvPFacts:", errorMessage, NULL, NULL);
@@ -803,7 +806,7 @@ static void _doFnEvPFacts     (uint16_t param) {
       }
     }
     else {
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X); // Invalid input data type for this operation
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE); // Invalid input data type for this operation
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "2" STD_CROSS "n matrix required.");
         moreInfoOnError("In function _doFnEvPFacts:", errorMessage, NULL, NULL);
@@ -815,13 +818,13 @@ static void _doFnEvPFacts     (uint16_t param) {
     return;
 
     abort:
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function _doFnEvPFacts:", "cannot do Euler sigma function due to parameter issue", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
     goto return10;
 
-  #endif //SAVE_SPACE_DM42_12PRIME
+  #endif // OPTION_PRIME
 }
 
 
@@ -961,7 +964,7 @@ static bool_t ensureFactorizationMatrix(calcRegister_t reg, bool_t allowNegative
   *wasAlreadyMatrix = isRegisterMatrixFactors(reg, &isNegative);
   if(!*wasAlreadyMatrix) {
     if(getRegisterDataType(reg) == dtReal34Matrix) {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, reg);
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "The input value is not a valid matrix!");
         moreInfoOnError("In function ensureFactorizationMatrix 01:", errorMessage, NULL, NULL);
@@ -971,7 +974,7 @@ static bool_t ensureFactorizationMatrix(calcRegister_t reg, bool_t allowNegative
     //check long integer for validity and positive
     longInteger_t x;
       if(!getIntArg(x, reg)) {
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, reg);
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "The input value is neither a longinteger nor a valid matrix!");
         moreInfoOnError("In function ensureFactorizationMatrix 02:", errorMessage, NULL, NULL);
@@ -980,7 +983,7 @@ static bool_t ensureFactorizationMatrix(calcRegister_t reg, bool_t allowNegative
       return false;
     }
     if(longIntegerIsNegative(x)) {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, reg);
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "The input value is negative and therefore out of the domain!");
         moreInfoOnError("In function ensureFactorizationMatrix 03:", errorMessage, NULL, NULL);
@@ -991,7 +994,7 @@ static bool_t ensureFactorizationMatrix(calcRegister_t reg, bool_t allowNegative
     longIntegerFree(x);
   }
   if(*wasAlreadyMatrix && !allowNegative && isNegative) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, reg);
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "The matrix input value is negative and therefore out of the domain!");
       moreInfoOnError("In function ensureFactorizationMatrix 04:", errorMessage, NULL, NULL);
@@ -1115,7 +1118,7 @@ void fnEvPFacts(uint16_t param) {
  * the calculation.
  */
 static void fnEulPhi(uint16_t unusedButMandatoryParameter) {
-  #if !defined(SAVE_SPACE_DM42_12PRIME)
+  #if defined(OPTION_PRIME)
     bool_t isMxXNegative = false;
     longInteger_t x;
     bool_t useMatrix = isRegisterMatrixFactors(REGISTER_X, &isMxXNegative);
@@ -1189,7 +1192,7 @@ static void fnEulPhi(uint16_t unusedButMandatoryParameter) {
         }
       }
       else {
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "The intermediate prime factor matrix could not be found.");
         moreInfoOnError("In function fnEulPhi:", errorMessage, NULL, NULL);
@@ -1210,7 +1213,7 @@ static void fnEulPhi(uint16_t unusedButMandatoryParameter) {
     return1:
     longIntegerFree(x);
 
-  #endif //SAVE_SPACE_DM42_12PRIME
+  #endif // OPTION_PRIME
 }
 
 
@@ -1243,18 +1246,32 @@ static void fnEulPhi(uint16_t unusedButMandatoryParameter) {
     }
 
 
+    // floor(sqrt(n)) by the bitwise method: exact for the whole uint32_t range, no libm
+    static uint32_t isqrt32(uint32_t n) {
+        uint32_t r = 0;
+        uint32_t bit = UINT32_C(1) << 30;
+        while(bit > n) {
+          bit >>= 2;
+        }
+        while(bit != 0) {
+          if(n >= r + bit) {
+            n -= r + bit;
+            r = (r >> 1) + bit;
+          }
+          else {
+            r >>= 1;
+          }
+          bit >>= 2;
+        }
+        return r;
+    }
+
     // Fast perfect square check using 32-bit integer sqrt
     static int is_perfect_square_uint32(uint32_t n, uint32_t* sqrt_out) {
-        uint32_t r = (uint32_t)(sqrt((double)n));
+        uint32_t r = isqrt32(n);       // exact floor, so no +-1 rounding tolerance is needed
         if(r * r == n) {
           if(sqrt_out) {
             *sqrt_out = r;
-          }
-          return 1;
-        }
-        if((r + 1) * (r + 1) == n) {
-          if(sqrt_out) {
-            *sqrt_out = r + 1;
           }
           return 1;
         }
@@ -1568,7 +1585,7 @@ bool delCol1RealMatrixX(void) {
   // Build a temp matrix with one fewer column:
   real34Matrix_t tmp;
   if(!realMatrixInit(&tmp, rows, cols - 1)) {
-    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
     return false;
   }
   for(uint16_t i = 0; i < rows; i++) {
@@ -1600,7 +1617,7 @@ typedef struct FactorAdder {
 } FactorAdder_t;
 
 
-#if !defined(SAVE_SPACE_DM42_12PRIME)
+#if defined(OPTION_PRIME)
   static void initFactorAdder(FactorAdder_t *faddr) {
     faddr->nExpons = 0;
   };
@@ -1645,7 +1662,7 @@ typedef struct FactorAdder {
                                             #endif // MONITOR_FACTORS
 
     if(faddr->nExpons != cols || rows != 2 || getRegisterDataType(REGISTER_X) != dtReal34Matrix) {
-       displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+       displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
          sprintf(errorMessage, "Incorrect matrix counters %" PRIu32 STD_CROSS "%" PRIu32 " matrix vs. array %d", rows, cols, faddr->nExpons);
          moreInfoOnError("In function dumpExponents:", errorMessage, NULL, NULL);
@@ -1719,7 +1736,7 @@ typedef struct FactorAdder {
         if(lastErrorCode != 0) {
           goto returnFalse;
         }
-        displayCalcErrorMessage(ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX, ERR_REGISTER_LINE, REGISTER_X);
+        displayCalcErrorMessage(ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           uint16_t cols_ = REGISTER_MATRIX_HEADER(regist)->matrixColumns;
           uint16_t rows_ = REGISTER_MATRIX_HEADER(regist)->matrixRows;
@@ -1738,7 +1755,7 @@ typedef struct FactorAdder {
       uint16_t cols = REGISTER_MATRIX_HEADER(regist)->matrixColumns;
     #endif //(EXTRA_INFO_ON_CALC_ERROR == 1)
     if(rows > 2) {
-       displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+       displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
          sprintf(errorMessage, "Incorrect matrix dimensions %" PRIu32 STD_CROSS "%" PRIu32 " matrix", rows, cols);
          moreInfoOnError("In function addFactor:", errorMessage, NULL, NULL);
@@ -1759,7 +1776,7 @@ typedef struct FactorAdder {
       if(lastErrorCode != 0) {
         goto returnFalse;
       }
-      displayCalcErrorMessage(ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "Not enough memory for a %" PRIu32 STD_CROSS "%" PRIu32 " matrix", rows, cols);
         moreInfoOnError("In function addFactor 002:", errorMessage, NULL, NULL);
@@ -1803,7 +1820,7 @@ typedef struct FactorAdder {
             (faddr->nExpons)++;
         }
         else {
-          displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+          displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             sprintf(errorMessage, "Maximum number of factors exceeded %" PRIu32 STD_CROSS "%" PRIu32 " matrix", rows, cols);
             moreInfoOnError("In function addFactor 003:", errorMessage, NULL, NULL);
@@ -1817,7 +1834,7 @@ typedef struct FactorAdder {
           if(lastErrorCode != 0) {
             goto returnFalse;
           }
-          displayCalcErrorMessage(ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX, ERR_REGISTER_LINE, REGISTER_X);
+          displayCalcErrorMessage(ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             sprintf(errorMessage, "Not enough memory for a %" PRIu32 STD_CROSS "%" PRIu32 " matrix", rows, cols);
             moreInfoOnError("In function addFactor 004", errorMessage, NULL, NULL);
@@ -1851,7 +1868,7 @@ returnFalse:
     refreshScreen(301);
     return false;
   }
-#endif //SAVE_SPACE_DM42_12PRIME
+#endif // OPTION_PRIME
 
 
 static void printTitles(longInteger_t input) {
@@ -2155,7 +2172,7 @@ static bool_t performPrimeFactorization(bool_t doSaveLastX) {
       if(lastErrorCode != 0) {
         break;
       }
-      displayCalcErrorMessage(ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "Not enough memory for a %" PRIu32 STD_CROSS "%" PRIu32 " matrix", 1, 1);
         moreInfoOnError("In function performPrimeFactorization:  Queue overflow:", errorMessage, NULL, NULL);
@@ -2374,5 +2391,6 @@ if(instruction == FACTORS_RESET || (instruction == FACTORS_SETUP && self->iterat
   result.attempts = self->attempt;
   return result;
 }
+#endif // OPTION_FACTOR
 
-#endif // SAVE_SPACE_DM42_12PRIME
+#endif // OPTION_PRIME

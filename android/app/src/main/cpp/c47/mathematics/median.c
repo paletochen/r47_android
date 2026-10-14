@@ -108,12 +108,12 @@ static real_t *getXvalues(uint16_t *n) {
   strcpy(statMx, "STATS");
   regStats = findNamedVariable(statMx);
   if(!isStatsMatrix(&rows, statMx)) {
-    displayCalcErrorMessage(ERROR_NO_SUMMATION_DATA, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_NO_SUMMATION_DATA, ERR_REGISTER_LINE);
     return NULL;
   }
   data = allocC47Blocks(rows * REAL_SIZE_IN_BLOCKS(75));
   if(data == NULL) {
-    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
     return NULL;
   }
   linkToRealMatrixRegister(regStats, &stats);

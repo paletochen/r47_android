@@ -12,6 +12,10 @@
  ******************************************************/
 
 
+#if !defined(PC_BUILD)
+  #undef CACHE_DEBUG
+  #undef CACHE_VERIFY
+#endif
 
 /****************************************************************************************************
  * Modified for direct handling of 1071 digit contexts.
@@ -24,7 +28,9 @@
   #undef DEBUGTAYLOR
 #endif
 static void C47_WP34S_SinCosTanTaylor_temp75   (const real_t *angle, bool_t swap, real_t *sinOut, real_t *cosOut, real_t *tanOut, realContext_t *realContext); // angle in radian
-static void C47_WP34S_SinCosTanTaylor_temp1071 (const real_t *angle, bool_t swap, real_t *sinOut, real_t *cosOut, real_t *tanOut, realContext_t *realContext); // angle in radian
+#if defined(OPTION_XFN_1000)
+  static void C47_WP34S_SinCosTanTaylor_temp1071 (const real_t *angle, bool_t swap, real_t *sinOut, real_t *cosOut, real_t *tanOut, realContext_t *realContext); // angle in radian
+#endif // OPTION_XFN_1000
 
 
 void reduceAngleToRange(real_t* angle, const real_t** angle45, const real_t** angle90, const real_t** angle180, angularMode_t* angularMode, int32_t savedContextDigits, realContext_t* realContext) {
@@ -135,12 +141,20 @@ static void doWP34S_SinCosTanTaylor(real_t* angle, bool* sinNeg, bool* cosNeg, b
       realSubtract(angle90, angle, angle, realContext); // 90° - angle  --> angle
       *swap = !(*swap);
     }
+    const bool_t angle30 = (angularMode == amDegree && realCompareEqual(angle, const_30));   // exactly 30°: its sine is 1/2
     convertAngleFromTo(angle, angularMode, amRadian, realContext);
-    if(savedContextDigits >= 1071) {
-      C47_WP34S_SinCosTanTaylor_temp1071(angle, *swap, (*swap) ? cosOut : sinOut, (*swap) ? sinOut : cosOut, tanOut, realContext); // angle in radian
-    }
-    else {
+    #if defined(OPTION_XFN_1000)
+      if(savedContextDigits >= 1071) {
+        C47_WP34S_SinCosTanTaylor_temp1071(angle, *swap, (*swap) ? cosOut : sinOut, (*swap) ? sinOut : cosOut, tanOut, realContext); // angle in radian
+      }
+      else
+    #endif // OPTION_XFN_1000
+    {
       C47_WP34S_SinCosTanTaylor_temp75(angle, *swap, (*swap) ? cosOut : sinOut, (*swap) ? sinOut : cosOut, tanOut, realContext); // angle in radian
+    }
+    real_t *sinOfAngle = (*swap) ? cosOut : sinOut;
+    if(angle30 && sinOfAngle != NULL) {
+      realCopy(const_1on2, sinOfAngle);
     }
   }
 
@@ -185,7 +199,7 @@ static void doWP34S_SinCosTanTaylor(real_t* angle, bool* sinNeg, bool* cosNeg, b
 // Called directly 75 digits max, by by agm, sin, sinc, cos, tan, multiple elliptic functions, exp (complex), fib, gd, tanh, WP34S_Zeta
 //
 // Have to be careful here to ensure that every function we call can handle the increased size of the numbers we're using.
-static void C47_WP34S_Cvt2RadSinCosTan_75temp(const real_t *an, angularMode_t angularMode, real_t *sinOut, real_t *cosOut, real_t *tanOut, realContext_t *realContext) {
+static void C47_WP34S_Cvt2RadSinCosTan_75_helper(const real_t *an, angularMode_t angularMode, real_t *sinOut, real_t *cosOut, real_t *tanOut, realContext_t *realContext) {
   bool_t sinNeg = false, cosNeg = false, swap = false;
   real_t angle;
 
@@ -284,10 +298,10 @@ static void doTaylorIterations(const real_t *a, real_t* angle, real_t* a2, real_
     #if !defined(PC_BUILD)
       if(exitKeyWaiting()) {
         progressHalfSecUpdate_Integer(force+1, "Interrupted Iter:", i, halfSec_clearZ, halfSec_clearT, halfSec_disp);
-        displayCalcErrorMessage(ERROR_SOLVER_ABORT, REGISTER_T, NIM_REGISTER_LINE);
+        displayCalcErrorMessage(ERROR_SOLVER_ABORT, REGISTER_T);
         break;
       }
-    #endif //PC_BUILD
+    #endif //!PC_BUILD
 
     #if defined(DEBUGTAYLOR)
       if(i > 1 && i % 1 == 0) { //left mod for printing interleaved status
@@ -317,7 +331,20 @@ static void doTaylorIterations(const real_t *a, real_t* angle, real_t* a2, real_
 void C47_WP34S_SinCosTanTaylor_temp75(const real_t *a, bool_t swap, real_t *sinOut, real_t *cosOut, real_t *tanOut, realContext_t *realContext) { // a in radian
   bool_t doEpsilon = false;
   int   epsilonDigits;
-  real_t angle, a2, t, j, z, sin, cos, epsilonOrCompare;
+  // The eight working reals come from the heap, not the frame: eight decNumbers at 60 bytes is 480 of this function's 672 byte frame, and it sits on the integrand path
+  // of a plotted integral. The 1071 digit twin below is untouched.
+  REAL_T_ALLOC(angle,            75);
+  REAL_T_ALLOC(a2,               75);
+  REAL_T_ALLOC(t,                75);
+  REAL_T_ALLOC(j,                75);
+  REAL_T_ALLOC(z,                75);
+  REAL_T_ALLOC(sin,              75);
+  REAL_T_ALLOC(cos,              75);
+  REAL_T_ALLOC(epsilonOrCompare, 75);
+  if(angle == NULL || a2 == NULL || t == NULL || j == NULL || z == NULL || sin == NULL || cos == NULL || epsilonOrCompare == NULL) {
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
+    goto freeWork;
+  }
 
   int32_t savedContextDigits = realContext->digits;
 
@@ -332,16 +359,16 @@ void C47_WP34S_SinCosTanTaylor_temp75(const real_t *a, bool_t swap, real_t *sinO
     doEpsilon = false;            //stay compaitble with the old Taylor
   }
 
-  doTaylorIterations(a, &angle, &a2, &t, &j, &z, &sin, &cos, sinOut, cosOut, &epsilonOrCompare, doEpsilon, epsilonDigits, realContext);
+  doTaylorIterations(a, angle, a2, t, j, z, sin, cos, sinOut, cosOut, epsilonOrCompare, doEpsilon, epsilonDigits, realContext);
 
   realContext->digits = savedContextDigits;
 
   if(sinOut != NULL) {
-    realPlus(&sin, sinOut, realContext);
+    realPlus(sin, sinOut, realContext);
   }
 
   if(cosOut != NULL) {
-    realPlus(&cos, cosOut, realContext);
+    realPlus(cos, cosOut, realContext);
   }
 
   if(tanOut != NULL) {
@@ -350,21 +377,36 @@ void C47_WP34S_SinCosTanTaylor_temp75(const real_t *a, bool_t swap, real_t *sinO
     }
     else {
       if(swap) {
-        realDivide(&cos, &sin, tanOut, realContext);
+        realDivide(cos, sin, tanOut, realContext);
       }
       else {
-        realDivide(&sin, &cos, tanOut, realContext);
+        realDivide(sin, cos, tanOut, realContext);
       }
     }
   }
+
+freeWork:
+  REAL_T_FREE(angle,            75);
+  REAL_T_FREE(a2,               75);
+  REAL_T_FREE(t,                75);
+  REAL_T_FREE(j,                75);
+  REAL_T_FREE(z,                75);
+  REAL_T_FREE(sin,              75);
+  REAL_T_FREE(cos,              75);
+  REAL_T_FREE(epsilonOrCompare, 75);
 }
 
 
+#if defined(OPTION_XFN_1000)
 //used only by XFN 1071
-static void C47_WP34S_Cvt2RadSinCosTan_1071temp(const real_t *an, angularMode_t angularMode, real_t *sinOut, real_t *cosOut, real_t *tanOut, realContext_t *realContext) {
+static void C47_WP34S_Cvt2RadSinCosTan_1071_helper(const real_t *an, angularMode_t angularMode, real_t *sinOut, real_t *cosOut, real_t *tanOut, realContext_t *realContext) {
   bool_t sinNeg = false, cosNeg = false, swap = false;
-  REAL_T_PTR(angle, 1071);
-
+  // One 1071 digit decNumber at 724 bytes, of this function's 752 byte frame. Freed on both exits through freeWork.
+  REAL_T_ALLOC(angle, 1071);
+  if(angle == NULL) {
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
+    goto freeWork;
+  }
 
   if(realIsNaN(an)) {
     if(sinOut != NULL) {
@@ -376,7 +418,7 @@ static void C47_WP34S_Cvt2RadSinCosTan_1071temp(const real_t *an, angularMode_t 
     if(tanOut != NULL) {
       realSetNaN(tanOut);
     }
-   return;
+   goto freeWork;
   }
 
   realCopy(an, angle);
@@ -385,30 +427,44 @@ static void C47_WP34S_Cvt2RadSinCosTan_1071temp(const real_t *an, angularMode_t 
 
   doWP34S_SinCosTanTaylor(angle, &sinNeg, &cosNeg, &swap, sinOut, cosOut, tanOut, angularMode, savedContextDigits, realContext);
 
+freeWork:
+  REAL_T_FREE(angle, 1071);
   }
+#endif // OPTION_XFN_1000
 
 
 void C47_WP34S_Cvt2RadSinCosTan(const real_t *an, angularMode_t angularMode, real_t *sinOut, real_t *cosOut, real_t *tanOut, realContext_t *realContext) {
-  if(realContext->digits >= 1071) {
-    C47_WP34S_Cvt2RadSinCosTan_1071temp(an, angularMode, sinOut, cosOut, tanOut, realContext);
-  }
-  else {
-    C47_WP34S_Cvt2RadSinCosTan_75temp(an, angularMode, sinOut, cosOut, tanOut, realContext);
+  #if defined(OPTION_XFN_1000)
+    if(realContext->digits >= 1071) {
+      C47_WP34S_Cvt2RadSinCosTan_1071_helper(an, angularMode, sinOut, cosOut, tanOut, realContext);
+    }
+    else
+  #endif // OPTION_XFN_1000
+  {
+    C47_WP34S_Cvt2RadSinCosTan_75_helper(an, angularMode, sinOut, cosOut, tanOut, realContext);
   }
 }
 
 
+#if defined(OPTION_XFN_1000)
 //Used by normal C47 TRIG as well as XFN
 // Calculate sin, cos by Taylor series and tan by division, for 1071 contexts
 void C47_WP34S_SinCosTanTaylor_temp1071(const real_t *a, bool_t swap, real_t *sinOut, real_t *cosOut, real_t *tanOut, realContext_t *realContext) { // a in radian
-  REAL_T_PTR(angle, 1071);
-  REAL_T_PTR(a2, 1071);
-  REAL_T_PTR(t, 1071);
-  REAL_T_PTR(j, 1071);
-  REAL_T_PTR(z, 1071);
-  REAL_T_PTR(sin, 1071);
-  REAL_T_PTR(cos, 1071);
-  REAL_T_PTR(epsilonOrCompare, 1071);
+
+  // The eight working reals come from the heap, not the frame: eight 1071 digit decNumbers at 724 bytes is 5792 of this function's 5832 byte frame, on an arm build with
+  // OPTION_XFN_1000 forced on. That frame is the stack reason XFN 1000 is kept off the DM42, defines.h:36.
+  REAL_T_ALLOC(angle,            1071);
+  REAL_T_ALLOC(a2,               1071);
+  REAL_T_ALLOC(t,                1071);
+  REAL_T_ALLOC(j,                1071);
+  REAL_T_ALLOC(z,                1071);
+  REAL_T_ALLOC(sin,              1071);
+  REAL_T_ALLOC(cos,              1071);
+  REAL_T_ALLOC(epsilonOrCompare, 1071);
+  if(angle == NULL || a2 == NULL || t == NULL || j == NULL || z == NULL || sin == NULL || cos == NULL || epsilonOrCompare == NULL) {
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
+    goto freeWork;
+  }
 
   doTaylorIterations(a, angle, a2, t, j, z, sin, cos, sinOut, cosOut, epsilonOrCompare, true /*doEpsilon*/, 1040, realContext);
 
@@ -431,15 +487,28 @@ void C47_WP34S_SinCosTanTaylor_temp1071(const real_t *a, bool_t swap, real_t *si
       }
     }
   }
-}
 
+freeWork:
+  REAL_T_FREE(angle,            1071);
+  REAL_T_FREE(a2,               1071);
+  REAL_T_FREE(t,                1071);
+  REAL_T_FREE(j,                1071);
+  REAL_T_FREE(z,                1071);
+  REAL_T_FREE(sin,              1071);
+  REAL_T_FREE(cos,              1071);
+  REAL_T_FREE(epsilonOrCompare, 1071);
+}
+#endif // OPTION_XFN_1000
 
 
 void C47_WP34S_SinCosTanTaylor(const real_t *a, bool_t swap, real_t *sinOut, real_t *cosOut, real_t *tanOut, realContext_t *realContext) { // a in radian
-  if(realContext->digits >= 1071) {
-    C47_WP34S_SinCosTanTaylor_temp1071(a, swap, sinOut, cosOut, tanOut, realContext); // a in radian
-  }
-  else {
+  #if defined(OPTION_XFN_1000)
+    if(realContext->digits >= 1071) {
+      C47_WP34S_SinCosTanTaylor_temp1071(a, swap, sinOut, cosOut, tanOut, realContext); // a in radian
+    }
+    else
+  #endif // OPTION_XFN_1000
+  {
     C47_WP34S_SinCosTanTaylor_temp75(a, swap, sinOut, cosOut, tanOut, realContext); // a in radian
   }
 }
@@ -550,10 +619,10 @@ static bool_t doAtan(real_t *a, real_t *angle, real_t *a2, real_t *t, real_t *j,
     #if !defined(PC_BUILD)
       if(exitKeyWaiting()) {
         progressHalfSecUpdate_Integer(force+1, "Interrupted Iter:", i, halfSec_clearZ, halfSec_clearT, halfSec_disp);
-        displayCalcErrorMessage(ERROR_SOLVER_ABORT, REGISTER_T, NIM_REGISTER_LINE);
+        displayCalcErrorMessage(ERROR_SOLVER_ABORT, REGISTER_T);
         break;
       }
-    #endif //PC_BUILD
+    #endif //!PC_BUILD
 
 
     #if defined(DEBUGTAYLOR)
@@ -586,9 +655,319 @@ static bool_t doAtan(real_t *a, real_t *angle, real_t *a2, real_t *t, real_t *j,
 }
 
 
-static void WP34S_Atan_75temp(const real_t *x, real_t *angle, realContext_t *realContext) {
+// ---------------------------------------------------------------------------
+// Generic cache helpers for 1-input and 2-input trig wrappers
+//
+// Each cache is a single most-recent-call slot. The stored result is treated as
+// a pure function of the key: the input value(s), the effective compute
+// precision, and the rounding mode. Nothing else in realContext (emax/emin/
+// clamp) changes an angle result, whose magnitude is always O(1), and the
+// angular-mode conversion happens in the caller AFTER the cache, so the angular
+// mode is deliberately not part of the key.
+//
+// The caches are global single slots. cache*_call therefore writes the key and
+// the result together AFTER computing, never a bare key before: a reentrant
+// call (a display refresh computing another angle mid-computation, say) can only
+// leave its OWN complete, correct pair, which the outer call then overwrites
+// with its own - there is no window where a stale key and a fresh result coexist.
+// This ordering is the reason the wrappers are safe without any in-progress flag
+// or scheduling assumption; do not move cache_prepare before compute. Build with
+// CACHE_VERIFY to recompute on every hit and abort on any mismatch, which turns
+// the "key is complete" assumption into a checked one.
+// ---------------------------------------------------------------------------
+typedef struct { bool_t valid; int32_t digits; int32_t round; real_t x, result;    } cache1_t;
+typedef struct { bool_t valid; int32_t digits; int32_t round; real_t y, x, result; } cache2_t;
+
+typedef void (*trig1Compute_t)(const real_t *x, real_t *out, realContext_t *ctx);
+typedef void (*trig2Compute_t)(const real_t *y, const real_t *x, real_t *out, realContext_t *ctx);
+
+static void cache_commit(bool_t *valid, real_t *cacheResult, const real_t *result) {
+  if(!realIsSpecial(result)) { realCopy(result, cacheResult); *valid = true; }
+}
+
+// zero sign is part of the key
+static bool_t cacheKeyEqual(const real_t *a, const real_t *b) {
+  return realCompareIdentical(a, b);
+}
+
+#if defined(CACHE_VERIFY)
+  static void cacheVerifyFail(const char *which) {
+    // stderr is unbuffered: abort() would drop a buffered stdout line.
+    fprintf(stderr, "CACHE_VERIFY_MISMATCH in %s: a cache hit disagreed with a fresh recompute\n", which);
+    fflush(stderr);
+    abort();
+  }
+#endif // CACHE_VERIFY
+
+// digits is the effective compute precision, not the request
+static bool_t cache1_check(cache1_t *c, const real_t *x, real_t *result, int32_t digits, realContext_t *ctx) {
+  if(c->valid && digits == c->digits && (int32_t)ctx->round == c->round && cacheKeyEqual(&c->x, x)) {
+    realCopy(&c->result, result);
+    return true;
+  }
+  return false;
+}
+static void cache1_prepare(cache1_t *c, const real_t *x, int32_t digits, realContext_t *ctx) {
+  realCopy(x, &c->x);
+  c->digits = digits;
+  c->round  = (int32_t)ctx->round;
+  c->valid  = false;
+}
+
+static bool_t cache2_check(cache2_t *c, const real_t *y, const real_t *x, real_t *result, int32_t digits, realContext_t *ctx) {
+  if(c->valid && digits == c->digits && (int32_t)ctx->round == c->round && cacheKeyEqual(&c->y, y) && cacheKeyEqual(&c->x, x)) {
+    realCopy(&c->result, result);
+    return true;
+  }
+  return false;
+}
+static void cache2_prepare(cache2_t *c, const real_t *y, const real_t *x, int32_t digits, realContext_t *ctx) {
+  realCopy(y, &c->y);
+  realCopy(x, &c->x);
+  c->digits = digits;
+  c->round  = (int32_t)ctx->round;
+  c->valid  = false;
+}
+
+// One cached 1-input trig call. Copies the input first (so `compute` is safe even
+// when the caller aliases in==out), returns a hit, otherwise computes and stores
+// key+result together (see the ordering note above). Under CACHE_VERIFY every hit
+// is recomputed and compared, so an incomplete key aborts loudly instead of
+// returning a stale value.
+static void cache1_call(cache1_t *c, trig1Compute_t compute, const char *name, const real_t *x, real_t *out, int32_t effDigits, realContext_t *ctx) {
+  real_t localX;
+  realCopy(x, &localX);
+  if(cache1_check(c, &localX, out, effDigits, ctx)) {
+    #if defined(CACHE_DEBUG)
+      printf("   %s: quick return for repeated value\n", name);
+    #endif // CACHE_DEBUG
+    #if defined(CACHE_VERIFY)
+      real_t verify;
+      compute(&localX, &verify, ctx);
+      if(!cacheKeyEqual(&verify, out)) { cacheVerifyFail(name); }
+    #endif // CACHE_VERIFY
+    return;
+  }
+  #if defined(CACHE_DEBUG)
+    printf("%s: long process calc\n", name);
+  #endif // CACHE_DEBUG
+  compute(&localX, out, ctx);                 // compute first: any nested call leaves its own complete pair
+  cache1_prepare(c, &localX, effDigits, ctx); // then stamp this call's key
+  cache_commit(&c->valid, &c->result, out);   // and result, together
+  #if !defined(CACHE_DEBUG) && !defined(CACHE_VERIFY)
+    (void)name;
+  #endif
+}
+
+static void cache2_call(cache2_t *c, trig2Compute_t compute, const char *name, const real_t *y, const real_t *x, real_t *out, int32_t effDigits, realContext_t *ctx) {
+  real_t localY, localX;
+  realCopy(y, &localY);
+  realCopy(x, &localX);
+  if(cache2_check(c, &localY, &localX, out, effDigits, ctx)) {
+    #if defined(CACHE_DEBUG)
+      printf("   %s: quick return for repeated value\n", name);
+    #endif // CACHE_DEBUG
+    #if defined(CACHE_VERIFY)
+      real_t verify;
+      compute(&localY, &localX, &verify, ctx);
+      if(!cacheKeyEqual(&verify, out)) { cacheVerifyFail(name); }
+    #endif // CACHE_VERIFY
+    return;
+  }
+  #if defined(CACHE_DEBUG)
+    printf("%s: long process calc\n", name);
+  #endif // CACHE_DEBUG
+  compute(&localY, &localX, out, ctx);                 // compute first (see cache1_call)
+  cache2_prepare(c, &localY, &localX, effDigits, ctx); // then stamp key
+  cache_commit(&c->valid, &c->result, out);            // and result, together
+  #if !defined(CACHE_DEBUG) && !defined(CACHE_VERIFY)
+    (void)name;
+  #endif
+}
+
+
+// The precision atan actually computes at. Requests above 39 go to the Taylor path at 75.
+// At or below 39 the table path honours the request plus a couple of guard digits: about a
+// dozen chained operations cost roughly one digit of accumulated rounding, measured as a
+// steady 0.8 to 1.0 digits at every precision from 3 up to 39, so computing two beyond the
+// request returns what the caller asked for with a digit to spare. The cap at 39 is why
+// atan has always returned 38 correct digits to a 39 digit caller, table path or not.
+//
+// No lower floor: the loss is proportional, not a cliff, so a caller asking for little
+// gets little quickly. Graph plotting narrows ctxtReal39 to significantDigits + 3, as low
+// as 4, and pays for 6 rather than for 39.
+//
+// Both compute functions and the cache wrapper must agree on this, or the cache could hand
+// a low precision result to a high precision request.
+#define ATAN_GUARD_DIGITS 2
+static int32_t atanEffectiveDigits(int32_t requestedDigits) {
+  if(requestedDigits > 39) {
+    return 75;
+  }
+  requestedDigits += ATAN_GUARD_DIGITS;
+  return (requestedDigits > 39) ? 39 : requestedDigits;
+}
+
+
+// atan(j/10) for j = 1..9; the ends are const_0 and const39_piOn4. The step must divide a
+// power of ten so that j/step is exact at every working precision: a tenth is, 1/12 is not,
+// and its rounding would break the identity the reduction rests on.
+#define ATAN_TABLE_STEP 10
+static const real_t * const atanTable[ATAN_TABLE_STEP + 1] = {
+  const_0,            const39_atan1on10,  const39_atan2on10,  const39_atan3on10,
+  const39_atan4on10,  const39_atan5on10,  const39_atan6on10,  const39_atan7on10,
+  const39_atan8on10,  const39_atan9on10,  const39_piOn4
+};
+
+// P(v) with v = u*u, magnitudes only (the loop below negates v instead of tracking signs).
+// Eight of the thirteen were constrained to the Taylor coefficients +-1/(2k+1) and only
+// atanP08..12 left free for the fit. Eight constraints still land at 2.9e-41 against a
+// 1e-40 budget, so they cost no extra term; a ninth would not fit. Holding the first at
+// exactly 1 is what makes atan(x) come out as exactly x for tiny x rather than merely
+// rounding to it.
+#define ATAN_COEFFICIENTS 13
+static const real_t * const atanPoly[ATAN_COEFFICIENTS] = {
+  const_1,          const39_1on3,     const_1on5,       const39_1on7,
+  const39_1on9,     const39_1on11,    const39_1on13,    const39_1on15,
+  const39_atanP08,  const39_atanP09,  const39_atanP10,  const39_atanP11,
+  const39_atanP12
+};
+
+
+/********************************************//**
+ * \brief atan for requests at or below 39 digits
+ *
+ * Reduces through the addition formula against a tenth spaced table
+ *
+ *     a = |x|, and a > 1 is inverted by atan(a) = pi/2 - atan(1/a)
+ *     j = round(10a),  c = j/10,  u = (a - c)/(1 + a*c)   so |u| <= 1/20
+ *     atan(a) = atanTable[j] + u * P(u*u)
+ *
+ * which costs one division where the Taylor path spent three square roots, and then
+ * finishes with a fixed length polynomial instead of a convergence loop. Horner starts
+ * below the top term once u is small enough that the leading terms cannot reach the
+ * requested precision, so small arguments stay cheap.
+ *
+ * Truncation error is 2.9e-41 as the coefficients are stored, an order of magnitude under
+ * the 5e-40 the 39 digit table constants contribute anyway, so the polynomial is not what
+ * limits the answer. At 39 digits this returns about 38 correct digits, a little better
+ * than the Taylor path it replaces.
+ ***********************************************/
+static void WP34S_Atan_table_compute(const real_t *x, real_t *angle, realContext_t *realContext) {
+  REAL_T_ALLOC(a, 39);   // also the accumulator further down
+  REAL_T_ALLOC(u, 39);
+  REAL_T_ALLOC(v, 39);
+  REAL_T_ALLOC(c, 39);
+  bool_t neg, invert;
+  int32_t j, k, top, exponent, savedContextDigits;
+
+  // The four 39 digit heap reals are smaller than the declared real_t. GCC's bounds checker gives warning; example fix from graph.c
+  #pragma GCC diagnostic push
+  #pragma GCC diagnostic ignored "-Warray-bounds"
+
+  if(a == NULL || u == NULL || v == NULL || c == NULL) {
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
+    goto freeWork;
+  }
+
+  if(realIsNaN(x)) {
+    realSetNaN(angle);
+    goto freeWork;
+  }
+
+  savedContextDigits  = realContext->digits;
+  realContext->digits = atanEffectiveDigits(savedContextDigits);
+
+  neg = realIsNegative(x);                        // kept: the result is negated again at the end
+  realCopyAbs(x, a);
+
+  invert = realCompareGreaterThan(a, const_1);
+  if(invert) {
+    realDivide(const_1, a, a, realContext);   // 1/inf is 0, which lands on j = 0 and gives pi/2
+  }
+
+  // j = round(10a), always in [0, 10] and used directly as the index into atanTable. c is
+  // borrowed for the scaled copy here and holds the table centre from the next block on.
+  // Multiplying by ten in a decimal representation is nothing but a shift of the exponent,
+  // so the scaling is free and exact; the rounding is left to realToIntegralValue. a is |x|
+  // with anything above 1 inverted, and rounding 1/a can reach 1 but never pass it, so 10a
+  // stays inside [0, 10] and no clamp is needed. realToInt32C47 cannot break that either:
+  // every one of its failure paths returns 0.
+  realCopy(a, c);
+  c->exponent++;
+  realToIntegralValue(c, c, DEC_ROUND_HALF_UP, realContext);
+  j = realToInt32C47(c, NULL);
+
+  // c = j/10, exact for the same reason and for j = 0 too, since a zero stays a zero
+  int32ToReal(j, c);
+  c->exponent--;
+  realMultiply(a, c, v, realContext);
+  realAdd(v, const_1, v, realContext);
+  realSubtract(a, c, u, realContext);
+  realDivide(u, v, u, realContext);
+
+  realMultiply(u, u, v, realContext);        // v = u*u
+
+  // v^k drops below the last digit being computed once k * |log10 v| passes that many
+  // digits, so every coefficient above that index is dead weight. The + 6 keeps the cut a
+  // few digits clear of the rounding noise, at the cost of at most one extra term.
+  top = ATAN_COEFFICIENTS - 1;
+  if(realIsZero(v)) {
+    top = 0;
+  }
+  else {
+    exponent = -realGetExponent(v);
+    if(exponent > 0) {
+      int32_t needed = (realContext->digits + 6 + exponent - 1) / exponent;
+      if(needed < top) {
+        top = needed;
+      }
+    }
+  }
+
+  // The series alternates: c0 - c1*v + c2*v^2 - ... = c0 - v*(c1 - v*(c2 - ...)). Negating v
+  // turns every Horner step into the same acc*(-v) + c operation, so atanPoly can hold plain
+  // magnitudes and neither the loop nor its seed needs to track the sign.
+  realChangeSign(v);
+  realCopy(atanPoly[top], a);
+  for(k = top - 1; k >= 0; k--) {
+    realMultiply(a, v, a, realContext);
+    realAdd(a, atanPoly[k], a, realContext);
+  }
+  realMultiply(a, u, a, realContext);
+  realAdd(a, atanTable[j], angle, realContext);
+
+  if(invert) {
+    realSubtract(const39_piOn2, angle, angle, realContext);
+  }
+  if(neg) {
+    realChangeSign(angle);
+  }
+
+  realContext->digits = savedContextDigits;
+  #pragma GCC diagnostic pop
+
+freeWork:
+  REAL_T_FREE(a, 39);
+  REAL_T_FREE(u, 39);
+  REAL_T_FREE(v, 39);
+  REAL_T_FREE(c, 39);
+}
+
+
+// The Taylor series with sqrt halving, now reached only for requests above 39 digits.
+static void WP34S_Atan_75_compute(const real_t *x, real_t *angle, realContext_t *realContext) {
   bool_t doEpsilon = false;
-  real_t a, b, a2, t, j, z, last, epsilon; //-- added epsilon for convergence;
+  // The eight working reals come from the heap, not the frame: 480 of this function's 656 bytes, on the integrand path of a plotted integral. The 1071 digit twin below
+  // keeps its stack buffers untouched.
+  REAL_T_ALLOC(a,       75);
+  REAL_T_ALLOC(b,       75);
+  REAL_T_ALLOC(a2,      75);
+  REAL_T_ALLOC(t,       75);
+  REAL_T_ALLOC(j,       75);
+  REAL_T_ALLOC(z,       75);
+  REAL_T_ALLOC(last,    75);
+  REAL_T_ALLOC(epsilon, 75);   //-- added epsilon for convergence;
   int doubles = 0;
   int invert;
   int neg;
@@ -606,40 +985,92 @@ static void WP34S_Atan_75temp(const real_t *x, real_t *angle, realContext_t *rea
     doEpsilon = false;            //stay compaitble with the old Taylor
   }
 
-  if(!doAtan( &a, angle, &a2, &t, &j, &z, x, &b, &epsilon, &last,
+  if(a == NULL || b == NULL || a2 == NULL || t == NULL || j == NULL || z == NULL || last == NULL || epsilon == NULL) {
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
+    realContext->digits = savedContextDigits;
+    goto freeWork;
+  }
+
+  if(!doAtan( a, angle, a2, t, j, z, x, b, epsilon, last,
               doEpsilon, epsilonDigits,
               &doubles, &invert, &neg,
               realContext)) {
     realContext->digits = savedContextDigits;
-    return; //NaN
+    goto freeWork; //NaN
   }
   realContext->digits = savedContextDigits;
+
+freeWork:
+  REAL_T_FREE(a,       75);
+  REAL_T_FREE(b,       75);
+  REAL_T_FREE(a2,      75);
+  REAL_T_FREE(t,       75);
+  REAL_T_FREE(j,       75);
+  REAL_T_FREE(z,       75);
+  REAL_T_FREE(last,    75);
+  REAL_T_FREE(epsilon, 75);
 }
 
 
-static void C47do_WP34S_Atan_1071temp(const real_t *x, real_t *angle, realContext_t *realContext) {
-  REAL_T_PTR(a, 1071);
-  REAL_T_PTR(b, 1071);
-  REAL_T_PTR(a2, 1071);
-  REAL_T_PTR(t, 1071);
-  REAL_T_PTR(j, 1071);
-  REAL_T_PTR(z, 1071);
-  REAL_T_PTR(last, 1071);
-  REAL_T_PTR(epsilon, 1071);
+// Cached wrapper for WP34S_Atan. Returns the previous result when the input,
+// effective precision and rounding mode all match; see cache1_call.
+static cache1_t atanCache;
+static void WP34S_Atan_75_helper(const real_t *x, real_t *angle, realContext_t *realContext) {
+  #if defined(CACHE_DEBUG)
+    print_caller("WP34S_Atan");             // traced here, not in cache1_call: print_caller reports its own caller
+  #endif // CACHE_DEBUG
+  int32_t effDigits = atanEffectiveDigits(realContext->digits); // precision actually computed at, not the request
+  cache1_call(&atanCache,
+              (effDigits > 39) ? WP34S_Atan_75_compute : WP34S_Atan_table_compute,
+              "WP34S_Atan", x, angle, effDigits, realContext);
+}
+
+
+#if defined(OPTION_XFN_1000)
+static void C47do_WP34S_Atan_1071_helper(const real_t *x, real_t *angle, realContext_t *realContext) {
+  // The eight working reals come from the heap, not the frame: eight 1071 digit decNumbers at 724 bytes is 5792 of this function's 5864 byte frame, the largest frame in
+  // the build. Freed on both exits through freeWork.
+  REAL_T_ALLOC(a,       1071);
+  REAL_T_ALLOC(b,       1071);
+  REAL_T_ALLOC(a2,      1071);
+  REAL_T_ALLOC(t,       1071);
+  REAL_T_ALLOC(j,       1071);
+  REAL_T_ALLOC(z,       1071);
+  REAL_T_ALLOC(last,    1071);
+  REAL_T_ALLOC(epsilon, 1071);
+  if(a == NULL || b == NULL || a2 == NULL || t == NULL || j == NULL || z == NULL || last == NULL || epsilon == NULL) {
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
+    goto freeWork;
+  }
   int doubles = 0;
   int invert;
   int neg;
   if(!doAtan( a, angle, a2, t, j, z, x, b, epsilon, last, true, 1040, &doubles, &invert, &neg, realContext)) {
-    return; //NaN
+    goto freeWork; //NaN
   }
+
+freeWork:
+  REAL_T_FREE(a,       1071);
+  REAL_T_FREE(b,       1071);
+  REAL_T_FREE(a2,      1071);
+  REAL_T_FREE(t,       1071);
+  REAL_T_FREE(j,       1071);
+  REAL_T_FREE(z,       1071);
+  REAL_T_FREE(last,    1071);
+  REAL_T_FREE(epsilon, 1071);
 }
+#endif // OPTION_XFN_1000
+
 
 void C47_WP34S_Atan(const real_t *x, real_t *angle, realContext_t *realContext) {
-  if(realContext->digits >= 1071) {
-    C47do_WP34S_Atan_1071temp(x, angle, realContext);
-  }
-  else {
-    WP34S_Atan_75temp(x, angle, realContext);
+  #if defined(OPTION_XFN_1000)
+    if(realContext->digits >= 1071) {
+      C47do_WP34S_Atan_1071_helper(x, angle, realContext);
+    }
+    else
+  #endif // OPTION_XFN_1000
+  {
+    WP34S_Atan_75_helper(x, angle, realContext);
   }
 }
 
@@ -762,27 +1193,61 @@ static bool_t doAtan2(const real_t *y, const real_t *x, real_t *atan, real_t *r,
 }
 
 
-static void WP34S_Atan2_75temp(const real_t *y, const real_t *x, real_t *atan, realContext_t *realContext) {
+static void WP34S_Atan2_75_compute(const real_t *y, const real_t *x, real_t *atan, realContext_t *realContext) {
   real_t r, t;
+  int32_t savedContextDigits = realContext->digits;
+  if(realContext->digits > 75) {
+    realContext->digits = 75;
+  }
   if(!doAtan2(y, x, atan, &r, &t, realContext)) {
+    realContext->digits = savedContextDigits;
     return; //NaN
   }
+  realContext->digits = savedContextDigits;
 }
 
-static void C47do_WP34S_Atan2_1071temp(const real_t *y, const real_t *x, real_t *atan, realContext_t *realContext) {
-  REAL_T_PTR(r, 1071);
-  REAL_T_PTR(t, 1071);
-  if(!doAtan2(y, x, atan, r, t, realContext)) {
-    return; //NaN
-  }
+
+// Cached wrapper for WP34S_Atan2. Returns the previous result when both inputs,
+// the effective precision and rounding mode match; see cache2_call.
+static cache2_t atan2Cache;
+static void WP34S_Atan2_75_helper(const real_t *y, const real_t *x, real_t *atan, realContext_t *realContext) {
+  #if defined(CACHE_DEBUG)
+    print_caller("WP34S_Atan2");            // traced here, not in cache2_call: print_caller reports its own caller
+  #endif // CACHE_DEBUG
+  int32_t effDigits = (realContext->digits > 75) ? 75 : realContext->digits; // precision WP34S_Atan2_75_compute computes at
+  cache2_call(&atan2Cache, WP34S_Atan2_75_compute, "WP34S_Atan2", y, x, atan, effDigits, realContext);
 }
+
+
+#if defined(OPTION_XFN_1000)
+static void C47do_WP34S_Atan2_1071_helper(const real_t *y, const real_t *x, real_t *atan, realContext_t *realContext) {
+  // Two 1071 digit decNumbers at 724 bytes is 1448 of this function's 1464 byte frame. Freed on both exits through freeWork.
+  REAL_T_ALLOC(r, 1071);
+  REAL_T_ALLOC(t, 1071);
+  if(r == NULL || t == NULL) {
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
+    goto freeWork;
+  }
+  if(!doAtan2(y, x, atan, r, t, realContext)) {
+    goto freeWork; //NaN
+  }
+
+freeWork:
+  REAL_T_FREE(r, 1071);
+  REAL_T_FREE(t, 1071);
+}
+#endif // OPTION_XFN_1000
+
 
 void C47_WP34S_Atan2(const real_t *y, const real_t *x, real_t *atan, realContext_t *realContext) {
-  if(realContext->digits >= 1071) {
-    C47do_WP34S_Atan2_1071temp(y, x, atan, realContext);
-  }
-  else {
-    WP34S_Atan2_75temp(y, x, atan, realContext);
+  #if defined(OPTION_XFN_1000)
+    if(realContext->digits >= 1071) {
+      C47do_WP34S_Atan2_1071_helper(y, x, atan, realContext);
+    }
+    else
+  #endif // OPTION_XFN_1000
+  {
+    WP34S_Atan2_75_helper(y, x, atan, realContext);
   }
 }
 
@@ -798,8 +1263,9 @@ static bool_t doAsin(const real_t *x, real_t *angle, real_t *abx, real_t *z, rea
     return false;
   }
   // angle = 2*atan(x/(1+sqrt(1-x*x)))
-  realMultiply(x, x, z, realContext);
-  realSubtract(const_1, z, z, realContext);
+  realSubtract(const_1, abx, z, realContext);     // 1-x*x as (1-|x|)(1+|x|): both factors are exact, where 1-x*x cancels near |x| = 1
+  realAdd(const_1, abx, abx, realContext);
+  realMultiply(z, abx, z, realContext);
   realSquareRoot(z, z, realContext);
   realAdd(z, const_1, z, realContext);
   realDivide(x, z, z, realContext);
@@ -809,27 +1275,60 @@ static bool_t doAsin(const real_t *x, real_t *angle, real_t *abx, real_t *z, rea
 }
 
 
-static void WP34S_Asin_75temp(const real_t *x, real_t *angle, realContext_t *realContext) {
+static void WP34S_Asin_75_compute(const real_t *x, real_t *angle, realContext_t *realContext) {
   real_t abx, z;
+  int32_t savedContextDigits = realContext->digits;
+  if(realContext->digits > 75) {
+    realContext->digits = 75;
+  }
   if(!doAsin(x, angle, &abx, &z, realContext)) {
+    realContext->digits = savedContextDigits;
     return; //NaN
   }
+  realContext->digits = savedContextDigits;
 }
 
-static void C47do_WP34S_Asin_1071temp(const real_t *x, real_t *angle, realContext_t *realContext) {
-  REAL_T_PTR(abx, 1071);
-  REAL_T_PTR(z, 1071);
-  if(!doAsin(x, angle, abx, z, realContext)) {
-    return; //NaN
-  }
+
+// Cached wrapper for WP34S_Asin. See cache1_call.
+static cache1_t asinCache;
+static void WP34S_Asin_75_helper(const real_t *x, real_t *angle, realContext_t *realContext) {
+  #if defined(CACHE_DEBUG)
+    print_caller("WP34S_Asin");             // traced here, not in cache1_call: print_caller reports its own caller
+  #endif // CACHE_DEBUG
+  int32_t effDigits = (realContext->digits > 75) ? 75 : realContext->digits; // precision WP34S_Asin_75_compute computes at
+  cache1_call(&asinCache, WP34S_Asin_75_compute, "WP34S_Asin", x, angle, effDigits, realContext);
 }
+
+
+#if defined(OPTION_XFN_1000)
+static void C47do_WP34S_Asin_1071_helper(const real_t *x, real_t *angle, realContext_t *realContext) {
+  // Two 1071 digit decNumbers at 724 bytes is 1448 of this function's 1464 byte frame. Freed on both exits through freeWork.
+  REAL_T_ALLOC(abx, 1071);
+  REAL_T_ALLOC(z,   1071);
+  if(abx == NULL || z == NULL) {
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
+    goto freeWork;
+  }
+  if(!doAsin(x, angle, abx, z, realContext)) {
+    goto freeWork; //NaN
+  }
+
+freeWork:
+  REAL_T_FREE(abx, 1071);
+  REAL_T_FREE(z,   1071);
+}
+#endif // OPTION_XFN_1000
+
 
 void C47_WP34S_Asin(const real_t *x, real_t *angle, realContext_t *realContext) {
-  if(realContext->digits >= 1071) {
-    C47do_WP34S_Asin_1071temp(x, angle, realContext);
-  }
-  else {
-    WP34S_Asin_75temp(x, angle, realContext);
+  #if defined(OPTION_XFN_1000)
+    if(realContext->digits >= 1071) {
+      C47do_WP34S_Asin_1071_helper(x, angle, realContext);
+    }
+    else
+  #endif // OPTION_XFN_1000
+  {
+    WP34S_Asin_75_helper(x, angle, realContext);
   }
 }
 
@@ -850,8 +1349,9 @@ static bool_t doAcos(const real_t *x, real_t *angle, real_t *abx, real_t *z, rea
     realSetZero(angle);
   }
   else {
-    realMultiply(x, x, z, realContext);
-    realSubtract(const_1, z, z, realContext);
+    realSubtract(const_1, abx, z, realContext);   // 1-x*x as (1-|x|)(1+|x|): both factors are exact, where 1-x*x cancels near |x| = 1
+    realAdd(const_1, abx, abx, realContext);
+    realMultiply(z, abx, z, realContext);
     realSquareRoot(z, z, realContext);
     realSubtract(const_1, x, abx, realContext);
     realDivide(abx, z, z, realContext);
@@ -862,27 +1362,60 @@ static bool_t doAcos(const real_t *x, real_t *angle, real_t *abx, real_t *z, rea
 }
 
 
-static void WP34S_Acos_75temp(const real_t *x, real_t *angle, realContext_t *realContext) {
+static void WP34S_Acos_75_compute(const real_t *x, real_t *angle, realContext_t *realContext) {
   real_t abx, z;
+  int32_t savedContextDigits = realContext->digits;
+  if(realContext->digits > 75) {
+    realContext->digits = 75;
+  }
   if(!doAcos(x, angle, &abx, &z, realContext)) {
+    realContext->digits = savedContextDigits;
     return; //NaN
   }
+  realContext->digits = savedContextDigits;
 }
 
-static void C47do_WP34S_Acos_1071temp(const real_t *x, real_t *angle, realContext_t *realContext) {
-  REAL_T_PTR(abx, 1071);
-  REAL_T_PTR(z, 1071);
-  if(!doAcos(x, angle, abx, z, realContext)) {
-    return; //NaN
-  }
+
+// Cached wrapper for WP34S_Acos. See cache1_call.
+static cache1_t acosCache;
+static void WP34S_Acos_75_helper(const real_t *x, real_t *angle, realContext_t *realContext) {
+  #if defined(CACHE_DEBUG)
+    print_caller("WP34S_Acos");             // traced here, not in cache1_call: print_caller reports its own caller
+  #endif // CACHE_DEBUG
+  int32_t effDigits = (realContext->digits > 75) ? 75 : realContext->digits; // precision WP34S_Acos_75_compute computes at
+  cache1_call(&acosCache, WP34S_Acos_75_compute, "WP34S_Acos", x, angle, effDigits, realContext);
 }
+
+
+#if defined(OPTION_XFN_1000)
+static void C47do_WP34S_Acos_1071_helper(const real_t *x, real_t *angle, realContext_t *realContext) {
+  // Two 1071 digit decNumbers at 724 bytes is 1448 of this function's 1464 byte frame. Freed on both exits through freeWork.
+  REAL_T_ALLOC(abx, 1071);
+  REAL_T_ALLOC(z,   1071);
+  if(abx == NULL || z == NULL) {
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
+    goto freeWork;
+  }
+  if(!doAcos(x, angle, abx, z, realContext)) {
+    goto freeWork; //NaN
+  }
+
+freeWork:
+  REAL_T_FREE(abx, 1071);
+  REAL_T_FREE(z,   1071);
+}
+#endif // OPTION_XFN_1000
+
 
 void C47_WP34S_Acos(const real_t *x, real_t *angle, realContext_t *realContext) {
-  if(realContext->digits >= 1071) {
-    C47do_WP34S_Acos_1071temp(x, angle, realContext);
-  }
-  else {
-    WP34S_Acos_75temp(x, angle, realContext);
+  #if defined(OPTION_XFN_1000)
+    if(realContext->digits >= 1071) {
+      C47do_WP34S_Acos_1071_helper(x, angle, realContext);
+    }
+    else
+  #endif // OPTION_XFN_1000
+  {
+    WP34S_Acos_75_helper(x, angle, realContext);
   }
 }
 
@@ -994,9 +1527,25 @@ static void WP34S_Gamma_LnGamma(const real_t *xin, const bool_t calculateLnGamma
 
   if(reflect) {
     // figure out xin * PI mod 2PI
-    WP34S_Mod(xin, const_2, &t, realContext);
+    bool_t sinNegated = false;
+    WP34S_Mod(xin, const_2, &t, realContext);                                 // t in (-2, 2], with the sign of xin
+    realCopyAbs(&t, &x);
+    if(realCompareGreaterThan(&x, const_3on2)) {                              // t is taken to its nearest integer, exactly: sin(pi·t) = sin(pi·(t∓2)) = -sin(pi·(t∓1)).
+      realSubtract(&x, const_2, &x, realContext);                             // The argument is then small where sin(pi·xin) is, so no digit is lost near an integer xin
+    }
+    else if(realCompareGreaterThan(&x, const_1on2)) {
+      realSubtract(&x, const_1, &x, realContext);
+      sinNegated = true;
+    }
+    if(realIsNegative(&t)) {
+      realChangeSign(&x);
+    }
+    realCopy(&x, &t);
     realMultiply(&t, const39_pi, &t, realContext);                            // t = xin·pi
     C47_WP34S_SinCosTanTaylor_temp75(&t, false, &x, NULL, NULL, realContext); // x = sin(xin·pi)
+    if(sinNegated) {
+      realChangeSign(&x);
+    }
 
     if(calculateLnGamma) {
       realDivide(const39_pi, &x, &t, realContext);                            // t = pi / sin(pi·xin)
@@ -1281,9 +1830,25 @@ void WP34S_Tanh(const real_t *x, real_t *res, realContext_t *realContext) {
 }
 
 
-void WP34S_ArcSinh(const real_t *x, real_t *res, realContext_t *realContext) {
-  real_t a;
+void WP34S_ArcSinh(const real_t *xin, real_t *res, realContext_t *realContext) {
+  real_t a, xabs;
+  real_t *x = &xabs;
+  const bool_t negative = realIsNegative(xin);
 
+  realCopyAbs(xin, x);                   // arsinh is odd: the formula below cancels for x < 0, so it runs on |x|
+  if(!realIsZero(x) && realGetExponent(x) < -18) {   // arsinh x = x - x³/6 to 72 digits, below |x| by less than half a unit at 34 digits
+    realMultiply(x, x, &a, realContext);
+    realMultiply(&a, x, &a, realContext);
+    realDivide(&a, const_6, &a, realContext);
+    realSubtract(x, &a, res, realContext);
+    if(realCompareEqual(res, x)) {       // x³/6 is below the context's last digit: one step toward 0 keeps the result below |x|
+      realNextToward(x, const_0, res, realContext);
+    }
+    if(negative) {
+      realChangeSign(res);
+    }
+    return;
+  }
   realMultiply(x, x, &a, realContext);   // a = x²
   realAdd(&a, const_1, &a, realContext); // a = x² + 1
   realSquareRoot(&a, &a, realContext);   // a = sqrt(x²+1)
@@ -1292,6 +1857,9 @@ void WP34S_ArcSinh(const real_t *x, real_t *res, realContext_t *realContext) {
   realAdd(&a, const_1, &a, realContext); // a = x / (sqrt(x²+1)+1) + 1
   realMultiply(x, &a, &a, realContext);  // y = x * (x / (sqrt(x²+1)+1) + 1)
   WP34S_Ln1P(&a, res, realContext);      // res = ln(1 + (x * (x / (sqrt(x²+1)+1) + 1)))
+  if(negative) {
+    realChangeSign(res);
+  }
 }
 
 
@@ -1310,19 +1878,25 @@ void WP34S_ArcCosh(const real_t *xin, real_t *res, realContext_t *realContext) {
 */
 
 
-void WP34S_ArcTanh(const real_t *x, real_t *res, realContext_t *realContext) {
-  real_t y, z;
+void WP34S_ArcTanh(const real_t *xin, real_t *res, realContext_t *realContext) {
+  real_t y, z, xabs;
+  real_t *x = &xabs;
+  const bool_t negative = realIsNegative(xin);
 
-  if(realIsNaN(x)) {
+  if(realIsNaN(xin)) {
     realSetNaN(res);
   }
 
   // Not the obvious formula but more stable...
+  realCopyAbs(xin, x);                            // artanh is odd: near -1 the formula takes 1 + z of a z near -1, so it runs on |x|, where 1-x is exact
   realSubtract(const_1, x, &z, realContext);      // z = 1-x
   realDivide(x, &z, &y, realContext);             // y = x / (1-x)
   realMultiply(&y, const_2, &z, realContext);     // z = 2x / (1-x)
   WP34S_Ln1P(&z, &y, realContext);                // y = ln(1 + 2x / (1-x))
   realMultiply(&y, const_1on2, res, realContext); // res = ln(1 + 2x / (1-x)) / 2
+  if(negative) {
+    realChangeSign(res);
+  }
 }
 
 
@@ -1362,7 +1936,7 @@ void WP34S_ExpM1(const real_t *x, real_t *res, realContext_t *realContext) {
     realCopy(x, res);
   }
   else if(realCompareEqual(&v, const__1)) {
-    realCopy(const__1, res);
+    realSetNegativeOne(res);
   }
   else if(realCompareAbsLessThan(x, const_1on10)) {
     realMultiply(&v, x, &w, realContext);
@@ -1536,7 +2110,7 @@ void WP34S_Mod_Pauli(const real_t *x, const real_t *y, real_t *res, realContext_
   REAL_T_PTR(temp, 6147);
 
   doMod(x, y, res, realContext, 6147, temp);
-#endif
+#endif // DMCP_BUILD && HARDWARE_MODEL == HWM_DM42
 }
 
 
@@ -1557,30 +2131,65 @@ void WP34S_BigMod_Pauli(const real_t *x, const real_t *y, real_t *res, realConte
   REAL_T_PTR(temp, 12321);
 
   doMod(x, y, res, realContext, 12321, temp);
-#endif
+#endif // DMCP_BUILD && HARDWARE_MODEL == HWM_DM42
 }
-#endif
+#endif // 0
 
 
+// long integer handling: see longIntegerAngleReduction in registerValueConversions.c, case amRadian. A long integer angle never arrives here as an integer. There,
+// longIntegerToString writes it base 10 into tmpString and decNumberFromString reads that into a 2139 digit real, which is the x this function reduces against
+// const6147_2pi, and the result is rounded down to real75 in the same place. Angles over 1000 base 10 digits are refused before the conversion, and that context sits
+// at 2139 digits because 6147 overran the stack.
+// The reduction buffer comes from the heap, not the frame: 1436 bytes of this function's 1488 byte frame on the DM42, 8224 on every other build. Argument reduction runs
+// inside the integrand of a plotted integral, so this frame sits under two engine frames.
 void WP34S_Mod(const real_t *x, const real_t *y, real_t *res, realContext_t *realContext) {
 #if defined(DMCP_BUILD) && HARDWARE_MODEL == HWM_DM42
-  REAL_T_PTR(small, 2139); // Fallback size
-  doMod(x, y, res, realContext, 2139, small);
+  REAL_T_ALLOC(small, 2139); // Fallback size
+  if(small == NULL) {
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
+    realSetNaN(res);
+  }
+  else {
+    doMod(x, y, res, realContext, 2139, small);
+  }
+  REAL_T_FREE(small, 2139);
 #else
-  REAL_T_PTR(temp, 12321);
-  doMod(x, y, res, realContext, 6147, temp);
-#endif
+  REAL_T_ALLOC(temp, 12321);
+  if(temp == NULL) {
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
+    realSetNaN(res);
+  }
+  else {
+    doMod(x, y, res, realContext, 6147, temp);
+  }
+  REAL_T_FREE(temp, 12321);
+#endif // DMCP_BUILD && HARDWARE_MODEL == HWM_DM42
 }
 
 
+// Same buffer sizes as WP34S_Mod above, taken the same way. This is the one mod2Pi calls.
 void WP34S_BigMod(const real_t *x, const real_t *y, real_t *res, realContext_t *realContext) {
 #if defined(DMCP_BUILD) && HARDWARE_MODEL == HWM_DM42
-  REAL_T_PTR(small, 2139); // Fallback size
-  doMod(x, y, res, realContext, 2139, small);
+  REAL_T_ALLOC(small, 2139); // Fallback size
+  if(small == NULL) {
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
+    realSetNaN(res);
+  }
+  else {
+    doMod(x, y, res, realContext, 2139, small);
+  }
+  REAL_T_FREE(small, 2139);
 #else
-  REAL_T_PTR(temp, 12321);
-  doMod(x, y, res, realContext, 12321, temp);                  //printf("\n******  ****** NOT MATCHED 2pi !! ****** ******\n");
-#endif
+  REAL_T_ALLOC(temp, 12321);
+  if(temp == NULL) {
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
+    realSetNaN(res);
+  }
+  else {
+    doMod(x, y, res, realContext, 12321, temp);                //printf("\n******  ****** NOT MATCHED 2pi !! ****** ******\n");
+  }
+  REAL_T_FREE(temp, 12321);
+#endif // DMCP_BUILD && HARDWARE_MODEL == HWM_DM42
 }
 
 
@@ -1753,6 +2362,7 @@ void WP34S_Erf(const real_t *x, real_t *res, realContext_t *realContext) {
 }
 
 
+#if defined(OPTION_DIST_NORMAL)   // its only step is WP34S_Cdf_Q, which normal.c stubs out with the option
 void WP34S_Erfc(const real_t *x, real_t *res, realContext_t *realContext) {
   real_t p;
 
@@ -1762,6 +2372,7 @@ void WP34S_Erfc(const real_t *x, real_t *res, realContext_t *realContext) {
   WP34S_Cdf_Q(&p, &p, realContext);
   realMultiply(&p, const_2, res, realContext);
 }
+#endif // OPTION_DIST_NORMAL
 
 
 static void check_low(real_t *d) {
@@ -2208,7 +2819,7 @@ void WP34S_InverseComplexW(const real_t *xReal, const real_t *xImag, real_t *res
 
 // Orthogonal Polynomials, common function
 void WP34S_OrthoPoly(uint16_t kind, const real_t *rX, const real_t *rN, const real_t *rParam, real_t *res, realContext_t *realContext) {
-#if !defined(SAVE_SPACE_DM42_12ORTHO)
+#if defined(OPTION_ORTHO)
   real_t a, b, c, d, i;
   real_t rT0, rT1, incB;
   real_t p, q;
@@ -2322,5 +2933,6 @@ void WP34S_OrthoPoly(uint16_t kind, const real_t *rX, const real_t *rN, const re
     realAdd(&i, const_1, &i, realContext);
   }
   realCopy(&rT1, res);
-#endif //!defined(SAVE_SPACE_DM42_12ORTHO)
+#endif //defined(OPTION_ORTHO)
 }
+

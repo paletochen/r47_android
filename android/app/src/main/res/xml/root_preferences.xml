@@ -56,6 +56,12 @@
             app:title="Work Directory"
             app:summary="Select a folder for organized storage (STATE, PROGRAMS, etc.)" />
         <SwitchPreferenceCompat
+            app:key="export_tsv_data"
+            app:title="Export TSV to Work Directory"
+            app:summaryOn="Export register/statistic tables (.TSV) to DATA/ folder"
+            app:summaryOff="Do not export TSV tables to DATA/ folder"
+            app:defaultValue="false" />
+        <SwitchPreferenceCompat
             app:key="fullscreen_mode"
             app:title="Full Screen Mode"
             app:summaryOn="Hides status and navigation bars"
@@ -123,7 +129,7 @@
         <Preference
             app:key="about_version"
             app:title="Version"
-            app:summary="R47 Android Port (f8e0ab75)" />
+            app:summary="R47 Android Port (d5315534)" />
         <Preference
             app:key="view_gpl_license"
             app:title="@string/about_gpl_license_title"

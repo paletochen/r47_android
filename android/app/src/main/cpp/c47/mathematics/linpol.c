@@ -87,7 +87,7 @@ void fnLINPOL(uint16_t unusedButMandatoryParameter) {
     }
 
     default: {
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "cannot LINPOL with %s in X", getRegisterDataTypeName(REGISTER_X, true, false));
         moreInfoOnError("In function fnLINPOL:", errorMessage, NULL, NULL);
@@ -104,7 +104,7 @@ void fnLINPOL(uint16_t unusedButMandatoryParameter) {
   if((dataTypeY != dataTypeZ && (dataTypeY == dtTime || dataTypeZ == dtTime)) ||                         //if any one is time, both must be time
      (isYangle && !isZangle) || (isZangle && !isYangle)                                                  //if any one is an angle, both must be any angle
     ) {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_Y);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "cannot LINPOL with differing data types in Y (%s) and Z (%s)", getRegisterDataTypeName(REGISTER_Y, true, false), getRegisterDataTypeName(REGISTER_Z, true, false));
       moreInfoOnError("In function fnLINPOL:", errorMessage, NULL, NULL);
@@ -153,7 +153,7 @@ void fnLINPOL(uint16_t unusedButMandatoryParameter) {
     }
 
     default: {
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_Y);
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "cannot LINPOL with %s in Y", getRegisterDataTypeName(REGISTER_Y, true, false));
         moreInfoOnError("In function fnLINPOL:", errorMessage, NULL, NULL);
@@ -200,7 +200,7 @@ void fnLINPOL(uint16_t unusedButMandatoryParameter) {
     }
 
     default: {
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_Z);
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "cannot LINPOL with %s in Z", getRegisterDataTypeName(REGISTER_Z, true, false));
         moreInfoOnError("In function fnLINPOL:", errorMessage, NULL, NULL);

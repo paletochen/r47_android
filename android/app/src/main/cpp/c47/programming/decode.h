@@ -16,4 +16,9 @@
   void decodeOneStep_ALIAS    (uint8_t *step);
   void listPrograms           (void);
   void listLabelsAndPrograms  (void);
+
+  // Copies the length-prefixed label/variable name at stringAddress into
+  // tmpStringLabelOrVariableName, clamping the length to what remains in program
+  // memory so a corrupt step cannot read past the program region.
+  void getStringLabelOrVariableName(uint8_t *stringAddress);
 #endif // !DECODE_H

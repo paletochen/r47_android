@@ -13,7 +13,7 @@ void dblDivide(bool_t remainder_mode) {
   const uint8_t sim = shortIntegerMode;
 
   if(getRegisterDataType(REGISTER_X) != dtShortInteger) {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_T);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "the input type %s is not allowed for DBL" STD_DIVIDE "!", getDataTypeName(getRegisterDataType(REGISTER_X), false, false));
       moreInfoOnError("In function dblDivide:", errorMessage, NULL, NULL);
@@ -21,7 +21,7 @@ void dblDivide(bool_t remainder_mode) {
     return;
   }
   if(getRegisterDataType(REGISTER_Y) != dtShortInteger) {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_T);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "the input type %s is not allowed for DBL" STD_DIVIDE "!", getDataTypeName(getRegisterDataType(REGISTER_Y), false, false));
       moreInfoOnError("In function dblDivide:", errorMessage, NULL, NULL);
@@ -29,7 +29,7 @@ void dblDivide(bool_t remainder_mode) {
     return;
   }
   if(getRegisterDataType(REGISTER_Z) != dtShortInteger) {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_T);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "the input type %s is not allowed for DBL" STD_DIVIDE "!", getDataTypeName(getRegisterDataType(REGISTER_Z), false, false));
       moreInfoOnError("In function dblDivide:", errorMessage, NULL, NULL);
@@ -39,7 +39,7 @@ void dblDivide(bool_t remainder_mode) {
 
   convertShortIntegerRegisterToLongInteger(REGISTER_X, x);
   if(longIntegerIsZero(x)) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_T);
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function dblDivide:", "cannot divide a short integer by 0", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -127,7 +127,7 @@ void dblDivide(bool_t remainder_mode) {
   goto cleanup;
 
 quotient_overflow:
-  displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_T);
+  displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
   #if (EXTRA_INFO_ON_CALC_ERROR == 1)
     moreInfoOnError("In function dblDivide:", "quotient overflow", NULL, NULL);
   #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)

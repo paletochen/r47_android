@@ -2,21 +2,12 @@
 // SPDX-FileCopyrightText: Copyright The WP43 and C47 Authors
 
 #include "c47.h"
-
-#include "c47Extensions/addons.h"
-#include "longIntegerType.h"
-#include "saveRestoreCalcState.h"
-#include "saveRestoreBackup.h"
-#include "statusBar.h"
+#if defined(DMCP_BUILD) && defined(TWO_FILE_PGM)
+  #include "version.h"  // VERSION_STRING for the program/QSPI pairing tag below
+#endif // DMCP_BUILD && TWO_FILE_PGM
 
 //#define JMSHOWCODES
 //#define BUFFER_CLICK_DETECTION
-
-#if defined(DMCP_BUILD)
-  #include "c47Extensions/inlineTest.h"
-  #include "c47Extensions/jm.h"
-  #include "c47Extensions/keyboardTweak.h"
-#endif
 
 uint16_t              lastI = 0;
 uint16_t              lastJ = 0;
@@ -29,9 +20,12 @@ char                  lastTemp[16];
   uint32_t            deadKey;
   bool_t              testDeadKeys = false;
   bool_t              swapCtrlCode = false;
+  bool_t              snapKeepShift = false;
 #endif // PC_BUILD
 
 bool_t                headlessMode = false;
+bool_t                snapSkipRefresh = false;
+bool_t                screenHoldsDrawnPixels = false;
 bool_t                loadTestPrograms = false;
 bool_t                loadTestData = false;
 const font_t          *fontForShortInteger;
@@ -51,6 +45,7 @@ bool_t                 fnKeyInCatalog;
 bool_t                 hourGlassIconEnabled;
 bool_t                 watchIconEnabled;
 bool_t                 printerIconEnabled;
+bool_t                 printerIconRefresh;   // true while setPrinterSBI() refreshes the status bar
 bool_t                 serialIOIconEnabled;
 bool_t                 shiftF;
 bool_t                 shiftG;
@@ -63,10 +58,8 @@ bool_t                 thereIsSomethingToUndo;
 bool_t                 lastProgramListEnd;
 bool_t                 programListEnd;
 bool_t                 pemCursorIsZerothStep;
-bool_t                 secTick1;
-bool_t                 halfSecTick2;
-bool_t                 halfSecTick3;
 bool_t                 skippedStackLines = false;
+bool_t                 bulkAssign = false;
 bool_t                 iterations = false;
 bool_t                 explicitTaylorIterVisibilitySelection = false;
 
@@ -74,7 +67,9 @@ bool_t                 reDraw = true;
 bool_t                 refreshNIMdone = false;
 bool_t                 cleanupAfterShift = false;
 bool_t                 solverEstimatesUsed = false;
+bool_t                 graphAccActive = false;
 bool_t                 updateOldConstants;
+bool_t                 eqnDrawLhsOnly = false;
 
 
 realContext_t          ctxtReal4;    //   limited digits: used for higher speed internal real calcs
@@ -163,10 +158,14 @@ uint8_t                dispBase;
 uint8_t                fractionDigits;
 uint8_t                shortIntegerMode;
 uint8_t                previousCalcMode;
+bool_t                 graphToRemainOnScreen;
 uint8_t                grpGroupingLeft;
 uint8_t                grpGroupingGr1LeftOverflow;
 uint8_t                grpGroupingGr1Left;
 uint8_t                grpGroupingRight;
+uint8_t                grpGroupingHex;
+uint8_t                grpGroupingBin;
+uint8_t                displayRoundingMode;
 uint8_t                roundingMode;
 uint8_t                calcMode;
 uint8_t                nextChar;
@@ -202,6 +201,7 @@ int16_t                lineTWidth;
 int16_t                rbrRegister;
 int16_t                catalog;
 int16_t                lastCatalogPosition[NUMBER_OF_CATALOGS];
+int16_t                retainedPageFirstItem[NUMBER_OF_RETAINED_PAGE_MENUS];
 int16_t                lastKeyItemDetermined = 0;
 bool_t                 lastUserMode = false;         //used in btnReleased and btnFnReleased
 int16_t                lastItem = 0;                 //used in btnReleased, for CM_ASN_BROWSER and SHOW/SCREENDUMP
@@ -235,12 +235,15 @@ int16_t                alphaCursor;                  //DL
 int16_t                lastT_cursorPos = 0;
 int16_t                displayAIMbufferoffset;       //JMCURSOR
 uint16_t               showRegis;                    //JMSHOW
+#if defined(OPTION_MX_SHOW)
+  uint8_t              showMatrixUserDisplayFormat = DF_ALL; // the user format, stashed for SHOW
+  uint8_t              showMatrixUserDisplayFormatDigits = 0;
+#endif // OPTION_MX_SHOW
 uint8_t                overrideShowBottomLine;
 int16_t                ListXYposition;               //JMSHOW
 int16_t                JM_auto_doublepress_autodrop_enabled;  //JM TIMER CLRDROP //drop
 int16_t                JM_auto_longpress_enabled;    //JM TIMER CLRDROP //clstk
 uint8_t                JM_SHIFT_HOME_TIMER1;         //Local to keyboard.c, but defined here
-bool_t                 ULFL, ULGL;                   //JM Underline
 int16_t                FN_key_pressed, FN_key_pressed_last; //JM LONGPRESS FN
 bool_t                 FN_timeouts_in_progress;      //JM LONGPRESS FN
 bool_t                 Shft_timeouts;                //JM SHIFT NEW FN
@@ -265,7 +268,7 @@ int16_t                imaginaryDenominatorLocation;
 int16_t                exponentLimit;
 int16_t                exponentHideLimit;
 int16_t                showFunctionNameCounter;
-int16_t                dynamicMenuItem;
+int16_t                dynamicMenuItem = -1; // -1: no dynamic menu item is selected. fnGoto and goToGlobalStep divert to a dynamic menu label when this is >= 0
 int16_t               *menu_RAM;
 int16_t                numberOfTamMenusToPop;
 int16_t                itemToBeAssigned;
@@ -276,6 +279,7 @@ uint16_t               freeProgramBytes;
 uint16_t               glyphRow[NUMBER_OF_GLYPH_ROWS];
 uint16_t               firstDisplayedLocalStepNumber;
 uint16_t               numberOfLabels;
+uint16_t               numberOfStructureLabels;
 uint16_t               numberOfPrograms;
 uint16_t               numberOfNamedVariables;
 uint16_t               currentLocalStepNumber;
@@ -289,8 +293,12 @@ uint16_t               plotSelection;
 uint16_t               currentViewRegister;
 uint16_t               currentSolverStatus;
 uint16_t               currentSolverProgram;
+uint16_t               currentDerivProgram;
 uint16_t               currentSolverVariable;
 uint16_t               currentSolverNestingDepth;
+uint16_t               engineNestingDepth;
+uint16_t               plotEngineActive;
+bool_t                 engineNestingWasRefused;
 uint16_t               numberOfFormulae;
 uint16_t               currentFormula;
 uint16_t               numberOfUserMenus;
@@ -313,6 +321,10 @@ calcRegister_t         graphVariabl1;
 
 uint32_t               firstGregorianDay;
 uint32_t               denMax;
+uint8_t                graMod;
+uint8_t                graFont;
+int16_t                longPressFactor;
+int16_t                doublePressFactor;
 uint32_t               lastDenominator = 4;
 uint32_t               lastIntegerBase;
 uint32_t               decodedIntegerBase;
@@ -322,8 +334,6 @@ uint32_t               tamOverPemYPos;
 uint32_t               timerValue;
 uint32_t               timerStartTime = TIMER_APP_STOPPED;
 uint32_t               timerTotalTime;
-uint32_t               pointerOfFlashPgmLibrary;
-uint32_t               sizeOfFlashPgmLibrary;
 
 uint64_t               shortIntegerMask;
 uint64_t               shortIntegerSignBit;
@@ -362,6 +372,12 @@ uint32_t               timeLastOp1 = 0;
 char                   lastStateFileOpened[stateFileNameVarLength+12];
 char                   fileNameSelected[stateFileNameVarLength];
 
+#if defined(PC_BUILD)
+  char                 lastFolderData[C47_PATH_MAX];
+  char                 lastFolderState[C47_PATH_MAX];
+  char                 lastFolderPrograms[C47_PATH_MAX];
+#endif // PC_BUILD
+
 char                   filename_csv[FILENAMELEN]; //JMMAX   //JM_CSV
 uint32_t               mem__32;                             //JM_CSV
 bool_t                 cancelFilename;
@@ -369,14 +385,14 @@ bool_t                 cancelFilename;
 uint8_t                firstDayOfWeek = 1;     // Monday
 uint8_t                firstWeekOfYearDay = 4; // Thursday
 
-//#if defined(IR_PRINTING)
+//#if defined(OPTION_IR_PRINTING)
   printerState_t         printerState;
   /*
    *  Where will the next data be printed?
    *  Columns are in pixel units from 0 to 165 for the HP-82240 and 0 to 383 for the Martel graphic mode
    */
   uint16_t               printerColumn;
-//#endif //IR_PRINTING
+//#endif //OPTION_IR_PRINTING
 
 uint16_t                 alphaRegister;
 bool_t                   varMenu42;
@@ -385,7 +401,7 @@ bool_t                   varMenu42;
 #if defined(DMCP_BUILD)
 
 #if (CALCMODEL == USER_C47) && (HARDWARE_MODEL == HWM_DM42) // include DM42 QSPI
-  IMPORT_BIN(".qspi_dm42", "../c47-dmcp/DM42_qspi_3.x.bin", DM42_qspi);
+  IMPORT_BIN(".qspi_dm42", DM42_QSPI_BIN, DM42_qspi);
 #endif  // include DM42 QSPI
 
   #if defined(JMSHOWCODES)                                        //JM Test
@@ -600,6 +616,21 @@ int convertKeyCode(int key) {
                                                 //#define TMR_OBSERVE
                                                 #endif // INLINE_TEST
 
+  #if defined(DMCP_BUILD) && defined(TWO_FILE_PGM)
+    // The loader checks the QSPI image by size and by a CRC that the build pipeline forces constant, so a stale C47_qspi.bin of the same size passes, and the first
+    // dispatch through the shifted function pointers of the QSPI item table hard faults. The two copies of one tag below, one linked into the .pgm and one into the QSPI
+    // image, come from one compilation, so they differ exactly when the two files on the calculator differ. Everything the guard uses when it fires is in the .pgm.
+    // The message is a named array (.rodata.<name>, kept internal by the .ld), never a string literal: .rodata.str1.1 is placed in QSPI, where a stale image garbles it.
+    TO_QSPI __attribute__ ((used)) static const char qspiPairTag[]  = VERSION_STRING "|" __DATE__ "|" __TIME__;
+            __attribute__ ((used)) static const char flashPairTag[] = VERSION_STRING "|" __DATE__ "|" __TIME__;
+    static const char qspiPairMsg[4][29] = {
+      "C47: this QSPI image is from",
+      "a different build than the",
+      "program. Flash [4] QSPI and",
+      "[3] Program from one folder."
+    };
+  #endif // DMCP_BUILD && TWO_FILE_PGM
+
   void program_main(void) {
     int key = 0;
     char charKey[3];
@@ -613,6 +644,7 @@ int convertKeyCode(int key) {
 
                                                   //uint32_t now, previousRefresh, nextAutoRepeat = 0;      // removed autorepeat stuff
 
+    stackWatermarkAnchor();                                    // the shallowest frame of the run: everything the watermark reports is measured below this
     c47MemInBlocks = 0;
     gmpMemInBytes = 0;
     mp_set_memory_functions(allocGmp, reallocGmp, freeGmp);
@@ -625,6 +657,27 @@ int convertKeyCode(int key) {
     // initialize lcd_buffer mainly used in hal/lcd.c
     lcd_buffer = lcd_line_addr(0)-2;
     lcd_clear_buf();
+
+    #if defined(TWO_FILE_PGM)
+      // Runs before any dispatch through QSPI-resident pointers. The guard refuses a program/QSPI pair from two different builds with a message instead of the hard
+      // fault that pair produces. The message uses the DMCP firmware font, which needs nothing from QSPI. The asm hides the address of the QSPI copy from the optimiser:
+      // both tags are known constants with equal contents, and without the barrier arm-gcc -Os folds the memcmp to 0 at compile time and deletes the guard and both tags.
+      const char *qspiTagInImage = qspiPairTag;
+      __asm__ ("" : "+r" (qspiTagInImage));
+      if(memcmp(flashPairTag, qspiTagInImage, sizeof(flashPairTag)) != 0) {
+        lcd_putsAt(t24, 2, qspiPairMsg[0]);
+        lcd_putsAt(t24, 3, qspiPairMsg[1]);
+        lcd_putsAt(t24, 4, qspiPairMsg[2]);
+        lcd_putsAt(t24, 5, qspiPairMsg[3]);
+        lcd_refresh();
+        key = -1;
+        while(key == -1) {
+          sys_sleep();
+          key = key_pop();
+        }
+        return;
+      }
+    #endif // TWO_FILE_PGM
                                                 #if defined(NOKEYMAP)                                             //vv dr - no keymap is used
                                                     lcd_putsAt(t24, 4, "Press the bottom left key.");
                                                     lcd_refresh();
@@ -761,7 +814,7 @@ int convertKeyCode(int key) {
                                                     convertLongIntegerToShortIntegerRegister(li, 10, 70);
 
                                                     longIntegerFree(li);
-                                                  #endif // 1
+                                                  #endif // 0
 
     backToDMCP = false;
 
@@ -1141,7 +1194,7 @@ int convertKeyCode(int key) {
       if(38 <= key && key <=43) { // Function key
                             #if defined(DM42_POWERMARK_KEYPRESS)
                               powerMarkerMsF(1, 4000);
-                            #endif //DM42_POWERMARK_BEGIN_WHILE
+                            #endif //DM42_POWERMARK_KEYPRESS
         sprintf(charKey, "%c", key+11);
         btnFnPressed(charKey);
                             #if defined(DM42_KEYCLICK)
@@ -1152,7 +1205,7 @@ int convertKeyCode(int key) {
       else if(1 <= key && key <= 37) { // Not a function key
                             #if defined(DM42_POWERMARK_KEYPRESS)
                               powerMarkerMsF(1, 4000);
-                            #endif //DM42_POWERMARK_BEGIN_WHILE
+                            #endif //DM42_POWERMARK_KEYPRESS
         sprintf(charKey, "%02u", key - 1);
         btnPressed(charKey);
                             #if defined(DM42_KEYCLICK)
@@ -1182,7 +1235,7 @@ int convertKeyCode(int key) {
       else if(key == 0 && charKey[1] == 0) {            //JM, key=0 is release, therefore there must have been a press before that. If the press was a FN key, FN_key_pressed > 0 when it comes back here for release.
                             #if defined(DM42_POWERMARK_KEYPRESS)
                               powerMarkerMsF(1, 4000);
-                            #endif //DM42_POWERMARK_BEGIN_WHILE
+                            #endif //DM42_POWERMARK_KEYPRESS
         btnFnReleased(charKey);                                //    in short, it can only execute FN release after there was a FN press.
                             #if defined(DM42_KEYCLICK)
                               keyClick(4);
@@ -1192,7 +1245,7 @@ int convertKeyCode(int key) {
       else if(key == 0) {
                             #if defined(DM42_POWERMARK_KEYPRESS)
                               powerMarkerMsF(1, 4000);
-                            #endif //DM42_POWERMARK_BEGIN_WHILE
+                            #endif //DM42_POWERMARK_KEYPRESS
         btnReleased(charKey);
                             #if defined(DM42_KEYCLICK)
                               keyClick(2);

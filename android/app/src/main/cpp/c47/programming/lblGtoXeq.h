@@ -14,6 +14,7 @@
   void    fnReturn          (uint16_t skip);
   void    fnRunProgram      (uint16_t unusedButMandatoryParameter);
   void    fnStopProgram     (uint16_t unusedButMandatoryParameter);
+  void    fnFinish          (uint16_t unusedButMandatoryParameter);
   void    fnCheckLabel      (uint16_t label);
   void    fnIsTopRoutine    (uint16_t unusedButMandatoryParameter);
 
@@ -32,4 +33,7 @@
 
   void    goToGlobalStep    (int32_t step);
   void    goToPgmStep       (uint16_t program, uint16_t step);
+  
+  void    cleanLocalFlagsAndRegisters (void);
+  
 #endif // !LBLGTOXEQ_H

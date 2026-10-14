@@ -9,6 +9,7 @@
 
   #include "differentiate.h"
   #include "equation.h"
+  #include "finite_differences.h"
   #include "graph.h"
   #include "integrate.h"
   #include "isumprod.h"

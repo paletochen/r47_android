@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WP43 and C47 Authors
 
 /********************************************//**
- * \file ui/matrixEditor.c
+ * \file matrixEditor.h
  ***********************************************/
 
 #if !defined(MATRIXEDITOR_H)
@@ -12,8 +12,15 @@
   //#define MATRIX_LINE_WIDTH_LARGE      120
   //#define MATRIX_LINE_WIDTH_SMALL      93
   //#define MATRIX_CHAR_LEN              30
-  #define MATRIX_MAX_ROWS              5
-  #define MATRIX_MAX_COLUMNS           11
+  #define MATRIX_MAX_ROWS              9    // measure cap outside SHOW
+  #if defined(OPTION_MX_SHOW)
+    #define MATRIX_MAX_ROWS_ON_SHOW    11   // sizes the row scratch arrays
+  #else // !OPTION_MX_SHOW
+    #define MATRIX_MAX_ROWS_ON_SHOW    9    // sizes the row scratch arrays
+  #endif // OPTION_MX_SHOW
+  #define MATRIX_MAX_ROWS_ON_VIEW      7    // VIEW keeps the stack, so it stops at the bottom of the register lines (above menu)
+  #define MATRIX_MAX_ROWS_ON_STACK     5    // matrix on stack grows from the X line up
+  #define MATRIX_MAX_COLUMNS           14   // max width: no radix on the elements: single digit columns fit 14
 
   /**
    * Opens the Matrix Editor.
@@ -82,6 +89,35 @@
   int16_t  getJRegisterAsInt              (bool_t asArrayPointer);
   void     setIRegisterAsInt              (bool_t asArrayPointer, int16_t toStore);
   void     setJRegisterAsInt              (bool_t asArrayPointer, int16_t toStore);
+
+  /**
+   * Which matrix was indexed, and the shadow row/column under it. Contents are opaque: saveMatrixIndexState() fills it and restoreMatrixIndexState() puts it back.
+   */
+  typedef struct {
+    uint16_t matrixIndex;
+    int16_t  savedI;
+    int16_t  savedJ;
+  } matrixIndexState_t;
+
+  /**
+   * Opens a scratch index for a function that walks a matrix itself.
+   *
+   * Remembers which matrix was indexed and the shadow row/column under it, and diverts I and J to that shadow so the walk cannot touch the user's registers.
+   * They keep their value and their type, whatever those are. A Matrix Editor open underneath keeps its cursor.
+   *
+   * Pair with restoreMatrixIndexState() and route EVERY exit through it: while the shadow is open, reads of I and J see the walking index rather than the user's.
+   * Call this only once the operation cannot fail, i.e. after the argument checks, so an early return cannot leave the shadow open.
+   *
+   * \param[out] state
+   */
+  void     saveMatrixIndexState           (matrixIndexState_t *state);
+
+  /**
+   * Closes the scratch index opened by saveMatrixIndexState().
+   *
+   * \param[in] state
+   */
+  void     restoreMatrixIndexState        (const matrixIndexState_t *state);
 
   bool_t   wrapIJ                         (uint16_t rows, uint16_t cols);
 

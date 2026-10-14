@@ -6,7 +6,6 @@
  ***********************************************/
 
 #include "c47.h"
-#include "and.h"
 
 static void norCplx(void) {
   static TO_QSPI const unsigned char norTable[4] = { 1, 0, 0, 0 };

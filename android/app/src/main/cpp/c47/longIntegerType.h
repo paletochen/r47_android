@@ -101,7 +101,7 @@
   static inline void              longIntegerSubtractUInt(mpz_srcptr op, uint32_t uint, mpz_ptr result)                                   {mpz_sub_ui(result, op, uint);}
   static inline void              longIntegerMultiplyUInt(mpz_srcptr op, uint32_t uint, mpz_ptr result)                                   {mpz_mul_ui(result, op, uint);}
   static inline uint32_t          longIntegerDivideRemainderUInt(mpz_srcptr op, uint32_t uint, mpz_ptr result, mpz_ptr remainder)         {return mpz_tdiv_qr_ui(remainder, result, op, uint);} // op/uint => result*uint + remainder == op
-  static inline void              longIntegerDivideUInt(mpz_srcptr op, uint32_t uint, mpz_ptr result)                                     {mpz_tdiv_q_ui(result, op, uint);}                    // op/uint => result*uint + remainder == op
+  static inline uint32_t          longIntegerDivideUInt(mpz_srcptr op, uint32_t uint, mpz_ptr result)                                     {return mpz_tdiv_q_ui(result, op, uint);}             // op/uint => result*uint + remainder == op; returns |remainder|
   static inline void              longIntegerPowerUIntUInt(uint32_t base, uint32_t exponent, mpz_ptr result)                              {mpz_ui_pow_ui(result, base, exponent);}              // result = base ^ exponent
   static inline void              longIntegerPowerModulo(mpz_srcptr base, mpz_srcptr exponent, mpz_srcptr modulo, mpz_ptr result)         {mpz_powm(result, base, exponent, modulo);}           // result = base ^ exponent
   static inline void              longIntegerPowerUIntModulo(mpz_srcptr base, uint32_t exponent, mpz_srcptr modulo, mpz_ptr result)       {mpz_powm_ui(result, base, exponent, modulo);}        // result = base ^ exponent

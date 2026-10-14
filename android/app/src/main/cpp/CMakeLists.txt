@@ -41,8 +41,6 @@ include_directories(
 
 # Source files - Recursively find all C files in c47 subdirectories
 file(GLOB_RECURSE C47_SOURCES "c47/*.c")
-list(FILTER C47_SOURCES EXCLUDE REGEX ".*/structured\\.c$")
-list(FILTER C47_SOURCES EXCLUDE REGEX ".*/reservedRegisterLookupGenerator\\.c$")
 
 file(GLOB DEC_SOURCES 
     decNumberICU/decContext.c

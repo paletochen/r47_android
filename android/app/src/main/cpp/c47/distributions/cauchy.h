@@ -12,11 +12,15 @@
   void fnCauchyR              (uint16_t unusedButMandatoryParameter);
   void fnCauchyI              (uint16_t unusedButMandatoryParameter);
 
+  #if defined(OPTION_DIST_B)
   void WP34S_Pdf_Cauchy       (const real_t *x, const real_t *x0, const real_t *gamma, real_t *res, realContext_t *realContext);
   void WP34S_Cdfu_Cauchy      (const real_t *x, const real_t *x0, const real_t *gamma, real_t *res, realContext_t *realContext);
   void WP34S_Cdf_Cauchy       (const real_t *x, const real_t *x0, const real_t *gamma, real_t *res, realContext_t *realContext);
   void WP34S_Qf_Cauchy        (const real_t *x, const real_t *x0, const real_t *gamma, real_t *res, realContext_t *realContext);
+  #endif // OPTION_DIST_B
 
+  #if defined(OPTION_DIST_B)
   void WP34S_cdf_cauchy_common(const real_t *x, const real_t *x0, const real_t *gamma, bool_t complementary, real_t *res, realContext_t *realContext);
   void WP34S_cdf_cauchy_xform (const real_t *x, const real_t *x0, const real_t *gamma, real_t *res, realContext_t *realContext);
+  #endif // OPTION_DIST_B
 #endif // !CAUCHY_H

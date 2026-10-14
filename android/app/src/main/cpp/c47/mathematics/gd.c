@@ -8,7 +8,7 @@
 #include "c47.h"
 
 static void gdError(bool_t gd, uint8_t errorCode) {
-  displayCalcErrorMessage(errorCode, ERR_REGISTER_LINE, REGISTER_X);
+  displayCalcErrorMessage(errorCode, ERR_REGISTER_LINE);
   #if (EXTRA_INFO_ON_CALC_ERROR == 1)
     if(gd) {
       sprintf(errorMessage, "cannot calculate gd(%s)", getRegisterDataTypeName(REGISTER_X, false, false));

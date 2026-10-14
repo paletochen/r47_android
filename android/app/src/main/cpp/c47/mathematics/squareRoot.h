@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WP43 and C47 Authors
 
 /**
- * \file mathematics/sqrt.h
+ * \file squareRoot.h
  */
 #if !defined(SQUAREROOT_H)
   #define SQUAREROOT_H

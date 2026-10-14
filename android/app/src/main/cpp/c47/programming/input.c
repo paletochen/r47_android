@@ -7,6 +7,9 @@
  ***********************************************/
 
 #include "c47.h"
+#if defined(ANDROID_BUILD)
+#include "jni_bridge.h"
+#endif
 
 void fnInput(uint16_t regist) {
   if(programRunStop == PGM_RUNNING) {
@@ -19,25 +22,64 @@ void fnInput(uint16_t regist) {
     #else // !DMCP_BUILD
       refreshLcd(NULL);
     #endif // DMCP_BUILD
-    #if defined(IR_PRINTING)
+    #if defined(OPTION_IR_PRINTING)
       printInputPrompt(ITM_INPUT, regist);
-    #endif //IR_PRINTING
+    #endif //OPTION_IR_PRINTING
   }
 }
 
 
 
+static bool_t _isVarMenu(uint16_t label) {
+    uint8_t *step;
+    if(label < FIRST_LABEL || (uint16_t)(label - FIRST_LABEL) >= numberOfLabels) {  // a label the list does not hold would index the array from outside it
+      return false;
+    }
+    step = labelList[label - FIRST_LABEL].instructionPointer;
+    while(checkOpCodeOfStep(step, ITM_REM)) {
+      step = findNextStep(step);
+    }
+    return (checkOpCodeOfStep(step, ITM_MVAR));
+}
+
+
 void fnVarMnu(uint16_t label) {
-  currentMvarLabel = label;
-  varMenu42 = false;
-  showSoftmenu(-MNU_MVAR);
+  label = findProgramLabel(label, "In function fnVarMnu:");
+  if(label == INVALID_VARIABLE) {
+    return;
+  }
+  if(!_isVarMenu(label)) {
+    displayCalcErrorMessage(ERROR_NO_MVAR_FOUND, ERR_REGISTER_LINE);
+    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+      sprintf(errorMessage, "No MVAR menu variable instruction after the label");
+      moreInfoOnError("In function fnVarMnu:", errorMessage, NULL, NULL);
+    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1
+  }
+  else {
+    currentMvarLabel = label;
+    varMenu42 = false;
+    showSoftmenu(-MNU_MVAR);
+  }
 }
 
 
 void fn42VarMnu(uint16_t label) {
-  currentMvarLabel = label;
-  varMenu42 = true;
-  showSoftmenu(-MNU_MVAR);
+  label = findProgramLabel(label, "In function fn42VarMnu:");
+  if(label == INVALID_VARIABLE) {
+    return;
+  }
+  if(!_isVarMenu(label)) {
+    displayCalcErrorMessage(ERROR_NO_MVAR_FOUND, ERR_REGISTER_LINE);
+    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+      sprintf(errorMessage, "No MVAR menu variable instruction after the label");
+      moreInfoOnError("In function fn42VarMnu:", errorMessage, NULL, NULL);
+    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1
+  }
+  else {
+    currentMvarLabel = label;
+    varMenu42 = true;
+    showSoftmenu(-MNU_MVAR);
+  }
 }
 
 
@@ -150,6 +192,9 @@ void fnPause(uint16_t dur) {
   }
 
     uint8_t previousProgramRunStop = programRunStop;
+    if(previousProgramRunStop == PGM_RUNNING) {
+      refreshStatusBar();               // with the 256-step refresh cadence the bar can be out of date here; refresh it once so the pause shows the current state
+    }
     programRunStop = PGM_PAUSED;
 
 
@@ -158,18 +203,23 @@ void fnPause(uint16_t dur) {
     }
 
     #if defined(ANDROID_BUILD)
-      // Android: 100ms loop for progress display (10x per second refresh)
-      for(int32_t i = 0; i < duration && (programRunStop == PGM_PAUSED || programRunStop == PGM_KEY_PRESSED_WHILE_PAUSED); ++i) {
-        // Force refresh to show intermediate measurements (e.g. in VolTest)
+      LOGI("fnPause: dur=%d, duration=%d, programRunStop=%d, previousProgramRunStop=%d", dur, duration, programRunStop, previousProgramRunStop);
+      if (duration > 0 && !screenHoldsDrawnPixels && !graphToRemainOnScreen) {
+        // Force refresh once to show the current state (e.g. intermediate measurements)
         screenUpdatingMode &= ~SCRUPD_MANUAL_STATUSBAR;
         refreshScreen(12);
-        lcd_refresh();
-        
+      }
+      // Android: 100ms loop for progress display (10x per second refresh)
+      for(int32_t i = 0; i < duration && (programRunStop == PGM_PAUSED || programRunStop == PGM_KEY_PRESSED_WHILE_PAUSED); ++i) {
         // Fully unlock mutex for 100ms to allow UI thread to render the buffer
         yieldToAndroidWithMs(100);
         
+        if (i % 10 == 0) {
+          LOGI("fnPause loop: i=%d, programRunStop=%d", i, programRunStop);
+        }
         if (programRunStop != PGM_PAUSED && programRunStop != PGM_KEY_PRESSED_WHILE_PAUSED) break;
       }
+      LOGI("fnPause exit loop: programRunStop=%d", programRunStop);
     #elif defined(DMCP_BUILD)
       if(previousProgramRunStop != PGM_RUNNING && dur != 99) {
         screenUpdatingMode &= ~SCRUPD_MANUAL_STATUSBAR;
@@ -297,7 +347,7 @@ static uint16_t _getKeyArg(uint16_t regist) {
       /* fallthrough */
     }
     default: {
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "cannot use %s for the parameter of CASE", getRegisterDataTypeName(REGISTER_X, true, false));
         moreInfoOnError("In function _getKeyArg:", errorMessage, NULL, NULL);
@@ -348,7 +398,7 @@ void fnKey(uint16_t regist) {
       lastKeyCode = 0;
     }
     else {
-      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "register %u is out of range", regist);
         moreInfoOnError("In function fnKey:", errorMessage, NULL, NULL);
@@ -424,7 +474,7 @@ void fnKeyType(uint16_t regist) {
     case 85: uInt32ToLongInteger(12u, kt); break;
 
     default: {
-      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "keycode %u is out of range", keyCode);
         moreInfoOnError("In function fnKeyType:", errorMessage, NULL, NULL);
@@ -499,7 +549,7 @@ void fnPutKey(uint16_t regist) {
       case 85: sprintf(kc, "%02u", keyCode - 81 + 32); btnClicked(NULL, kc);   break;
 
       default: {
-        displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+        displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           sprintf(errorMessage, "keycode %u is out of range", keyCode);
           moreInfoOnError("In function fnPutKey:", errorMessage, NULL, NULL);

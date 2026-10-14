@@ -9,5 +9,5 @@
 
   void fnXthRoot      (uint16_t unusedButMandatoryParameter);
 
-  void xthRootReal(real_t *yy, real_t *xx, realContext_t *realContext);
+  void xthRootReal(const real_t *yy, const real_t *xx, realContext_t *realContext);
 #endif // !XTHROOT_H

@@ -21,7 +21,7 @@ static void realPartCxma(void) {
     realMatrixFree(&rMat);
   }
   else {
-   displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+   displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
   }
 }
 

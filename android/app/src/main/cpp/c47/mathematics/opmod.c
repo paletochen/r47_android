@@ -52,7 +52,7 @@ TO_QSPI void (* const opModR[NUMBER_OF_DATA_TYPES_FOR_CALCULATIONS][NUMBER_OF_DA
 
 
 void opModError(uint16_t mode) {
-  displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+  displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
   #if (EXTRA_INFO_ON_CALC_ERROR == 1)
     sprintf(errorMessage, "cannot MOD %s %s %s", getRegisterDataTypeName(REGISTER_Z, true, false), mode == OPMOD_POWER ? "^" : "*", getRegisterDataTypeName(REGISTER_Y, true, false));
     sprintf(errorMessage + ERROR_MESSAGE_LENGTH/2, "by %s", getRegisterDataTypeName(REGISTER_X, true, false));
@@ -62,7 +62,7 @@ void opModError(uint16_t mode) {
 
 
 void opModOutOfDomain(uint16_t mode) {
-  displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+  displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
   #if (EXTRA_INFO_ON_CALC_ERROR == 1)
     sprintf(errorMessage, "At least one of the arguments is out of the domain: Z > 0, Y > 0, X > 1");
     moreInfoOnError("In function fnOpMod:", errorMessage, NULL, NULL);

@@ -5,7 +5,8 @@ c47_gtk_src = files(
   'hal/gui.c',
   'hal/lcd.c',
   'hal/io.c',
-  'hal/print_ir.c')
+  'hal/print_ir.c',
+  'hal/printerWindow.c')
 
 override_opts = ['b_coverage=false']
 cflags        = []
@@ -60,6 +61,10 @@ endif
 
 if have_dladdr
   _c_args += ['-DHAVE_DLADDR=1']
+endif
+
+if have_t47_dsl
+  _c_args += ['-DHAVE_T47_DSL=1']
 endif
 
 sim = executable('c47',

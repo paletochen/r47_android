@@ -195,7 +195,7 @@ static void formatRegisterString(calcRegister_t regist, char *result, size_t max
       break;
 
     case dtShortInteger:
-      shortIntegerToDisplayString(regist, coreBuf, false, 0);
+      shortIntegerToDisplayString(regist, coreBuf, false, 0, SCREEN_WIDTH);
       break;
 
     case dtLongInteger:

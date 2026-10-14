@@ -25,7 +25,7 @@ void fnIxyz(uint16_t unusedButMandatoryParameter) {
       }
     }
     else {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "not in 0 " STD_LESS_EQUAL " x " STD_LESS_EQUAL " 1, a > 0, b > 0");
         moreInfoOnError("In function fnIxyz:", errorMessage, NULL, NULL);
@@ -33,7 +33,7 @@ void fnIxyz(uint16_t unusedButMandatoryParameter) {
     }
   }
   else {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "cannot calculate Ixyz for %s, %s, %s",
         getRegisterDataTypeName(REGISTER_X, true, false),

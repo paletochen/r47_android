@@ -12,7 +12,7 @@
  * http://hp41programs.yolasite.com/zeta.php
  */
 
-#if !defined(SAVE_SPACE_DM42_12)
+#if defined(OPTION_ZETA_BETA)
 static void zeta_calc_complex(real_t *reg4, real_t *reg5, real_t *reg6, real_t *reg7, realContext_t *realContext) {
   real_t s, p, q, r, reg0, reg1, reg2, reg3, reg8, reg9;
 
@@ -88,10 +88,10 @@ static void zeta_calc_complex(real_t *reg4, real_t *reg5, real_t *reg6, real_t *
 
   divComplexComplex(&reg8, &reg9, &q, &s, reg4, reg5, realContext);
 }
-#endif // !SAVE_SPACE_DM42_12
+#endif // OPTION_ZETA_BETA
 
 void ComplexZeta(const real_t *xReal, const real_t *xImag, real_t *resReal, real_t *resImag, realContext_t *realContext) {
-#if !defined(SAVE_SPACE_DM42_12)
+#if defined(OPTION_ZETA_BETA)
   real_t p, q, r, s, reg4, reg5, reg6, reg7, reg10, reg11;
 
   if(realIsZero(xReal) && realIsZero(xImag)) {
@@ -131,9 +131,10 @@ void ComplexZeta(const real_t *xReal, const real_t *xImag, real_t *resReal, real
 
     divComplexComplex(&reg4, &reg5, &q, &p, resReal, resImag, realContext);
   }
-#endif // !SAVE_SPACE_DM42_12
+#endif // OPTION_ZETA_BETA
 }
 
+#if defined(OPTION_ZETA_BETA)
 static void doRealZeta(void) {
   real_t x, r;
 
@@ -159,6 +160,7 @@ static void doComplexZeta(void) {
   ComplexZeta(&xr, &xi, &rr, &ri, &ctxtReal39);
   convertComplexToResultRegister(&rr, &ri, REGISTER_X);
 }
+#endif // OPTION_ZETA_BETA
 
 /********************************************//**
  * \brief regX ==> regL and zeta(regX) ==> regX
@@ -168,6 +170,8 @@ static void doComplexZeta(void) {
  * \return void
  ***********************************************/
 void fnZeta(uint16_t unusedButMandatoryParameter) {
+#if defined(OPTION_ZETA_BETA)
   processRealComplexMonadicFunction(&doRealZeta, &doComplexZeta);
+#endif // OPTION_ZETA_BETA
 }
 

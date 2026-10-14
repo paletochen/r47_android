@@ -13,7 +13,7 @@ struct cmplxPair {
   real_t r, i;
 };
 
-#if !defined(SAVE_SPACE_DM42_12)
+#if defined(OPTION_SLVQ_SLVC)
 static int cmplxSortCompare(const void *v1, const void *v2) {
   const struct cmplxPair *p1 = (const struct cmplxPair *)v1;
   const struct cmplxPair *p2 = (const struct cmplxPair *)v2;
@@ -89,22 +89,46 @@ static int cmplxSortCompare(const void *v1, const void *v2) {
   }
   return 0;
 }
-#endif //SAVE_SPACE_DM42_12
+
+
+// a x^3 + b x^2 + c x + d = 0: a leading zero degrades to the quadratic at 75 digits with a NaN third root; b, c, d are consumed and the roots come back sorted
+static void solveGeneralCubic(const real_t *aReal, const real_t *aImag, real_t *bReal, real_t *bImag, real_t *cReal, real_t *cImag, real_t *dReal, real_t *dImag, real_t *rReal, real_t *rImag, struct cmplxPair x[3]) {
+  if(realIsZero(aReal) && realIsZero(aImag)) {
+    solveQuadraticEquation(bReal, bImag, cReal, cImag, dReal, dImag, rReal, rImag, &x[0].r, &x[0].i, &x[1].r, &x[1].i, &ctxtReal75);
+    realSetNaN(&x[2].r);
+    realSetNaN(&x[2].i);
+  }
+  else {
+    divComplexComplex(bReal, bImag, aReal, aImag, bReal, bImag, &ctxtReal75);
+    divComplexComplex(cReal, cImag, aReal, aImag, cReal, cImag, &ctxtReal75);
+    divComplexComplex(dReal, dImag, aReal, aImag, dReal, dImag, &ctxtReal75);
+
+    solveCubic(bReal, bImag, cReal, cImag, dReal, dImag, rReal, rImag, &x[0].r, &x[0].i, &x[1].r, &x[1].i, &x[2].r, &x[2].i);
+  }
+  qsort(x, 3, sizeof(x[0]), &cmplxSortCompare);
+}
+#endif //OPTION_SLVQ_SLVC
 
 
 /********************************************//**
  * \brief (d, c, b, a) ==> (x1, x2, r) c ==> regL
  * enables stack lift and refreshes the stack
+ * A coefficient vector in X (highest degree first, 2 to 4 elements) returns all roots as a row vector in X instead.
  *
  * \param[in] unusedButMandatoryParameter uint16_t
  * \return void
  ***********************************************/
 void fnSlvc(uint16_t unusedButMandatoryParameter) {
-#if !defined(SAVE_SPACE_DM42_12)
+#if defined(OPTION_SLVQ_SLVC)
   bool_t complexCoefs=false;
   real_t aReal, bReal, cReal, dReal, rReal;
   real_t aImag, bImag, cImag, dImag, rImag;
   struct cmplxPair x[3];
+
+  if(getRegisterDataType(REGISTER_X) == dtReal34Matrix || getRegisterDataType(REGISTER_X) == dtComplex34Matrix) {   // a coefficient vector takes the matrix path: the element count picks the solver
+    solveCoefficientVector();
+    return;
+  }
 
   if(!(getRegisterAsComplexOrReal(REGISTER_X, &dReal, &dImag, &complexCoefs) &&
        getRegisterAsComplexOrReal(REGISTER_Y, &cReal, &cImag, &complexCoefs) &&
@@ -116,7 +140,7 @@ void fnSlvc(uint16_t unusedButMandatoryParameter) {
   if(   realIsZero(&aReal) && realIsZero(&aImag)
      && realIsZero(&bReal) && realIsZero(&bImag)
      && realIsZero(&cReal) && realIsZero(&cImag)) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function fnSlvc:", "cannot use 0 for Y, Z and T as input of SLVC", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -129,64 +153,8 @@ void fnSlvc(uint16_t unusedButMandatoryParameter) {
   }
 
 
-  if(realIsZero(&aReal) && realIsZero(&aImag)) {
-    solveQuadraticEquation(&bReal, &bImag, &cReal, &cImag, &dReal, &dImag, &rReal, &rImag, &x[0].r, &x[0].i, &x[1].r, &x[1].i, &ctxtReal75);
-    realSetNaN(&x[2].r);
-    realSetNaN(&x[2].i);
-  }
-  else {
-    divComplexComplex(&bReal, &bImag, &aReal, &aImag, &bReal, &bImag, &ctxtReal75);
-    divComplexComplex(&cReal, &cImag, &aReal, &aImag, &cReal, &cImag, &ctxtReal75);
-    divComplexComplex(&dReal, &dImag, &aReal, &aImag, &dReal, &dImag, &ctxtReal75);
+  solveGeneralCubic(&aReal, &aImag, &bReal, &bImag, &cReal, &cImag, &dReal, &dImag, &rReal, &rImag, x);
 
-#if defined(OPTION_CUBIC_159)
-    realContext_t c = ctxtReal75;
-    c.digits = 159;
-    REAL_T_PTR(x1r, 159);
-    REAL_T_PTR(x1i, 159);
-    REAL_T_PTR(x2r, 159);
-    REAL_T_PTR(x2i, 159);
-    REAL_T_PTR(x3r, 159);
-    REAL_T_PTR(x3i, 159);
-    REAL_T_PTR(r0r, 159);
-    REAL_T_PTR(r0i, 159);
-    REAL_T_PTR(bRealH, 159);
-    REAL_T_PTR(bImagH, 159);
-    REAL_T_PTR(cRealH, 159);
-    REAL_T_PTR(cImagH, 159);
-    REAL_T_PTR(dRealH, 159);
-    REAL_T_PTR(dImagH, 159);
-
-    realPlus(&bReal, bRealH, &c);
-    realPlus(&bImag, bImagH, &c);
-    realPlus(&cReal, cRealH, &c);
-    realPlus(&cImag, cImagH, &c);
-    realPlus(&dReal, dRealH, &c);
-    realPlus(&dImag, dImagH, &c);
-    realSetZero(r0r);
-    realSetZero(r0i);
-    realSetZero(x1r);
-    realSetZero(x1i);
-    realSetZero(x2r);
-    realSetZero(x2i);
-    realSetZero(x3r);
-    realSetZero(x3i);
-    solveCubicEquation159(bRealH, bImagH, cRealH, cImagH, dRealH, dImagH, r0r, r0i, x1r, x1i, x2r, x2i, x3r, x3i, &c);
-    realPlus(r0r, &rReal,  &ctxtReal39);
-    realPlus(r0i, &rImag,  &ctxtReal39);
-    realPlus(x1r, &x[0].r, &ctxtReal39);
-    realPlus(x1i, &x[0].i, &ctxtReal39);
-    realPlus(x2r, &x[1].r, &ctxtReal39);
-    realPlus(x2i, &x[1].i, &ctxtReal39);
-    realPlus(x3r, &x[2].r, &ctxtReal39);
-    realPlus(x3i, &x[2].i, &ctxtReal39);
-#else // OPTION_CUBIC_159
-    solveCubicEquation(&bReal, &bImag, &cReal, &cImag, &dReal, &dImag, &rReal, &rImag, &x[0].r, &x[0].i, &x[1].r, &x[1].i, &x[2].r, &x[2].i, &ctxtReal75);
-#endif //OPTION_CUBIC_159
-
-  }
-
-  qsort(x, 3, sizeof(x[0]), &cmplxSortCompare);
   for(int i = 0; i < 3; i++) {
     if(realIsZero(&x[i].i) || (realIsNaN(&x[i].r) && realIsNaN(&x[i].i))) {
       convertRealToResultRegister(&x[i].r, REGISTER_X + i, amNone);
@@ -206,11 +174,137 @@ void fnSlvc(uint16_t unusedButMandatoryParameter) {
       convertComplexToResultRegister(&rReal, &rImag, REGISTER_T);
     }
     adjustResult(REGISTER_T, false, true, REGISTER_T, -1, -1);
-  #else // !DISCIMINANT
+  #else // !DISCRIMINANT
     fnDropT(0);
   #endif // DISCRIMINANT
-#endif // !SAVE_SPACE_DM42_12
+#endif // OPTION_SLVQ_SLVC
 }
+
+
+#if defined(OPTION_SLVQ_SLVC)
+// X = a 1 x m or m x 1 coefficient vector, highest degree first: the element count picks the solver, 2 the linear, 3 the quadratic and 4 the cubic,
+// from either command. All roots come back as a row vector replacing X, real when every root is real; the rest of the stack is not consumed.
+void solveCoefficientVector(void) {
+  real34Matrix_t xr;
+  complex34Matrix_t xc;
+  bool_t complexInput, resultIsComplex, allZero;
+  uint16_t rows, cols, nRoots;
+  uint32_t m, j;
+  real_t co[4][2];                                       // [j][0] real, [j][1] imaginary, co[0] the leading coefficient
+  real_t rReal, rImag;
+  struct cmplxPair x[3];
+
+  if(getRegisterDataType(REGISTER_X) == dtComplex34Matrix) {
+    complexInput = true;
+    linkToComplexMatrixRegister(REGISTER_X, &xc);
+    rows = xc.header.matrixRows;
+    cols = xc.header.matrixColumns;
+  }
+  else {
+    complexInput = false;
+    linkToRealMatrixRegister(REGISTER_X, &xr);
+    rows = xr.header.matrixRows;
+    cols = xr.header.matrixColumns;
+  }
+
+  m = (uint32_t)rows * cols;
+  if((rows != 1 && cols != 1) || m < 2 || m > 4) {
+    displayCalcErrorMessage(ERROR_MATRIX_MISMATCH, ERR_REGISTER_LINE);
+    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+      sprintf(errorMessage, "a coefficient vector holds 2 to 4 elements, not (%d" STD_CROSS "%d)", rows, cols);
+      moreInfoOnError("In function solveCoefficientVector:", errorMessage, NULL, NULL);
+    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+    return;
+  }
+
+  for(j = 0; j < m; j++) {
+    if(complexInput) {
+      real34ToReal(VARIABLE_REAL34_DATA(xc.matrixElements + j), &co[j][0]);
+      real34ToReal(VARIABLE_IMAG34_DATA(xc.matrixElements + j), &co[j][1]);
+    }
+    else {
+      real34ToReal(xr.matrixElements + j, &co[j][0]);
+      realSetZero(&co[j][1]);
+    }
+  }
+
+  allZero = true;                                        // the stack forms' refusal: the constant term alone is no equation
+  for(j = 0; j + 1 < m; j++) {
+    allZero = allZero && realIsZero(&co[j][0]) && realIsZero(&co[j][1]);
+  }
+  if(allZero) {
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+      moreInfoOnError("In function solveCoefficientVector:", "every coefficient above the constant term is 0", NULL, NULL);
+    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+    return;
+  }
+
+  if(m == 2) {                                           // the trivial linear case keeps the family symmetrical: the single root is -b/a, as SLVP delivers it
+    divComplexComplex(&co[1][0], &co[1][1], &co[0][0], &co[0][1], &x[0].r, &x[0].i, &ctxtReal75);
+    chsComplex(&x[0].r, &x[0].i);
+    nRoots = 1;
+  }
+  else if(m == 3) {
+    solveQuadratic(&co[0][0], &co[0][1], &co[1][0], &co[1][1], &co[2][0], &co[2][1], &rReal, &rImag, &x[0].r, &x[0].i, &x[1].r, &x[1].i);
+    nRoots = 2;
+  }
+  else {
+    solveGeneralCubic(&co[0][0], &co[0][1], &co[1][0], &co[1][1], &co[2][0], &co[2][1], &co[3][0], &co[3][1], &rReal, &rImag, x);
+    nRoots = 3;
+  }
+
+  resultIsComplex = false;                               // a NaN pair is the stack forms' real NaN root, not a complex value
+  for(j = 0; j < nRoots; j++) {
+    if(!realIsZero(&x[j].i) && !(realIsNaN(&x[j].r) && realIsNaN(&x[j].i))) {
+      resultIsComplex = true;
+      break;
+    }
+  }
+
+  if(resultIsComplex) {                                  // the result matrix is allocated, then L, then X is overwritten: every failure leaves X and L untouched
+    complex34Matrix_t res;
+    if(!complexMatrixInit(&res, 1, nRoots)) {
+      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
+      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+        moreInfoOnError("In function solveCoefficientVector:", "Ram full", NULL, NULL);
+      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+      return;
+    }
+    if(!saveLastX()) {
+      complexMatrixFree(&res);
+      return;
+    }
+    for(j = 0; j < nRoots; j++) {
+      realToReal34(&x[j].r, VARIABLE_REAL34_DATA(res.matrixElements + j));
+      realToReal34(&x[j].i, VARIABLE_IMAG34_DATA(res.matrixElements + j));
+    }
+    convertComplex34MatrixToComplex34MatrixRegister(&res, REGISTER_X);
+    complexMatrixFree(&res);
+  }
+  else {
+    real34Matrix_t res;
+    if(!realMatrixInit(&res, 1, nRoots)) {
+      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
+      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+        moreInfoOnError("In function solveCoefficientVector:", "Ram full", NULL, NULL);
+      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+      return;
+    }
+    if(!saveLastX()) {
+      realMatrixFree(&res);
+      return;
+    }
+    for(j = 0; j < nRoots; j++) {
+      realToReal34(&x[j].r, res.matrixElements + j);
+    }
+    convertReal34MatrixToReal34MatrixRegister(&res, REGISTER_X);
+    realMatrixFree(&res);
+  }
+
+  adjustResult(REGISTER_X, false, true, REGISTER_X, -1, -1);
+}
+#endif // OPTION_SLVQ_SLVC
 
 
 
@@ -262,6 +356,57 @@ static void _realCheckedSubtract(const real_t *operand1, const real_t *operand2,
     realCopy(&r, res);
   }
 }
+
+// Monic x^3 + b x^2 + c x + d = 0 at the precision the build selects: 159 digits under OPTION_CUBIC_159, 75 otherwise, results rounded to 39.
+#if defined(OPTION_SLVQ_SLVC)
+void solveCubic(const real_t *bReal, const real_t *bImag, const real_t *cReal, const real_t *cImag, const real_t *dReal, const real_t *dImag, real_t *rReal, real_t *rImag, real_t *x1Real, real_t *x1Imag, real_t *x2Real, real_t *x2Imag, real_t *x3Real, real_t *x3Imag) {
+#if defined(OPTION_CUBIC_159)
+  realContext_t c = ctxtReal75;
+  c.digits = 159;
+  REAL_T_PTR(x1r, 159);
+  REAL_T_PTR(x1i, 159);
+  REAL_T_PTR(x2r, 159);
+  REAL_T_PTR(x2i, 159);
+  REAL_T_PTR(x3r, 159);
+  REAL_T_PTR(x3i, 159);
+  REAL_T_PTR(r0r, 159);
+  REAL_T_PTR(r0i, 159);
+  REAL_T_PTR(bRealH, 159);
+  REAL_T_PTR(bImagH, 159);
+  REAL_T_PTR(cRealH, 159);
+  REAL_T_PTR(cImagH, 159);
+  REAL_T_PTR(dRealH, 159);
+  REAL_T_PTR(dImagH, 159);
+
+  realPlus(bReal, bRealH, &c);
+  realPlus(bImag, bImagH, &c);
+  realPlus(cReal, cRealH, &c);
+  realPlus(cImag, cImagH, &c);
+  realPlus(dReal, dRealH, &c);
+  realPlus(dImag, dImagH, &c);
+  realSetZero(r0r);
+  realSetZero(r0i);
+  realSetZero(x1r);
+  realSetZero(x1i);
+  realSetZero(x2r);
+  realSetZero(x2i);
+  realSetZero(x3r);
+  realSetZero(x3i);
+  solveCubicEquation159(bRealH, bImagH, cRealH, cImagH, dRealH, dImagH, r0r, r0i, x1r, x1i, x2r, x2i, x3r, x3i, &c);
+  realPlus(r0r, rReal,  &ctxtReal39);
+  realPlus(r0i, rImag,  &ctxtReal39);
+  realPlus(x1r, x1Real, &ctxtReal39);
+  realPlus(x1i, x1Imag, &ctxtReal39);
+  realPlus(x2r, x2Real, &ctxtReal39);
+  realPlus(x2i, x2Imag, &ctxtReal39);
+  realPlus(x3r, x3Real, &ctxtReal39);
+  realPlus(x3i, x3Imag, &ctxtReal39);
+#else // OPTION_CUBIC_159
+  solveCubicEquation(bReal, bImag, cReal, cImag, dReal, dImag, rReal, rImag, x1Real, x1Imag, x2Real, x2Imag, x3Real, x3Imag, &ctxtReal75);
+#endif // OPTION_CUBIC_159
+}
+#endif // OPTION_SLVQ_SLVC
+
 
 void solveCubicEquation(const real_t *c2Real, const real_t *c2Imag, const real_t *c1Real, const real_t *c1Imag, const real_t *c0Real, const real_t *c0Imag, real_t *rReal, real_t *rImag, real_t *x1Real, real_t *x1Imag, real_t *x2Real, real_t *x2Imag, real_t *x3Real, real_t *x3Imag, realContext_t *realContext) {
   // x^3 + b x^2 + c x + d = 0

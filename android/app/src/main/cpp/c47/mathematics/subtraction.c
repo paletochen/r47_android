@@ -34,7 +34,7 @@ TO_QSPI void (* const subtraction[NUMBER_OF_DATA_TYPES_FOR_CALCULATIONS][NUMBER_
  ***********************************************/
 #if (EXTRA_INFO_ON_CALC_ERROR == 1)
   void subError(void) {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
     sprintf(errorMessage, "cannot subtract %s", getRegisterDataTypeName(REGISTER_X, true, false));
     sprintf(errorMessage + ERROR_MESSAGE_LENGTH/2, "from %s", getRegisterDataTypeName(REGISTER_Y, true, false));
     moreInfoOnError("In function fnSubtract:", errorMessage, errorMessage + ERROR_MESSAGE_LENGTH/2, NULL);
@@ -449,13 +449,16 @@ void subRemaRema(void) {
 
   linkToRealMatrixRegister(REGISTER_Y, &y);
   convertReal34MatrixRegisterToReal34Matrix(REGISTER_X, &x);
+  if(lastErrorCode != 0) {
+    return;
+  }
 
   subtractRealMatrices(&y, &x, &x);
   if(x.matrixElements) {
     convertReal34MatrixToReal34MatrixRegister(&x, REGISTER_X);
   }
   else {
-    displayCalcErrorMessage(ERROR_MATRIX_MISMATCH, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_MATRIX_MISMATCH, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "cannot subtract %d" STD_CROSS "%d-matrix from %d" STD_CROSS "%d-matrix",
               x.header.matrixRows, x.header.matrixColumns,
@@ -477,6 +480,9 @@ void subRemaRema(void) {
  ***********************************************/
 void subRemaCxma(void) {
   convertReal34MatrixRegisterToComplex34MatrixRegister(REGISTER_Y, REGISTER_Y);
+  if(lastErrorCode != 0) {
+    return;
+  }
   subCxmaCxma();
 }
 
@@ -490,6 +496,9 @@ void subRemaCxma(void) {
  ***********************************************/
 void subCxmaRema(void) {
   convertReal34MatrixRegisterToComplex34MatrixRegister(REGISTER_X, REGISTER_X);
+  if(lastErrorCode != 0) {
+    return;
+  }
   subCxmaCxma();
 }
 
@@ -617,6 +626,9 @@ void subRealRema(void) {
  ***********************************************/
 void subRemaCplx(void) {
   convertReal34MatrixRegisterToComplex34MatrixRegister(REGISTER_Y, REGISTER_Y);
+  if(lastErrorCode != 0) {
+    return;
+  }
   subCxmaCplx();
 }
 
@@ -630,6 +642,9 @@ void subRemaCplx(void) {
  ***********************************************/
 void subCplxRema(void) {
   convertReal34MatrixRegisterToComplex34MatrixRegister(REGISTER_X, REGISTER_X);
+  if(lastErrorCode != 0) {
+    return;
+  }
   subCplxCxma();
 }
 
@@ -706,13 +721,16 @@ void subCxmaCxma(void) {
 
   linkToComplexMatrixRegister(REGISTER_Y, &y);
   convertComplex34MatrixRegisterToComplex34Matrix(REGISTER_X, &x);
+  if(lastErrorCode != 0) {
+    return;
+  }
 
   subtractComplexMatrices(&y, &x, &x);
   if(x.matrixElements) {
     convertComplex34MatrixToComplex34MatrixRegister(&x, REGISTER_X);
   }
   else {
-    displayCalcErrorMessage(ERROR_MATRIX_MISMATCH, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_MATRIX_MISMATCH, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "cannot add %d" STD_CROSS "%d-matrix to %d" STD_CROSS "%d-matrix",
               x.header.matrixRows, x.header.matrixColumns,

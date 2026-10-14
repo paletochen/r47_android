@@ -98,8 +98,9 @@ TO_QSPI const char angleChars[12] = STD_SUP_r STD_SUP_g STD_DEGREE "??" STD_SUP_
         }
       }
       else { // Global label
-        xcopy(tmpString + 100, labelList[i].labelPointer + 1, *(labelList[i].labelPointer));
-        tmpString[100 + *(labelList[i].labelPointer)] = 0;
+        uint8_t lblNameLen = boundProgramNameLength(labelList[i].labelPointer + 1, *(labelList[i].labelPointer));
+        xcopy(tmpString + 100, labelList[i].labelPointer + 1, lblNameLen);
+        tmpString[100 + lblNameLen] = 0;
         stringToUtf8(tmpString + 100, (uint8_t *)tmpString);
         printf("'%s'\n", tmpString);
       }
@@ -116,8 +117,20 @@ TO_QSPI const char angleChars[12] = STD_SUP_r STD_SUP_g STD_DEGREE "??" STD_SUP_
 #endif // !DMCP_BUILD
 
 
-static void getStringLabelOrVariableName(uint8_t *stringAddress) {
+void getStringLabelOrVariableName(uint8_t *stringAddress) {
   uint8_t stringLength = *(uint8_t *)(stringAddress++);
+  // The length byte is taken from the program step on trust. A corrupt step can
+  // claim a name longer than the bytes that remain in program memory, so clamp
+  // it to firstFreeProgramByte before xcopy reads the name; without this a
+  // damaged imported program would read past the program region. When the name
+  // would start at or past firstFreeProgramByte there are no valid bytes left,
+  // so read nothing rather than skipping the clamp and reading unbounded.
+  if(stringAddress >= firstFreeProgramByte) {
+    stringLength = 0;
+  }
+  else if(stringLength > firstFreeProgramByte - stringAddress) {
+    stringLength = (uint8_t)(firstFreeProgramByte - stringAddress);
+  }
   xcopy(tmpStringLabelOrVariableName, stringAddress, stringLength);
   tmpStringLabelOrVariableName[stringLength] = 0;
 }
@@ -167,13 +180,13 @@ uint8_t  opParam   = *(uint8_t *)(paramAddress++);
       else if(opParam <= LAST_LOCAL_LABEL) { // Local label from a to l
         sprintf(tmpString, "%s %c", op, 'a' + (opParam - FIRST_LC_LOCAL_LABEL));
       }
-      else if(opParam == STRING_LABEL_VARIABLE) {
+      else if((opParam == STRING_LABEL_VARIABLE) || (opParam == LOCAL_LABEL_VARIABLE)) {
         char *str = tmpString;
         getStringLabelOrVariableName(paramAddress);
         str = stringCopy(str, op);
-        str = stringCopy(str, " " STD_LEFT_SINGLE_QUOTE);
+        str = stringCopy(str, (opParam == LOCAL_LABEL_VARIABLE ? " :" : " " STD_LEFT_SINGLE_QUOTE));
         str = stringCopy(str, tmpStringLabelOrVariableName);
-        str = stringCopy(str, STD_RIGHT_SINGLE_QUOTE);
+        str = stringCopy(str, (opParam == LOCAL_LABEL_VARIABLE ? ":" : STD_RIGHT_SINGLE_QUOTE));
       }
       else {
         sprintf(tmpString, "\nIn function decodeOp case PARAM_DECLARE_LABEL: opParam %u is not a valid label!\n", opParam);
@@ -191,13 +204,13 @@ uint8_t  opParam   = *(uint8_t *)(paramAddress++);
       else if(opParam <= LAST_LOCAL_LABEL) { // Local label from a to l
         sprintf(tmpString, "%s %c", op, 'a' + (opParam - FIRST_LC_LOCAL_LABEL));
       }
-      else if(opParam == STRING_LABEL_VARIABLE) {
+      else if((opParam == STRING_LABEL_VARIABLE) || (opParam == LOCAL_LABEL_VARIABLE)) {
         char *str = tmpString;
         getStringLabelOrVariableName(paramAddress);
         str = stringCopy(str, op);
-        str = stringCopy(str, " " STD_LEFT_SINGLE_QUOTE);
+        str = stringCopy(str, (opParam == LOCAL_LABEL_VARIABLE ? " :" : " " STD_LEFT_SINGLE_QUOTE));
         str = stringCopy(str, tmpStringLabelOrVariableName);
-        str = stringCopy(str, STD_RIGHT_SINGLE_QUOTE);
+        str = stringCopy(str, (opParam == LOCAL_LABEL_VARIABLE ? ":" : STD_RIGHT_SINGLE_QUOTE));
       }
       else if(opParam == INDIRECT_REGISTER) {
         getIndirectRegister(paramAddress, op);
@@ -405,17 +418,31 @@ uint8_t  opParam   = *(uint8_t *)(paramAddress++);
 
     case PARAM_KEYG_KEYX: {
       uint8_t *secondParam = findKey2ndParam(paramAddress - 3);
-      decodeOp(secondParam + 1, *secondParam, indexOfItems[*secondParam].itemCatalogName, PARAM_LABEL, indexOfItems[*secondParam].tamMinMax & TAM_MAX_MASK);
-      xcopy(tmpString + TMP_STR_LENGTH / 2, tmpString, stringByteLength(tmpString) + 1);
-      decodeOp(paramAddress - 1, *secondParam, op, PARAM_NUMBER_8, 21);
-      tmpString[stringByteLength(tmpString) + 1] = 0;
-      tmpString[stringByteLength(tmpString)    ] = ' ';
-      xcopy(tmpString + stringByteLength(tmpString), tmpString + TMP_STR_LENGTH / 2, stringByteLength(tmpString + TMP_STR_LENGTH / 2) + 1);
+      if(secondParam != NULL) {
+        decodeOp(secondParam + 1, *secondParam, indexOfItems[*secondParam].itemCatalogName, PARAM_LABEL, indexOfItems[*secondParam].tamMinMax & TAM_MAX_MASK);
+        xcopy(tmpString + TMP_STR_LENGTH / 2, tmpString, stringByteLength(tmpString) + 1);
+        decodeOp(paramAddress - 1, *secondParam, op, PARAM_NUMBER_8, 21);
+        tmpString[stringByteLength(tmpString) + 1] = 0;
+        tmpString[stringByteLength(tmpString)    ] = ' ';
+        xcopy(tmpString + stringByteLength(tmpString), tmpString + TMP_STR_LENGTH / 2, stringByteLength(tmpString + TMP_STR_LENGTH / 2) + 1);
+      }
+      else {
+        sprintf(tmpString, "\nIn function decodeOp: case PARAM_KEYG_KEYX, %s has no valid second key parameter!", op);
+      }
       break;
     }
 
     case PARAM_SKIP_BACK: {
-      sprintf(tmpString, "%s %03u", op, opParam);
+      if(structOpHasNumber(opCode)) { // a STRUCT number reads as subscript digits joined to the name, IF₁, and not numbered reads as IF₀
+        char digits[4];
+
+        sprintf(digits, "%u", opParam);
+        strcpy(tmpString, op);
+        strcpy(tmpString + stringByteLength(op), stringToSub(digits));
+      }
+      else {
+        sprintf(tmpString, "%s %03u", op, opParam);
+      }
       break;
     }
 
@@ -538,7 +565,7 @@ static void decodeLiteral(uint8_t *literalAddress) {
     case BINARY_SHORT_INTEGER: {
       reallocateRegister(TEMP_REGISTER_1, dtShortInteger, 0, *(uint8_t *)(literalAddress++));
       xcopy(getRegisterDataPointer(TEMP_REGISTER_1), literalAddress, TO_BYTES(SHORT_INTEGER_SIZE_IN_BLOCKS));
-      shortIntegerToDisplayString(TEMP_REGISTER_1, tmpString, false, noBaseOverride);
+      shortIntegerToDisplayString(TEMP_REGISTER_1, tmpString, false, noBaseOverride, SCREEN_WIDTH);
       break;
     }
 
@@ -575,6 +602,9 @@ static void decodeLiteral(uint8_t *literalAddress) {
       char *dispStringPtr = tmpString;
       char *sourceStringPtr = tmpStringLabelOrVariableName;
       uint8_t base = (uint8_t)(*literalAddress);
+      if(base > 16) { // bases above 16 are invalid; baseChars[] only spans 0..16
+        base = 0;
+      }
       decodedIntegerBase = base;
       getStringLabelOrVariableName(literalAddress + 1);
 
@@ -833,6 +863,9 @@ static void _decodeOneStep(uint8_t *step, uint16_t textVersion) {
   if(op == 0x7fff) { // .END.
     xcopy(tmpString, ".END.", 6);
   }
+  else if(op >= LAST_ITEM) { // render the step rather than index past the item table
+    xcopy(tmpString, "???", 4);
+  }
   else {
     char nameOp[36];
     nameOp[0]=0;
@@ -853,9 +886,9 @@ static void _decodeOneStep(uint8_t *step, uint16_t textVersion) {
         }
         if(nameOp[0] == 0) {
           if(textVersion == MODE_ALIAS) {
-          #if defined(IR_PRINTING)
+          #if defined(OPTION_IR_PRINTING)
             nameAlias(op, nameOp);
-          #endif //IR_PRINTING
+          #endif //OPTION_IR_PRINTING
           }
           else {
             strcpy(nameOp, indexOfItems[op].itemCatalogName[0] != 0 ? indexOfItems[op].itemCatalogName : indexOfItems[op].itemSoftmenuName);
@@ -873,6 +906,7 @@ static void _decodeOneStep(uint8_t *step, uint16_t textVersion) {
         #if defined(PC_BUILD)
           printf("\nERROR in decodeOneStep: instruction %u:%s is not programmable!\n", op, indexOfItems[op].itemCatalogName);
         #endif
+        strcpy(tmpString, indexOfItems[op].itemCatalogName[0] != 0 ? indexOfItems[op].itemCatalogName : indexOfItems[op].itemSoftmenuName);
         break;
       }
 
@@ -896,9 +930,9 @@ static void _decodeOneStep(uint8_t *step, uint16_t textVersion) {
         else {
           if(nameOp[0] == 0) {
             if(textVersion == MODE_ALIAS) {
-            #if defined(IR_PRINTING)
+            #if defined(OPTION_IR_PRINTING)
               nameAlias(op, nameOp);
-            #endif //IR_PRINTING
+            #endif //OPTION_IR_PRINTING
             }
             else {
               strcpy(nameOp, indexOfItems[op].itemCatalogName);

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WP43 and C47 Authors
 
 /********************************************//**
- * \file elec.c
+ * \file elec.h
  ***********************************************/
 
 #if !defined(ELEC_H)

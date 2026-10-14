@@ -44,7 +44,9 @@
   bool_t WP34S_ComplexAbsError (const real_t *xReal, const real_t *xImag, const real_t *yReal, const real_t *yImag, const real_t *tol, realContext_t *realContext);
   void   WP34S_GammaP          (const real_t *x, const real_t *a, real_t *res, realContext_t *realContext, bool_t upper, bool_t regularised);
   void   WP34S_Erf             (const real_t *x, real_t *res, realContext_t *realContext);
+  #if defined(OPTION_DIST_NORMAL)
   void   WP34S_Erfc            (const real_t *x, real_t *res, realContext_t *realContext);
+  #endif // OPTION_DIST_NORMAL
   void   WP34S_betai           (const real_t *b, const real_t *a, const real_t *x, real_t *res, realContext_t *realContext);
   void   WP34S_Bernoulli       (const real_t *x, real_t *res, bool_t bn_star, realContext_t *realContext);
   void   WP34S_Zeta            (const real_t *x, real_t *res, realContext_t *realContext);

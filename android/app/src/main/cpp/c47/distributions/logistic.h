@@ -12,8 +12,10 @@
   void fnLogisticR     (uint16_t unusedButMandatoryParameter);
   void fnLogisticI     (uint16_t unusedButMandatoryParameter);
 
+  #if defined(OPTION_DIST_B)
   void WP34S_Pdf_Logit (const real_t *x, const real_t *mu, const real_t *s, real_t *res, realContext_t *realContext);
   void WP34S_Cdfu_Logit(const real_t *x, const real_t *mu, const real_t *s, real_t *res, realContext_t *realContext);
   void WP34S_Cdf_Logit (const real_t *x, const real_t *mu, const real_t *s, real_t *res, realContext_t *realContext);
   void WP34S_Qf_Logit  (const real_t *x, const real_t *mu, const real_t *s, real_t *res, realContext_t *realContext);
+  #endif // OPTION_DIST_B
 #endif // !LOGISTIC_H

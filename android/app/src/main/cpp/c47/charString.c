@@ -114,7 +114,7 @@ bool_t replace(uint16_t *charCode) {
       *charCode = *charCode - charCodeFromString(STD_SUP_1, 0) + charCodeFromString(STD_HP_1, 0);
     }
   }
-#endif //GENERATE_CATALOGS
+#endif //!GENERATE_CATALOGS
 
 
 
@@ -235,6 +235,7 @@ static void _calculateStringWidth(const char *str, const font_t *font, bool_t wi
   int16_t ch, numPixels, glyphId;
   const glyph_t *glyph;
   bool_t  firstChar;
+  uint8_t shift = 3;                                                             //JM 4 while a standard font glyph replaces one the tiny font lacks
   #if defined(GENERATE_CATALOGS)
     uint16_t doubling = false;
   #else //GENERATE_CATALOGS
@@ -257,7 +258,7 @@ static void _calculateStringWidth(const char *str, const font_t *font, bool_t wi
     if(checkHP && font == &numericFont && HPFONT) {
       charCodeHPReplacement(&charCode);
     }
-  #endif //GENERATE_CATALOGS
+  #endif //!GENERATE_CATALOGS
 
 /*
     font = font1;                             //JM auto font change for enlarged alpha fonts vv
@@ -271,9 +272,22 @@ static void _calculateStringWidth(const char *str, const font_t *font, bool_t wi
       }                                       //JM ^^
 */
     if(charCode != 1u) {                          //If the special ASCII 01, then skip the width and font not found portions
-      glyphId = findGlyph(font, charCode);
+      const font_t *glyphFont = font;
+      shift = 3;
+      glyphId = (font == &tinyFont) ? findGlyphExact(font, charCode) : findGlyph(font, charCode);
+      if(glyphId < 0 && font == &tinyFont) {      //JM the tiny font lacks this glyph, so the standard font one is halved, exactly as showGlyphCode draws it
+        int16_t stdId = findGlyphExact(&standardFont, charCode);
+        if(stdId >= 0 && standardFont.glyphs[stdId].colsGlyph > 0) {   //only a glyph with ink is worth compressing; a blank keeps the tiny font's own width
+          glyphFont = &standardFont;
+          glyphId = stdId;
+          shift = 4;
+        }
+        else {
+          glyphId = 0;                            //the tiny font's own first glyph is used, which is what findGlyph returned before
+        }
+      }
       if(glyphId >= 0) {
-        glyph = (font->glyphs) + glyphId;
+        glyph = (glyphFont->glyphs) + glyphId;
       }
       else if(glyphId == -1) {
         generateNotFoundGlyph(-1, charCode);
@@ -300,15 +314,15 @@ static void _calculateStringWidth(const char *str, const font_t *font, bool_t wi
       return;
     }
 
-      numPixels += (doubling*(glyph->colsGlyph + glyph->colsAfterGlyph)) >> 3;
+      numPixels += (doubling*(glyph->colsGlyph + glyph->colsAfterGlyph)) >> shift;
       if(firstChar) {
         firstChar = false;
         if(withLeadingEmptyRows) {
-          numPixels += (doubling*(glyph->colsBeforeGlyph)) >> 3;
+          numPixels += (doubling*(glyph->colsBeforeGlyph)) >> shift;
         }
       }
       else {
-        numPixels += (doubling*(glyph->colsBeforeGlyph)) >> 3;
+        numPixels += (doubling*(glyph->colsBeforeGlyph)) >> shift;
       }
 
       if(resultStr != NULL) { // for stringAfterPixels
@@ -323,7 +337,7 @@ static void _calculateStringWidth(const char *str, const font_t *font, bool_t wi
   }
 
   if(glyph != NULL && withEndingEmptyRows == false) {
-    numPixels -= (doubling*(glyph->colsAfterGlyph)) >> 3;
+    numPixels -= (doubling*(glyph->colsAfterGlyph)) >> shift;
     if(resultStr != NULL && numPixels <= *width) { // for stringAfterPixels
       if((**resultStr) & 0x80) {
         *resultStr += 2;
@@ -441,7 +455,7 @@ int16_t stringPrevNumberGlyph(const char *str, int16_t pos) {
   do {
     pos2 = stringPrevGlyph(str, pos2);
 
-    if(('0' <= str[pos2] && str[pos2] <= '9') || str[pos] == '.' || str[pos] == ',') {
+    if(('0' <= str[pos2] && str[pos2] <= '9') || str[pos2] == '.' || str[pos2] == ',') {
       return pos2;
     }
   } while(pos2 != 0);
@@ -576,12 +590,24 @@ uint32_t utf8ToCodePoint(const uint8_t *utf8, uint32_t *codePoint) { // C47 supp
   }
 
   else if((*utf8 & 0xE0) == 0xC0) {
+    if(*(utf8 + 1) == 0) {                     // truncated 2-byte sequence at the terminating NUL: emit a placeholder, do not consume the NUL
+      *codePoint = '?';
+      return 1;
+    }
     *codePoint =  (*utf8       & 0x1F) << 6;
     *codePoint |= (*(utf8 + 1) & 0x3F);
     return 2;
   }
 
   else /*if((*utf8 & 0xF0) == 0xE0)*/ {
+    if(*(utf8 + 1) == 0) {                     // truncated 3-byte sequence after the lead byte: stop on the NUL
+      *codePoint = '?';
+      return 1;
+    }
+    if(*(utf8 + 2) == 0) {                     // truncated after one continuation byte: stop on the NUL (do not read past it)
+      *codePoint = '?';
+      return 2;
+    }
     *codePoint =  (*utf8       & 0x0F) << 12;
     *codePoint |= (*(utf8 + 1) & 0x3F) <<  6;
     *codePoint |= (*(utf8 + 2) & 0x3F);
@@ -619,6 +645,7 @@ uint32_t utf8ToCodePoint(const uint8_t *utf8, uint32_t *codePoint) { // C47 supp
 }
 
 
+#if defined(PC_BUILD)
 void debug_utf8_string(const char *label, const uint8_t *str, size_t max_len) {
   printf("%s:", label);
   printf("  Hex:   ");
@@ -644,6 +671,7 @@ void debug_utf8_string(const char *label, const uint8_t *str, size_t max_len) {
   }
   printf("\n");
 }
+#endif //PC_BUILD
 
 
 void stringToUtf8(const char *str, uint8_t *utf8) {
@@ -723,21 +751,53 @@ void stringToUtf8(const char *str, uint8_t *utf8) {
 
 
 
-void utf8ToString(const uint8_t *utf8, char *str) {
+static void utf8ToStringToEnd(const uint8_t *utf8, char *str, const char *end) {  // end: last byte usable for output, NULL for no limit; a glyph crossing end stops the walk
   uint32_t codePoint;
 
   while(*utf8) {
     utf8 += utf8ToCodePoint(utf8, &codePoint);
+    // Glyphs with low byte is 0x00 (forbidden in C47, as a 0x00 second byte terminates C strings early).
+    // Relocate each incoming real Unicode point to its relocated internal slot with no 0x00, mapped to the loan code point used for this glyph.
+    switch(codePoint) {
+      case 0x0100: codePoint = 0x017F; break; // STD_A_MACRON: latin capital A with macron (was U+0100)
+      case 0x1D00: codePoint = 0x045A; break; // STD_SMALLCAP_A: latin letter small capital A (was U+1D00)
+      case 0x2200: codePoint = 0x2C6F; break; // STD_FOR_ALL: for all (was U+2200)
+      default: break;
+    }
     if(codePoint < 0x0080) {
+      if(end && str + 1 > end) break;
       *(str++) = codePoint;
     }
+    else if((codePoint & 0x00FF) == 0) {
+      // Any other code point whose low byte is 0x00 substituted a placeholder ? to prevent crash
+      #if defined(PC_BUILD)
+        printf("In function utf8ToString: code point U+%04X has a 0x00 second byte and was replaced with '?'\n", codePoint);
+      #endif // PC_BUILD
+      if(end && str + 1 > end) break;
+      *(str++) = '?';
+    }
     else {
+      if(end && str + 2 > end) break; // a 2-byte glyph must fit whole
       codePoint |= 0x8000;
       *(str++) = codePoint >> 8;
       *(str++) = codePoint & 0x00FF;
     }
   }
   *str = 0;
+}
+
+
+void utf8ToString(const uint8_t *utf8, char *str) {
+  utf8ToStringToEnd(utf8, str, NULL);
+}
+
+
+// utf8ToString into a fixed buffer fed by a file-supplied source: at most maxBytes bytes, the terminating NUL included, so an over-long name cannot overrun it.
+void utf8ToStringWithLength(const uint8_t *utf8, char *str, size_t maxBytes) {
+  if(maxBytes == 0) {
+    return;
+  }
+  utf8ToStringToEnd(utf8, str, str + maxBytes - 1);  // maxBytes - 1 keeps the last byte for the terminating NUL
 }
 
 
@@ -992,7 +1052,8 @@ void stringToRTF(const char *str, char *ascii) {
            if((a1==(uint8_t)(STD_SUP_0   [0]) && (a2>=(uint8_t)(STD_SUP_0   [1]) && a2<=(uint8_t)(STD_SUP_9  [1]))) ) {supsub = +1; bb[0] = ('0'+a2)-(uint8_t)(STD_SUP_0 [1]);}
       else if((a1==(uint8_t)(STD_SUP_a   [0]) && (a2>=(uint8_t)(STD_SUP_a   [1]) && a2<=(uint8_t)(STD_SUP_z  [1]))) ) {supsub = +1; bb[0] = ('a'+a2)-(uint8_t)(STD_SUP_a [1]);}
       else if((a1==(uint8_t)(STD_SUP_A   [0]) && (a2>=(uint8_t)(STD_SUP_A   [1]) && a2<=(uint8_t)(STD_SUP_Z  [1]))) ) {supsub = +1; bb[0] = ('A'+a2)-(uint8_t)(STD_SUP_A [1]);}
-      else if((a1==(uint8_t)(STD_SUB_0   [0]) && (a2>=(uint8_t)(STD_SUB_0   [1]) && a2<=(uint8_t)(STD_SUB_9  [1]))) ) {supsub = -1; bb[0] = ('0'+a2)-(uint8_t)(STD_SUB_0 [1]);}
+      // A subscript DIGIT falls through to the escape below and stays the character U+2080 to U+2089, the one the screen shows. The sub control word is styling, so a
+      // plain-text reading of the export drops it and the STRUCT partner number reads as IF1 instead of the subscript the PEM listing shows.
       else if((a1==(uint8_t)(STD_SUB_a   [0]) && (a2>=(uint8_t)(STD_SUB_a   [1]) && a2<=(uint8_t)(STD_SUB_z  [1]))) ) {supsub = -1; bb[0] = ('a'+a2)-(uint8_t)(STD_SUB_a [1]);}
       else if((a1==(uint8_t)(STD_SUB_A   [0]) && (a2>=(uint8_t)(STD_SUB_A   [1]) && a2<=(uint8_t)(STD_SUB_Z  [1]))) ) {supsub = -1; bb[0] = ('A'+a2)-(uint8_t)(STD_SUB_A [1]);}
 //      else if((a1==(uint8_t)(STD_BASE_0  [0]) && (a2==(uint8_t)(STD_BASE_0  [1])                                 )) ) {                        *ascii = ('0');}
@@ -1190,6 +1251,18 @@ void addStrBothSides(char * str, char * str_b, char * str_e) {
   xcopy(str + stringByteLength(str_b), str, stringByteLength(str) + 1);
   xcopy(str, str_b, stringByteLength(str_b));
   xcopy(str + stringByteLength(str), str_e, stringByteLength(str_e) + 1);
+}
+
+
+void stripTrailingRadix(char * str) {
+  #if !defined(GENERATE_CATALOGS)
+    int32_t slen = (int32_t)strlen(str);
+    int32_t mlen = (Rx[0] & 0x80) ? (int32_t)strlen(RADIX34_MARK_STRING) : (int32_t)strlen(Rx);
+    const char *marker = (Rx[0] & 0x80) ? RADIX34_MARK_STRING : Rx;
+    if(slen >= mlen && strcmp(str + slen - mlen, marker) == 0) {
+      str[slen - mlen] = '\0';
+    }
+  #endif // !GENERATE_CATALOGS
 }
 
 

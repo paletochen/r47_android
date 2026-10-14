@@ -27,3 +27,9 @@ option('DMCP_PACKAGE',
   value       : '',
   description : 'define variable acc. to defines.h to save space for DM42 dmcp builds'
 )
+
+option('mem',
+  type        : 'boolean',
+  value       : false,
+  description : 'Mem=1 diagnostic build: disable -flto so per-feature FLASH/QSPI sizes are real (not masked by LTO). Bigger binary, may not fit - measurement only.'
+)

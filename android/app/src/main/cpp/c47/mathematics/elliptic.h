@@ -25,6 +25,7 @@
   void fnEllipticEphi   (uint16_t unusedButMandatoryParameter);
   void fnJacobiZeta     (uint16_t unusedButMandatoryParameter);
 
+  #if defined(OPTION_ELLIPTIC)
   /**
    * Computes Jacobi elliptic functions am, sn, cn and dn.
    * \c am, \c sn, \c cn or \c dn can be \c NULL if the corresponding results are not needed.
@@ -137,4 +138,5 @@
    * \param[out] resi imaginary part of the result
    */
   void jacobiZeta       (const real_t *phi, const real_t *psi, const real_t *m, real_t *res, real_t *resi, realContext_t *realContext);
+  #endif // OPTION_ELLIPTIC
 #endif // !ELLIPTIC_H

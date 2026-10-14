@@ -40,7 +40,7 @@ void fractionToDisplayString           (calcRegister_t regist, char *displayStri
 void realToSci(real_t* num, char* dispString);
 
 #define noBaseOverride 0
-void shortIntegerToDisplayString       (calcRegister_t regist, char *displayString, bool_t determineFont, uint8_t baseOverride);
+void shortIntegerToDisplayString       (calcRegister_t regist, char *displayString, bool_t determineFont, uint8_t baseOverride, int16_t maxWidth);
 #define toRemoveTrailingRadix true
 void longIntegerRegisterToRealDisplayString     (calcRegister_t regist, char *displayString, int32_t strLg, int16_t maxWidth, int32_t minimum, bool_t removeTrailingRadix);
 void realSCIToDisplayString            (const real_t *work, char *displayString, int16_t digitsToDisplay, bool_t frontSpace, uint8_t *bcd, int16_t maxDigits);
@@ -57,5 +57,7 @@ void supNumberToDisplayString          (int32_t supNumber, char *displayString, 
 void subNumberToDisplayString          (int32_t subNumber, char *displayString, char *displayValueString);
 void longIntegerToAllocatedString      (const longInteger_t lgInt, char *str, int32_t strLen);
 void fnC47Show                         (uint16_t fnShow_param);    //JMSHOW
+void storeShowStatus                   (void);                     //JM keep the SHOW paging of the page now on screen
+void recallShowStatus                  (void);                     //JM put it back, so fnC47Show(ITM_NOP) repaints that same page
 
 #endif // !DISPLAY_H

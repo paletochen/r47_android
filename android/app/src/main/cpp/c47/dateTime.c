@@ -6,6 +6,10 @@
  ***********************************************/
 
 #include "c47.h"
+#include <sys/time.h>
+#if defined(WIN32)
+  #include <Windows.h>
+#endif // WIN32
 
 void fnSetDateFormat(uint16_t dateFormat) {
   switch(dateFormat) {
@@ -69,7 +73,7 @@ bool_t checkDateArgument(calcRegister_t regist, real34_t *jd) {
     }
 
     default: {
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "data type %s cannot be converted to date!", getRegisterDataTypeName(REGISTER_X, false, false));
         moreInfoOnError("In function checkDateArgument:", errorMessage, NULL, NULL);
@@ -326,7 +330,7 @@ uint32_t getJulianDayOfWeek(calcRegister_t regist) {
 
 void checkDateRange(const real34_t *date34) {
   if(real34CompareGreaterEqual(date34, const34_maxDate) || real34IsNegative(date34)) {
-    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "value of date type is too large");
       moreInfoOnError("In function checkDateRange:", errorMessage, NULL, NULL);
@@ -371,7 +375,10 @@ void hmmssInRegisterToSeconds(calcRegister_t regist) {
   real34Copy(REGISTER_REAL34_DATA(regist), &real34);
   reallocateRegister(regist, dtTime, 0, amNone);
   hmmssToSeconds(&real34, REGISTER_REAL34_DATA(regist));
-  checkTimeRange(REGISTER_REAL34_DATA(regist));
+  // The range compare reads a NaN as too large. A NaN passes through.
+  if(!real34IsNaN(REGISTER_REAL34_DATA(regist))) {
+    checkTimeRange(REGISTER_REAL34_DATA(regist));
+  }
 }
 
 void checkTimeRange(const real34_t *time34) {
@@ -379,7 +386,7 @@ void checkTimeRange(const real34_t *time34) {
 
   real34CopyAbs(time34, &t);
   if(real34CompareGreaterEqual(&t, const34_maxTime)) {
-    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "value of time type is too large");
       moreInfoOnError("In function checkTimeRange:", errorMessage, NULL, NULL);
@@ -457,6 +464,10 @@ void fnJulianToDateTime(uint16_t unusedButMandatoryParameter) {
       realToIntegralValue(&x, &x, DEC_ROUND_HALF_UP, &ctxtReal39);   // round (3600*24*1000*(FP))
       realDivide  (&x, const_86400, &x, &ctxtReal39);                // (round (3600*24*1000*(FP))) / (3600*24)
       x.exponent -= 3;                                               // x = x / 1000
+      if(realCompareGreaterEqual(&x, const_1)) {                     // rounding to 0.001s reaches a full day: zero the time and carry one day into the date
+        realSetZero(&x);
+        real34Add(REGISTER_REAL34_DATA(REGISTER_Y), const34_1, REGISTER_REAL34_DATA(REGISTER_Y));
+      }
 
       //Convert date to Y
       julianDayToInternalDate(REGISTER_REAL34_DATA(REGISTER_Y), &date);
@@ -472,7 +483,7 @@ void fnJulianToDateTime(uint16_t unusedButMandatoryParameter) {
     }
 
     default: {
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "data type %s cannot be converted to date!", getRegisterDataTypeName(REGISTER_X, false, false));
         moreInfoOnError("In function fnJulianToDateTime:", errorMessage, NULL, NULL);
@@ -568,7 +579,7 @@ void fnSetFirstGregorianDay(uint16_t param) {
     temporaryInformation = TI_DISP_JULIAN;
   }
   else {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       if(getRegisterDataType(REGISTER_X) == dtDate) {
         sprintf(errorMessage, "data type %s is disabled as input because of complicated Julian-Gregorian issue!", getRegisterDataTypeName(REGISTER_X, false, false));
@@ -634,7 +645,7 @@ void fnXToDateRegister(calcRegister_t regist) {
     }
 
     default: {
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, regist);
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "data type %s cannot be converted to date!", getRegisterDataTypeName(regist, false, false));
         moreInfoOnError("In function fnXToDate:", errorMessage, NULL, NULL);
@@ -768,7 +779,7 @@ void fnToDate(uint16_t unusedButMandatoryParameter) {
       }
 
       default: {
-        displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+        displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           sprintf(errorMessage, "data type %s cannot be converted to a real34!", getRegisterDataTypeName(r[i], false, false));
           moreInfoOnError("In function fnToDate:", errorMessage, NULL, NULL);
@@ -780,7 +791,7 @@ void fnToDate(uint16_t unusedButMandatoryParameter) {
   }
 
   if(!isValidDay(&y, &m, &d)) {
-      displayCalcErrorMessage(ERROR_BAD_TIME_OR_DATE_INPUT, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_BAD_TIME_OR_DATE_INPUT, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function fnToDate:", "Invalid date input like 30 Feb.", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -819,7 +830,7 @@ void fnToHr(uint16_t unusedButMandatoryParameter) {
     }
 
     default: {
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "data type %s cannot be converted to a real34!", getRegisterDataTypeName(REGISTER_X, false, false));
         moreInfoOnError("In function fnToHr:", errorMessage, NULL, NULL);
@@ -856,7 +867,7 @@ void fnHMStoTM(uint16_t unusedButMandatoryParameter) {
         }
 
         default: {
-          displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+          displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             sprintf(errorMessage, "data type %s cannot be converted to time!", getRegisterDataTypeName(REGISTER_X, false, false));
             moreInfoOnError("In function fnHMStoTM:", errorMessage, NULL, NULL);
@@ -906,7 +917,7 @@ void fnHRtoTM(uint16_t unusedButMandatoryParameter) {
         }
 
         default: {
-          displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+          displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             sprintf(errorMessage, "data type %s cannot be converted to time!", getRegisterDataTypeName(REGISTER_X, false, false));
             moreInfoOnError("In function fnHRtoTM:", errorMessage, NULL, NULL);
@@ -915,9 +926,12 @@ void fnHRtoTM(uint16_t unusedButMandatoryParameter) {
           }
       }
   #pragma GCC diagnostic pop
-  checkTimeRange(REGISTER_REAL34_DATA(REGISTER_X));
-  if(lastErrorCode != 0) {
-    undo();
+  // The range compare reads a NaN as too large. A NaN passes through.
+  if(!real34IsNaN(REGISTER_REAL34_DATA(REGISTER_X))) {
+    checkTimeRange(REGISTER_REAL34_DATA(REGISTER_X));
+    if(lastErrorCode != 0) {
+      undo();
+    }
   }
 }
 
@@ -951,19 +965,27 @@ void fnDate(uint16_t unusedButMandatoryParameter) {
 
 void fnTime(uint16_t unusedButMandatoryParameter) {
   real34_t time34;
-
+  uint32_t centiseconds;
   #if defined(DMCP_BUILD)
     tm_t timeInfo;
     dt_t dateInfo;
 
     rtc_read(&timeInfo, &dateInfo);
-    uInt32ToReal34((uint32_t)timeInfo.hour * 3600u + (uint32_t)timeInfo.min * 60u + (uint32_t)timeInfo.sec, &time34);
+    centiseconds = (((((uint32_t)timeInfo.hour * 60u) + (uint32_t)timeInfo.min) * 60u) + (uint32_t)timeInfo.sec) * 100u + (uint32_t)timeInfo.csec;
   #else // !DMCP_BUILD
-    time_t epoch = time(NULL);
-    struct tm *timeInfo = localtime(&epoch);
-
-    uInt32ToReal34((uint32_t)timeInfo->tm_hour * 3600u + (uint32_t)timeInfo->tm_min * 60u + (uint32_t)timeInfo->tm_sec, &time34);
+    #if defined(WIN32)
+      SYSTEMTIME localTime;
+      GetLocalTime(&localTime);
+      centiseconds = (((((uint32_t)localTime.wHour * 60u) + (uint32_t)localTime.wMinute) * 60u) + (uint32_t)localTime.wSecond) * 100u + (uint32_t)(localTime.wMilliseconds / 10u);
+    #else // !WIN32
+      struct timeval now;
+      gettimeofday(&now, 0);
+      struct tm *timeInfo = localtime(&now.tv_sec);
+      centiseconds = (((((uint32_t)timeInfo->tm_hour * 60u) + (uint32_t)timeInfo->tm_min) * 60u) + (uint32_t)timeInfo->tm_sec) * 100u + (uint32_t)(now.tv_usec / 1e4);
+    #endif // WIN32
   #endif // DMCP_BUILD
+  uInt32ToReal34(centiseconds, &time34);
+  real34Divide(&time34, const34_100, &time34);
 
   liftStack();
   reallocateRegister(REGISTER_X, dtTime, 0, amNone);
@@ -999,7 +1021,7 @@ void fnSetTime(uint16_t unusedButMandatoryParameter) {
 
     if(getRegisterDataType(REGISTER_X) == dtTime) {
       if(real34IsNegative(REGISTER_REAL34_DATA(REGISTER_X)) || real34IsNaN(REGISTER_REAL34_DATA(REGISTER_X)) || real34CompareGreaterEqual(REGISTER_REAL34_DATA(REGISTER_X), const34_86400)) {
-        displayCalcErrorMessage(ERROR_BAD_TIME_OR_DATE_INPUT, ERR_REGISTER_LINE, REGISTER_X);
+        displayCalcErrorMessage(ERROR_BAD_TIME_OR_DATE_INPUT, ERR_REGISTER_LINE);
       }
       else {
         rtc_read(&timeInfo, &dateInfo);
@@ -1015,7 +1037,7 @@ void fnSetTime(uint16_t unusedButMandatoryParameter) {
     }
     else if(getRegisterDataType(REGISTER_X) == dtReal34) {
       if(real34IsNegative(REGISTER_REAL34_DATA(REGISTER_X)) || real34IsNaN(REGISTER_REAL34_DATA(REGISTER_X)) || real34CompareGreaterEqual(REGISTER_REAL34_DATA(REGISTER_X), const34_24)) {
-        displayCalcErrorMessage(ERROR_BAD_TIME_OR_DATE_INPUT, ERR_REGISTER_LINE, REGISTER_X);
+        displayCalcErrorMessage(ERROR_BAD_TIME_OR_DATE_INPUT, ERR_REGISTER_LINE);
       }
       else {
         rtc_read(&timeInfo, &dateInfo);
@@ -1030,12 +1052,12 @@ void fnSetTime(uint16_t unusedButMandatoryParameter) {
           rtc_write(&timeInfo, &dateInfo);
         }
         else {
-          displayCalcErrorMessage(ERROR_BAD_TIME_OR_DATE_INPUT, ERR_REGISTER_LINE, REGISTER_X);
+          displayCalcErrorMessage(ERROR_BAD_TIME_OR_DATE_INPUT, ERR_REGISTER_LINE);
         }
       }
     }
     else {
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
     }
   #endif // DMCP_BUILD
 }
@@ -1086,6 +1108,13 @@ void fnGetWeekOfYearRule(uint16_t unusedButMandatoryParameter) {
 }
 
 
+#if defined(TESTSUITE_BUILD)
+  bool_t testClockFrozen = false;
+  // Freeze on 2000-01-01 12:34 fixed, avoid changes by host timezone
+  static const struct tm testClock = { .tm_sec = 0, .tm_min = 34, .tm_hour = 12, .tm_mday = 1, .tm_mon = 0, .tm_year = 100, .tm_wday = 6, .tm_yday = 0, .tm_isdst = 0 };
+#endif // TESTSUITE_BUILD
+
+
 void getDateString(char *dateString) {
   #if defined(DMCP_BUILD)
     tm_t timeInfo;
@@ -1123,6 +1152,11 @@ void getDateString(char *dateString) {
   #else // !DMCP_BUILD
     time_t epoch = time(NULL);
     struct tm *timeInfo = localtime(&epoch);
+    #if defined(TESTSUITE_BUILD)
+      if(testClockFrozen) {
+        timeInfo = (struct tm *)&testClock;
+      }
+    #endif // TESTSUITE_BUILD
 
     // For the format string : man strftime
     if(!getSystemFlag(FLAG_TDM24)) { // time format = 12H ==> 2 digit year
@@ -1179,6 +1213,11 @@ void getTimeString(char *timeString) {
   #else // !DMCP_BUILD
     time_t epoch = time(NULL);
     struct tm *timeInfo = localtime(&epoch);
+    #if defined(TESTSUITE_BUILD)
+      if(testClockFrozen) {
+        timeInfo = (struct tm *)&testClock;
+      }
+    #endif // TESTSUITE_BUILD
 
     // For the format string : man strftime
     if(getSystemFlag(FLAG_TDM24)) { // time format = 24H
@@ -1210,6 +1249,11 @@ void getWeekOfYearString(char *weekOfYearString) {
   #else // !DMCP_BUILD
     time_t epoch = time(NULL);
     struct tm *timeInfo = localtime(&epoch);
+    #if defined(TESTSUITE_BUILD)
+      if(testClockFrozen) {
+        timeInfo = (struct tm *)&testClock;
+      }
+    #endif // TESTSUITE_BUILD
 
     uInt32ToReal34(timeInfo->tm_year + 1900, &y);
     uInt32ToReal34(timeInfo->tm_mon + 1, &m);

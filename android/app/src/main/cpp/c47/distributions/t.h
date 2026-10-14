@@ -12,8 +12,10 @@
   void fnT_R       (uint16_t unusedButMandatoryParameter);
   void fnT_I       (uint16_t unusedButMandatoryParameter);
 
+  #if defined(OPTION_DIST_B)
   void WP34S_Pdf_T (const real_t *x, const real_t *nu, real_t *res, realContext_t *realContext);
   void WP34S_Cdfu_T(const real_t *x, const real_t *nu, real_t *res, realContext_t *realContext);
   void WP34S_Cdf_T (const real_t *x, const real_t *nu, real_t *res, realContext_t *realContext);
   void WP34S_Qf_T  (const real_t *x, const real_t *nu, real_t *res, realContext_t *realContext);
+  #endif // OPTION_DIST_B
 #endif // !T_H

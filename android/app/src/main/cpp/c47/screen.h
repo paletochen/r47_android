@@ -5,7 +5,14 @@
 #define SCREEN_H
 
   extern bool_t blockMonitoring;
-  bool_t   registerFMA(calcRegister_t regist, real_t* tmp1, real_t* tmp2, real34_t* tmp3, angularMode_t* angle, realContext_t *c);
+  extern bool_t shiftOnTline;                                                                                     // set where the shift indicator is on the T line
+  void     updateShiftOnTline                 (void);
+
+  #define shiftOffset        17                                                                                   // room for the shift indicator, which is 15 px wide
+  #define noShiftOffset       2                                                                                   // the plain left indent, where the indicator is not on the line
+
+  bool_t   registerFMA(calcRegister_t regist, real_t *tmp1, real_t *tmp2, real_t *tmp4, real34_t *tmp3, angularMode_t *angle, realContext_t *c);
+  bool_t   xfnViewValue(calcRegister_t regist, real34_t *value, angularMode_t *angle);
 
   void     setLastintegerBasetoZero           (void);
   extern bool_t   doRefreshSoftMenu;                                                                              //dr
@@ -27,6 +34,11 @@
 
   void     fnScreenDump                       (uint16_t unusedButMandatoryParameter);
   void     fnSNAP                             (uint16_t unusedButMandatoryParameter);
+  #if defined(PC_BUILD)
+    void   fnSNAPMENU                         (uint16_t unusedButMandatoryParameter);
+    void   fnSNAPXBold                        (uint16_t unusedButMandatoryParameter);
+    void   fnSNAPXNonBold                     (uint16_t unusedButMandatoryParameter);
+  #endif // PC_BUILD
 
 
   void       fnClLcd                          (uint16_t clear_mode);
@@ -34,6 +46,11 @@
   void       fnPixel                          (uint16_t unusedButMandatoryParameter);
   void       fnPoint                          (uint16_t unusedButMandatoryParameter);
   void       fnAGraph                         (uint16_t regist);
+  void       fnAText                          (uint16_t regist);
+  #if defined(OPTION_ATEXT_FONTS)
+    bool_t   graFontValid                     (uint32_t code);
+    void     graFontCheck                     (void);
+  #endif // OPTION_ATEXT_FONTS
   void       insertAlphaCursor                (uint16_t startAt);
 
   void       drawSinglePixelFullWidthLine     (int y);
@@ -94,11 +111,11 @@
   #if defined(MONITOR_CLRSCR)
     #define clearScreen(cnt)                        do { lcd_fill_rect(0,  0, SCREEN_WIDTH, 240, LCD_SET_VALUE); forceSBupdate(); printf("CLEARFULLSCREEN Macro %u\n",         (uint16_t)cnt);} while(0)  //set last to undefined to force first refresh condition to be true
     #define clearScreenExcludingStatusBar(cnt)      do { lcd_fill_rect(0, 20, SCREEN_WIDTH, 220, LCD_SET_VALUE);                  printf("CLEARFULLSCREEN EXCL SB Macro %u\n", (uint16_t)cnt);} while(0)  //set last to undefined to force first refresh condition to be true
-    #define clearScreenStatusBar(cnt)               do { lcd_fill_rect(0,  0, calcMode == CM_GRAPH ? widthGraphInfoBox : SCREEN_WIDTH, 20,  LCD_SET_VALUE); forceSBupdate(); printf("CLEARSB Macro %u\n", (uint16_t)cnt);} while(0)  //set last to undefined to force first refresh condition to be true
+    #define clearScreenStatusBar(cnt)               do { lcd_fill_rect(0,  0, GRAPHMODE ? widthGraphInfoBox : SCREEN_WIDTH, 20,  LCD_SET_VALUE); forceSBupdate(); printf("CLEARSB Macro %u\n", (uint16_t)cnt);} while(0)  //set last to undefined to force first refresh condition to be true
   #else //!MONITOR_CLRSCR
     #define clearScreen(cnt)                        do { lcd_fill_rect(0,  0, SCREEN_WIDTH, 240, LCD_SET_VALUE); forceSBupdate();} while(0)  //set last to undefined to force first refresh condition to be true
     #define clearScreenExcludingStatusBar(cnt)      do { lcd_fill_rect(0, 20, SCREEN_WIDTH, 220, LCD_SET_VALUE);                 } while(0)  //set last to undefined to force first refresh condition to be true
-    #define clearScreenStatusBar(cnt)               do { lcd_fill_rect(0,  0, calcMode == CM_GRAPH ? widthGraphInfoBox : SCREEN_WIDTH, 20,  LCD_SET_VALUE); forceSBupdate();} while(0)  //set last to undefined to force first refresh condition to be true
+    #define clearScreenStatusBar(cnt)               do { lcd_fill_rect(0,  0, GRAPHMODE ? widthGraphInfoBox : SCREEN_WIDTH, 20,  LCD_SET_VALUE); forceSBupdate();} while(0)  //set last to undefined to force first refresh condition to be true
   #endif //MONITOR_CLRSCR
 
 
@@ -155,6 +172,7 @@
   bool_t   progressHalfSecUpdate_Integer      (uint8_t mode, char *txt, int32_t loop, bool_t clearZ, bool_t clearT, bool_t disp);
   bool_t   monitorExit                        (int32_t *loop, char* str);
   bool_t   checkHalfSec                       (void);
+  void     resetHalfSecTicks                  (void);
 
   void     refreshScreen                      (uint16_t source);
   bool_t   showingProbMenu                    (void);
@@ -219,6 +237,14 @@
   void     showFunctionName                   (int16_t itm, int16_t delayInMs, const char * arg);
 
   /**
+   * Draws a text in the function name box straight to the LCD and leaves lcd_buffer as it is.
+   * A text too wide for the screen stops where an ellipsis still fits, and the ellipsis ends it. hideFunctionName takes the box down.
+   *
+   * \param[in] str  Text to draw
+   */
+  void     drawFuncName                       (const char *str);
+
+  /**
    * Hides the function name.
    * The function name in the upper left corner of the T register line is hidden
    * and the counter is cleared.
@@ -247,11 +273,12 @@
    */
   void     refreshRegisterLine                (calcRegister_t regist);
 
-  void     viewRegName2(char *prefix, int16_t *prefixWidth); //register name + ":" for SHOW
+  void     viewRegName2(char *prefix); //register name + ":" for SHOW
   void     displayNim                         (const char *nim, const char *lastBase, int16_t wLastBaseNumeric, int16_t wLastBaseStandard);
   void     clearTamBuffer                     (void);
   void     clearShiftState                    (void);
   void     showShiftStateF                    (void);
   void     showShiftStateG                    (void);
   void     displayShiftAndTamBuffer           (void);
+  extern char diskInfoStr[256];
 #endif // !SCREEN_H

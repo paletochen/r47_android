@@ -7,15 +7,19 @@
 #if !defined(CHI2_H)
   #define CHI2_H
 
+  #if defined(OPTION_DIST_B)
   bool_t checkRegisterNoFP(const real_t *reg);
+  #endif // OPTION_DIST_B
 
   void fnChi2P        (uint16_t unusedButMandatoryParameter);
   void fnChi2L        (uint16_t unusedButMandatoryParameter);
   void fnChi2R        (uint16_t unusedButMandatoryParameter);
   void fnChi2I        (uint16_t unusedButMandatoryParameter);
 
+  #if defined(OPTION_DIST_B)
   void WP34S_Pdf_Chi2 (const real_t *x, const real_t *k, real_t *res, realContext_t *realContext);
   void WP34S_Cdfu_Chi2(const real_t *x, const real_t *k, real_t *res, realContext_t *realContext);
   void WP34S_Cdf_Chi2 (const real_t *x, const real_t *k, real_t *res, realContext_t *realContext);
   void WP34S_Qf_Chi2  (const real_t *x, const real_t *k, real_t *res, realContext_t *realContext);
+  #endif // OPTION_DIST_B
 #endif // !CHI2_H

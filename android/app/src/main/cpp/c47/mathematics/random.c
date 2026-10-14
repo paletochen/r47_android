@@ -131,7 +131,7 @@ static void doIntRandomI(void) {
 
   longIntegerSubtract(maxi, mini, regX);
   if(longIntegerCompareUInt(regX, 0xFFFFFFFE) >= 0) { // 2^32 - 2
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function doIntRandomI:", "cannot RANI# with |X - Y| >= 2^32", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)

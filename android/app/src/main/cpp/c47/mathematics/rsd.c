@@ -78,7 +78,7 @@ void roundToSignificantDigits(const real_t *source, real_t *destination, uint16_
  * \return void
  ***********************************************/
 void rsdError(uint16_t unusedButMandatoryParameter) {
-  displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+  displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
   #if (EXTRA_INFO_ON_CALC_ERROR == 1)
     sprintf(errorMessage, "cannot calculate RSD for %s", getRegisterDataTypeName(REGISTER_X, true, false));
     moreInfoOnError("In function rsdError:", errorMessage, NULL, NULL);

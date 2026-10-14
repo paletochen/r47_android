@@ -10,6 +10,6 @@
   void fnExp   (uint16_t unusedButMandatoryParameter);
 
   void realExp(const real_t *rhs, real_t *res, realContext_t *set);
-  bool_t realExpLimitCheck(const real_t *x, real_t *res, const real_t *zero);
+  bool_t realExpLimitCheck(const real_t *x, real_t *res, const real_t *zeroOrNegativeOne);
   void expComplex(const real_t *real, const real_t *imag, real_t *resReal, real_t *resImag, realContext_t *realContext);
 #endif // !EXP_H

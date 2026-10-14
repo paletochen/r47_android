@@ -12,13 +12,13 @@ int32_t compareChar(const char *char1, const char *char2) {
 
 
 #define GLYPH_TO_CHAR_CODE(x) (((uint16_t)((uint8_t)(x[0])) << 8) + (uint8_t)(x[1]))
+#define UNSUBRANGE(a, b, c) { GLYPH_TO_CHAR_CODE(a), GLYPH_TO_CHAR_CODE(b) - GLYPH_TO_CHAR_CODE(a) + 1, c }
 
-static TO_QSPI struct {
+static TO_QSPI const struct {
   uint16_t low;
   uint8_t num;
   char base;
 } unSupSubRanges[] = {
-#define UNSUBRANGE(a, b, c) { GLYPH_TO_CHAR_CODE(a), GLYPH_TO_CHAR_CODE(b) - GLYPH_TO_CHAR_CODE(a) + 1, c }
   UNSUBRANGE(STD_SUP_A, STD_SUP_Z, 'A'),
   UNSUBRANGE(STD_SUP_a, STD_SUP_z, 'a'),
   UNSUBRANGE(STD_SUP_0, STD_SUP_1, '0'),
@@ -26,10 +26,11 @@ static TO_QSPI struct {
   UNSUBRANGE(STD_SUB_A, STD_SUB_Z, 'A'),
   UNSUBRANGE(STD_SUB_a, STD_SUB_z, 'a'),
   UNSUBRANGE(STD_SUB_0, STD_SUB_9, '0')
-#undef UNSUBRANGE
 };
 
-static TO_QSPI uint16_t unSupSubStruckTable[] = {
+#undef UNSUBRANGE
+
+static TO_QSPI const uint16_t unSupSubStruckTable[] = {
   GLYPH_TO_CHAR_CODE(STD_SUP_PLUS),     (uint16_t)'+',
   GLYPH_TO_CHAR_CODE(STD_SUP_MINUS),    (uint16_t)'-',
   GLYPH_TO_CHAR_CODE(STD_SUP_INFINITY), GLYPH_TO_CHAR_CODE(STD_INFINITY),
@@ -50,6 +51,26 @@ static TO_QSPI uint16_t unSupSubStruckTable[] = {
   GLYPH_TO_CHAR_CODE(STD_RIGHT_ARROW), (uint16_t)'>',
 };
 
+// Space-like glyphs folded to a plain space so a name matches whichever space kind it was typed or stored with. Extend as needed.
+static TO_QSPI const uint16_t spaceLikeChars[] = {
+  GLYPH_TO_CHAR_CODE(STD_SPACE_EM),
+  GLYPH_TO_CHAR_CODE(STD_SPACE_3_PER_EM),
+  GLYPH_TO_CHAR_CODE(STD_SPACE_4_PER_EM),
+  GLYPH_TO_CHAR_CODE(STD_SPACE_6_PER_EM),
+  GLYPH_TO_CHAR_CODE(STD_SPACE_FIGURE),
+  GLYPH_TO_CHAR_CODE(STD_SPACE_PUNCTUATION),
+  GLYPH_TO_CHAR_CODE(STD_SPACE_HAIR)
+};
+
+static uint16_t _charCodeFoldSpace(uint16_t charCode) {
+  for(unsigned int i = 0; i < nbrOfElements(spaceLikeChars); i++) {
+    if(charCode == spaceLikeChars[i]) {
+      return (uint16_t)' ';
+    }
+  }
+  return charCode;
+}
+
 static uint16_t _charCodeUnSupSubStruck(uint16_t charCode) {
   for(unsigned int i = 0; i < nbrOfElements(unSupSubRanges); i++) {
     if(charCode >= unSupSubRanges[i].low && charCode < unSupSubRanges[i].low + unSupSubRanges[i].num) {
@@ -66,6 +87,53 @@ static uint16_t _charCodeUnSupSubStruck(uint16_t charCode) {
 }
 #undef GLYPH_TO_CHAR_CODE
 
+// Decodes the glyph of `name` at *pos, folds sub-, super-script and struck forms to their plain character, and advances *pos past it: a high-bit lead byte pulls in the
+// following byte, and a lead byte whose follower is the terminator is a truncated final glyph advancing one byte. Matches the CMP_NAME grammar of compareString().
+static uint16_t nextFoldedNameCharCode(const char *name, int16_t *pos) {
+  uint16_t charCode = (uint8_t)name[*pos];
+  if(charCode & 0x80) {
+    charCode = (charCode << 8) + (uint8_t)name[*pos + 1];
+    *pos += ((uint8_t)name[*pos + 1] == 0) ? 1 : 2;
+  }
+  else {
+    *pos += 1;
+  }
+  return _charCodeUnSupSubStruck(charCode);
+}
+
+
+// Folds `name` into its CMP_NAME character codes, one per glyph, writing up to maxGlyphs. Returns the glyph count, or -1 when the name has more glyphs than that.
+int32_t foldNameToCharCodes(const char *name, uint16_t *folded, int32_t maxGlyphs) {
+  int32_t count = 0;
+  int16_t pos = 0;
+
+  while((uint8_t)name[pos] != 0) {
+    if(count >= maxGlyphs) {
+      return -1;
+    }
+    folded[count++] = nextFoldedNameCharCode(name, &pos);
+  }
+  return count;
+}
+
+
+// True exactly when compareString(candidate, original, CMP_NAME) == 0, with `original` pre-folded by foldNameToCharCodes() into `folded` of length foldedLength.
+bool_t nameEqualsPrefolded(const char *candidate, const uint16_t *folded, int32_t foldedLength) {
+  int32_t count = 0;
+  int16_t pos = 0;
+
+  while((uint8_t)candidate[pos] != 0) {
+    if(count >= foldedLength) {
+      return false;
+    }
+    if(nextFoldedNameCharCode(candidate, &pos) != folded[count++]) {
+      return false;
+    }
+  }
+  return count == foldedLength;
+}
+
+
 int32_t compareString(const char *stra, const char *strb, int32_t comparisonType) {
   int32_t lga, lgb, i;
   int16_t posa, posb, ranka, rankb;
@@ -75,7 +143,7 @@ int32_t compareString(const char *stra, const char *strb, int32_t comparisonType
   lgb = stringGlyphLength(strb);
 
   // Compare the string using charCode only
-  if(comparisonType == CMP_BINARY || comparisonType == CMP_NAME) {
+  if(comparisonType == CMP_BINARY || comparisonType == CMP_NAME || comparisonType == CMP_COMMAND) {
     posa = 0;
     posb = 0;
     for(i=0; i<min(lga, lgb); i++) {
@@ -83,8 +151,11 @@ int32_t compareString(const char *stra, const char *strb, int32_t comparisonType
       if(charCode >= 0x80) {
         charCode = (charCode << 8) + (uint8_t)stra[posa + 1];
       }
-      if(comparisonType == CMP_NAME) {
+      if(comparisonType == CMP_NAME || comparisonType == CMP_COMMAND) {
         charCode = _charCodeUnSupSubStruck(charCode);
+      }
+      if(comparisonType == CMP_COMMAND) {
+        charCode = _charCodeFoldSpace(charCode);
       }
       ranka = charCode;
 
@@ -92,8 +163,11 @@ int32_t compareString(const char *stra, const char *strb, int32_t comparisonType
       if(charCode >= 0x80) {
         charCode = (charCode << 8) + (uint8_t)strb[posb + 1];
       }
-      if(comparisonType == CMP_NAME) {
+      if(comparisonType == CMP_NAME || comparisonType == CMP_COMMAND) {
         charCode = _charCodeUnSupSubStruck(charCode);
+      }
+      if(comparisonType == CMP_COMMAND) {
+        charCode = _charCodeFoldSpace(charCode);
       }
       rankb = charCode;
 

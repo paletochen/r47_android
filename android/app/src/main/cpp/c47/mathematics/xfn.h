@@ -21,6 +21,7 @@ void C47radSinCosTanTaylor(real_t *an, bool_t swapTemp, real_t *sinOut, real_t *
 
 bool_t registerFMAOutputString(calcRegister_t regist, char* prefix, char *displayString);
 bool_t registerFMAOutputPlainString(calcRegister_t regist, char* prefix, char *displayString);
+bool_t registerMultiplyAddToReal34(calcRegister_t regist, real34_t *result, realContext_t *c);
 bool_t getAngleModeForRegister3r(calcRegister_t registerNo, angularMode_t *angleMode );
 void   processResultantLongReal(uint16_t registerNo, int function, int functionType, real_t *paramX, real_t *paramY, real_t *paramTemp, angularMode_t *angleMode, angularMode_t *tmpAngle);
 

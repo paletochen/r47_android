@@ -12,8 +12,10 @@
   void fnWeibullR     (uint16_t unusedButMandatoryParameter);
   void fnWeibullI     (uint16_t unusedButMandatoryParameter);
 
+  #if defined(OPTION_DIST_B)
   void WP34S_Pdf_Weib (const real_t *x, const real_t *b, const real_t *t, real_t *res, realContext_t *realContext);
   void WP34S_Cdfu_Weib(const real_t *x, const real_t *b, const real_t *t, real_t *res, realContext_t *realContext);
   void WP34S_Cdf_Weib (const real_t *x, const real_t *b, const real_t *t, real_t *res, realContext_t *realContext);
   void WP34S_Qf_Weib  (const real_t *x, const real_t *b, const real_t *t, real_t *res, realContext_t *realContext);
+  #endif // OPTION_DIST_B
 #endif // !WEIBULL_H

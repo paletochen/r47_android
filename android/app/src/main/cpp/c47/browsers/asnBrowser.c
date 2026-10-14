@@ -10,14 +10,15 @@
 #define AsnDispShortForm (previousCalcMode == CM_AIM || previousCalcMode == CM_EIM || tam.alpha)
 #define AsnDisplayUSER   (fnAsnDisplayUSER ^ (AsnDispShortForm & !getSystemFlag(FLAG_USER)))
 
-  #if !defined(SAVE_SPACE_DM42_8ASN)
-  TO_QSPI const int      KEY_X_5[6] = {-1, 80, 160, 240, 320, 400};
+  #if defined(OPTION_ASNBROWSER)
+  #define ASN_KEY_NAME_LENGTH 24                               // The longest itemSoftmenuName is 15 bytes and the +NRM key wraps it in brackets, so 18 are needed and the rest is margin.
+  TO_QSPI const int16_t KEY_X_5[6] = {-1, 80, 160, 240, 320, 400};
   static void fnAsnDisplay(uint8_t page) {                // Heavily modified by JM from the original fnShow
   #define YOFF 32
     int16_t x1, x2, yy;
     int kk = 0;
     int16_t key;
-    char Name[16];
+    char Name[ASN_KEY_NAME_LENGTH];
     yy = 1;
     if(previousCalcMode == CM_AIM || previousCalcMode == CM_EIM || tam.alpha) {
       if(currentAsnScr < 4) {
@@ -94,14 +95,14 @@
         }
       }
       else {
-        char *funcParam = (char *)getNthString((uint8_t *)userKeyLabel, key * 6 + (page-1));
+        char *funcParam = (char *)getUserKeyLabelString(key * 6 + (page-1));
         if((funcParam[0] != 0) && ((strcmp(Name, "DYNMNU") == 0) || (strcmp(Name, "XEQ") == 0) || (strcmp(Name, "RCL") == 0)))  {
-          strcpy(Name, (char *)getNthString((uint8_t *)userKeyLabel, key * 6 + (page-1)));       // name of a user menu, program or variable assigned to a key
+          strcpy(Name, (char *)getUserKeyLabelString(key * 6 + (page-1)));       // name of a user menu, program or variable assigned to a key
         }
       }
 
 
-      char tmp3[20];
+      char tmp3[ASN_KEY_NAME_LENGTH];
       tmp3[0] = 0;
       if(Norm_Key_00_used) {
         stringCopy(tmp3                         , "[");
@@ -134,11 +135,11 @@
 
     temporaryInformation = TI_NO_INFO;
   }
-  #endif // !SAVE_SPACE_DM42_8ASN
+  #endif // OPTION_ASNBROWSER
 
 
 void fnAsnViewer(uint16_t unusedButMandatoryParameter) {
-  #if !defined(SAVE_SPACE_DM42_8ASN)
+  #if defined(OPTION_ASNBROWSER)
     hourGlassIconEnabled = false;
     if(calcMode != CM_ASN_BROWSER) {
       previousCalcMode = calcMode;
@@ -148,5 +149,5 @@ void fnAsnViewer(uint16_t unusedButMandatoryParameter) {
       return;
     }
   fnAsnDisplay(currentAsnScr);
-  #endif // !SAVE_SPACE_DM42_8ASN
+  #endif // OPTION_ASNBROWSER
 }

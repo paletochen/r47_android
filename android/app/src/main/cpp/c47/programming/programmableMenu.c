@@ -7,12 +7,6 @@
 
 #include "c47.h"
 
-static void _getStringLabelOrVariableName(uint8_t *stringAddress) {
-  uint8_t stringLength = *(uint8_t *)(stringAddress++);
-  xcopy(tmpStringLabelOrVariableName, stringAddress, stringLength);
-  tmpStringLabelOrVariableName[stringLength] = 0;
-}
-
 static uint16_t _indirectRegister(uint8_t *paramAddress) {
   uint8_t opParam = *(uint8_t *)paramAddress;
   if(opParam <= LAST_LOCAL_REGISTER_IN_KS_CODE) { // Local register from .00 to .98
@@ -29,7 +23,7 @@ static uint16_t _indirectRegister(uint8_t *paramAddress) {
 
 static uint16_t _indirectVariable(uint8_t *stringAddress) {
   calcRegister_t regist;
-  _getStringLabelOrVariableName(stringAddress);
+  getStringLabelOrVariableName(stringAddress);
   regist = findNamedVariable(tmpStringLabelOrVariableName);
   if(regist != INVALID_VARIABLE) {
       int16_t realParam = indirectAddressing(regist, INDPM_REGISTER, 0, 99, false);
@@ -38,7 +32,7 @@ static uint16_t _indirectVariable(uint8_t *stringAddress) {
       }
   }
   else {
-    displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "string '%s' is not a named variable", tmpStringLabelOrVariableName);
       moreInfoOnError("In function _indirectVariable:", errorMessage, NULL, NULL);
@@ -53,14 +47,14 @@ static uint16_t _get2ndParamOfKey(uint8_t *paramAddress) {
   if(opParam <= 109) { // Local label from 00 to 99 or from A to J
     return opParam;
   }
-  else if(opParam == STRING_LABEL_VARIABLE) {
-    _getStringLabelOrVariableName(paramAddress);
-    calcRegister_t label = findNamedLabel(tmpStringLabelOrVariableName);
+  else if((opParam == STRING_LABEL_VARIABLE) || (opParam == LOCAL_LABEL_VARIABLE)) {
+    getStringLabelOrVariableName(paramAddress);
+    calcRegister_t label = findNamedLabel(tmpStringLabelOrVariableName, opParam);
     if(label != INVALID_VARIABLE) {
       return label;
     }
     else {
-      displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "string '%s' is not a named label", tmpStringLabelOrVariableName);
         moreInfoOnError("In function _get2ndParamOfKey:", errorMessage, NULL, NULL);
@@ -85,6 +79,11 @@ void fnKeyGtoXeq(uint16_t keyNum) {
   uint8_t *secondParam = findKey2ndParam(currentStep);
   uint8_t *opParam;
   uint16_t label;
+
+  if(secondParam == NULL) { // findKey2ndParam returns NULL on a malformed/.END. step
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+    return;
+  }
 
   opParam = secondParam + 1;
   label = _get2ndParamOfKey(opParam);
@@ -182,7 +181,7 @@ static void _setCaption(uint16_t keyNum) {
       }
 
       case dtShortInteger: {
-        shortIntegerToDisplayString(stringRegister, tmpString, false, noBaseOverride);
+        shortIntegerToDisplayString(stringRegister, tmpString, false, noBaseOverride, SCREEN_WIDTH);
         break;
       }
 

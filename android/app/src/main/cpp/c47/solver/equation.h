@@ -23,6 +23,14 @@
   void   fnEqCalc       (uint16_t unusedButMandatoryParameter);
 
   /**
+   * Renders the real coefficient vector in X, highest degree first, to the polynomial in the variable X
+   * as equation text: a string in X that the equation parser accepts, ready for X.SWAP to post.
+   *
+   * \param[in]  unusedButMandatoryParameter uint16_t
+   */
+  void   fnVecToEqn     (uint16_t unusedButMandatoryParameter);
+
+  /**
    * Stores a formula. This function reallocates memory for the formula.
    *
    * \param[in]  equationId       Equation ID

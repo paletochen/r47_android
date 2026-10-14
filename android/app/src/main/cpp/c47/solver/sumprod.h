@@ -9,5 +9,6 @@
 
   void showProgressReal(const real_t *a, real_t *ai, bool_t cpx);
   void fnProgrammableSum    (uint16_t label);
+  void fnProgrammableSumInf (uint16_t label);
   void fnProgrammableProduct(uint16_t label);
 #endif // !SUMPROD_H

@@ -7,13 +7,16 @@
 
 #include "c47.h"
 
-#if !defined(SAVE_SPACE_DM42_12)
+#if !defined(OPTION_ZETA_BETA)
+  void fnBeta(uint16_t unusedButMandatoryParameter) {;}
+
+#else //OPTION_ZETA_BETA
 static bool_t complexBeta(real_t *xReal, real_t *xImag, real_t *yReal, real_t *yImag, real_t *rReal, real_t *rImag, realContext_t *realContext) {
   // Beta(x, y) := Gamma(x) * Gamma(y) / Gamma(x+y)
   real_t tReal, tImag;
 
   if(realCompareLessEqual(xReal, const_0)) {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "cannot calculate Beta of (%s, %s) with Re(x)<=0", getRegisterDataTypeName(REGISTER_Y, true, false), getRegisterDataTypeName(REGISTER_X, true, false));
       moreInfoOnError("In function complexBeta:", errorMessage, NULL, NULL);
@@ -21,7 +24,7 @@ static bool_t complexBeta(real_t *xReal, real_t *xImag, real_t *yReal, real_t *y
     return false;
   }
   else if(realCompareLessEqual(yReal, const_0)) {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "cannot calculate Beta of (%s, %s with Re(y)<=0", getRegisterDataTypeName(REGISTER_Y, true, false), getRegisterDataTypeName(REGISTER_X, true, false));
       moreInfoOnError("In function complexBeta:", errorMessage, NULL, NULL);
@@ -41,7 +44,7 @@ static bool_t complexBeta(real_t *xReal, real_t *xImag, real_t *yReal, real_t *y
   divComplexComplex(rReal, rImag, &tReal, &tImag, rReal, rImag, realContext); // r = Gamma(x) * Gamma(y) / Gamma(x + y);
 
   if(realIsNaN(rImag) || realIsNaN(rReal)) {
-    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "cannot calculate Beta of (%s, %s) out of range", getRegisterDataTypeName(REGISTER_Y, true, false), getRegisterDataTypeName(REGISTER_X, true, false));
       moreInfoOnError("In function complexBeta:", errorMessage, NULL, NULL);
@@ -57,7 +60,7 @@ static bool_t realBeta(real_t *x, real_t *y, real_t *r, realContext_t *realConte
   real_t tReal;
 
   if(realCompareLessEqual(x, const_0)) {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "cannot calculate Beta of (%s, %s) with x<=0", getRegisterDataTypeName(REGISTER_Y, true, false), getRegisterDataTypeName(REGISTER_X, true, false));
       moreInfoOnError("In function realBeta:", errorMessage, NULL, NULL);
@@ -65,7 +68,7 @@ static bool_t realBeta(real_t *x, real_t *y, real_t *r, realContext_t *realConte
     return false;
   }
   else if(realCompareLessEqual(y, const_0)) {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "cannot calculate Beta of (%s, %s with Re(y)<=0", getRegisterDataTypeName(REGISTER_Y, true, false), getRegisterDataTypeName(REGISTER_X, true, false));
       moreInfoOnError("In function realBeta:", errorMessage, NULL, NULL);
@@ -84,7 +87,7 @@ static bool_t realBeta(real_t *x, real_t *y, real_t *r, realContext_t *realConte
   realDivide(r, &tReal, r, realContext); // r = Gamma(x) * Gamma(y) / Gamma(x + y);
 
   if(realIsNaN(r)) {
-    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "cannot calculate Beta of (%s, %s) out of range", getRegisterDataTypeName(REGISTER_Y, true, false), getRegisterDataTypeName(REGISTER_X, true, false));
       moreInfoOnError("In function realBeta:", errorMessage, NULL, NULL);
@@ -133,4 +136,4 @@ void fnBeta(uint16_t unusedButMandatoryParameter) {
   processRealComplexDyadicFunction(&betaReal, &betaComplex);
 }
 
-#endif // !SAVE_SPACE_DM42_12
+#endif // OPTION_ZETA_BETA

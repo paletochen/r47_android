@@ -49,6 +49,13 @@ end:
     if(!getRegisterAsAnyRealQuiet(regist1, &real1) || !getRegisterAsAnyRealQuiet(regist2, &real2)) {
       return false;
     }
+    // Time stored in seconds; normalize to hours to compare against a plain number similar to =? / <? / >? (see compareRegisters also fixes in same MR)
+    if(getRegisterDataType(regist1) == dtTime) {
+      realDivide(&real1, const_3600, &real1, &ctxtReal39);
+    }
+    if(getRegisterDataType(regist2) == dtTime) {
+      realDivide(&real2, const_3600, &real2, &ctxtReal39);
+    }
     realCompare(&real1, &real2, &rcmp, &ctxtReal39);
     *res = realIsZero(&rcmp) ? 0 : realIsPositive(&rcmp) ? 1 : -1;
   }
@@ -145,6 +152,15 @@ static void compareMatrices(uint16_t regist, uint8_t mode, uint32_t typeX, uint3
   }
   else {
     convertReal34MatrixRegisterToComplex34Matrix(regist, &r);
+  }
+  if(lastErrorCode != 0) { // a convert ran out of RAM; free what was allocated and return
+    if(typeX == dtReal34Matrix) {
+      complexMatrixFree(&x);
+    }
+    if(typeR == dtReal34Matrix) {
+      complexMatrixFree(&r);
+    }
+    return;
   }
   if(x.header.matrixRows == r.header.matrixRows && x.header.matrixColumns == r.header.matrixColumns) {
     temporaryInformation = TI_TRUE;
@@ -313,7 +329,7 @@ static void compareRegisters(uint16_t regist, uint8_t mode) {
 
     /* ------------------------------------------------------------------------
      * Config vs Config (equality only)
-     * NOTE: memcmp is safe only if configs are canonical byte blobs (no padding).
+     * NOTE: memcmp is safe only if configs are raw byte blobs without padding.
      * ---------------------------------------------------------------------- */
     case type_pair_u8(dtConfig, dtConfig): {
       if(!mode_is_equality(mode)) {
@@ -424,6 +440,39 @@ end:
       }
     } break;
 
+
+    /* ------------------------------------------------------------------------
+     * (time, real, shoI, longI) x (time, real, shoI, longI)
+     * short & long integers will be casted as real, see above
+     * ---------------------------------------------------------------------- */
+    case type_pair_u8(dtReal34, dtTime):
+    case type_pair_u8(dtTime, dtReal34):
+    case type_pair_u8(dtLongInteger, dtTime):
+    case type_pair_u8(dtShortInteger, dtTime):
+    case type_pair_u8(dtTime, dtLongInteger):
+    case type_pair_u8(dtTime, dtShortInteger):
+    case type_pair_u8(dtTime, dtTime): {
+      bool_t cannotBeComplex;
+      if(!getRegisterAsComplexOrAnyReal(REGISTER_X, &xReal, &xImag, &cannotBeComplex)) {
+        compareTypeError(REGISTER_X);
+        break;
+      }
+      if(!getRegisterAsComplexOrAnyReal(regist, &rReal, &rImag, &cannotBeComplex)) {
+        compareTypeError(regist);
+        break;
+      }
+
+      if(getRegisterDataType(REGISTER_X) == dtTime) {
+        realDivide(&xReal, const_3600, &xReal, &ctxtReal39);
+      }
+      if(getRegisterDataType(regist) == dtTime) {
+        realDivide(&rReal, const_3600, &rReal, &ctxtReal39);
+      }
+
+      compare_reals_to_temporaryInformation(&xReal, &rReal, mode);
+    } break;
+
+
     /* ------------------------------------------------------------------------
      * Unsupported combinations
      * ---------------------------------------------------------------------- */
@@ -466,6 +515,11 @@ static void almostEqualMatrix(uint16_t regist) {
       real34Matrix_t x, r;
       convertReal34MatrixRegisterToReal34Matrix(REGISTER_X, &x);
       convertReal34MatrixRegisterToReal34Matrix(regist, &r);
+      if(lastErrorCode != 0) { // a convert ran out of RAM; free locals and return before rounding
+        realMatrixFree(&x);
+        realMatrixFree(&r);
+        return;
+      }
       roundRema();
       fnSwapX(regist);
       roundRema();
@@ -495,6 +549,15 @@ static void almostEqualMatrix(uint16_t regist) {
       else {
         convertReal34MatrixRegisterToComplex34Matrix(regist, &r);
         convertReal34MatrixRegisterToReal34Matrix(regist, &m);
+      }
+
+      if(lastErrorCode != 0) { // a convert ran out of RAM; free locals and return before rounding
+        complexMatrixFree(&x);
+        complexMatrixFree(&r);
+        if(!xIsCxma || !rIsCxma) {
+          realMatrixFree(&m);
+        }
+        return;
       }
 
       if(xIsCxma) {
@@ -535,54 +598,12 @@ static void almostEqualMatrix(uint16_t regist) {
     }
 }
 
-#define SNAPVAL(reg, s)                                          \
-  switch(s.t = getRegisterDataType(reg)) {                       \
-    case dtComplex34:                                            \
-      real34Copy(REGISTER_REAL34_DATA(reg), &s.r);               \
-      real34Copy(REGISTER_IMAG34_DATA(reg), &s.i);               \
-      break;                                                     \
-    case dtReal34:                                               \
-      real34Copy(REGISTER_REAL34_DATA(reg), &s.r);               \
-      real34SetZero(&s.i);                                       \
-      break;                                                     \
-    case dtLongInteger:                                          \
-      getRegisterAsLongInt(REGISTER_X, s.li, NULL);              \
-      break;                                                     \
-    case dtShortInteger:                                         \
-      getRegisterAsRawShortInt(REGISTER_X, &s.siVal, &s.siBase); \
-      break;                                                     \
-  }
-
-#define RESTOREVAL(reg, s)                                \
-  switch(s.t) {                                           \
-    case dtComplex34:                                     \
-      real34Copy(&s.i, REGISTER_IMAG34_DATA(reg));        \
-    case dtReal34:                                        \
-      real34Copy(&s.r, REGISTER_REAL34_DATA(reg));        \
-      break;                                              \
-    case dtLongInteger:                                   \
-      convertLongIntegerToLongIntegerRegister(s.li, reg); \
-      longIntegerFree(s.li);                              \
-      break;                                              \
-    case dtShortInteger:                                  \
-      *(REGISTER_SHORT_INTEGER_DATA(reg))=s.siVal;        \
-      setRegisterShortIntegerBase(reg, s.siBase);         \
-      break;                                              \
-  }
-
-
 static void almostEqualScalar(uint16_t regist, const uint16_t test) {
-  struct snap_t {
-      uint8_t t;
-      real34_t r, i;
-      longInteger_t li;
-      uint64_t siVal;
-      uint32_t siBase;
-    } snap1, snap2;
+  snap_t snap1, snap2;   // saveRegisterSnapshot/restoreRegisterSnapshot are in registerValueConversions.h
 
   // Snapshot real values before rounding
-  SNAPVAL(REGISTER_X, snap1);
-  SNAPVAL(regist, snap2);
+  saveRegisterSnapshot(REGISTER_X, &snap1);
+  saveRegisterSnapshot(regist, &snap2);
 
   switch(test) {
     case type_pair_u8(dtComplex34, dtComplex34):
@@ -613,9 +634,43 @@ static void almostEqualScalar(uint16_t regist, const uint16_t test) {
       roundReal();
       break;
 
+    //jm20260422: when time vs Real or longinteger
+    case type_pair_u8(dtTime, dtReal34):
+      roundTime();
+      convertTimeRegisterToReal34Register(REGISTER_X, REGISTER_X);
+      break;
+
+    case type_pair_u8(dtShortInteger, dtTime):
+      convertShortIntegerRegisterToReal34Register(REGISTER_X, REGISTER_X);
+      convertReal34RegisterToTimeRegister(REGISTER_X, REGISTER_X);
+      roundTime();
+      convertTimeRegisterToReal34Register(REGISTER_X, REGISTER_X);
+      break;
+
+    case type_pair_u8(dtLongInteger, dtTime):
+      convertLongIntegerRegisterToReal34Register(REGISTER_X, REGISTER_X);
+      // Fall through
+    case type_pair_u8(dtReal34, dtTime):
+      convertReal34RegisterToTimeRegister(REGISTER_X, REGISTER_X);
+      roundTime();
+      convertTimeRegisterToReal34Register(REGISTER_X, REGISTER_X);
+      break;
+
+    case type_pair_u8(dtTime, dtShortInteger):
+    case type_pair_u8(dtTime, dtLongInteger):
+      roundTime();
+      convertTimeRegisterToReal34Register(REGISTER_X, REGISTER_X);
+      break;
+
     case type_pair_u8(dtTime, dtTime):
       roundTime();
       break;
+    default:
+        fnSwapX(regist);
+        compareTypeError(regist);
+        restoreRegisterSnapshot(REGISTER_X, &snap1);
+        restoreRegisterSnapshot(regist, &snap2);
+        return;
   }
   if(regist != TEMP_REGISTER_1) {
     fnSwapX(regist);
@@ -648,6 +703,33 @@ static void almostEqualScalar(uint16_t regist, const uint16_t test) {
         roundReal();
         break;
 
+      case type_pair_u8(dtReal34, dtTime):
+        roundTime();
+        convertTimeRegisterToReal34Register(REGISTER_X, REGISTER_X);
+        break;
+
+      case type_pair_u8(dtTime, dtShortInteger):
+        convertShortIntegerRegisterToReal34Register(REGISTER_X, REGISTER_X);
+        convertReal34RegisterToTimeRegister(REGISTER_X, REGISTER_X);
+        roundTime();
+        convertTimeRegisterToReal34Register(REGISTER_X, REGISTER_X);
+        break;
+
+      case type_pair_u8(dtTime, dtLongInteger):
+        convertLongIntegerRegisterToReal34Register(REGISTER_X, REGISTER_X);
+        // Fall through
+      case type_pair_u8(dtTime, dtReal34):
+        convertReal34RegisterToTimeRegister(REGISTER_X, REGISTER_X);
+        roundTime();
+        convertTimeRegisterToReal34Register(REGISTER_X, REGISTER_X);
+        break;
+
+      case type_pair_u8(dtShortInteger, dtTime):
+      case type_pair_u8(dtLongInteger, dtTime):
+        roundTime();
+        convertTimeRegisterToReal34Register(REGISTER_X, REGISTER_X);
+        break;
+
       case type_pair_u8(dtTime, dtTime):
         roundTime();
         break;
@@ -655,6 +737,8 @@ static void almostEqualScalar(uint16_t regist, const uint16_t test) {
       default:
           fnSwapX(regist);
           compareTypeError(regist);
+          restoreRegisterSnapshot(REGISTER_X, &snap1);
+          restoreRegisterSnapshot(regist, &snap2);
           return;
     }
     fnSwapX(regist);
@@ -662,11 +746,8 @@ static void almostEqualScalar(uint16_t regist, const uint16_t test) {
 
   compareRegisters(regist, COMPARE_MODE_EQUAL);
 
-  #pragma GCC diagnostic push
-  #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
-  RESTOREVAL(REGISTER_X, snap1);
-  RESTOREVAL(regist, snap2);
-  #pragma GCC diagnostic pop
+  restoreRegisterSnapshot(REGISTER_X, &snap1);
+  restoreRegisterSnapshot(regist, &snap2);
 }
 
 
@@ -697,6 +778,13 @@ void fnXAlmostEqual(uint16_t regist) {
     case type_pair_u8(dtShortInteger, dtReal34):
     case type_pair_u8(dtLongInteger, dtComplex34):
     case type_pair_u8(dtLongInteger, dtReal34):
+
+    case type_pair_u8(dtReal34, dtTime):
+    case type_pair_u8(dtTime, dtReal34):
+    case type_pair_u8(dtLongInteger, dtTime):
+    case type_pair_u8(dtTime, dtLongInteger):
+    case type_pair_u8(dtShortInteger, dtTime):
+    case type_pair_u8(dtTime, dtShortInteger):
     case type_pair_u8(dtTime, dtTime):
       almostEqualScalar(regist, test);
       break;

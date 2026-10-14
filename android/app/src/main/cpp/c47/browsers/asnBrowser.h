@@ -14,4 +14,4 @@
    * \return void
    ***********************************************/
   void fnAsnViewer(uint16_t unusedButMandatoryParameter);
-#endif // !REGISTERBROWSER_H
+#endif // !ASNBROWSER_H

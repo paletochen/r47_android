@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WP43 and C47 Authors
 
 /********************************************//**
- * \file eulersFormula.c
+ * \file eulersFormula.h
  ***********************************************/
 
 #if !defined(EULERSFORMULA_H)

@@ -7,7 +7,7 @@
 
 #include "c47.h"
 
-#if defined(SAVE_SPACE_DM42_16)
+#if !defined(OPTION_DIST_NORMAL)
   void fnNormalP   (uint16_t unusedButMandatoryParameter){}
   void fnNormalL   (uint16_t unusedButMandatoryParameter){}
   void fnNormalR   (uint16_t unusedButMandatoryParameter){}
@@ -16,11 +16,6 @@
   void fnLogNormalL(uint16_t unusedButMandatoryParameter){}
   void fnLogNormalR(uint16_t unusedButMandatoryParameter){}
   void fnLogNormalI(uint16_t unusedButMandatoryParameter){}
-  void WP34S_Pdf_Q   (const real_t *x, real_t *res, realContext_t *realContext){}
-  void WP34S_Cdfu_Q  (const real_t *x, real_t *res, realContext_t *realContext){}
-  void WP34S_Cdf_Q   (const real_t *x, real_t *res, realContext_t *realContext){}
-  void WP34S_qf_q_est(const real_t *x, real_t *res, real_t* resY, realContext_t *realContext){}
-  void WP34S_Qf_Q    (const real_t *x, real_t *res, realContext_t *realContext){}
   void fnStdNormalP(uint16_t unusedButMandatoryParameter){}
   void fnStdNormalL(uint16_t unusedButMandatoryParameter){}
   void fnStdNormalR(uint16_t unusedButMandatoryParameter){}
@@ -46,7 +41,7 @@
     }
 
     if(realIsZero(j) || realIsNegative(j)) {
-      displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE, REGISTER_X);
+      displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function checkParamNormal:", "cannot calculate for " STD_sigma " " STD_LESS_EQUAL " 0", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -72,7 +67,7 @@
         realSetZero(&ans);
       }
       else if(logn && realIsNegative(&val)) {
-        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function normalP:", "cannot calculate for x < 0", NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -110,7 +105,7 @@
         realSetZero(&ans);
       }
       else if(logn && realIsNegative(&val)) {
-        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function normalL:", "cannot calculate for x < 0", NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -141,7 +136,7 @@
         realSetOne(&ans);
       }
       else if(logn && realIsNegative(&val)) {
-        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function normalR:", "cannot calculate for x < 0", NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -169,7 +164,7 @@
 
     if(checkParamNormal(type, &val, &mu, &sigma)) {
       if(realCompareLessEqual(&val, const_0) || realCompareGreaterEqual(&val, const_1)) {
-        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function normalI:", "the argument must be 0 < x < 1", NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -419,5 +414,5 @@
     realCopy(&p, res);
   }
 
-#endif //SAVE_SPACE_DM42_16
+#endif // !OPTION_DIST_NORMAL
 

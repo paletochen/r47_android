@@ -16,6 +16,7 @@ void      fnDumpMenus            (uint16_t newFilenameformat, const char *path);
 void      fnDumpMenusWrapper     (uint16_t newFilenameformat);
 void      fnDumpMenusAll         (uint16_t newFilenameformat, const char *path);
 void      fnDumpMenusAllWrapper  (uint16_t newFilenameformat);
+void      fnWriteCatSequence     (const char *fcnsPath, const char *menusPath);
 void      fnPseudoMenu           (uint16_t target);
 
 /**
@@ -37,6 +38,7 @@ void      showKey                (const char *label, int16_t x1, int16_t x2, int
  * Displays the current part of the displayed softmenu.
  */
 void      showSoftmenuCurrentPart(void);
+void      showMenuTopLine(void);
 
 /**
  * Displays a softmenu.
@@ -76,6 +78,7 @@ bool_t    isAlphabeticSoftmenu   (void);
 bool_t    isJMAlphaSoftmenu      (int16_t menuId);
 bool_t    isJMAlphaOnlySoftmenu  (void);
 char *    dynmenuGetLabel        (int16_t menuitem);
+dynamicSoftmenu_t * currentDynamicSoftmenu (void); // Top of the softmenu stack while it is a dynamic softmenu, NULL while it is a static one
 char *    dynmenuGetLabelWithDup (int16_t menuitem, int16_t *dupNum);
 bool_t    maxfgLines             (int16_t y);
 

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WP43 and C47 Authors
 
 /********************************************//**
- * \file mean.h
+ * \file variance.h
  ***********************************************/
 #if !defined(VARIANCE_H)
   #define VARIANCE_H

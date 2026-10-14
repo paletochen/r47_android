@@ -6,7 +6,6 @@
  ***********************************************/
 
 #include "c47.h"
-#include "and.h"
 
 void logicalOpResult(bool_t res, uint32_t xtype, uint32_t ytype) {
   if(xtype == dtLongInteger && ytype == dtLongInteger) {

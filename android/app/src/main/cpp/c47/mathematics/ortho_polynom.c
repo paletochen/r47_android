@@ -7,10 +7,10 @@
 
 #include "c47.h"
 
-#if !defined(SAVE_SPACE_DM42_12ORTHO)
+#if defined(OPTION_ORTHO)
 static bool_t getOrthoPolyParam(calcRegister_t regist, real_t *val, realContext_t *realContext) {
   if(!getRegisterAsReal(regist, val)) {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, regist);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "Incompatible type for orthogonal polynomial.");
       moreInfoOnError("In function getOrthoPolyParam:", errorMessage, NULL, NULL);
@@ -19,10 +19,10 @@ static bool_t getOrthoPolyParam(calcRegister_t regist, real_t *val, realContext_
   }
   return true;
 }
-#endif // !SAVE_SPACE_DM42_12ORTHO
+#endif // OPTION_ORTHO
 
 void fnOrthoPoly(uint16_t kind) {
-#if !defined(SAVE_SPACE_DM42_12ORTHO)
+#if defined(OPTION_ORTHO)
   real_t x, y, z, ans;
 
   if(!saveLastX()) {
@@ -32,7 +32,7 @@ void fnOrthoPoly(uint16_t kind) {
     realSetZero(&z);
     if((kind != ORTHOPOLY_LAGUERRE_L_ALPHA) || getOrthoPolyParam(REGISTER_Z, &z, &ctxtReal39)) {
       if(realIsSpecial(&y) || realIsNegative(&y) || (!realIsAnInteger(&y)) || realCompareLessEqual(&z, const__1)) {
-        displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+        displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function fnOrthoPoly:", "Y must be a nonnegative integer.", kind == ORTHOPOLY_LAGUERRE_L_ALPHA ? "In addition, Z must be greater than -1." : NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -47,7 +47,7 @@ void fnOrthoPoly(uint16_t kind) {
     }
   }
   adjustResult(REGISTER_X, true, false, REGISTER_X, REGISTER_Y, -1);
-#endif // !SAVE_SPACE_DM42_12ORTHO
+#endif // OPTION_ORTHO
 }
 
 void fnHermite(uint16_t unusedButMandatoryParameter) {

@@ -151,6 +151,14 @@ typedef struct {
   glyphMartelPrinter_t  glyphs[];       ///< Pointer to the glyph description structure
 } martelFont24_t;
 
+/**
+ * \struct upperLower_t
+ * Structure keeping the Upper case / Lower case character pairs.
+ */
+typedef struct {
+  char upper[3];         ///< Upper case Unicode code point
+  char lower[3];         ///< Lower case Unicode code point
+} upperLower_t;
 
 
 /**
@@ -354,10 +362,10 @@ typedef struct {
   float          compatibility_float1;              //Spare float          //
   float          compatibility_float2;              //Spare float          //
   normKey_t      Norm_Key_00;                                              //  BlankKey Config
-  bool_t         compatibility_byte2;               //Spare Byte           //
-  bool_t         compatibility_byte3;               //Spare Byte           //
-  bool_t         compatibility_byte4;               //Spare Byte           //
-  bool_t         compatibility_byte5;               //Spare Byte           //
+  uint8_t        grpGroupingHex;                                           //  HEXGRP
+  uint8_t        grpGroupingBin;                                           //  BINGRP
+  uint8_t        graMod;                                                   //  GRAMOD
+  uint8_t        graFont;                                                  //  GRFNT
   bool_t         compatibility_byte6;               //Spare Byte           //
   bool_t         compatibility_byte7;               //Spare Byte           //
   bool_t         compatibility_byte8;               //Spare Byte           //
@@ -366,7 +374,7 @@ typedef struct {
   bool_t         compatibility_byte11;              //Spare Byte           //
   bool_t         compatibility_byte12;              //Spare Byte           //
   bool_t         compatibility_byte13;              //Spare Byte           //
-  bool_t         compatibility_byte14;              //Spare Byte           //
+  uint8_t        displayRoundingMode;                                      //  DRM setting
   bool_t         compatibility_byte15;              //Spare Byte           //
   int8_t         fractionDigits;                                           //  FDIGS
   int8_t         compatibility_byte23;                                     //
@@ -489,6 +497,10 @@ typedef struct {
   uint8_t reservedVariableName[8]; ///< Variable name
 } reservedVariableHeader_t;
 
+
+typedef struct {
+  char letter[2];
+} registerLetter_t;
 
 /**
  * \struct formulaHeader_t
@@ -628,6 +640,16 @@ typedef struct {
 
 
 /**
+ * \struct menuRenumber_t
+ * One menu item number as it was written by an older file, and the number it has now.
+ */
+typedef struct {
+  uint16_t from;                ///< Item number in a file older than the renumbering
+  uint16_t to;                  ///< Item number now
+} menuRenumber_t;
+
+
+/**
  * \struct programmableMenu_t
  * Structure keeping the information for programmable menu.
  */
@@ -683,6 +705,7 @@ typedef struct {
   bool_t     alpha;
   int16_t    currentOperation;
   bool_t     dot;
+  bool_t     colon;
   bool_t     indirect;
   int16_t    digitsSoFar;
   int16_t    value0;       // to store the initial value for indirection
@@ -710,6 +733,63 @@ typedef struct {
 } letteredFlagDisplay_t;
 
 
+typedef enum {
+  LI_ZERO     = 0, // Long integer sign 0
+  LI_NEGATIVE = 1, // Long integer sign -
+  LI_POSITIVE = 2  // Long integer sign +
+} longIntegerSign_t;
+
+
+/**
+ * \enum printArgument_t
+ *
+ */
+typedef enum {
+  PRINT_BYTE,
+  PRINT_CHAR,
+  PRINT_TAB,
+  PRINT_ALPHA,
+  PRINT_ALPHA_NOADV,
+  PRINT_ALPHA_JUST
+} printArgument_t;
+
+
+/**
+ * \enum printerModel_t
+ *
+ */
+typedef enum {
+  PRINTER_HP,
+  PRINTER_MARTEL,
+  PRINTER_OTHER
+} printerModel_t;
+
+
+/**
+ * \enum printModes_t
+ *
+ */
+typedef enum  {
+  PMODE_DEFAULT = 0,
+  PMODE_GRAPHICS = 1,
+  PMODE_SMALLGRAPHICS = 2,
+  PMODE_SERIAL = 3
+} printModes_t;
+
+
+/**
+ * \enum printArea_t
+ *
+ */
+typedef enum  {
+  LINE_FULL  = 0,
+  LINE_LEFT  = 1,
+  LINE_RIGHT = 2,
+  LINE_NOLF  = 3,
+  LINE_ASIS  = 4,
+} printArea_t;
+
+
 /**
  * \struct printerState_t
    * Structure keeping the printer status
@@ -718,10 +798,35 @@ typedef struct {
   bool_t         print_on;               ///< Printing on/off
   bool_t         trace_done;             ///< Printing on/off
   uint8_t        print_blank_line;       ///< Print space between lines
-  print_modes_t  print_mode;             ///< printer modes
+  printModes_t   print_mode;             ///< printer modes
   printerModel_t printer_model;          ///< printer model
   uint16_t       delay;                  ///< printer line delay
 } printerState_t;
+
+
+/**
+ * \struct forLoop_t
+ * One running FOR structure. The loop's own end value and increment are not here: they are in the two local registers localRegisterBase names, so they carry any
+ * type a counter may be. A localStepNumber of 0, which no program step has, marks the row free.
+ */
+typedef struct {
+  uint16_t counterRegister;    ///< Register the loop counts in
+  uint16_t localStepNumber;    ///< Where the FOR stands in its program, as currentLocalStepNumber counts
+  uint16_t localRegisterBase;  ///< First of the two local registers holding the end value and the increment
+  uint16_t programNumber;      ///< Program the FOR is in
+  uint8_t  stepDescends;       ///< FOR_STEP_DESCENDS and FOR_TOP_TESTED, the two bits of structured.h
+  uint8_t  subroutineLevel;    ///< Subroutine level the loop opened in
+} forLoop_t;
+
+
+/**
+ * \enum namedLabels_t
+ */
+typedef enum {
+  GLOBAL_LABELS = STRING_LABEL_VARIABLE,    // Only global labels
+  LOCAL_LABELS  = LOCAL_LABEL_VARIABLE,     // Only local named labels
+  ALL_LABELS    = 0                         // Both global and local names lables
+} namedLabels_t;
 
 
   #if defined(PC_BUILD)
@@ -741,4 +846,4 @@ typedef struct {
   };
   typedef struct cfgFileParam cfgFileParam_t;
   #endif // PC_BUILD
-#endif // TYPEDEFINITIONS_H
+#endif // !TYPEDEFINITIONS_H

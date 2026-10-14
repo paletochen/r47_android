@@ -14,4 +14,4 @@
   #include "textfiles.h"
   #include "xeqm.h"
 
-#endif // .C47EXTENSIONS_H
+#endif // !C47EXTENSIONS_H

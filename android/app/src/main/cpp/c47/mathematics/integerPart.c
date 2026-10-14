@@ -10,7 +10,7 @@
 static void doIP(real_t *x, enum rounding mode) {
   if(realIsSpecial(x)) {
     if(!getSystemFlag(FLAG_SPCRES)) {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     }
   }
   else {

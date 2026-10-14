@@ -18,13 +18,10 @@ static inline void print_caller(const char *format, ...) {}
 
 #if defined(DMCP_BUILD)
   static inline void _lcdRefresh(void) {
-    lcd_forced_refresh();
+    lcd_refresh();
   }
   static inline void _lcdSBRefresh(void) {
     lcd_refresh_lines(0, 20);
-  }
-  static inline void _lcdBandRefresh(uint32_t y, uint32_t dy) {
-    lcd_refresh_lines(y, dy);
   }
   // lcd_fill_rect from dmcp.h
   // lcd_refresh   from dmcp.h
@@ -33,8 +30,9 @@ static inline void print_caller(const char *format, ...) {}
 #else
   #define LCD_LINE_SIZE       50
   #define LCD_LINE_BUF_SIZE   (LCD_LINE_SIZE+4)
-  #define LCD_SET_VALUE   0   // Black pixel
-  #define LCD_EMPTY_VALUE 255 // White (or empty) pixel
+  #define LCD_SET_VALUE   0   // fills white. lcd_fill_rect takes val as a flag, not as a byte, and 0 selects BLT_ANDN, which sets the bits. Every caller
+                              //   uses this one to erase, showGlyphCode before each glyph among them. The name comes from dmcp.h and is the other way round
+  #define LCD_EMPTY_VALUE 255 // fills black, through BLT_OR, which clears the bits. drawSinglePixelFullWidthLine draws its rule with this one
   typedef enum { BLT_OR = 0, BLT_ANDN = 1, BLT_XOR = 2 } blt_op_t;
   typedef enum { BLT_NONE = 0, BLT_SET  = 1 } blt_fill_t;
   extern gboolean ui_is_active;
@@ -46,7 +44,6 @@ static inline void print_caller(const char *format, ...) {}
    */
   void _lcdRefresh    (void);
   void _lcdSBRefresh  (void);
-  void _lcdBandRefresh(uint32_t y, uint32_t dy);
 
   // mimic DMCP functions
  /**
@@ -56,8 +53,7 @@ static inline void print_caller(const char *format, ...) {}
   * \param[in] y   y coordinate from 0 (top) to 239 (bottom)
   * \param[in] dx  width of the rect (inclusive of the ends)
   * \param[in] dy  height of the rect (inclusive of the ends)
-  * \param[in] val LCD_SET_VALUE (black) or LCD_EMPTY_VALUE (white) for the filled
-  *                rectangle
+  * \param[in] val LCD_SET_VALUE for a white rectangle or LCD_EMPTY_VALUE for a black one, the opposite of what the two names suggest
   */
   void lcd_fill_rect (uint32_t x, uint32_t y, uint32_t dx, uint32_t dy, int val);
 
@@ -75,6 +71,7 @@ static inline void print_caller(const char *format, ...) {}
 
   /**
   * Blits dx bits from val at position x, y.
+  * Bit dx-1 of val maps to column x and bit 0 to column x+dx-1. Bits above dx-1 are ignored.
   *
   * \param[in] x       Position x
   * \param[in] dx      (1-24) Width x
@@ -85,11 +82,8 @@ static inline void print_caller(const char *format, ...) {}
   *
   * Value of fill doesn't apply for BLT_XOR.
   *
-  * BLT_NONE doesn't affect any blit operation.
-  * BLT_SET affects src value of blit operation:
-  *
-  * for BLT_OR src = 0 over width of operation (i.e. dx)
-  * for BLT_ANDN src = 1 over width of operation (i.e. dx)
+  * With BLT_NONE only the pixels where val has a 1 are written: black for BLT_OR, white for BLT_ANDN and inverted for BLT_XOR.
+  * With BLT_SET the pixels where val has a 0 are written as well: white for BLT_OR and black for BLT_ANDN.
   */
   void bitblt24 ( uint32_t x, uint32_t dx, uint32_t y, uint32_t val, int blt_op, int fill );
 

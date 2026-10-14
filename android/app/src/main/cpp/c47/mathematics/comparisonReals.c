@@ -188,6 +188,20 @@ bool_t realCompareEqual(const real_t *number1, const real_t *number2) {
 
 
 
+// True when both real_t are identical, i.e. equal digits, exponent and bits, then equal units to the digit count. A 39-digit tests 26 of 36 bytes instead of 60.
+// Faster than realCompareEqual, which subtracts. -0 and +0 differ. 1 and 1.0 return false: a byte compare, not numeric.
+bool_t realCompareIdentical(const real_t *number1, const real_t *number2) {
+  if(number1->digits != number2->digits || number1->exponent != number2->exponent || number1->bits != number2->bits) {
+    return false;
+  }
+  if(realIsSpecial(number1)) {
+    return true;
+  }
+  return memcmp(number1->lsu, number2->lsu, ((number1->digits + DECDPUN - 1) / DECDPUN) * sizeof(decNumberUnit)) == 0;
+}
+
+
+
 bool_t realCompareAbsEqual(const real_t *number1, const real_t *number2) {
   realContext_t c = ctxtReal75;
   c.digits = max(max(75, number1->digits), number2->digits);

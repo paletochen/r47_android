@@ -8,7 +8,7 @@ void fnChangeBase(uint16_t base) {
   uint64_t val;
 
   if(base < 2 || base > 16) {
-    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_T);
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "base = %" PRIu16 "! The base must be fron 2 to 16.", base);
       moreInfoOnError("In function fnChangeBase:", errorMessage, NULL, NULL);
@@ -28,7 +28,7 @@ void longIntegerMultiply(longInteger_t opY, longInteger_t opX, longInteger_t res
     mpz_mul(result, opY, opX);
   }
   else {
-    displayCalcErrorMessage(longIntegerSign(opY) == longIntegerSign(opX) ? ERROR_OVERFLOW_PLUS_INF : ERROR_OVERFLOW_MINUS_INF, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(longIntegerSign(opY) == longIntegerSign(opX) ? ERROR_OVERFLOW_PLUS_INF : ERROR_OVERFLOW_MINUS_INF, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "Multiplying this 2 values (%" PRIu64 " bits " STD_CROSS " %" PRIu64 " bits) would result in a value exceeding %" PRId16 " bits!", (uint64_t)longIntegerBits(opY), (uint64_t)longIntegerBits(opX), (uint16_t)MAX_LONG_INTEGER_SIZE_IN_BITS);
       longIntegerToAllocatedString(opY, tmpString, TMP_STR_LENGTH / 2);
@@ -45,7 +45,7 @@ void longIntegerSquare(longInteger_t op, longInteger_t result) {
     mpz_mul(result, op, op);
   }
   else {
-    displayCalcErrorMessage(ERROR_OVERFLOW_PLUS_INF, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_OVERFLOW_PLUS_INF, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "Squaring this value (%" PRIu64 " bits) would result in a value exceeding %" PRId16 " bits!", (uint64_t)longIntegerBits(op), (uint16_t)MAX_LONG_INTEGER_SIZE_IN_BITS);
       longIntegerToAllocatedString(op, tmpString, TMP_STR_LENGTH);
@@ -61,7 +61,7 @@ void longIntegerAdd(longInteger_t opY, longInteger_t opX, longInteger_t result) 
     mpz_add(result, opY, opX);
   }
   else {
-    displayCalcErrorMessage(longIntegerSign(opY) == 0 ? ERROR_OVERFLOW_PLUS_INF : ERROR_OVERFLOW_MINUS_INF, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(longIntegerSign(opY) == 0 ? ERROR_OVERFLOW_PLUS_INF : ERROR_OVERFLOW_MINUS_INF, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "Adding this 2 values (%" PRIu64 " bits " STD_CROSS " %" PRIu64 " bits) would result in a value exceeding %" PRId16 " bits!", (uint64_t)longIntegerBits(opY), (uint64_t)longIntegerBits(opX), (uint16_t)MAX_LONG_INTEGER_SIZE_IN_BITS);
       longIntegerToAllocatedString(opY, tmpString, TMP_STR_LENGTH / 2);
@@ -78,7 +78,7 @@ void longIntegerSubtract(longInteger_t opY, longInteger_t opX, longInteger_t res
     mpz_sub(result, opY, opX);
   }
   else {
-    displayCalcErrorMessage(longIntegerSign(opY) == 0 ? ERROR_OVERFLOW_PLUS_INF : ERROR_OVERFLOW_MINUS_INF, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(longIntegerSign(opY) == 0 ? ERROR_OVERFLOW_PLUS_INF : ERROR_OVERFLOW_MINUS_INF, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "Subtracting this 2 values (%" PRIu64 " bits " STD_CROSS " %" PRIu64 " bits) would result in a value exceeding %" PRId16 " bits!", (uint64_t)longIntegerBits(opY), (uint64_t)longIntegerBits(opX), (uint16_t)MAX_LONG_INTEGER_SIZE_IN_BITS);
       longIntegerToAllocatedString(opY, tmpString, TMP_STR_LENGTH / 2);
@@ -356,19 +356,19 @@ uint64_t WP34S_intDivide(uint64_t y, uint64_t x) {
 
   if(divisor == 0) {
     if(dividend == 0) {
-      displayCalcErrorMessage(ERROR_BAD_TIME_OR_DATE_INPUT, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_BAD_TIME_OR_DATE_INPUT, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function WP34S_intDivide: cannot divide 0 by 0!", NULL, NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
     }
     else if(dividendSign) {
-      displayCalcErrorMessage(ERROR_BAD_TIME_OR_DATE_INPUT, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_BAD_TIME_OR_DATE_INPUT, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function WP34S_intDivide: cannot divide a negative short integer by 0!", NULL, NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
     }
     else {
-      displayCalcErrorMessage(ERROR_BAD_TIME_OR_DATE_INPUT, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_BAD_TIME_OR_DATE_INPUT, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function WP34S_intDivide: cannot divide a positive short integer by 0!", NULL, NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -483,7 +483,7 @@ uint64_t WP34S_intSqrt(uint64_t x) {
   uint64_t nn0, nn1;
 
   if(signValue) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function WP34S_intSqrt: Cannot extract the square root of a negative short integer!", NULL, NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -597,7 +597,7 @@ uint64_t WP34S_intPower(uint64_t b, uint64_t e) {
   uint64_t base     = WP34S_extract_value(b, &baseSign);
 
   if(exponent == 0 && base == 0) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function WP34S_intPower: Cannot calculate 0^0!", NULL, NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -657,7 +657,7 @@ uint64_t WP34S_int2pow(uint64_t x) {
     setSystemFlag(FLAG_OVERFLOW);
     return 0;
   }
-  return 1LL << (uint32_t)(exponent & 0xff);
+  return (uint64_t)1 << (uint32_t)(exponent & 0xff);
 }
 
 
@@ -694,7 +694,7 @@ uint64_t WP34S_intLog2(uint64_t x) {
   uint32_t log2 = 0;
 
   if(value == 0 || signValue) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function WP34S_intLog2: Cannot calculate the log" STD_SUB_2 " of a number " STD_LESS_EQUAL " 0!", NULL, NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -725,7 +725,7 @@ uint64_t WP34S_intLog10(uint64_t x) {
   int32_t c = 0;
 
   if(value == 0 || signValue) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function WP34S_intLog10: Cannot calculate the log" STD_SUB_10 " of a number " STD_LESS_EQUAL " 0!", NULL, NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)

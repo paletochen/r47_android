@@ -23,8 +23,8 @@ static bool_t _checkLnGammaArgs(int8_t *resultType, real_t *xReal, realContext_t
 
   if(realIsInfinite(xReal)) {
     if(!getSystemFlag(FLAG_SPCRES)) {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
-      EXTRA_INFO_MESSAGE("_checkLnGammaArgs", "cannot use " STD_PLUS_MINUS STD_INFINITY " as X input of lnbeta when flag D is not set");
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+      EXTRA_INFO_MESSAGE("_checkLnGammaArgs", "cannot use " STD_PLUS_MINUS STD_INFINITY " as X input of lnbeta when flag SPCRES is not set");
     }
     else {
       realToReal34((realIsPositive(xReal) ? const_plusInfinity : const_NaN), REGISTER_REAL34_DATA(REGISTER_X));
@@ -35,8 +35,8 @@ static bool_t _checkLnGammaArgs(int8_t *resultType, real_t *xReal, realContext_t
   else if(realCompareLessEqual(xReal, const_0)) { // x <= 0
     if(realIsAnInteger(xReal)) {
       if(!getSystemFlag(FLAG_SPCRES)) {
-        displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
-        EXTRA_INFO_MESSAGE("_checkLnGammaArgs", "cannot use a negative integer as X input of lnbeta when flag D is not set");
+        displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+        EXTRA_INFO_MESSAGE("_checkLnGammaArgs", "cannot use a negative integer as X input of lnbeta when flag SPCRES is not set");
       }
       else {
         reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
@@ -59,7 +59,7 @@ static bool_t _checkLnGammaArgs(int8_t *resultType, real_t *xReal, realContext_t
           *resultType = RESULT_TYPE_COMPLEX;
         }
         else { // Domain error
-          displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+          displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
           EXTRA_INFO_MESSAGE("_checkLnGammaArgs", "cannot use a as X input of lnbeta if gamma(X)<0 when flag I is not set");
           result = false;
         }
@@ -93,6 +93,7 @@ static void _lnGammaComplex(real_t *xReal, real_t *rReal, real_t *rImag, realCon
 
 
 
+#if defined(OPTION_ZETA_BETA)
 static void _lnBetaComplex(real_t *xReal, real_t *xImag, real_t *yReal, real_t *yImag, real_t *rReal, real_t *rImag, realContext_t *realContext) {
   // LnBeta(x, y) := LnGamma(x) + LnGamma(y) - LnGamma(x+y)
   real_t tReal, tImag;
@@ -111,6 +112,7 @@ static void _lnBetaComplex(real_t *xReal, real_t *xImag, real_t *yReal, real_t *
   realSubtract(rReal, &tReal, rReal, realContext); // r = LnGamma(x) + LnGamma(y) - LnGamma(x + y);
   realSubtract(rImag, &tImag, rImag, realContext);
 }
+#endif // OPTION_ZETA_BETA
 
 
 
@@ -161,6 +163,9 @@ static bool_t _lnBetaReal(real_t *xReal, real_t *yReal, real_t *rReal, real_t *r
 }
 
 
+// Deliberately outside OPTION_ZETA_BETA, which gates only the LN-beta key: the F distribution calls this from f.c, and WP34S_betai in wp34s.c calls it too.
+// Gating it would leave both calling an empty function, the way erfc did before it went with OPTION_DIST_NORMAL. _lnBetaReal and the LnGamma helpers it
+// reaches stay outside for the same reason. Only _lnBetaComplex, which nothing but the key uses, sits inside the option.
 void LnBeta(const real_t *x, const real_t *y, real_t *res, realContext_t *realContext) {
   real_t rReal, rImag;
   real_t xx, yy;
@@ -176,6 +181,7 @@ void LnBeta(const real_t *x, const real_t *y, real_t *res, realContext_t *realCo
 }
 
 
+#if defined(OPTION_ZETA_BETA)
 static void lnbetaReal(void) {
   real_t x, y, rReal, rImag;
 
@@ -199,6 +205,7 @@ static void lnbetaCplx(void)  {
     convertComplexToResultRegister(&rReal, &rImag, REGISTER_X);
   }
 }
+#endif // OPTION_ZETA_BETA
 
 /********************************************//**
  * \brief regX ==> regL and lnBeta(regX, RegY) ==> regX
@@ -208,5 +215,7 @@ static void lnbetaCplx(void)  {
  * \return void
  ***********************************************/
 void fnLnBeta(uint16_t unusedButMandatoryParameter) {
+#if defined(OPTION_ZETA_BETA)
     processRealComplexDyadicFunction(&lnbetaReal, &lnbetaCplx);
+#endif // OPTION_ZETA_BETA
 }

@@ -21,6 +21,16 @@
 
   void initUserKeyArgument        (void);
   void setUserKeyArgument         (uint16_t position, const char *name);
+
+  /**
+   * Read the n-th user key label, tolerating a refused initUserKeyArgument()/
+   * setUserKeyArgument() allocation
+   *
+   * \param[in] n Index of the label to read, same indexing as getNthString() on userKeyLabel
+   * \return Pointer to the label string, or to a static empty string when userKeyLabel is NULL
+   */
+  uint8_t *getUserKeyLabelString  (int16_t n);
+
   void createMenu                 (const char *name);
 
   void assignEnterAlpha           (void);

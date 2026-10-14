@@ -8,7 +8,7 @@
 #include "c47.h"
 
 
-TO_QSPI const real_t *realtConstants[NOUC] = {
+TO_QSPI const real_t * const realtConstants[NOUC] = {
   const_a,
   const_a0,
   const_aMoon,

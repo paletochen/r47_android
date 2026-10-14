@@ -163,6 +163,10 @@
   void fnSetWeekOfYearRule     (uint16_t param);
   void fnGetWeekOfYearRule     (uint16_t unusedButMandatoryParameter);
 
+  #if defined(TESTSUITE_BUILD)
+    extern bool_t testClockFrozen;                 // true only inside fnSNAP, so a stored capture hash does not move with the calendar
+  #endif // TESTSUITE_BUILD
+
   /********************************************//**
    * \brief Gets the system date
    *

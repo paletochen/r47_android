@@ -6,7 +6,7 @@
 #define isComplex true
 #define isReal    false
 static void real34ToDisplayString2(const real34_t *real34, char *displayString, int16_t displayHasNDigits, bool_t limitExponent, bool_t noFix, bool_t frontSpace, bool_t complex, irfracOption_t limitIrfrac);
-static void complex34ToDisplayString2(const complex34_t *complex34, char *displayString, int16_t displayHasNDigits, bool_t limitExponent, bool_t frontSpace, const uint16_t tagAngle, const bool_t tagPolar, irfracOption_t limitIrfrac);
+static void complex34ToDisplayString2(const complex34_t *complex34, char *displayString, int16_t displayHasNDigits, bool_t limitExponent, bool_t frontSpace, const uint16_t tagAngle, const bool_t tagPolar, irfracOption_t limitIrfrac, rectToPolarCache_t *cache);
 static void insertSepsIntoIntegerText(char *displayString);
 
 
@@ -279,12 +279,90 @@ void real34ToDisplayString(const real34_t *real34, uint32_t tag, char *displaySt
 }
 
 
+// Mantissa trailing-zero handling for emitSciDigits: pad to the full digit count, or trim zeros to the digits actually carried.
+typedef enum {
+  KEEP_TRAILING_ZEROS  = 0,
+  STRIP_TRAILING_ZEROS = 1
+} trailingZeros_t;
+
+static bool_t hp35Round10 = false;  // HP35 profile on the real34 route: roundBcdAt rounds a value kept with 10 digits or more to 10 digits
+static bool_t polarTieWatch = false;  // a polar line computed to POLAR_DISPLAY_COMPUTE_DIGITS is being formatted
+static bool_t polarNearTie  = false;  // set under polarTieWatch: the dropped digits are a tie, or zero under UP, DOWN, CEIL and FLOOR; the exact value may round either way
+
+/********************************************//**
+ * \brief True when the kept digit d[kept] goes up by one under DRM, d[kept+1] to d[last] being dropped
+ *
+ * \param[in] d const uint8_t* Digits, one per byte, MSD first; a byte that is not a digit is skipped
+ * \param[in] kept int16_t Index of the last kept digit
+ * \param[in] last int16_t Index of the last dropped digit
+ * \param[in] sign bool_t True for a negative value
+ * \param[in] zero uint8_t 0 for bcd[] and '0' for text
+ * \param[in] sticky bool_t True when a dropped digit after d[last] is not zero
+ * \return bool_t
+ ***********************************************/
+static bool_t roundUpDrm(const uint8_t *d, int16_t kept, int16_t last, bool_t sign, uint8_t zero, bool_t sticky) {
+  uint8_t next = 10, tail = sticky, m = displayRoundingMode;
+  for(int16_t i = kept + 1; i <= last; i++) {
+    uint8_t v = d[i] - zero;
+    if(v > 9) {
+      continue;
+    }
+    if(next == 10) {
+      next = v;
+    }
+    else {
+      tail |= v;
+    }
+  }
+  if(next == 10) {
+    next = 0;
+  }
+  if(polarTieWatch && (m >= RM_UP ? !(next | tail) : (next == 5 && !tail))) {
+    polarNearTie = true;
+  }
+  if(m >= RM_UP) {  // UP, DOWN, CEIL and FLOOR test only for a non-zero dropped digit: UP goes up, CEIL for a positive and FLOOR for a negative value, DOWN never
+    return (next | tail) && (m == RM_UP || (m == RM_CEIL && !sign) || (m == RM_FLOOR && sign));
+  }
+  return next > 5 || (next == 5 && (m == RM_HALF_UP || tail || (m == RM_HALF_EVEN && ((d[kept] - zero) & 1))));
+}
+
+/********************************************//**
+ * \brief Rounds bcd[] at d under DRM; a digit that reaches 10 becomes 0 and adds one on its left
+ *
+ * \param[in,out] bcd uint8_t* Digits, one per byte, MSD first
+ * \param[in] d int16_t Index of the last kept digit
+ * \param[in] last int16_t Index of the last dropped digit
+ * \param[in] sign bool_t True for a negative value
+ * \return int16_t Index of the leftmost digit changed, d when no digit reaches 10
+ ***********************************************/
+static int16_t roundBcdAt(uint8_t *bcd, int16_t d, int16_t last, bool_t sign) {
+  int16_t first = 0;
+  while(hp35Round10 && first < d && bcd[first] == 0) {
+    first++;
+  }
+  if(hp35Round10 && d - first >= 9) {  // HP35 profile, 10 digits or more kept: the value to 10 digits, a tie rounded away from zero, and the digits after it cleared
+    d = first + 9;
+    if(bcd[d + 1] >= 5) {
+      bcd[d]++;
+    }
+    memset(bcd + d + 1, 0, last - d);
+  }
+  else if(roundUpDrm(bcd, d, last, sign, 0, false)) {
+    bcd[d]++;
+  }
+  while(bcd[d] == 10) {
+    bcd[d--] = 0;
+    bcd[d]++;
+  }
+  return d;
+}
+
 // emitSciDigits: the DF_SCI body lifted out, fed from a digit-per-byte bcd[] (MSD first) so a long real can supply up to digitsToDisplay digits.
 static void emitSciDigits(uint8_t *bcd, int16_t firstDigit, int16_t lastDigit, int16_t numDigits, int32_t exponent, bool_t sign,
-                          int16_t digitToRound, int16_t digitsToDisplay, bool_t frontSpace,
+                          int16_t digitToRound, int16_t digitsToDisplay, bool_t frontSpace, trailingZeros_t stripTrailingZeros,
                           char *displayString, char *displayValueX, bool_t updateDisplayValueX) {
   int32_t charIndex  = 0;
-  int32_t valueIndex = 0;
+  int32_t valueIndex = (updateDisplayValueX ? strlen(displayValueX) : 0);   // displayValueX appends to any existing prefix
   int16_t digitCount, digitPointer;
   bool_t  firstDigitAfterPeriod = true;
 
@@ -292,20 +370,23 @@ static void emitSciDigits(uint8_t *bcd, int16_t firstDigit, int16_t lastDigit, i
   int sepLen   = (SEPARATOR_RIGHT[0] != 1) ? ((SEPARATOR_RIGHT[1] != 1) ? 2 : 1) : 0;
 
   // Round the displayed number
-  if(bcd[digitToRound + 1] >= 5) {
-    bcd[digitToRound]++;
-  }
-  // Transfert the carry
-  while(bcd[digitToRound] == 10) {
-    bcd[digitToRound--] = 0;
-    numDigits--;
-    bcd[digitToRound]++;
-  }
+  int16_t roundedAt = roundBcdAt(bcd, digitToRound, lastDigit, sign);
+  numDigits -= digitToRound - roundedAt;
+  digitToRound = roundedAt;
   // Case when 9.9999 rounds to 10.0000
   if(digitToRound < firstDigit) {
     firstDigit--;
     numDigits = 1;
     exponent++;
+  }
+  // SIG no-zero: clamp to the significant digits (ignore noise past numDigits), then drop trailing zeros left by the value or by rounding
+  if(stripTrailingZeros) {
+    if(digitsToDisplay > numDigits - 1) {
+      digitsToDisplay = numDigits - 1;
+    }
+    while(digitsToDisplay > 0 && bcd[firstDigit + digitsToDisplay] == 0) {
+      digitsToDisplay--;
+    }
   }
   // Sign
   if(sign) {
@@ -396,14 +477,15 @@ static void real34ToDisplayString2(const real34_t *real34, char *displayString, 
   #define MAX_DIGITS 37 // 34 + 1 before (used when rounding from 9.999 to 10.000) + 2 after (used for rounding and ENG display mode)
   #define exponentUNlimit1024max (getSystemFlag(FLAG_PFX_ALL) ? 7 : 5) //1024^7 is the maximum UNIT_1024^n before skipping over to standard unit presentation
 
-  uint8_t charIndex, valueIndex;
+  uint8_t charIndex, valueIndex, valueStart;
   int16_t digitToRound=0;
   uint8_t *bcd;
-  int16_t digitsToDisplay=0, numDigits, digitPointer, firstDigit, lastDigit, i, digitCount, digitsToTruncate, exponent;
+  int16_t digitsToDisplay=0, numDigits, digitPointer, firstDigit, lastDigit, i, digitCount, digitsToTruncate=0, exponent, roundedAt;
   int32_t sign;
   bool_t  ovrSCI=false, ovrENG=false, firstDigitAfterPeriod=true;
   real34_t value34;
 
+  hp35Round10 = checkHP;
 
   //Convert the incoming number in decimal, to the equivalent number in base 1024, multipled by 1000.
   //Example: 1025 -> 1024^1.000140819 -> 1024^.000140819 * 1024^1 -> 1.000976559 * Ki -> 1.001 Ki
@@ -455,6 +537,9 @@ static void real34ToDisplayString2(const real34_t *real34, char *displayString, 
       if(neg) {
         realSetNegativeSign(&x);
       }
+      c.digits = 34;
+      c.round = DEC_ROUND_05UP;
+      realPlus(&x, &x, &c);                                // 05UP at 34 digits, so realToReal34 takes the value exactly and the display rounds it once
       realToReal34(&x, real34);
     }
     else {
@@ -544,8 +629,21 @@ overRange:
       real34ToReal(real34, &tmp1);
       decContext c = ctxtReal39;
       c.digits = (SHOWMODE ? 39 : NUMBER_OF_DISPLAY_REAL_CONTEXT_DIGITS);
-      if(forceSigZeroes) {
+      if(forceSigZeroes && !(checkHP && displayFormatDigits >= 9)) {
+        uint8_t savedRoundingMode = roundingMode;
+        if(polarTieWatch) {
+          real_t away, toward;
+          roundingMode = (displayRoundingMode >= RM_UP ? RM_UP : RM_HALF_UP);
+          roundToSignificantDigits(&tmp1, &away, displayFormatDigits+1, &c);
+          roundingMode = (displayRoundingMode >= RM_UP ? RM_DOWN : RM_HALF_DOWN);
+          roundToSignificantDigits(&tmp1, &toward, displayFormatDigits+1, &c);
+          if(realCompareEqual(&away, &toward) == (displayRoundingMode >= RM_UP)) {  // UP equal to DOWN: nothing dropped; HALF_UP unequal to HALF_DOWN: a tie
+            polarNearTie = true;
+          }
+        }
+        roundingMode = displayRoundingMode;
         roundToSignificantDigits(&tmp1, &tmp1, displayFormatDigits+1, &c); //  &ctxtReal75);
+        roundingMode = savedRoundingMode;
       }
       realToReal34(&tmp1, &reduced);
       // printReal34ToConsole(&reduced, " ------- 002b >>>>>", " <<<<<\n");   //JM
@@ -556,25 +654,25 @@ overRange:
       int8_t ii=0;
       while(tmpString100[ii]!=0) {                       //skip all zeroes
         while(tmpString100[ii] == '0') {
-          if(tmpString100[ii] == 0) {
-            break;
-          }
           ii++;
         }                                                //counter at first non-'0' or at end
+        if(tmpString100[ii] == 0) {                      //Stop at the terminator: the zero-skip above lands on it when the digits run out, and every scan below indexes from ii.
+          break;
+        }
         if(tmpString100[ii] == '.') {
         // printf("------- 004 >>>>%s|, %i\n",tmpString100, ii);
 
             ii++;                                        //move to first non-'.' and skip all zeroes
             while(tmpString100[ii] == '0') {
-              if(tmpString100[ii] == 0) {
-                break;
-              }
               ii++;
             }                                            //counter at first non-'0' or end, eg. 3.14159265358979E+15
             // printf("------- 004a >>>>%s|, %i, displayFormatDigits=%i\n",tmpString100, ii, displayFormatDigits);
 
-            if(tmpString100[ii] != 0) {
-              ii = ii + displayFormatDigits+1;           //2023-06-01 added 1 digit, giving FIX one extra digit for rounding. If it does not work properly, to do rounding here.
+            if(tmpString100[ii] != 0 && forceSigZeroes) {   //TRL0 clear keeps full precision for the FIX stage to round; only TRL0 set truncates here
+              //Hold the sum in int and clamp it to the terminator: displayFormatDigits is not bounded by the digits present, and an int8_t sum of the two wraps negative.
+              int stringLength = (int)strlen(tmpString100);
+              int digitsEnd    = ii + displayFormatDigits + 1;   //2023-06-01 added 1 digit, giving FIX one extra digit for rounding. If it does not work properly, to do rounding here.
+              ii = (int8_t)(digitsEnd > stringLength ? stringLength : digitsEnd);
               int8_t jj = ii;
               //round here
 
@@ -611,11 +709,12 @@ overRange:
   }
   //printRealToConsole(&value, " ------- 006 >>>>>", " <<<<<\n\n");   //JM
 
-  if(checkHP) {
-    // Forced rounding at 10 digits when HP35 selected, to not risk any guard digits or digit noise in the last digits, see 'decNumberPlus'
-    ctxtReal39.digits = min(10, displayHasNDigits);
-    realPlus(&value, &value, &ctxtReal39);
-    ctxtReal39.digits = 39;
+  if(checkHP && (displayFormat == DF_ALL ? displayHasNDigits >= 10 : displayFormat == DF_SF && displayFormatDigits >= 9)) {
+    // HP35 profile, 10 digits or more shown in ALL or SIG: the value to 10 digits, a tie rounded away from zero; roundBcdAt takes this step in the other formats
+    decContext c = ctxtReal39;
+    c.digits = 10;
+    c.round = DEC_ROUND_HALF_UP;
+    realPlus(&value, &value, &c);
   }
 
   realToReal34(&value, &value34);
@@ -758,6 +857,7 @@ overRange:
   // Reset output indices; displayValueX appends to any existing prefix
   charIndex = 0;
   valueIndex = (updateDisplayValueX ? strlen(displayValueX) : 0);
+  valueStart = valueIndex;
 
   //////////////
   // ALL mode //
@@ -768,23 +868,30 @@ overRange:
     numDigits -= digitsToTruncate;
     lastDigit -= digitsToTruncate;
 
-    // Round the final 9s
+    // Round the final 9s.
     if(bcd[lastDigit+1] == 9) {
-      bcd[lastDigit]++;
-
-      // Transfert the carry
-      while(bcd[lastDigit] == 10) {
-        bcd[lastDigit--] = 0;
-        numDigits--;
-        bcd[lastDigit]++;
+      roundedAt = roundBcdAt(bcd, lastDigit, lastDigit + digitsToTruncate, sign);
+      // Clearing the dropped digits to prevent the "Round the displayed number"
+      // step to bump the same digit a second time.
+      memset(bcd + lastDigit + 1, 0, digitsToTruncate);
+      if(getSystemFlag(FLAG_SIGZEROS)) {  // TRL0 set: the zeros a round up leaves are shown digits
+        if(roundedAt < firstDigit) {  // 9.9999 rounds to 10.000: one digit more on the left, one less on the right
+          firstDigit--;
+          lastDigit--;
+          exponent++;
+        }
       }
+      else {
+        numDigits -= lastDigit - roundedAt;
+        lastDigit = roundedAt;
 
-      // Case when 9.9999 rounds to 10.0000
-      if(lastDigit < firstDigit) {
-        firstDigit--;
-        lastDigit = firstDigit;
-        numDigits = 1;
-        exponent++;
+        // Case when 9.9999 rounds to 10.0000
+        if(lastDigit < firstDigit) {
+          firstDigit--;
+          lastDigit = firstDigit;
+          numDigits = 1;
+          exponent++;
+        }
       }
     }
 
@@ -799,27 +906,29 @@ overRange:
     }
     else { // display all digits without ten exponent factor
       // Round the displayed number
-      if(bcd[lastDigit+1] >= 5) {
-        bcd[lastDigit]++;
+      roundedAt = roundBcdAt(bcd, lastDigit, lastDigit + digitsToTruncate, sign);
+      if(getSystemFlag(FLAG_SIGZEROS)) {  // TRL0 set: the zeros a round up leaves are shown digits
+        if(roundedAt < firstDigit) {  // 9.9999 rounds to 10.000: one digit more on the left, one less on the right
+          firstDigit--;
+          lastDigit--;
+          exponent++;
+        }
       }
+      else {
+        numDigits -= lastDigit - roundedAt;
+        lastDigit = roundedAt;
 
-      // Transfert the carry
-      while(bcd[lastDigit] == 10) {
-        bcd[lastDigit--] = 0;
-        numDigits--;
-        bcd[lastDigit]++;
-      }
-
-      // Case when 9.9999 rounds to 10.0000
-      if(lastDigit < firstDigit) {
-        firstDigit--;
-        lastDigit = firstDigit;
-        numDigits = 1;
-        exponent++;
+        // Case when 9.9999 rounds to 10.0000
+        if(lastDigit < firstDigit) {
+          firstDigit--;
+          lastDigit = firstDigit;
+          numDigits = 1;
+          exponent++;
+        }
       }
 
       // Remove trailling zeros
-      while(numDigits > 1 && bcd[lastDigit] == 0) {
+      while(!(getSystemFlag(FLAG_SIGZEROS)) && numDigits > 1 && bcd[lastDigit] == 0) {
         lastDigit--;
         numDigits--;
       }
@@ -950,7 +1059,7 @@ overRange:
          #if defined(SIG_VARIABLE_JUMP)
            exponent < -(int32_t)displayFormatDigits ||                                           //allow zero digits .00...1 to track n
          #else
-           ((displayFormat == DF_SF) && (exponent < (getSystemFlag(FLAG_ENGOVR) ? -2 : -3))) ||  //in SIG & ENGOVR,  allow 2 zero digits .001 then jump, in SIG & !ENGOVR, allow 3 zero digits .0001 then jump
+           ((displayFormat == DF_SF) && (exponent < (getSystemFlag(FLAG_ENGOVR) ? -2 : -3))) ||  //in SIG & ENGOVR,  allow 1 zero digit .01 then jump, in SIG & !ENGOVR, allow 2 zero digits .001 then jump
            ((displayFormat != DF_SF) && (exponent < -(int32_t)(displayFormatDigits))) ||
          #endif //SIG_VARIABLE_JUMP
          ( displayFormat == DF_SF && exponent -(int32_t)displayFormatDigits < -(checkHP ? 10+1 : displayHasNDigits)) ||
@@ -990,18 +1099,11 @@ overRange:
       //printf("\n");
 
       // Round the displayed number
-      if(bcd[digitToRound+1] >= 5) {
-        bcd[digitToRound]++;
+      roundedAt = roundBcdAt(bcd, digitToRound, lastDigit + digitsToTruncate, sign);
+      if(displayFormat == DF_SF) {
+        numDigits -= digitToRound - roundedAt;
       }
-
-      // Transfer the carry
-      while(bcd[digitToRound] == 10) {
-        bcd[digitToRound--] = 0;
-        if(displayFormat == DF_SF) {
-          numDigits--;
-        }
-        bcd[digitToRound]++;
-      }
+      digitToRound = roundedAt;
 
       if(displayFormat == DF_SF && forceSigZeroes) {
         lastDigit = digitToRound;
@@ -1016,8 +1118,21 @@ overRange:
           displayFormatDigits_Active--;
         }
         exponent++;
+        if(displayFormat == DF_FIX && !checkHP && exponent >= displayHasNDigits) {  // the rounding took the integer part past its limit: the exponent form, as for any larger number
+          digitsToTruncate = 0;                                           // the value is rounded already, and the dropped digits are not read again
+          digitsToDisplay  = min(displayFormatDigits, displayHasNDigits - 1);
+          digitToRound     = min(firstDigit + digitsToDisplay, lastDigit);
+          ovrSCI = !getSystemFlag(FLAG_ENGOVR);
+          ovrENG = getSystemFlag(FLAG_ENGOVR);
+          goto fixCarriedPastLimit;
+        }
       }
 
+      if(displayFormat == DF_SF && !forceSigZeroes) {                     // no-zero: a kept decimal the rounding leaves as 0 is a trailing zero as well
+        while(lastDigit > firstDigit && lastDigit > firstDigit + exponent && bcd[lastDigit] == 0) {
+          lastDigit--;
+        }
+      }
 
       //JM SIGFIG - blank out non-sig digits to the right                 //JM SIGFIGNEW vv
       if(displayFormat == DF_SF && forceSigZeroes) {
@@ -1167,6 +1282,7 @@ overRange:
     }
   }
 
+fixCarriedPastLimit:
   //////////////
   // SCI mode //
   //////////////
@@ -1175,7 +1291,7 @@ overRange:
       digitsToDisplay = displayFormatDigits;
       digitToRound    = min(firstDigit + (int16_t)displayFormatDigits, lastDigit);
     }
-    emitSciDigits(bcd, firstDigit, lastDigit, numDigits, exponent, sign, digitToRound, digitsToDisplay, frontSpace, displayString, displayValueX, updateDisplayValueX);
+    emitSciDigits(bcd, firstDigit, lastDigit + digitsToTruncate, numDigits, exponent, sign, digitToRound, digitsToDisplay, frontSpace, ((displayFormat == DF_SF && !forceSigZeroes) || (displayFormat == DF_ALL && !(getSystemFlag(FLAG_SIGZEROS)))) ? STRIP_TRAILING_ZEROS : KEEP_TRAILING_ZEROS, displayString, displayValueX, updateDisplayValueX);
     return;
   }
 
@@ -1189,26 +1305,30 @@ overRange:
       digitToRound    = min(firstDigit + digitsToDisplay, lastDigit);
     }
 
-    if(bcd[digitToRound + 1] >= 5) {
-      bcd[digitToRound]++;
-    }
+    roundedAt = roundBcdAt(bcd, digitToRound, lastDigit + digitsToTruncate, sign);
 
     // Ensure rounding before the radix mark for DSP 0 & DSP 1
     bcd[digitToRound + 1] = 0;
     bcd[digitToRound + 2] = 0;
 
-    // Transfert the carry
-    while(bcd[digitToRound] == 10) {
-      bcd[digitToRound--] = 0;
-      numDigits--;
-      bcd[digitToRound]++;
-    }
+    numDigits -= digitToRound - roundedAt;
+    digitToRound = roundedAt;
 
     // Case when 9.9999 rounds to 10.0000
     if(digitToRound < firstDigit) {
       firstDigit--;
       numDigits = 1;
       exponent++;
+    }
+
+    // SIG no-zero, and ALL without (getSystemFlag(FLAG_SIGZEROS)): clamp to the significant digits (ignore noise past numDigits), then drop trailing zeros left by the value or by rounding
+    if((displayFormat == DF_SF && !forceSigZeroes) || (displayFormat == DF_ALL && !(getSystemFlag(FLAG_SIGZEROS)))) {
+      if(digitsToDisplay > numDigits - 1) {
+        digitsToDisplay = numDigits - 1;
+      }
+      while(digitsToDisplay > 0 && bcd[firstDigit + digitsToDisplay] == 0) {
+        digitsToDisplay--;
+      }
     }
 
     // The sign
@@ -1329,7 +1449,15 @@ overRange:
         }
       }                                                                                 //JM UNIT
       else {  //DF_UN                                                                   //JM UNIT
-        exponentToUnitDisplayString(exponent, flag2To10, displayString + charIndex, displayValueX + valueIndex, false);          //JM UNIT
+        exponentToUnitDisplayString(exponent, flag2To10, displayString + charIndex, updateDisplayValueX ? displayValueX + valueIndex : NULL, false);          //JM UNIT
+        if(updateDisplayValueX && flag2To10) {                                          // the value shown is the mantissa times 1024^(exponent/3)
+          real_t shown;
+          stringToReal(displayValueX + valueStart, &shown, &ctxtReal75);
+          for(int32_t k = exponent / 3; k > 0; k--) {
+            realMultiply(&shown, const_1024, &shown, &ctxtReal75);
+          }
+          realToString(&shown, displayValueX + valueStart);
+        }
       }                                                                                 //JM UNIT
     }
 
@@ -1343,6 +1471,7 @@ overRange:
 
 
 void complex34ToDisplayString(const complex34_t *complex34, char *displayString, const font_t *font, int16_t maxWidth, int16_t displayHasNDigits, bool_t limitExponent, bool_t frontSpace, irfracOption_t limitIrfrac, const uint16_t tagAngle, const bool_t tagPolar) {
+  rectToPolarCache_t cache = { .valid = false };
   uint8_t savedDisplayFormatDigits = displayFormatDigits;
   uint8_t saveddisplayFormat       = displayFormat;
 
@@ -1352,7 +1481,7 @@ void complex34ToDisplayString(const complex34_t *complex34, char *displayString,
     displayValueX[0] = 0;
   }
 
-  complex34ToDisplayString2(complex34, displayString, displayHasNDigits, limitExponent, frontSpace, tagAngle, tagPolar, limitIrfrac);
+  complex34ToDisplayString2(complex34, displayString, displayHasNDigits, limitExponent, frontSpace, tagAngle, tagPolar, limitIrfrac, &cache);
   bool noFix = false;
   // bool overflown = false;
   int16_t overflow = stringWidth(displayString, font, true, true) - maxWidth;
@@ -1393,7 +1522,7 @@ void complex34ToDisplayString(const complex34_t *complex34, char *displayString,
       displayValueX[0] = 0;
     }
 
-    complex34ToDisplayString2(complex34, displayString, displayHasNDigits, limitExponent, frontSpace, tagAngle, tagPolar, limitIrfrac);
+    complex34ToDisplayString2(complex34, displayString, displayHasNDigits, limitExponent, frontSpace, tagAngle, tagPolar, limitIrfrac, &cache);
     overflow = stringWidth(displayString, font, true, true) - maxWidth;
   }
   // if(overflown && overflow < -3 * digitWidth) {
@@ -1453,20 +1582,33 @@ void strPrepend(char*dest, char*prefix) {
   }
 #endif //PC_BUILD_TELLTALE
 
-static void complex34ToDisplayString2(const complex34_t *complex34, char *displayString, int16_t displayHasNDigits, bool_t limitExponent, bool_t frontSpace, const uint16_t tagAngle, const bool_t tagPolar, irfracOption_t limitIrfrac) {
+static void complex34ToDisplayString2(const complex34_t *complex34, char *displayString, int16_t displayHasNDigits, bool_t limitExponent, bool_t frontSpace, const uint16_t tagAngle, const bool_t tagPolar, irfracOption_t limitIrfrac, rectToPolarCache_t *cache) {
   int16_t imagOffset = 100;
   real34_t real34, imag34, absimag34;
   real_t real, imagIc;
+  bool_t polarAt39 = false;
+  size_t valueXLength = strlen(displayValueX);
 
+polarFormat:
   if(tagPolar) { // polar mode
     real34ToReal(VARIABLE_REAL34_DATA(complex34), &real);
     real34ToReal(VARIABLE_IMAG34_DATA(complex34), &imagIc);
 
     decContext c = ctxtReal39;
-    int maxExponent = max(real.exponent + real.digits, imagIc.exponent + imagIc.digits);
-    c.digits = (SHOWMODE ? 39 : min(75, max(0, maxExponent) + NUMBER_OF_DISPLAY_REAL_CONTEXT_DIGITS + 2)); //add 2 guard digits for Taylor etc.
-    realRectangularToPolar(&real, &imagIc, &real, &imagIc, &c); // imagIc in radian
-    c.digits = (SHOWMODE ? 39 : 3 + NUMBER_OF_DISPLAY_REAL_CONTEXT_DIGITS); //converting from radians to grad is the worst, i.e. x 2E2 / pi, which requires 3 digits accuarcy more
+    // Compute the polar form at a fixed display precision (POLAR_DISPLAY_COMPUTE_DIGITS),
+    // not at a precision scaled by the operands' exponent: hypot and atan2 are
+    // well conditioned, so this reproduces the display exactly for all magnitudes
+    // (MR !1615; gated by polar_display_cov) while the repeated-input calls hit
+    // the trig cache. SHOW keeps its full 39 digits.
+    c.digits = min(displayHasNDigits + 2, (SHOWMODE ? 39 : POLAR_DISPLAY_COMPUTE_DIGITS));
+    if(polarAt39) {
+      c.digits = 39;
+    }
+    polarTieWatch = (c.digits < 39);  // a value within one unit of its last computed digit from a rounding boundary is computed again at 39 digits
+    polarNearTie = false;
+    realRectangularToPolarCached(&real, &imagIc, &real, &imagIc, &c, cache); // imagIc in radian
+    // convertAngleFromTo runs at the same c.digits; radian->grad (x 200/pi) is
+    // the worst case for the conversion and stays inside that precision.
     convertAngleFromTo(&imagIc, amRadian, tagAngle == amNone ? currentAngularMode : tagAngle, &c);
 
     realToReal34(&real, &real34);
@@ -1487,7 +1629,10 @@ static void complex34ToDisplayString2(const complex34_t *complex34, char *displa
     }
   }
 
+  const bool_t savedUpdateDisplayValueX = updateDisplayValueX;
+  updateDisplayValueX = updateDisplayValueX && !tagPolar;              // the polar angle is written into displayValueX by angle34ToDisplayString2 below
   real34ToDisplayString2(&imag34, displayString + imagOffset, displayHasNDigits, limitExponent, false, !FRONTSPACE, isComplex, limitIrfrac);
+  updateDisplayValueX = savedUpdateDisplayValueX;
 
   #if defined(PC_BUILD_TELLTALE)
     printTempDisplayString(displayString, displayString + imagOffset);
@@ -1516,6 +1661,13 @@ static void complex34ToDisplayString2(const complex34_t *complex34, char *displa
     if(strncmp(displayString + kk, STD_ALMOST_EQUAL, 2) == 0) {          //if almost equal char in front of IM part, transfer it to the Left (Real) side
       displayString[kk] = STD_NOCHAR;    //0x01 is the new 'no char' character
       displayString[kk+1] = STD_NOCHAR;  //0x01 is the new 'no char' character
+    }
+    polarTieWatch = false;
+    if(polarNearTie) {
+      polarNearTie = false;
+      polarAt39 = true;
+      displayValueX[valueXLength] = 0;  // the first formatting appended to displayValueX
+      goto polarFormat;
     }
   }
   else { // rectangular mode
@@ -1764,11 +1916,15 @@ void angle34ToDisplayString2(const real34_t *angle34, uint8_t modeIn, char *disp
     char degStr[100];
     uint32_t m, s, fs;
     int16_t sign;
-    real34_t angle34Dms;
     real_t angleDms, degrees, minutes, seconds;
 
-    real34FromDegToDms(angle34, &angle34Dms);
-    real34ToReal(&angle34Dms, &angleDms);
+    if(real34IsSpecial(angle34)) {
+      real34ToDisplayString2(angle34, displayString, displayHasNDigits, limitExponent, false, frontSpace, true, limitIrfrac);
+      strcat(displayString, STD_DEGREE);
+      return;
+    }
+
+    real34ToReal(angle34, &angleDms);
 
     sign = realIsNegative(&angleDms);
     realSetPositiveSign(&angleDms);
@@ -1778,18 +1934,19 @@ void angle34ToDisplayString2(const real34_t *angle34, uint8_t modeIn, char *disp
 
     // Get the minutes
     realSubtract(&angleDms, &degrees, &angleDms, &ctxtReal39);
-    angleDms.exponent += 2; // angleDms = angleDms * 100
+    realMultiply(&angleDms, const_60, &angleDms, &ctxtReal39);
     realToIntegralValue(&angleDms, &minutes, DEC_ROUND_DOWN, &ctxtReal39);
 
     // Get the seconds
     realSubtract(&angleDms, &minutes, &angleDms, &ctxtReal39);
-    angleDms.exponent += 2; // angleDms = angleDms * 100
+    realMultiply(&angleDms, const_60, &angleDms, &ctxtReal39);
     realToIntegralValue(&angleDms, &seconds, DEC_ROUND_DOWN, &ctxtReal39);
 
     // Get the fractional seconds
     realSubtract(&angleDms, &seconds, &angleDms, &ctxtReal39);
     angleDms.exponent += 2; // angleDms = angleDms * 100
 
+    realToIntegralValue(&angleDms, &angleDms, DEC_ROUND_HALF_UP, &ctxtReal39);
     fs = realToUint32C47(&angleDms, NULL);
     s  = realToUint32C47(&seconds, NULL);
     m  = realToUint32C47(&minutes, NULL);
@@ -1817,19 +1974,26 @@ void angle34ToDisplayString2(const real34_t *angle34, uint8_t modeIn, char *disp
     //format without decimals
     displayFormatDigits = 0;
     displayFormat = DF_ALL;
+    const size_t dmsValueStart = (updateDisplayValueX ? strlen(displayValueX) : 0);
     real34ToDisplayString2(&tmp, degStr, displayHasNDigits, limitExponent, false, frontSpace, true, limitIrfrac);
+    if(updateDisplayValueX) {                                         // displayValueX takes the angle the line shows: (d x 360000 + m x 6000 + s x 100 + fs) / 360000
+      real_t shown, part;
+      realMultiply(&degrees, const_360000, &shown, &ctxtReal75);
+      int32ToReal(m * 6000 + s * 100 + fs, &part);
+      realAdd(&shown, &part, &shown, &ctxtReal75);
+      if(sign) {
+        realSetNegativeSign(&shown);
+      }
+      realDivide(&shown, const_360000, &shown, &ctxtReal34);
+      realToString(&shown, displayValueX + dmsValueStart);
+    }
     if(degStr[0] == ' ' && degStr[1] != 0) {       //degStr has a leading space as it is always positive, and the sign is separately handled.
       memmove(degStr, degStr + 1, strlen(degStr));
     }
     displayFormatDigits = savedDisplayFormatDigits;
     displayFormat       = savedDisplayFormat;
     //remove the '.' radix indicating it is a real
-    int32_t slen = (int32_t)strlen(degStr);
-    int32_t mlen = (Rx[0] & 0x80) ? (int32_t)strlen(RADIX34_MARK_STRING) : (int32_t)strlen(Rx);
-    const char *marker = (Rx[0] & 0x80) ? RADIX34_MARK_STRING : Rx;
-    if(slen >= mlen && strcmp(degStr + slen - mlen, marker) == 0) {
-      degStr[slen - mlen] = '\0';
-    }
+    stripTrailingRadix(degStr);
 
 
     char tt[4];
@@ -1960,7 +2124,7 @@ void longIntegerToHexDisplayString(calcRegister_t regist, char *displayString, b
 }
 
 
-void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, bool_t determineFont, uint8_t baseOverride) {
+void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, bool_t determineFont, uint8_t baseOverride, int16_t maxWidth) {   //JM maxWidth: the room the caller has, so a temporary information prefix is not painted over
   int16_t i, j, k, unit, gap, digit, bitsPerDigit, maxDigits, base;
   uint64_t orgnumber, number, sign;
 
@@ -2058,9 +2222,12 @@ void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, boo
   }
   else {
     if(base == 2) {
-      gap = 4;
+      gap = grpGroupingBin;
     }
-    else if(base == 4 || base == 16) {
+    else if(base == 16) {
+      gap = grpGroupingHex;
+    }
+    else if(base == 4) {
       gap = 2;
     }
     else if(base == 8) {
@@ -2206,7 +2373,7 @@ void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, boo
       addBaseNumber(displayString, base);
     }
 
-    if(stringWidth(displayString, fontForShortInteger, false, false) < SCREEN_WIDTH) {
+    if(stringWidth(displayString, fontForShortInteger, false, false) < maxWidth) {
       return;
     }
 
@@ -2234,7 +2401,7 @@ void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, boo
     }
 
 
-    if(stringWidth(displayString, fontForShortInteger, false, false) < SCREEN_WIDTH) {
+    if(stringWidth(displayString, fontForShortInteger, false, false) < maxWidth) {
       return;
     }
 
@@ -2259,7 +2426,7 @@ void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, boo
       addBaseNumber(displayString, base);
     }
 
-    if(/*temporaryInformation == TI_SHOW_REGISTER_BIG ||*/ stringWidth(displayString, fontForShortInteger, false, false) < SCREEN_WIDTH) {     //JMSHOW
+    if(/*temporaryInformation == TI_SHOW_REGISTER_BIG ||*/ stringWidth(displayString, fontForShortInteger, false, false) < maxWidth) {     //JMSHOW
       return;
     }
 
@@ -2290,7 +2457,12 @@ void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, boo
       addBaseNumber(displayString, base);
     }
 
-    if(stringWidth(displayString, fontForShortInteger, false, false) < SCREEN_WIDTH) {
+    if(stringWidth(displayString, fontForShortInteger, false, false) < maxWidth) {
+      return;
+    }
+
+    if(maxWidth < SCREEN_WIDTH) {                             //JM no font fits beside the caller's prefix, so take the whole line rather than report
+      shortIntegerToDisplayString(regist, displayString, determineFont, baseOverride, SCREEN_WIDTH);
       return;
     }
 
@@ -2323,7 +2495,7 @@ void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, boo
       addBaseNumber(displayString, base);
     }
 
-    if(stringWidth(displayString, fontForShortInteger, false, false) < SCREEN_WIDTH) {
+    if(stringWidth(displayString, fontForShortInteger, false, false) < maxWidth) {
       return;
     }
 
@@ -2354,7 +2526,12 @@ void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, boo
       addBaseNumber(displayString, base);
     }
 
-    if(stringWidth(displayString, fontForShortInteger, false, false) < SCREEN_WIDTH) {
+    if(stringWidth(displayString, fontForShortInteger, false, false) < maxWidth) {
+      return;
+    }
+
+    if(maxWidth < SCREEN_WIDTH) {                             //JM no font fits beside the caller's prefix, so take the whole line rather than report
+      shortIntegerToDisplayString(regist, displayString, determineFont, baseOverride, SCREEN_WIDTH);
       return;
     }
 
@@ -2381,6 +2558,7 @@ void realSCIToDisplayString(const real_t *work, char *displayString, int16_t dig
   int16_t numDigits, digitPointer, firstDigit, lastDigit, digitToRound, exponent;
   int32_t sign;
 
+  hp35Round10 = false;
   memset(bcd, 0, maxDigits);
 
   // A real_t is left significant: realGetCoefficient writes work->digits digit-bytes MSD first at bcd[1] with no leading zeros, and the place value of the last written digit bcd[work->digits] is work->exponent. This mirrors the real34 path where bcd[1] is the MSD and real34GetExponent gives the LSD place value; only the right edge moves from a fixed 34 to work->digits.
@@ -2420,7 +2598,7 @@ void realSCIToDisplayString(const real_t *work, char *displayString, int16_t dig
 
   digitToRound = min(firstDigit + digitsToDisplay, lastDigit);
 
-  emitSciDigits(bcd, firstDigit, lastDigit, numDigits, exponent, sign, digitToRound, digitsToDisplay, frontSpace, displayString, displayValueX, updateDisplayValueX);
+  emitSciDigits(bcd, firstDigit, lastDigit, numDigits, exponent, sign, digitToRound, digitsToDisplay, frontSpace, KEEP_TRAILING_ZEROS, displayString, displayValueX, updateDisplayValueX);
 }
 
 
@@ -2430,7 +2608,9 @@ void longIntegerRegisterToRealDisplayString(calcRegister_t regist, char *display
   longIntegerToAllocatedString(lgInt, displayString, strLg);
   longIntegerFree(lgInt);
   real_t tmp4, tmpReal;
-  stringToReal(displayString, &tmpReal, &ctxtReal75);
+  decContext c = ctxtReal75;
+  c.round = DEC_ROUND_05UP;  // a dropped digit that is not zero leaves the last kept digit neither 0 nor 5, so a later rounding to fewer digits gives that of the exact integer
+  stringToReal(displayString, &tmpReal, &c);
   int32ToReal(minimum, &tmp4);
   if(minimum == 0 || !realCompareAbsLessThan(&tmpReal, &tmp4)) {
     const font_t *font = getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont;
@@ -2438,7 +2618,6 @@ void longIntegerRegisterToRealDisplayString(calcRegister_t regist, char *display
     if(displayFormat == DF_ALL && displayFormatDigits > DSP_MAX) {
       const int16_t regDispMaxDigits = 48; // buffer ceiling for shown digits; the wide-LI caller's cap (max 42) starts the width iteration
       char bcdScratch[100];
-      decContext c = ctxtReal75;
       c.digits = regDispMaxDigits;
       realPlus(&tmpReal, &tmpReal, &c);
       int16_t digitsToDisplay = regDispMaxDigits - 1; // fill the width; -1 drops the leading digit to get digits after the radix
@@ -2452,6 +2631,8 @@ void longIntegerRegisterToRealDisplayString(calcRegister_t regist, char *display
     }
     else {
       real34_t tmpReal34;
+      c.digits = 34;
+      realPlus(&tmpReal, &tmpReal, &c);  // 05UP at 34 digits as well, so realToReal34 takes the value exactly and the display rounds it once
       realToReal34(&tmpReal, &tmpReal34);
       real34ToDisplayString(&tmpReal34, amNone, displayString, font, maxWidth, 34, LIMITEXP, !FRONTSPACE, NOIRFRAC);
     }
@@ -2515,7 +2696,7 @@ static void insertSepsIntoIntegerText(char *displayString){
 
 void longIntegerToDisplayString(longInteger_t lgInt, char *displayString, int32_t strLg, int16_t max_Width, int16_t maxExp, bool_t allowLARGELI) { //JM mod max_Width;   //JM added last parameter: Allow LARGELI
   int16_t exponentStep, exponentStep1;
-  uint32_t exponentShift, exponentShiftLimit;
+  uint32_t exponentShift, exponentShiftLimit, shiftRemainder = 0;
   int16_t maxWidth;                   //JM align longints
 
   if(longIntegerIsNegative(lgInt)) {  //JM align longints
@@ -2542,15 +2723,15 @@ void longIntegerToDisplayString(longInteger_t lgInt, char *displayString, int32_
     //longIntegerFree(divisor);
     for(int32_t i=(int32_t)exponentShift; i>=1; i--) {
       if(i >= 9) {
-        longIntegerDivideUInt(lgInt, 1000000000, lgInt);
+        shiftRemainder |= longIntegerDivideUInt(lgInt, 1000000000, lgInt);
         i -= 8;
       }
       else if(i >= 4) {
-        longIntegerDivideUInt(lgInt,      10000, lgInt);
+        shiftRemainder |= longIntegerDivideUInt(lgInt,      10000, lgInt);
         i -= 3;
       }
       else {
-        longIntegerDivideUInt(lgInt,         10, lgInt);
+        shiftRemainder |= longIntegerDivideUInt(lgInt,         10, lgInt);
       }
     }
   }
@@ -2570,36 +2751,37 @@ void longIntegerToDisplayString(longInteger_t lgInt, char *displayString, int32_
 
   //for any exponent display, further manipulation of GRP is not needed
   if(stringWidth(displayString, allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, false, false) > maxWidth) {      //JM
-    char exponentString[14] = {0}, lastRemovedDigit = '0';
-    int16_t lastChar, stringStep, tenExponent;
-    int16_t minChar = (displayString[0] == '-' ? 2 : 1);
+    char exponentString[24];                    // ×, ₁₀, the sign, five digits and a gap at 2 bytes each, and the terminator: any int16_t exponent
+    int16_t lastChar, stringStep, tenExponent, lastIndex = strlen(displayString) - 1;
 
     stringStep = (GROUPLEFT_DISABLED ? 1 : GROUPWIDTH_LEFT + (SEPARATOR_LEFT[1] == 1 ? 1 : 2));
     tenExponent = exponentStep + exponentShift;
-    lastChar = (int16_t)strlen(displayString) - stringStep;
-
-    if (lastChar >= minChar) {
-      lastRemovedDigit = displayString[lastChar + (SEPARATOR_LEFT[1] == 1 ? 1 : 2)];
+    lastChar = strlen(displayString) - stringStep;
+    char cutChar = displayString[lastChar];
+    displayString[lastChar] = 0;
+    if(updateDisplayValueX) {
+      displayValueX[strlen(displayValueX) - max(GROUPWIDTH_LEFT, 1)] = 0;
+    }
+    exponentString[0] = 0;
+    exponentToDisplayString(tenExponent, exponentString, NULL, false);
+    // the cut stops at the first digit group when no width is left for it
+    while(lastChar > stringStep && stringWidth(displayString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, false, true) + stringWidth(exponentString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, true, false) > maxWidth) {  //JM getSystemFlag(FLAG_LARGELI)
+      displayString[lastChar] = cutChar;  // the byte under the previous cut is written back: with the separator NONE it is a dropped digit, which roundUpDrm takes into the rounding
+      lastChar -= stringStep;
+      tenExponent += exponentStep;
+      cutChar = displayString[lastChar];
       displayString[lastChar] = 0;
       if(updateDisplayValueX) {
         displayValueX[strlen(displayValueX) - max(GROUPWIDTH_LEFT, 1)] = 0;
       }
       exponentString[0] = 0;
       exponentToDisplayString(tenExponent, exponentString, NULL, false);
-      while(lastChar >= minChar + stringStep && (stringWidth(displayString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, false, true) + stringWidth(exponentString,   allowLARGELI && getSystemFlag(FLAG_LARGELI) ? &numericFont : &standardFont, true, false) > maxWidth)) {  //JM getSystemFlag(FLAG_LARGELI)
-        lastChar -= stringStep;
-        tenExponent += exponentStep;
-        lastRemovedDigit = displayString[lastChar + (SEPARATOR_LEFT[1] == 1 ? 1 : 2)];
-        displayString[lastChar] = 0;
-        if(updateDisplayValueX) {
-          displayValueX[strlen(displayValueX) - max(GROUPWIDTH_LEFT, 1)] = 0;
-        }
-        exponentString[0] = 0;
-        exponentToDisplayString(tenExponent, exponentString, NULL, false);
-      }
     }
 
-    if(lastRemovedDigit >= '5') { // Round up
+    displayString[lastChar] = cutChar;  // the first dropped byte is written back for roundUpDrm and cut again after it
+    bool_t roundUp = roundUpDrm((const uint8_t *)displayString, lastChar - 1, lastIndex, displayString[0] == '-', '0', shiftRemainder != 0);
+    displayString[lastChar] = 0;
+    if(roundUp) {  // Round up
       lastChar = strlen(displayString) - 1;
       displayString[lastChar]++;
       while(displayString[lastChar] > '9') {
@@ -2765,6 +2947,12 @@ void timeToDisplayString(calcRegister_t regist, char *displayString, bool_t igno
   bool_t isValid12hTime = false, isAfternoon = false;
   uint8_t savedDisplayFormat = displayFormat, savedDisplayFormatDigits = displayFormatDigits;
 
+  // A special value has no HMS decomposition.
+  if(real34IsSpecial(REGISTER_REAL34_DATA(regist))) {
+    real34ToString(REGISTER_REAL34_DATA(regist), displayString);
+    return;
+  }
+
   real34ToReal(REGISTER_REAL34_DATA(regist), &real);
   sign = realIsNegative(&real);
 
@@ -2850,6 +3038,11 @@ void timeToDisplayString(calcRegister_t regist, char *displayString, bool_t igno
         tDigits = 0u;
       }
     }
+  }
+  if(!ignoreTDisp && timeDisplayFormatDigits == 0) {
+    realDivide(&real, const_3600, &h, &ctxtReal39);
+    realSetPositiveSign(&h);
+    realToIntegralValue(&h, &h, DEC_ROUND_DOWN, &ctxtReal39);
   }
   realSetPositiveSign(&real);
 
@@ -3009,12 +3202,11 @@ bool_t vectorToDisplayString(calcRegister_t regist, char *displayString) {
     if(isMatrixVector(matrixHeader->matrixRows, matrixHeader->matrixColumns)) {
       real34Matrix_t matrix;
       linkToRealMatrixRegister(regist, &matrix);
-      showRealMatrix(&matrix, 0, !toDisplayVectorMatrix, regXp);
-      sprintf(displayString, "%s", errorMessage);
+      showRealMatrix(&matrix, 0, regXp, displayString);
       //if(stringWidth(tmpString, &numericFont, true, true) + 1 > SCREEN_WIDTH) {
       //  return false;     //this is to revert to [4x4 Matrix] if the digits in the default standard font is too wide. Not needed as it is managed by reducing the font
       //}
-      return true;
+      return displayString[0] != 0;                    // empty means showRealMatrix refused, then shows [n×n Matrix]
     }
   }
   return false;
@@ -3093,11 +3285,10 @@ void mimShowElement(void) {
 }
 
 
-#if !defined(SAVE_SPACE_DM42_9)
+#if defined(OPTION_SHOW)
 
-static void RegName(void) {    //JM using standard reg name, using showRegis, not using prefixWidth
-  int16_t tmp;
-  viewRegName2(tmpString + 2100, &tmp);
+static void RegName(void) {    //JM using standard reg name, using showRegis
+  viewRegName2(tmpString + 2100);
   //printf("|%s|%d|\n",tmpString + 2100, 2100+stringByteLength(tmpString + 2100));
 }
 
@@ -3110,20 +3301,6 @@ static void SHOW_reset(void){
 
   temporaryInformation = TI_SHOW_REGISTER_SMALL;
   RegName();
-}
-
-
-static void checkAndEat(int16_t *source, int16_t last, int16_t *dest) {
-  uint8_t ix;
-  if(*source < last && !GROUPLEFT_DISABLED) {                  //Not in the last line
-    for(ix=0; ix<16; ix++) { //Eat away characters at the end to line up the last space
-      if((uint8_t)tmpString[(*dest)-2] == (uint8_t)STD_SPACE_PUNCTUATION[0] && (uint8_t)tmpString[(*dest)-1] == (uint8_t)STD_SPACE_PUNCTUATION[1]) break;
-      if(tmpString[(*dest)-1] == 32) break;
-      (*dest)--;
-      (*source)--;
-    }
-    tmpString[*dest] = 0;
-  }
 }
 
 
@@ -3173,7 +3350,7 @@ static void dispM(uint16_t regist, char * prefix) {
   if(getRegisterDataType(regist) == dtReal34Matrix) {
     real34Matrix_t matrix;
     linkToRealMatrixRegister(regist, &matrix);
-    showRealMatrix(&matrix, prefixWidth, toDisplayVectorMatrix, !regXp);
+    showRealMatrix(&matrix, prefixWidth, !regXp, NULL);
     //printf("#### tmpString=%s prefix=%s prefixWidth=%u lastErrorCode=%u temporaryInformation=%u\n",tmpString, prefix, prefixWidth, lastErrorCode, temporaryInformation);
     if(lastErrorCode != 0) {
       refreshRegisterLine(errorMessageRegisterLine);
@@ -3201,13 +3378,15 @@ static void dispM(uint16_t regist, char * prefix) {
     }
   }
 }
-#endif //SAVE_SPACE_DM42_9
+
 
 
 
 #undef MONITOR_SHOW
 
-static void prepLongintIntoLines(int16_t *last, int16_t *source, int16_t *dest, const font_t *fontToUse, int16_t maxWidth, int16_t numberOfLines, int16_t *startingLine) {
+static void prepIntoLines(const char *src, bool_t grouped, int16_t last, int16_t *source, const font_t *fontToUse, int16_t maxWidth, int16_t numberOfLines, int16_t startingLine) {
+        /* src is errorMessage for a number and the register for a string. A string is not grouped: it takes no separator */
+        /* allowance, no eat-back, and its terminator prints as the closing quote.                                        */
         /* checktmpStringSep macro:           */
         /* previous 2 bytes = double byte sep */
         /* previous byte = single byte sep    */
@@ -3220,43 +3399,49 @@ static void prepLongintIntoLines(int16_t *last, int16_t *source, int16_t *dest, 
   int8_t GRPWID = GROUPWIDTH_LEFT;
   bool_t GRP_DISABLED = GROUPLEFT_DISABLED;
 
-  if(strchr(errorMessage, '.') || strstr(errorMessage, RADIX34_MARK_STRING)) {
+  if(strchr(src, '.') || strstr(src, RADIX34_MARK_STRING)) {
     //in XFN decimal mode, a decimal point changes the seps to the right hand style
     SEP = SEPARATOR_RIGHT;
     GRPWID = GROUPWIDTH_RIGHT;
     GRP_DISABLED = GROUPRIGHT_DISABLED;
   }
-  int16_t Width_0 = stringWidth(SEP, fontToUse, true, true);
+  int16_t Width_0 = grouped ? stringWidth(SEP, fontToUse, true, true) : 0;
   #if defined(MONITOR_SHOW)
-    printf("000: source=%d %d %d [%d] %d %d\n", *source, errorMessage[*source-2], errorMessage[*source-1], errorMessage[*source], errorMessage[*source+1], errorMessage[*source+2]);
+    printf("000: source=%d %d %d [%d] %d %d\n", *source, src[*source-2], src[*source-1], src[*source], src[*source+1], src[*source+2]);
     printf("Width_0 = %d\n", Width_0);
   #endif //MONITOR_SHOW
 
   int16_t d;
-  *dest = 0;
+  int16_t dest = 0;
   int16_t sourceReturn = 0;
   for(d=0; d <= (numberOfLines)*SHOWLineSize ; d+=SHOWLineSize) {   //0 to (n-1)+1 one more that the displayed strings, to detect run-over
     tmpString[d] = 0;
   }
-  for(d = (*startingLine)*SHOWLineSize; d <= (*startingLine + (numberOfLines-1+1))*SHOWLineSize; d += SHOWLineSize) { //0 to (n-1)+1 one more that the displayed strings, to detect run-over
-    int16_t dCounter = d - (*startingLine)*SHOWLineSize;
-    //printf("dCounter=%i d=%i startingLine=%i last=%i source=%i dest=%i ...", dCounter, d, *startingLine, *last, *source, *dest);
-    *dest = dCounter;
+  for(d = (startingLine)*SHOWLineSize; d <= (startingLine + (numberOfLines-1+1))*SHOWLineSize; d += SHOWLineSize) { //0 to (n-1)+1 one more that the displayed strings, to detect run-over
+    int16_t dCounter = d - (startingLine)*SHOWLineSize;
+    //printf("dCounter=%i d=%i startingLine=%i last=%i source=%i dest=%i ...", dCounter, d, startingLine, last, *source, dest);
+    dest = dCounter;
+    if(!grouped && dCounter == 0 && *source == 0) {         //a string leads its first page with the register name and the opening quote
+      xcopy(tmpString, tmpString + 2100, stringByteLength(tmpString + 2100) + 1);
+      dest += stringByteLength(tmpString);
+      tmpString[dest++] = '\'';
+      tmpString[dest] = 0;
+    }
 
 
-    while((*source < *last) && (*dest < TMP_STR_LENGTH - 6)) {
+    while((*source < last) && (dest < TMP_STR_LENGTH - 6) && (dest - dCounter < SHOWLineSize - 2)) {   //the slot bounds the line as well as the width
       // Add the character(s)
-      tmpString[*dest] = errorMessage[*source];
+      tmpString[dest] = src[*source] ? src[*source] : '\'';
       int bytesToAdd = 1;
 
-      if(tmpString[*dest] & 0x80) {
-        tmpString[++*dest] = errorMessage[++*source];
+      if(tmpString[dest] & 0x80) {
+        tmpString[++dest] = src[++*source];
         bytesToAdd = 2;
         #if defined(MONITOR_SHOW)
-          printf("(%u)\n", (uint8_t)((tmpString + (*dest))[0]));
+          printf("(%u)\n", (uint8_t)((tmpString + (dest))[0]));
         #endif
       }
-      tmpString[++*dest] = 0;
+      tmpString[++dest] = 0;
       (*source)++;
 
       // Check width validity
@@ -3265,18 +3450,18 @@ static void prepLongintIntoLines(int16_t *last, int16_t *source, int16_t *dest, 
 
       if(currentWidth >= allowedWidth) {
         // Width exceeded - remove added character(s) and break
-        *dest -= bytesToAdd;
+        dest -= bytesToAdd;
         *source -= bytesToAdd;
-        tmpString[*dest] = 0;
+        tmpString[dest] = 0;
         break;
       }
       // Width is valid
 
       #if defined(MONITOR_SHOW)
         printf("dCounter = %d, Width_0 =%d, %s : Width=%d <> %d\n", dCounter, Width_0, tmpString + dCounter, currentWidth, allowedWidth);
-        printf("02--->d=%i startingLine=%i last=%i source=%i dest=%i wid=%i??maxwid=%i <<:%u ", d, *startingLine, *last, *source, *dest, currentWidth, allowedWidth, *dest < TMP_STR_LENGTH - 6);
-        printf("03    ==>%c (%u)", ((tmpString + (*dest-1))[0]), (uint8_t)((tmpString + (*dest-1))[0]));
-        if(((uint8_t)((tmpString + (*dest-1))[0]) & 0x80) == 0) {
+        printf("02--->d=%i startingLine=%i last=%i source=%i dest=%i wid=%i??maxwid=%i <<:%u ", d, startingLine, last, *source, dest, currentWidth, allowedWidth, dest < TMP_STR_LENGTH - 6);
+        printf("03    ==>%c (%u)", ((tmpString + (dest-1))[0]), (uint8_t)((tmpString + (dest-1))[0]));
+        if(((uint8_t)((tmpString + (dest-1))[0]) & 0x80) == 0) {
           printf("\n");
         }
       #endif
@@ -3287,16 +3472,16 @@ static void prepLongintIntoLines(int16_t *last, int16_t *source, int16_t *dest, 
       printf("  --->d=%i wid=%i\n", d, (int16_t)(stringWidth(tmpString + dCounter, fontToUse, true, true)));
     #endif
     uint8_t cnt = GRPWID+1;
-    while(cnt-- != 0 && *source < *last && !GRP_DISABLED ) { //Eat away characters at the end to line, up to and excluding the last seperator.
-      if(checktmpStringSep(SEP, *dest)) {                    //try the actual sep char, or any other double byte unicode character to split it there. That excludes all ligit digits
-        (*dest)--;                                           //line does not end on separator, so reduce the characters until it does
+    while(cnt-- != 0 && *source < last && grouped && !GRP_DISABLED ) { //Eat away characters at the end to line, up to and excluding the last seperator.
+      if(checktmpStringSep(SEP, dest)) {                     //try the actual sep char, or any other double byte unicode character to split it there. That excludes all ligit digits
+        dest--;                                              //line does not end on separator, so reduce the characters until it does
         (*source)--;
       }
       else {
-        (*dest)--;    //line ends on a seperator so reduce only the target and let the next line begins onthe number, not separator
+        dest--;       //line ends on a seperator so reduce only the target and let the next line begins onthe number, not separator
         (*source)--;
         if(SEP[0] & 0x80 && SEP[1] != 1) { //line ends on a double byte seperator
-          (*dest)--;
+          dest--;
           (*source)--;
         }
         break;
@@ -3306,42 +3491,56 @@ static void prepLongintIntoLines(int16_t *last, int16_t *source, int16_t *dest, 
 
 
     #if defined(MONITOR_SHOW)
-      printf("AAA: source=%d %d %d [%d] %d %d\n", (uint8_t)*source, (uint8_t)errorMessage[*source-2], (uint8_t)errorMessage[*source-1], (uint8_t)errorMessage[*source], (uint8_t)errorMessage[*source+1], (uint8_t)errorMessage[*source+2]);
-      printf("AAA: dest  =%d %d %d [%d] %d %d\n", (uint8_t)*dest  , (uint8_t)tmpString[*dest  -2],    (uint8_t)tmpString[*dest  -1],    (uint8_t)tmpString[*dest  ],    (uint8_t)tmpString[*dest  +1],    (uint8_t)tmpString[*dest  +2]);
-      printf("---: d=%d (*startingLine + (numberOfLines-1))*SHOWLineSize=%d\n", d, (*startingLine + (numberOfLines-1))*SHOWLineSize);
+      printf("AAA: source=%d %d %d [%d] %d %d\n", (uint8_t)*source, (uint8_t)src[*source-2], (uint8_t)src[*source-1], (uint8_t)src[*source], (uint8_t)src[*source+1], (uint8_t)src[*source+2]);
+      printf("AAA: dest  =%d %d %d [%d] %d %d\n", (uint8_t)dest  , (uint8_t)tmpString[dest  -2],    (uint8_t)tmpString[dest  -1],    (uint8_t)tmpString[dest  ],    (uint8_t)tmpString[dest  +1],    (uint8_t)tmpString[dest  +2]);
+      printf("---: d=%d (startingLine + (numberOfLines-1))*SHOWLineSize=%d\n", d, (startingLine + (numberOfLines-1))*SHOWLineSize);
     #endif //MONITOR_SHOW
 
-    tmpString[*dest] = 0;
-    if(d == (*startingLine + (numberOfLines-1))*SHOWLineSize) {
+    tmpString[dest] = 0;
+    if(d == (startingLine + (numberOfLines-1))*SHOWLineSize) {
       sourceReturn = *source; //numberOfLines-1 is the last visible line
     }
 
-    //printf("source=%i dest=%i [..3]=%i %i %i\n", *source, *dest, tmpString[*dest-2], tmpString[*dest-1], tmpString[*dest-0]);
+    //printf("source=%i dest=%i [..3]=%i %i %i\n", *source, dest, tmpString[dest-2], tmpString[dest-1], tmpString[dest-0]);
     //printf(">>>AA %u %u |%s|\n", d, (uint8_t)tmpString[d], tmpString+d);
-    //printf(">>>BB source=%i last=%i dest=%i\n", *source, *last, *dest);
+    //printf(">>>BB source=%i last=%i dest=%i\n", *source, last, dest);
   }
 
   *source = sourceReturn;
 
   #if defined(MONITOR_SHOW)
-    printf("###%s###\n", errorMessage + *dest);
-    printf("BBB: source=%d %d %d [%d] %d %d\n", (uint8_t)*source, (uint8_t)errorMessage[*source-2], (uint8_t)errorMessage[*source-1], (uint8_t)errorMessage[*source], (uint8_t)errorMessage[*source+1], (uint8_t)errorMessage[*source+2]);
-    printf("BBB: dest  =%d %d %d [%d] %d %d\n", (uint8_t)*dest  , (uint8_t)tmpString[*dest  -2],    (uint8_t)tmpString[*dest  -1],    (uint8_t)tmpString[*dest  ],    (uint8_t)tmpString[*dest  +1],    (uint8_t)tmpString[*dest  +2]);
+    printf("###%s###\n", src + dest);
+    printf("BBB: source=%d %d %d [%d] %d %d\n", (uint8_t)*source, (uint8_t)src[*source-2], (uint8_t)src[*source-1], (uint8_t)src[*source], (uint8_t)src[*source+1], (uint8_t)src[*source+2]);
+    printf("BBB: dest  =%d %d %d [%d] %d %d\n", (uint8_t)dest  , (uint8_t)tmpString[dest  -2],    (uint8_t)tmpString[dest  -1],    (uint8_t)tmpString[dest  ],    (uint8_t)tmpString[dest  +1],    (uint8_t)tmpString[dest  +2]);
   #endif //MONITOR_SHOW
 }
 
 
+static void checkAndEat(int16_t *source, int16_t last, int16_t *dest) {
+  uint8_t ix;
+  if(*source < last && !GROUPLEFT_DISABLED) {                  //Not in the last line
+    for(ix=0; ix<16; ix++) { //Eat away characters at the end to line up the last space
+      if((uint8_t)tmpString[(*dest)-2] == (uint8_t)STD_SPACE_PUNCTUATION[0] && (uint8_t)tmpString[(*dest)-1] == (uint8_t)STD_SPACE_PUNCTUATION[1]) break;
+      if(tmpString[(*dest)-1] == 32) break;
+      (*dest)--;
+      (*source)--;
+    }
+    tmpString[*dest] = 0;
+  }
+}
+
+
 static void showShortIntegerLine(calcRegister_t showRegis, int16_t tag, int16_t startOffset, int16_t numLines, bool_t showName) {
-  int16_t source, last, d, dest, prefixWidth;
+  int16_t source, last, d, dest;
   int16_t lastSlot = startOffset + (numLines - 1) * SHOWLineSize;
   setRegisterTag(showRegis, tag);
   if(showName) {
-    viewRegName2(tmpString + 2400, &prefixWidth);                       //name at 2400 so the width is taken into account
+    viewRegName2(tmpString + 2400);                                     //name at 2400, where the digits are put after it
   }
   else {
     tmpString[2400] = 0;
   }
-  shortIntegerToDisplayString(showRegis, tmpString + 2400 + stringByteLength(tmpString + 2400), true, noBaseOverride);
+  shortIntegerToDisplayString(showRegis, tmpString + 2400 + stringByteLength(tmpString + 2400), true, noBaseOverride, SCREEN_WIDTH);
   last = 2400 + stringByteLength(tmpString + 2400);
   source = 2400;
   tmpString[startOffset] = 0;
@@ -3363,26 +3562,35 @@ static void showShortIntegerLine(calcRegister_t showRegis, int16_t tag, int16_t 
     checkAndEat(&source, last, &dest);
   }
 }
+#endif //OPTION_SHOW
 
 
 
 int16_t startingLine = 0;
 int16_t IntShowMode = 0;
 int16_t source = 0;
+uint16_t savedShowRegis = 0;        // the SHOW paging of the page now on screen, kept by storeShowStatus() on every fnC47Show() paint so recallShowStatus() repaints that same page
+int16_t savedSource = 0;
+int16_t savedStartingLine = 0;
+int16_t savedIntShowMode = 0;
 #define SHOWAUTO 0
 #define SHOWSML 1
 #define SHOWTNY 2
 
 void fnC47Show(uint16_t fnShow_param) {
-#if !defined(SAVE_SPACE_DM42_9)
+#if defined(OPTION_SHOW)
     uint8_t savedDisplayFormat = displayFormat, savedDisplayFormatDigits = displayFormatDigits;
     uint64_t ssf0 = systemFlags0;
     uint64_t ssf1 = systemFlags1;
-    bool_t thereIsANextLine;
-    int16_t dest = 0, last = 0, d, i, offset, bytesProcessed, aa, bb, cc, dd, numberOfLines = 0;
+    int16_t dest = 0, last = 0, d, i, aa, bb, cc, dd, numberOfLines = 0;
 
     displayFormat = DF_ALL;
     displayFormatDigits = 0;
+    #if defined(OPTION_MX_SHOW)
+      // Stash the user format
+      showMatrixUserDisplayFormat = savedDisplayFormat;
+      showMatrixUserDisplayFormatDigits = savedDisplayFormatDigits;
+    #endif // OPTION_MX_SHOW
     clearSystemFlag(FLAG_IRFRAC);
 
 
@@ -3416,6 +3624,20 @@ void fnC47Show(uint16_t fnShow_param) {
                      source = 0;
                      IntShowMode = SHOWTNY;
                    }
+                 }
+               }
+               else if(getRegisterDataType(showRegis) == dtString) {   //a string pages on source alone, one screen at a time, big then standard then tiny
+                 if(IntShowMode == SHOWTNY) {
+                   source = 0;
+                   IntShowMode = SHOWAUTO;
+                 }
+                 else if(IntShowMode != SHOWSML) {
+                   source = 0;
+                   IntShowMode = SHOWSML;
+                 }
+                 else if(source > stringByteLength(REGISTER_STRING_DATA(showRegis))) {   //source passes the length only once the closing quote is printed
+                   source = 0;
+                   IntShowMode = SHOWTNY;
                  }
                }
                break;
@@ -3479,6 +3701,8 @@ void fnC47Show(uint16_t fnShow_param) {
     }
     #pragma GCC diagnostic pop
 
+    storeShowStatus();                                 // the switch above has chosen the page; keep its start so a later recallShowStatus() repaints this same page, not the next one
+
 // printf("fnC47Show: fnShow_param=%i startingLine=%i IntShowMode=%i source=%i\n",fnShow_param, startingLine, IntShowMode, source);
 
 
@@ -3486,9 +3710,9 @@ void fnC47Show(uint16_t fnShow_param) {
       printf(">>> ---- clearScreenOld from display.c fnC47Show\n");
     #endif // PC_BUILD && MONITOR_CLRSCR
       //      clearScreenOld(!clrStatusBar, clrRegisterLines, !clrSoftkeys); //Clear screen content while NEW SHOW
-    refreshScreen(153);
 
     SHOW_reset();
+    overrideShowBottomLine = 0;                          //the real34 page sets it again below; every other page keeps the standard line at two registers
 
 
 
@@ -3545,14 +3769,12 @@ XFNentryPoint:
             numberOfLines = 6;
             startingLine = 0;
             int16_t sourcemem = source;
-            int16_t destmem = dest;
-            prepLongintIntoLines(&last, &source, &dest, &numericFont, SCREEN_WIDTH, numberOfLines, &startingLine);
+            prepIntoLines(errorMessage, true, last, &source, &numericFont, SCREEN_WIDTH, numberOfLines, startingLine);
             //printf("001 ll=%i source=%i last=%i\n",glyphNumber, source, last);
             if(tmpString[numberOfLines*SHOWLineSize] == 0) {
               break;
             }
             source = sourcemem;
-            dest = destmem;
             IntShowMode = SHOWSML; // if not broken out, go smaller
           }
           else {
@@ -3566,7 +3788,7 @@ XFNentryPoint:
           SHOW_reset();
           temporaryInformation = TI_SHOW_REGISTER_SMALL;
           numberOfLines = 10;
-          prepLongintIntoLines(&last, &source, &dest, &standardFont, SCREEN_WIDTH, numberOfLines, &startingLine);
+          prepIntoLines(errorMessage, true, last, &source, &standardFont, SCREEN_WIDTH, numberOfLines, startingLine);
           if(tmpString[0] != 0) {
             goto goBreak1; //break if first line first character is non-terminator and display
           }
@@ -3585,7 +3807,7 @@ XFNentryPoint:
           temporaryInformation = TI_SHOW_REGISTER_TINY;
           numberOfLines = min(21, SHOWLineMax);
           startingLine = 0;
-          prepLongintIntoLines(&last, &source, &dest, &tinyFont, SCREEN_WIDTH, numberOfLines, &startingLine);
+          prepIntoLines(errorMessage, true, last, &source, &tinyFont, SCREEN_WIDTH, numberOfLines, startingLine);
 
 goBreak1:
 
@@ -3839,74 +4061,41 @@ goBreak1:
           printf("SHOW:String\n");
         #endif // VERBOSE_SCREEN && PC_BUILD
 
-        SHOW_reset();
-        temporaryInformation = TI_SHOW_REGISTER_BIG; //First try one line of big font.
-        offset = 0;
-        thereIsANextLine = true;
-        bytesProcessed = 2100;
-        strcat(tmpString + 2100, "'");
-        strcat(tmpString + 2100, REGISTER_STRING_DATA(showRegis));//, stringByteLength(REGISTER_STRING_DATA(showRegis)) + 4+1);
-        strcat(tmpString + 2100, "'");
-        #if defined(VERBOSE_SCREEN) && defined(PC_BUILD)
-          uint32_t tmp = 0;
-          printf("^^^0 %4u", tmp);
-          printf("^^^^$$ %s %d\n", tmpString + 2100, stringWidthC47(tmpString + 2100, stdnumEnlarge, nocompress, false, true));
-        #endif // VERBOSE_SCREEN && PC_BUILD
-        while(thereIsANextLine) {
-          char *strw;
-          xcopy(tmpString + offset, tmpString + bytesProcessed, stringByteLength(tmpString + bytesProcessed) + 1);
-          thereIsANextLine = false;
-          strw = stringAfterPixelsC47(tmpString + offset, stdnumEnlarge, nocompress, SCREEN_WIDTH - 1, false, true);
-          if(*strw != 0) {
-            *strw = 0;
-            thereIsANextLine = true;
-            #if defined(VERBOSE_SCREEN) && defined(PC_BUILD)
-              printf("^^^A %4u", tmp++);
-              printf("^^^^$$ %s %d\n", tmpString + offset, stringWidthC47(tmpString + offset, stdnumEnlarge, nocompress, false, true));
-            #endif // VERBOSE_SCREEN && PC_BUILD
+        last = stringByteLength(REGISTER_STRING_DATA(showRegis)) + 1;        //one past the string, where the terminator prints as the closing quote
+
+        if(IntShowMode == SHOWAUTO) {                                        //the big font keeps the string up to four lines
+          temporaryInformation = TI_SHOW_REGISTER_BIG;
+          numberOfLines = 4;
+          prepIntoLines(REGISTER_STRING_DATA(showRegis), false, last, &source, &numericFont, SCREEN_WIDTH, numberOfLines, 0);
+          if(tmpString[numberOfLines*SHOWLineSize] == 0) {
+            break;
           }
-          bytesProcessed += stringByteLength(tmpString + offset);
-          offset += SHOWLineSize;
-          tmpString[offset] = 0;
-        }
-        if(offset <= 4*SHOWLineSize) {
-          break; //else continue on the small font
+          source = 0;
+          IntShowMode = SHOWSML;
         }
 
+        if(IntShowMode == SHOWSML) {
+          temporaryInformation = TI_SHOW_REGISTER_SMALL;
+          numberOfLines = 10;
+          prepIntoLines(REGISTER_STRING_DATA(showRegis), false, last, &source, &standardFont, SCREEN_WIDTH, numberOfLines, 0);
+        }
+        else {
+          temporaryInformation = TI_SHOW_REGISTER_TINY;
+          numberOfLines = 20;                                                //21 are drawn, but a 21st run-over slot sits past tmpString; 20 lines take 1180 glyphs
+          prepIntoLines(REGISTER_STRING_DATA(showRegis), false, last, &source, &tinyFont, SCREEN_WIDTH, numberOfLines, 0);
+        }
 
-        SHOW_reset();
-        temporaryInformation = TI_SHOW_REGISTER_SMALL;
-        offset = 0;
-        thereIsANextLine = true;
-        bytesProcessed = 2100;
-        strcat(tmpString + 2100, "'");
-        strcat(tmpString + 2100, REGISTER_STRING_DATA(showRegis));//, stringByteLength(REGISTER_STRING_DATA(showRegis)) + 4+1);
-        strcat(tmpString + 2100, "'");
-        #if defined(VERBOSE_SCREEN) && defined(PC_BUILD)
-          uint32_t tmp2 = 0;
-        #endif // VERBOSE_SCREEN && PC_BUILD
-        while(thereIsANextLine) {
-          char *remainingString;
-          xcopy(tmpString + offset, tmpString + bytesProcessed, stringByteLength(tmpString + bytesProcessed) + 1);
-          thereIsANextLine = false;
-          #if defined(VERBOSE_SCREEN) && defined(PC_BUILD)
-            tmp =0;
-          #endif // VERBOSE_SCREEN && PC_BUILD
-          remainingString = stringAfterPixels(tmpString + offset, &standardFont, SCREEN_WIDTH, false, true);
-          if(*remainingString != 0) {
-            *remainingString = 0;
-            thereIsANextLine = true;
-            #if defined(VERBOSE_SCREEN) && defined(PC_BUILD)
-              printf("^^^B %4u %4u", tmp2, tmp++);
-              printf("^^^^$$ %s %d\n", tmpString + offset, stringWidth(tmpString + offset, &standardFont, false, true));
-            #endif // VERBOSE_SCREEN && PC_BUILD
+        if(tmpString[numberOfLines*SHOWLineSize] != 0) {                     //more to come: the last visible line ends in an ellipsis and R/S brings the next page
+          const font_t *pageFont = (temporaryInformation == TI_SHOW_REGISTER_SMALL) ? &standardFont : &tinyFont;
+          d = (numberOfLines-1)*SHOWLineSize;
+          i = stringByteLength(tmpString + d);
+          while(i > 0 && (i > SHOWLineSize - 7 || stringWidth(tmpString + d, pageFont, true, true) + stringWidth(STD_ELLIPSIS, pageFont, true, true) >= SCREEN_WIDTH)) {
+            i = stringPrevGlyph(tmpString + d, i);
+            tmpString[d + i] = 0;
+            source = stringPrevGlyph(REGISTER_STRING_DATA(showRegis), source);   //a glyph the ellipsis displaces is printed again on the next page
           }
-          #if defined(VERBOSE_SCREEN) && defined(PC_BUILD)
-            tmp2++;
-          #endif // VERBOSE_SCREEN && PC_BUILD
-          bytesProcessed += stringByteLength(tmpString + offset);
-          offset += SHOWLineSize;
-          tmpString[offset] = 0;
+          xcopy(tmpString + d + i, STD_ELLIPSIS, 2);
+          tmpString[d + i + 2] = 0;
         }
         break;
 
@@ -3921,6 +4110,9 @@ goBreak1:
         clearScreenOld(!clrStatusBar, clrRegisterLines, clrSoftkeys);
         dispM(showRegis, tmpString + 2100);                   //then display the matrix
         drawSinglePixelFullWidthLine(Y_POSITION_OF_REGISTER_T_LINE-4);
+        hourGlassIconEnabled = false;                         //clear hourglass as refresh below is skipped
+        showHideHourGlass();
+        screenUpdatingMode |= (SCRUPD_MANUAL_MENU | SCRUPD_MANUAL_STACK);   //the matrix is drawn here, refresh to leave the stack and menu
         temporaryInformation = TI_SHOWNOTHING;                //then tell the system it is in show nothing mode,
         if(programRunStop == PGM_RUNNING) {   //this needs to be checked - maybe needed for all show items not only here
           refreshScreen(150);
@@ -3932,7 +4124,7 @@ goBreak1:
 
       default:
         temporaryInformation = TI_NO_INFO;
-        displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, showRegis);
+        displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           sprintf(errorMessage, "cannot SHOW %s%s", tmpString + 2100, getRegisterDataTypeName(showRegis, true, false));
           moreInfoOnError("In function fnC47Show:", errorMessage, NULL, NULL);
@@ -3946,13 +4138,29 @@ goBreak1:
     systemFlags0 = ssf0;
     systemFlags1 = ssf1;
 
+    refreshScreen(153);
+
     #if defined(VERBOSE_SCREEN) && defined(PC_BUILD)
       printf("SHOW:Done |%s|\n", tmpString);
     #endif
 
 #else
     fnView(REGISTER_X); // Re-direct to use VIEW instead. No more accuracy though
-#endif // !SAVE_SPACE_DM42_9
+#endif // !OPTION_SHOW
+}
+
+void storeShowStatus(void) {     //keep the SHOW paging of the page now on screen, so recallShowStatus() can repaint that same page after a capture or a preview label overwrote it
+  savedShowRegis = showRegis;
+  savedSource = source;
+  savedStartingLine = startingLine;
+  savedIntShowMode = IntShowMode;
+}
+
+void recallShowStatus(void) {    //put back the paging storeShowStatus() kept; fnC47Show(ITM_NOP) then re-renders the page that was on screen, from its own start
+  showRegis = savedShowRegis;
+  source = savedSource;
+  startingLine = savedStartingLine;
+  IntShowMode = savedIntShowMode;
 }
 
 void _view(uint16_t regist) {
@@ -3969,22 +4177,22 @@ void _view(uint16_t regist) {
 
 void fnView(uint16_t regist) {
   _view(regist);
-  #if defined(IR_PRINTING)
+  #if defined(OPTION_IR_PRINTING)
     printViewAview(ITM_VIEW, regist);
-  #endif //IR_PRINTING
+  #endif //OPTION_IR_PRINTING
 }
 
 void fnAview(uint16_t regist) {
   _view(regist);
-  #if defined(IR_PRINTING)
+  #if defined(OPTION_IR_PRINTING)
     printViewAview(ITM_AVIEW, regist);
-  #endif //IR_PRINTING
+  #endif //OPTION_IR_PRINTING
 }
 
 void fnPrompt(uint16_t regist) {
   _view(regist);
-  #if defined(IR_PRINTING)
+  #if defined(OPTION_IR_PRINTING)
     printInputPrompt(ITM_PROMPT, regist);
-  #endif //IR_PRINTING
+  #endif //OPTION_IR_PRINTING
   fnStopProgram(NOPARAM);
 }

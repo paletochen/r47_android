@@ -103,6 +103,8 @@
 
   void         fn2Sto(uint16_t regist);
   void         fn3Sto(uint16_t regist);
+  bool_t       vectorSpanOk(uint16_t regist, uint16_t n, const char *funcName);
   void         fnStoreVector(uint16_t regist);
+  void         fnStoreVectorX(uint16_t regist);
 
 #endif // !STORE_H

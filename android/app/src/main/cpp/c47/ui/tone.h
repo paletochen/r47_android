@@ -9,4 +9,4 @@
 
   void fnTone(uint16_t toneNum);
   void fnBeep(uint16_t unusedButMandatoryParameter);
-#endif // .TONE_H
+#endif // !TONE_H

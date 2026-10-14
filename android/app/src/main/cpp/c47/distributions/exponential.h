@@ -12,8 +12,10 @@
   void fnExponentialR  (uint16_t unusedButMandatoryParameter);
   void fnExponentialI  (uint16_t unusedButMandatoryParameter);
 
+  #if defined(OPTION_DIST_B)
   void WP34S_Pdf_Expon (const real_t *x, const real_t *lambda, real_t *res, realContext_t *realContext);
   void WP34S_Cdfu_Expon(const real_t *x, const real_t *lambda, real_t *res, realContext_t *realContext);
   void WP34S_Cdf_Expon (const real_t *x, const real_t *lambda, real_t *res, realContext_t *realContext);
   void WP34S_Qf_Expon  (const real_t *x, const real_t *lambda, real_t *res, realContext_t *realContext);
+  #endif // OPTION_DIST_B
 #endif // !EXPONENTIAL_H

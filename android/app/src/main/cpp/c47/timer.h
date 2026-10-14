@@ -79,4 +79,4 @@ typedef struct {
   #endif // !PC_BUILD
   uint8_t  state;               ///<
 } kb_timer_t;
-#endif // TIMER_H
+#endif // !TIMER_H

@@ -30,7 +30,7 @@ static bool_t checkArgs(const real_t *xReal, const real_t *xImag, const real_t *
       convertRealToResultRegister(const_plusInfinity, REGISTER_X, amNone);
     }
     else {
-      displayCalcErrorMessage(ERROR_OVERFLOW_PLUS_INF, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_OVERFLOW_PLUS_INF, ERR_REGISTER_LINE);
       EXTRA_INFO_MESSAGE("checkArgs", "cannot calculate LogXY with x=0 and y=0");
     }
   }
@@ -39,7 +39,7 @@ static bool_t checkArgs(const real_t *xReal, const real_t *xImag, const real_t *
       convertRealToResultRegister(const_minusInfinity, REGISTER_X, amNone);
     }
     else {
-      displayCalcErrorMessage(ERROR_OVERFLOW_MINUS_INF, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_OVERFLOW_MINUS_INF, ERR_REGISTER_LINE);
       EXTRA_INFO_MESSAGE("checkArgs", "cannot calculate LogXY with x=0 and y!=0");
     }
   }
@@ -48,7 +48,7 @@ static bool_t checkArgs(const real_t *xReal, const real_t *xImag, const real_t *
       convertRealToResultRegister(const_NaN, REGISTER_X, amNone);
     }
     else {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     }
   }
   else {
@@ -79,7 +79,7 @@ static void logxy(const real_t *xReal, const real_t *yReal, realContext_t *realC
           realSetNaN(&rReal);
         }
         else {
-          displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+          displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
           EXTRA_INFO_MESSAGE("logxy", "cannot calculate LogXY with x<0 or y<0 when flag I is not set");
           return;
         }
@@ -120,7 +120,7 @@ static void logXYShortInt(void) {
 
   if(getRegisterDataType(REGISTER_X) == dtReal34) {
     if(real34IsNaN(REGISTER_REAL34_DATA(REGISTER_X)) && !getSystemFlag(FLAG_SPCRES)) {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
       EXTRA_INFO_MESSAGE("logxy", "cannot calculate LogXY with x=0");
       return;
     }

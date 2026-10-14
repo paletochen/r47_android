@@ -6,7 +6,6 @@
  ***********************************************/
 
 #include "c47.h"
-#include "10pow.h"
 
 static void twoPowReal(void);
 

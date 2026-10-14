@@ -232,6 +232,51 @@ void fnCheckMinusZero(uint16_t unusedButMandatoryParameter) {
   zeroCheck(1);
 }
 
+// Compare signed zero; keep sign bit in mind
+//   input 1 :  x ≤ -0?  true for negatives and -0 - any negative signed
+//   input 0 :  x ≥ +0?  true for positives and +0 - any non negative signed
+static void signedZeroCheck(int neg) {
+  int check = 0;
+
+  switch(getRegisterDataType(REGISTER_X)) {
+    default:
+      compareTypeErrorX();
+      return;
+
+    case dtLongInteger: {
+      longInteger_t val;
+
+      convertLongIntegerRegisterToLongInteger(REGISTER_X, val);
+      check = longIntegerIsNegative(val) == neg; // long integers have no -0: zero is +0
+      longIntegerFree(val);
+      break;
+    }
+
+    case dtShortInteger: {
+      uint64_t u64;
+      int16_t sign16;
+
+      convertShortIntegerRegisterToUInt64(REGISTER_X, &sign16, &u64);
+      check = sign16 == neg;
+      break;
+    }
+
+    case dtTime:
+    case dtDate:
+    case dtReal34:
+      check = real34IsNegative(REGISTER_REAL34_DATA(REGISTER_X)) == neg;
+      break;
+  }
+  SET_TI_TRUE_FALSE(check);
+}
+
+void fnCheckLessEqualMinusZero  (uint16_t unusedButMandatoryParameter) {
+  signedZeroCheck(1);
+}
+
+void fnCheckGreaterEqualPlusZero(uint16_t unusedButMandatoryParameter) {
+  signedZeroCheck(0);
+}
 
 
 

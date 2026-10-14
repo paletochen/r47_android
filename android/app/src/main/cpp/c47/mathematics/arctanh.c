@@ -49,7 +49,7 @@ static void arctanhReal(void) {
   }
 
   if(realIsZero(&x)) {
-    r = const_0;
+    r = &x;  // a zero keeps its sign, as it does in arsinh, arcsin and arctan
   }
   else {
     if(realCompareEqual(&x, const_1)) {
@@ -57,7 +57,7 @@ static void arctanhReal(void) {
         r = const_plusInfinity;
       }
       else {
-        displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+        displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function arctanhReal:", "X = 1", "and DANGER flag is not set!", NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -69,7 +69,7 @@ static void arctanhReal(void) {
         r = const_minusInfinity;
       }
       else {
-        displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+        displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function arctanhReal:", "X = -1", "and DANGER flag is not set!", NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -86,7 +86,7 @@ static void arctanhReal(void) {
           r = const_NaN;
         }
         else {
-          displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+          displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             moreInfoOnError("In function arctanhReal:", "|X| > 1", "and CPXRES is not set!", NULL);
           #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)

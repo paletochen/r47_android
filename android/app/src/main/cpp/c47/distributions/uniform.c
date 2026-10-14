@@ -7,7 +7,7 @@
 
 #include "c47.h"
 
-#if defined(SAVE_SPACE_DM42_17C)
+#if !defined(OPTION_DIST_D)
   void fnUniformP           (uint16_t discrete){}
   void fnUniformL           (uint16_t discrete){}
   void fnUniformU           (uint16_t discrete){}
@@ -23,7 +23,7 @@ static bool_t checkParamUniform(real_t *x, real_t *low, real_t *high, real_t *ra
     goto err;
   }
   if(realIsSpecial(x) || realIsSpecial(low) || realIsSpecial(high)) {
-    displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+    displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function checkParamUniform:", "given non-number inputs", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -31,14 +31,14 @@ static bool_t checkParamUniform(real_t *x, real_t *low, real_t *high, real_t *ra
   }
   if(discrete) {
     if(!realIsAnInteger(low)) {
-      displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_M);
+      displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function checkParamUniform:", "given non-integer lower limit", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
       goto err;
     }
     if(!realIsAnInteger(high)) {
-      displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_N);
+      displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function checkParamUniform:", "given non-integer upper limit", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -146,7 +146,7 @@ void fnUniformI(uint16_t discrete) {
 
   if(checkParamUniform(&x, &low, &high, NULL, NULL, discrete)) {
     if(realCompareLessThan(&x, const_0) || realCompareGreaterThan(&x, const_1)) {
-      displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+      displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function fnUniformI:", "the argument must be 0 < x < 1", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -169,4 +169,4 @@ void fnUniformI(uint16_t discrete) {
   }
 }
 
-#endif // SAVE_SPACE_DM42_17C
+#endif // !OPTION_DIST_D

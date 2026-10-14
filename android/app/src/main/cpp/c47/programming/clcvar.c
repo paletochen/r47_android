@@ -69,15 +69,10 @@
       }
 
       default: {
-        printf("In function _clearVar, the data type %" PRIu32 " is unknown! Please try to reproduce and submit a bug.\n", getRegisterDataType(regist));
+        sprintf(errorMessage, commonBugScreenMessages[bugMsgDataTypeUnknown], "_clearVar", getDataTypeName(getRegisterDataType(regist), false, false));
+        displayBugScreen(errorMessage);
       }
     }
-  }
-
-  static void _getStringLabelOrVariableName(uint8_t *stringAddress) {
-    uint8_t stringLength = *(uint8_t *)(stringAddress++);
-    xcopy(tmpStringLabelOrVariableName, stringAddress, stringLength);
-    tmpStringLabelOrVariableName[stringLength] = 0;
   }
 
   static void _indirectRegister(uint8_t *paramAddress) {
@@ -92,7 +87,7 @@
 
   static void _indirectVariable(uint8_t *stringAddress) {
     calcRegister_t regist;
-    _getStringLabelOrVariableName(stringAddress);
+    getStringLabelOrVariableName(stringAddress);
     regist = findOrAllocateNamedVariable(tmpStringLabelOrVariableName);
     _clearVar(regist);
   }
@@ -129,10 +124,10 @@
         if(opParam <= LAST_LOCAL_FLAG) { // Global flag from 00 to 99, Lettered flag from X to K, or Local flag from .00 to .31
           // nothing to do
         }
-        else if(FIRST_LOCAL_FLAG + NUMBER_OF_LOCAL_FLAGS <= opParam && opParam < FIRST_LOCAL_FLAG + NUMBER_OF_LOCAL_FLAGS + NUMBER_OF_SYSTEM_FLAGS) { // Local register from .00 to .31
+        else if(FIRST_LOCAL_FLAG + NUMBER_OF_LOCAL_FLAGS <= opParam && opParam < SYSTEM_FLAG_NUMBER) { // Lettered flag from M to S or E to W, or unused codes
           // nothing to do
         }
-        else if(opParam == SYSTEM_FLAG_NUMBER) {
+        else if(opParam == SYSTEM_FLAG_NUMBER) { // System flag, index in the next byte
           // nothing to do
         }
         else if(opParam == INDIRECT_REGISTER) {
@@ -218,7 +213,7 @@
           _clearVar(regKStoC(opParam));
         }
         else if(opParam == STRING_LABEL_VARIABLE) {
-          _getStringLabelOrVariableName(paramAddress);
+          getStringLabelOrVariableName(paramAddress);
           _clearVar(findOrAllocateNamedVariable(tmpStringLabelOrVariableName));
         }
         else if(paramMode == PARAM_COMPARE && (opParam == VALUE_0 || opParam == VALUE_1)) {
@@ -270,7 +265,7 @@
       op |= *(step++);
     }
 
-    if(op == ITM_END || op == 0x7fff) {
+    if(op == ITM_END || op >= LAST_ITEM) { // stop the scan rather than index past the table
       return false;
     }
     else {
@@ -283,7 +278,7 @@
         }
 
         case PTP_DISABLED: {
-          displayCalcErrorMessage(ERROR_NON_PROGRAMMABLE_COMMAND, ERR_REGISTER_LINE, REGISTER_X);
+          displayCalcErrorMessage(ERROR_NON_PROGRAMMABLE_COMMAND, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             moreInfoOnError("In function _processOneStep:", "non-programmable function", indexOfItems[op].itemCatalogName, "appeared in the program!");
           #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -293,7 +288,9 @@
         case PTP_KEYG_KEYX: {
           uint8_t *secondParam = findKey2ndParam(step - 2);
           _processOp(step, op, PARAM_NUMBER_8);
-          _processOp(secondParam, *secondParam, PARAM_LABEL);
+          if(secondParam != NULL) { // findKey2ndParam returns NULL on a malformed/.END. step
+            _processOp(secondParam, *secondParam, PARAM_LABEL);
+          }
           return true;
         }
 

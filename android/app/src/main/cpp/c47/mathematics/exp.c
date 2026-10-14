@@ -7,7 +7,7 @@
 
 #include "c47.h"
 
-bool_t realExpLimitCheck(const real_t *x, real_t *res, const real_t *zero) {
+bool_t realExpLimitCheck(const real_t *x, real_t *res, const real_t *zeroOrNegativeOne) {
   if(realIsSpecial(x)) {
     if(realIsInfinite(x)) {
 inf:
@@ -15,7 +15,7 @@ inf:
         realSetPlusInfinity(res);
       }
       else {
-        realCopy(zero, res);
+        realCopy(zeroOrNegativeOne, res);
       }
     }
     else {
@@ -65,9 +65,9 @@ static void expReal(void) {
   }
 
   if(realIsInfinite(&x) && !getSystemFlag(FLAG_SPCRES)) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      moreInfoOnError("In function expReal:", "cannot use " STD_PLUS_MINUS STD_INFINITY " as X input of exp when flag D is not set", NULL, NULL);
+      moreInfoOnError("In function expReal:", "cannot use " STD_PLUS_MINUS STD_INFINITY " as X input of exp when flag SPCRES is not set", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
     return;
   }

@@ -5,7 +5,7 @@
 
 
 /********************************************//** //JM
- * \file jmgraph.c TEXTFILES module
+ * \file textfiles.h TEXTFILES module
  ***********************************************/
 
 #if !defined(TEXTFILES_H)

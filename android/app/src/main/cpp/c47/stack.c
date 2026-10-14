@@ -2,9 +2,6 @@
 // SPDX-FileCopyrightText: Copyright The WP43 and C47 Authors
 
 #include "c47.h"
-#if defined(PC_BUILD) && defined(DEBUGUNDO)
-  #include <execinfo.h>
-#endif // PC_BUILD &&MONITOR_CLRSCR
 
 void fnClX(uint16_t unusedButMandatoryParameter) {
   clearRegister(REGISTER_X);
@@ -16,6 +13,7 @@ void fnClearStack(uint16_t unusedButMandatoryParameter) {
   for(calcRegister_t regist=REGISTER_X; regist<=getStackTop(); regist++) {
     clearRegister(regist);
   }
+  calcModeNormal();                                            // a cleared stack is only visible on the normal screen; nothing here halts a running program
 }
 
 
@@ -130,7 +128,7 @@ static void _swapRegs(uint16_t srcReg, uint16_t regist) {
 
   #if (EXTRA_INFO_ON_CALC_ERROR == 1)
     else if(regist <= LAST_LOCAL_REGISTER) {
-      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
       sprintf(errorMessage, "local register .%02d", regist - FIRST_LOCAL_REGISTER);
       moreInfoOnError("In function _swapRegs:", errorMessage, "is not defined!", NULL);
     }
@@ -138,7 +136,7 @@ static void _swapRegs(uint16_t srcReg, uint16_t regist) {
 
   #if (EXTRA_INFO_ON_CALC_ERROR == 1)
     else {
-      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
       sprintf(errorMessage, "register %d", regist);
       moreInfoOnError("In function _swapRegs:", errorMessage, "is unsupported!", NULL);
     }
@@ -344,7 +342,7 @@ void undo(void) {
     printf(">>> Undoing, calcMode = %i ...", calcMode);
   #endif // DEBUGUNDO
                                         #if defined(DEBUGUNDO)
-                                          printf("Pre-existing error code: Error number %d:%s\n", lastErrorCode, errorMessages[lastErrorCode]);
+                                          printf("Pre-existing error code: Error number %d:%s\n", lastErrorCode, errorMessageOf(lastErrorCode));
                                           print_caller(NULL);
                                         #endif // DEBUGUNDO
 

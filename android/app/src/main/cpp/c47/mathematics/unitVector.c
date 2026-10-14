@@ -23,7 +23,7 @@ TO_QSPI void (* const unitVector[NUMBER_OF_DATA_TYPES_FOR_CALCULATIONS])(void) =
  ***********************************************/
 #if (EXTRA_INFO_ON_CALC_ERROR == 1)
   void unitVectorError(void) {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
     sprintf(errorMessage, "cannot calculate the unit vector of %s", getRegisterDataTypeName(REGISTER_X, true, false));
     moreInfoOnError("In function fnUnitVector:", errorMessage, NULL, NULL);
   }

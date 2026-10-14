@@ -16,6 +16,33 @@
   #define REAL_SIZE_IN_BYTES(digits)   (10 + sizeof(decNumberUnit) * (REAL_MAX_DIGITS(digits) / DECDPUN)) // This is always a multiple of 4
   #define REAL_SIZE_IN_BLOCKS(digits)  TO_BLOCKS(REAL_SIZE_IN_BYTES(digits))
   #define REAL_T_PTR(name, digits)     uint32_t _ ## name ## _data[REAL_SIZE_IN_BYTES(digits) / 4]; real_t *const name=(real_t *)_ ## name ## _data
+  // cplx_t is two full reals and takes no digits: it cannot be shortened the way a real_t can. Its type comes from typeDefinitions.h, reached where the macro is used.
+  // The frame form pairs with CPLX_T_ALLOC below: a function written against the pointer swaps storage by changing one word per declaration, with no change to its body.
+  // CPLX_T_ALLOC(X0) becomes CPLX_T_PTR(X0), the matching CPLX_T_FREE(X0) goes, and every X0->Real and CPLX(*X0) in the body stands as written.
+  #define CPLX_T_PTR(name)             cplx_t _ ## name ## _data; cplx_t *const name=&_ ## name ## _data
+
+  // malloc/free version
+#if (defined __GNUC__ && __GNUC__ + (__GNUC_MINOR__ >= 3) > 4) || (defined __clang__ && __clang_major__ >= 3)
+  // Self freeing
+  void auto_free(void *p);
+  #define REAL_T_ALLOC(name, digits)   uint32_t *_ ## name ## _data __attribute__((cleanup(auto_free)))=malloc(REAL_SIZE_IN_BYTES(digits)); \
+                                       real_t *name=(real_t *)_ ## name ## _data
+  #define REAL_T_FREE(name, digits)
+  #define CPLX_T_ALLOC(name)           cplx_t *name __attribute__((cleanup(auto_free)))=(cplx_t *)malloc(sizeof(cplx_t))
+  #define CPLX_T_FREE(name)
+#else
+  #define REAL_T_ALLOC(name, digits)   uint32_t *_ ## name ## _data=malloc(REAL_SIZE_IN_BYTES(digits)); real_t *const name=(real_t *)_ ## name ## _data
+  #define REAL_T_FREE(name, digits)    free(name)
+  #define CPLX_T_ALLOC(name)           cplx_t *const name=(cplx_t *)malloc(sizeof(cplx_t))
+  #define CPLX_T_FREE(name)            free(name)
+#endif  // (defined __GNUC__ && __GNUC__ + (__GNUC_MINOR__ >= 3) > 4) || (defined __clang__ && __clang_major__ >= 3)
+
+  // The slot at index slot of a block of same sized reals. It steps by REAL_SIZE_IN_BYTES(digits), not sizeof(real_t). Check the block for NULL first.
+  #define REAL_T_IN(arena, digits, slot, name)   real_t *const name=(real_t *)((arena) + REAL_SIZE_IN_BYTES(digits) * (slot))
+
+  // allocC47Blocks/freeC47Blocks version
+  //#define REAL_T_ALLOC(name, digits)   real_t * const name=(real_t *)allocC47Blocks(REAL_SIZE_IN_BLOCKS(digits))
+  //#define REAL_T_FREE(name, digits)    freeC47Blocks(name, REAL_SIZE_IN_BLOCKS(digits));
 
   typedef struct {
     real34_t real, imag;
@@ -52,7 +79,7 @@
 
   #if !defined(bool_t)
     typedef bool bool_t;
-  #endif // bool_t
+  #endif // !bool_t
 
   int32_t  realToInt32C47      (const real_t *r, bool_t *error);
   uint32_t realToUint32C47     (const real_t *r, bool_t *error);
@@ -60,6 +87,7 @@
   //uint64_t realToUint64C47     (const real_t *r);
   void     realSetZero         (real_t *r);
   void     realSetOne          (real_t *r);
+  void     realSetNegativeOne  (real_t *r);
   void     realSetNaN          (real_t *r);
   void     realSetPlusInfinity (real_t *r);
   void     realSetMinusInfinity(real_t *r);
@@ -140,6 +168,7 @@
   #define realIsPositive(source)                                 (((TO_REAL_T(source)->bits) & 0x80) == 0x00)
   #define realIsSpecial(source)                                  decNumberIsSpecial       (TO_REAL_T(source))
   #define realIsZero(source)                                     decNumberIsZero          (TO_REAL_T(source))
+  #define realLn(operand, res, ctxt)                             decNumberLn              (TO_REAL_T(res), TO_REAL_T(operand), ctxt)
   #define realMinus(operand, res, ctxt)                          decNumberMinus           (TO_REAL_T(res), TO_REAL_T(operand), ctxt)
   #define realMultiply(operand1, operand2, res, ctxt)            decNumberMultiply        (TO_REAL_T(res), TO_REAL_T(operand1), TO_REAL_T(operand2), ctxt)
   #define realNextToward(from, toward, res, ctxt)                decNumberNextToward      (TO_REAL_T(res), TO_REAL_T(from),     TO_REAL_T(toward),   ctxt)
@@ -149,6 +178,7 @@
   #define realReduce(operand, res, ctxt)                         decNumberReduce          (TO_REAL_T(res), TO_REAL_T(operand), ctxt)
   #define realSetNegativeSign(operand)                           (TO_REAL_T(operand)->bits) |= 0x80
   #define realSetPositiveSign(operand)                           (TO_REAL_T(operand)->bits) &= 0x7F
+  #define realSetSignFrom(source, destination)                   decNumberCopySign        (TO_REAL_T(destination), TO_REAL_T(destination), TO_REAL_T(source))
   #define realSquareRoot(operand, res, ctxt)                     decNumberSquareRoot      (TO_REAL_T(res), TO_REAL_T(operand), ctxt)
   #define realSubtract(operand1, operand2, res, ctxt)            decNumberSubtract        (TO_REAL_T(res), TO_REAL_T(operand1), TO_REAL_T(operand2), ctxt)
   #define realToReal34(source, destination)                      decQuadFromNumber        (TO_REAL34_T(destination), TO_REAL_T(source), &ctxtReal34)

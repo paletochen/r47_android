@@ -13,10 +13,6 @@
 
 
 #include "c47.h"
-#if defined(PC_BUILD) && defined(ANALYSE_REFRESH)
-  #include <execinfo.h>
-#endif // PC_BUILD &&MONITOR_CLRSCR
-
 
 
 void drawBattery(uint16_t voltage);
@@ -27,10 +23,14 @@ void drawBattery(uint16_t voltage);
 
   uint8_t  SBlastIntegerBaseShown = 0xFF;
   uint16_t SBAlphaModeLastShown = 0xFFFF;
+  uint16_t SBbatteryLastShown = 0xFFFF;        // drawn battery bar level, not the raw voltage
   char     SBhourglassShown[2];
   char     alphaOutput[3];
   bool_t   reInstateIntegerModeDisplay;
   bool_t   reInstateOCModeDisplay;
+  static uint8_t SBasmShown = 0xFF;            // what the ASM area last drew: 0 blank, 1 the buffer, 2 given over to the watch, 0xFF not known
+  static char    SBasmTextShown[sizeof(asmBuffer)];
+  static bool_t paintDateTimeForced = false;   // set only around the one forced paint a capture takes, not affecting restrained paints everywhere else
 
   void forceSBupdate(void) {                   // note set all SB activation/change indicator flags to 'changed'
                                 #if defined(ANALYSE_REFRESH)
@@ -39,6 +39,8 @@ void drawBattery(uint16_t voltage);
     setAllSystemFlagChanged();
     SBlastIntegerBaseShown = 0xFF;
     SBAlphaModeLastShown = 0xFFFF;
+    SBbatteryLastShown = 0xFFFF;
+    SBasmShown = 0xFF;
     SBhourglassShown[0]  = 0xFF;
     SBhourglassShown[1]  = 0xFF;               // note terminating 0 never used. Byte comparison done on content only.
     oldTime[0] = 0;
@@ -67,10 +69,10 @@ void drawBattery(uint16_t voltage);
 
 //Note: in PC_BUILD this is called several times per second, continuously
   bool_t showDateTime(void) {
-    if(timeChanged() == !timeHasChanged) {     // creates oldTime here
+    if(timeChanged() == !timeHasChanged && !paintDateTimeForced) {     // creates oldTime here
       return false;
     }
-    if(programRunStop == PGM_RUNNING) {
+    if(programRunStop == PGM_RUNNING && !paintDateTimeForced) {
       //printf("RUNNING, NO TIME/DATE SBI PRINTED\n");
       return false;
     }
@@ -87,23 +89,29 @@ void drawBattery(uint16_t voltage);
     uint32_t x = X_DATE;
     lcd_fill_rect(0, 0, x - 0, 20, LCD_SET_VALUE);
 
+    // Always fetch fresh for both WoY and Date display, as the WoY display below overwrites dateTimeString with a "Wnn-d" string;
+    //   a non-digit start in dateTimeString means date not yet initialized, block skipped entirely; time-only display bypasses the test.
     if(SBARUPD_Date || SBARUPD_WoY) {
       getDateString(dateTimeString);
     }
 
-    if((dateTimeString[0] >= '0' && dateTimeString[0] <= '9')) {                      // not yet initialized, senseless to continue
+    if((dateTimeString[0] >= '0' && dateTimeString[0] <= '9') || !(SBARUPD_Date || SBARUPD_WoY)) { // not yet initialized, senseless to continue
       if(SBARUPD_Date) {
         x = showString(dateTimeString, &standardFont, x, 0, vmNormal, true, true);
       }
       else {
         lcd_fill_rect(x, 0, X_TIME - x, 20, LCD_SET_VALUE);
-        x = X_TIME;
+        x = SBARUPD_Time ? (SBARUPD_WoY ? X_TIME_WOY : X_TIME_NODATE) : X_TIME;  // with the date absent the time takes the date position, one character further left when WoY follows
       }
       if(SBARUPD_Time) {
         x = showGlyph(getSystemFlag(FLAG_TDM24) ? " " : STD_SPACE_3_PER_EM, &standardFont, x, 0, vmNormal, true, true, false); // is 0+0+8 pixel wide
         x = showString(oldTime, &standardFont, x, 0, vmNormal, true, false);
       }
       if(SBARUPD_WoY) {
+        if((SBARUPD_Date || SBARUPD_Time) && x < X_WOY) {  // WoY aligns on one column behind either the date or the time; a shorter predecessor is padded up to it
+          lcd_fill_rect(x, 0, X_WOY - x, 20, LCD_SET_VALUE);
+          x = X_WOY;
+        }
         x = showGlyph(STD_SPACE_3_PER_EM, &standardFont, x, 0, vmNormal, true, true, false);
         getWeekOfYearString(dateTimeString);
         x = showString(dateTimeString, &standardFont, x, 0, vmNormal, true, false);
@@ -113,10 +121,20 @@ void drawBattery(uint16_t voltage);
     lcd_fill_rect(x, 0, X_REAL_COMPLEX - x, 20, LCD_SET_VALUE);
 
 
-    if(Y_SHIFT == 0 && X_SHIFT < 200) {
+    if(!shiftOnTline && X_SHIFT < 200) {
       showShiftState();
     }
     return true;
+  }
+
+
+  void paintDateTimeForCapture(void) {         // the date and time are painted only when they change, and a graph draw or a program's screen clear wipes them
+    if(screenHoldsDrawnPixels) {               // a screen CLLCD, PIXEL, POINT or AGRAPH painted keeps the blank status bar it asked for
+      return;
+    }
+    paintDateTimeForced = true;
+    showDateTime();
+    paintDateTimeForced = false;
   }
 
 
@@ -145,7 +163,8 @@ void drawBattery(uint16_t voltage);
 
 
   static void showAngularMode(void) {
-    if(!((SBARUPD_AngularModeBasic) | (SBARUPD_AngularMode))) {
+    #define actualSBARUPD_AngularMode  (SBARUPD_AngularMode || currentAngularMode != amDegree)
+    if(!(SBARUPD_AngularModeBasic || actualSBARUPD_AngularMode)) {
       return;
     }
 
@@ -156,35 +175,37 @@ void drawBattery(uint16_t voltage);
         x = showGlyph(STD_MEASURED_ANGLE, &standardFont, x, 0, vmNormal, true, true, false); // Angle is 0+9 pixel wide
       }
 
-      switch(currentAngularMode) {
-        case amRadian: {
-          x = showGlyph(STD_SUP_BOLD_r,         &standardFont, x, 0, vmNormal, true, false, false); // r  is 0+6 pixel wide
-          break;
-        }
+      if(actualSBARUPD_AngularMode) {
+        switch(currentAngularMode) {
+          case amRadian: {
+            x = showGlyph(STD_SUP_BOLD_r,         &standardFont, x, 0, vmNormal, true, false, false); // r  is 0+6 pixel wide
+            break;
+          }
 
-        case amMultPi: {
-          x = showGlyph(STD_SUP_pir,            &standardFont, x, 0, vmNormal, true, false, false); // pi is 0+9 pixel wide
-          break;
-        }
+          case amMultPi: {
+            x = showGlyph(STD_SUP_pir,            &standardFont, x, 0, vmNormal, true, false, false); // pi is 0+9 pixel wide
+            break;
+          }
 
-        case amGrad: {
-          x = showGlyph(STD_SUP_BOLD_g,         &standardFont, x, 0, vmNormal, true, false, false); // g  is 0+6 pixel wide
-          break;
-        }
+          case amGrad: {
+            x = showGlyph(STD_SUP_BOLD_g,         &standardFont, x, 0, vmNormal, true, false, false); // g  is 0+6 pixel wide
+            break;
+          }
 
-        case amDegree: {
-          x = showGlyph(STD_DEGREE,             &standardFont, x, 0, vmNormal, true, false, false); // °  is 0+6 pixel wide
-          break;
-        }
+          case amDegree: {
+            x = showGlyph(STD_DEGREE,             &standardFont, x, 0, vmNormal, true, false, false); // °  is 0+6 pixel wide
+            break;
+          }
 
-        case amDMS: {
-          x = showGlyph(STD_RIGHT_DOUBLE_QUOTE, &standardFont, x, 0, vmNormal, true, false, false); // "  is 0+6 pixel wide
-          break;
-        }
+          case amDMS: {
+            x = showGlyph(STD_RIGHT_DOUBLE_QUOTE, &standardFont, x, 0, vmNormal, true, false, false); // "  is 0+6 pixel wide
+            break;
+          }
 
           default: {
             x = showGlyph(STD_QUESTION_MARK,      &standardFont, x, 0, vmNormal, true, false, false); // ?
           }
+        }
       }
       lcd_fill_rect(x, 0, X_FRAC_MODE - x, 20, LCD_SET_VALUE);
     }
@@ -198,8 +219,9 @@ void drawBattery(uint16_t voltage);
     }
 
     bool_t  SBchanged = false;
-    if(lastIntegerBase + ((lastIntegerBase >= 2 && didSystemFlagChange(FLAG_TOPHEX)) ? 0x40 : 0) != SBlastIntegerBaseShown) {
-      SBlastIntegerBaseShown = lastIntegerBase + ((lastIntegerBase >= 2 && didSystemFlagChange(FLAG_TOPHEX)) ? 0x40 : 0);
+    bool_t  topHexChanged = (lastIntegerBase >= 2 && didSystemFlagChange(FLAG_TOPHEX));  // note, read once: didSystemFlagChange clears on reading;
+    if(lastIntegerBase + (topHexChanged ? 0x40 : 0) != SBlastIntegerBaseShown) {
+      SBlastIntegerBaseShown = lastIntegerBase;
       SBchanged = true;
     }
 
@@ -238,7 +260,15 @@ void drawBattery(uint16_t voltage);
       return;
     }
 
-    if(didSystemFlagChange(FLAG_FRACT)  || didSystemFlagChange(FLAG_IRFRAC) || didSystemFlagChange(FLAG_PROPFR) || didSystemFlagChange(SETTING_DMX) || didSystemFlagChange(FLAG_DENFIX) || didSystemFlagChange(FLAG_DENANY)) {
+    bool_t aa = didSystemFlagChange(FLAG_FRACT);     // note, read separately, not || : didSystemFlagChange clears on reading and the short circuiting of || causes each didSystemFlagChange to clear in a following refresh.
+    bool_t bb = didSystemFlagChange(FLAG_IRFRAC);
+    bool_t cc = didSystemFlagChange(FLAG_PROPFR);
+    bool_t dd = didSystemFlagChange(SETTING_DMX);
+    bool_t ee = didSystemFlagChange(FLAG_DENFIX);
+    bool_t ff = didSystemFlagChange(FLAG_DENANY);
+    bool_t gg = (SBlastIntegerBaseShown != lastIntegerBase);  // base mode #BASE / #KEY A-F
+    SBlastIntegerBaseShown = lastIntegerBase;
+    if(aa || bb || cc || dd || ee || ff || gg) {
       char statusMessage[20];
       uint32_t x = X_FRAC_MODE;
 
@@ -337,16 +367,16 @@ void drawBattery(uint16_t voltage);
        //printf("%s ### x=%u y=%i dx=%u dy=%u   xx=%u dd=%i \n", str, x, y, dx, dy, xx, x+dx -xx);
      }
      //clear slither below lifted text
-     if(y < 0) {
+     if(y < 0 && (uint64_t)x + dx <= SCREEN_WIDTH) {                // a caller whose x1 sits left of x0 passes the negative width as a wrapped dx; 64 bit so the sum cannot wrap back on screen
        lcd_fill_rect(x, (row + y), dx, dx - row, LCD_SET_VALUE);
      }
      //clear slither above dropped text
-     else if(y > 0) {
+     else if(y > 0 && (uint64_t)x + dx <= SCREEN_WIDTH) {
        lcd_fill_rect(x, 0, dx, y-0, LCD_SET_VALUE);
      }
                                 #if defined(ANALYSE_REFRESH)
                                   print_caller(NULL);
-                                #endif // PC_BUILD && ANALYSE_REFRESH
+                                #endif // ANALYSE_REFRESH
      return xx;
   }
 
@@ -442,7 +472,7 @@ void drawBattery(uint16_t voltage);
     bool_t textModeIconDisplay = ((plainTextMode || calcMode == CM_EIM || (catalog && catalog != CATALOG_MVAR) || (tam.mode != 0 && tam.alpha)));
     bool_t toSwitchOff         = !textModeIconDisplay && alphaOutput[0] != 0;
 
-    if(!(SBARUPD_AlphaMode) || calcMode == CM_GRAPH) {
+    if(!(SBARUPD_AlphaMode) || GRAPHMODE) {
       return;
     }
     bool_t SBchanged;
@@ -451,7 +481,9 @@ void drawBattery(uint16_t voltage);
        SBAlphaModeLastShown = SETT_AlphaMode;
        SBchanged = true;
     }
-    if(didSystemFlagChange(FLAG_alphaCAP) || didSystemFlagChange(FLAG_NUMLOCK) || SBchanged || toSwitchOff || textModeIconDisplay) {
+    bool_t aa = didSystemFlagChange(FLAG_alphaCAP);  // note, read separately, not || : didSystemFlagChange clears on reading, see showFracMode.
+    bool_t bb = didSystemFlagChange(FLAG_NUMLOCK);
+    if(aa || bb || SBchanged || toSwitchOff || textModeIconDisplay) {
 
       int status=0;
       uint8_t nChar;
@@ -618,39 +650,53 @@ void drawBattery(uint16_t voltage);
     }
   }
 
+  static bool_t asmTextUnchanged(void) {        // blanking and redrawing the area on every refresh dirtied all twenty lines of the bar
+    for(uint16_t i = 0; i < sizeof(asmBuffer); i++) {
+      if(SBasmTextShown[i] != asmBuffer[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+
 //sharing space with stopwatch, so ASM does not come when the stopwatch is on
   void light_ASB_icon(void) {
-    if(!(SBARUPD_AlphaMode) || calcMode == CM_GRAPH) {
+    if(!(SBARUPD_AlphaMode) || GRAPHMODE) {
       return;
     }
     #if (DEBUG_INSTEAD_STATUS_BAR == 1)
       return;
     #endif // (DEBUG_INSTEAD_STATUS_BAR == 1)
+    const uint8_t asmState = watchIconEnabled ? 2 : 1;
+    if(SBasmShown == asmState && (watchIconEnabled || asmTextUnchanged())) {
+      return;                                                      // the area already draws this
+    }
+    SBasmShown = asmState;
+    xcopy(SBasmTextShown, asmBuffer, sizeof(asmBuffer));
     lcd_fill_rect(X_ALPHA_MODE, 18, 9, 2, LCD_EMPTY_VALUE);        //underline the alha mode character, AND show the asmBuffer as well
     //compressString = 1; //do not use compress, as the far edges of the letter get cut off
     if(!watchIconEnabled) {
       showStringAndClear(asmBuffer, &standardFont, X_ASM, 0, X_SERIAL_IO - X_ASM, 20, vmNormal, true, false);
-    }
-    if(programRunStop != PGM_RUNNING) {
-      force_SBrefresh(force);
     }
   }
 
 
 //sharing space with stopwatch, so ASM does not come when the stopwatch is on
   void kill_ASB_icon(void) {
-    if(!(SBARUPD_AlphaMode) || calcMode == CM_GRAPH) {
+    if(!(SBARUPD_AlphaMode) || GRAPHMODE) {
       return;
     }
     #if (DEBUG_INSTEAD_STATUS_BAR == 1)
       return;
     #endif // (DEBUG_INSTEAD_STATUS_BAR == 1)
+    if(SBasmShown == 0) {
+      return;                                                    // already blank
+    }
+    SBasmShown = 0;
     lcd_fill_rect(X_ALPHA_MODE, 18, 9, 2, LCD_SET_VALUE);        //underline the alha mode character, AND show the asmBuffer as well
     if(!watchIconEnabled) {
       lcd_fill_rect(X_ASM, 0, X_SERIAL_IO - X_ASM, 20, LCD_SET_VALUE);
-    }
-    if(programRunStop != PGM_RUNNING) {
-      force_SBrefresh(force);
     }
   }
 
@@ -685,6 +731,7 @@ void drawBattery(uint16_t voltage);
     if(!(SBARUPD_Printer)) return;
     if(didSystemFlagChange(SETTING_PRINTERICON)) {
       showStringAndClear(printerIconEnabled ? STD_PRINTER : "", &standardFont, X_PRINTER, 0, X_USER_MODE - X_PRINTER, 20, vmNormal, true, false );
+      force_SBrefresh(force);
     }
   }
 
@@ -700,54 +747,66 @@ void drawBattery(uint16_t voltage);
   }
 
 
-//todo make it check the last voltage plotted, and bypass if nothing has changed
 void drawBattery(uint16_t voltage) {
   #if (DEBUG_INSTEAD_STATUS_BAR == 1)
     return;
   #endif // (DEBUG_INSTEAD_STATUS_BAR == 1)
-  lcd_fill_rect(X_BATTERY, 0, 11, 20, LCD_SET_VALUE);
-  uint16_t vv = (uint16_t)(min(max(voltage - 2000, 0), 3100) / (float)(((float)3100 - 2000.0f)/(float)(DY_BATTERY))); //draw a battery, full at 3.1V empty at 2V
-  for(uint16_t ii = min(vv-1, DY_BATTERY-1); ii <= DY_BATTERY-1; ii++) {
-    if(ii%2 == 0) { //draw outline
-      setBlackPixel(ii < DY_BATTERY-3 ?  X_BATTERY + 0 : X_BATTERY + 2                           , (DY_BATTERY-1)-ii);
-      setBlackPixel(ii < DY_BATTERY-3 ?  X_BATTERY + DX_BATTERY + 0 : X_BATTERY + DX_BATTERY - 2 , (DY_BATTERY-1)-ii);
-    }
+  const uint16_t level = (min(max(voltage, 2000), 3100) - 2000) * (DY_BATTERY - 2) / 1100;   // the bar stands between the cap and the floor, so 19 readings from empty at 2 V to full at 3.1 V
+
+  if(level == SBbatteryLastShown) {
+    return;
   }
-  for(uint16_t ii = 0; ii <= min(vv, DY_BATTERY-1); ii++) { //draw voltage
-    for(uint16_t jj = 0; jj <= DX_BATTERY; jj++) {
-      if(min(vv, DY_BATTERY)-ii > (voltage > 2750 ? 2 : 1) || (jj>1 && jj<DX_BATTERY-1)) {
-        setBlackPixel(X_BATTERY + jj, (DY_BATTERY-1)-ii);
+  SBbatteryLastShown = level;
+
+  lcd_fill_rect(X_BATTERY, 0, 11, DY_BATTERY, LCD_SET_VALUE);
+  for(uint16_t y = 0; y < DY_BATTERY; y++) {
+    const uint16_t left = (y <= 2) ? 2 : 0, right = (y <= 2) ? DX_BATTERY - 2 : DX_BATTERY;  // the neck stands two pixels in from each side
+    if(y == 0 || y == DY_BATTERY - 1 || y >= DY_BATTERY - 1 - level) {                       // the cap, the floor and the bar itself are solid
+      for(uint16_t x = left; x <= right; x++) {
+        setBlackPixel(X_BATTERY + x, y);
+      }
+    }
+    else {
+      if(y == 3) {
+        for(uint16_t x = 0; x <= 2; x++) {                                                   // the shoulder, three pixels to each side
+          setBlackPixel(X_BATTERY + x, y);
+          setBlackPixel(X_BATTERY + DX_BATTERY - x, y);
+        }
+      }
+      else {
+        setBlackPixel(X_BATTERY + left, y);
+        setBlackPixel(X_BATTERY + right, y);
       }
     }
   }
 }
 
 
-//todo make it bypass if nothing has changed
-  #if defined(DMCP_BUILD)
+  #if defined(DMCP_BUILD) || defined(BATTERYTEST)
     void showHideUsbLowBattery(void) {
-      if(!(SBARUPD_Battery)) {
-        // Clear the space used by the USB / LOWBAT glyph
-        lcd_fill_rect(X_BATTERY, 0, 11, 20, LCD_SET_VALUE);
+      if(!getSystemFlag(FLAG_USB) && SBARUPD_BatVoltage) {
+        #if defined(DMCP_BUILD)
+          drawBattery(min(updateVbatIntegrated(false), vbatVIntegrated));           // the rate limited reading, so the gauge adds no ADC conversion of its own
+        #else // !DMCP_BUILD
+          drawBattery(exponentLimit);                                               // RNG nnnn is the battery voltage in the simulator
+        #endif // DMCP_BUILD
         return;
       }
-      if(getSystemFlag(FLAG_USB)) {
-        showGlyph(STD_USB_SYMBOL, &standardFont, X_BATTERY, 0, vmNormal, true, false, false); // is 0+9+2 pixel wide
+      const char *glyph = getSystemFlag(FLAG_USB) ? STD_USB_SYMBOL : (getSystemFlag(FLAG_LOWBAT) ? STD_BATTERY : NULL);
+      const uint16_t state = (glyph == NULL) ? 0xFFFE                               // not the 0xFFFF forceSBupdate leaves for not known. A glyph's own two bytes tell the
+                                             : (uint16_t)(((uint8_t)glyph[0] << 8) | (uint8_t)glyph[1]);   //   states apart: they are 0xa4xx, and drawBattery's levels stay below 0x200
+      if(SBbatteryLastShown == state) {
+        return;                                                                     // drawing the same thing again dirties all twenty lines of the bar for nothing
+      }
+      SBbatteryLastShown = state;
+      if(glyph == NULL) {
+        lcd_fill_rect(X_BATTERY, 0, 11, 20, LCD_SET_VALUE);                         // the space the USB and low battery glyphs share
       }
       else {
-        if(SBARUPD_BatVoltage) {
-          drawBattery(min(get_vbat(), vbatVIntegrated));
-        }
-        else if(getSystemFlag(FLAG_LOWBAT)) {
-          showGlyph(STD_BATTERY, &standardFont, X_BATTERY, 0, vmNormal, true, false, false); // is 0+10+1 pixel wide
-        }
-        else {
-          // Clear the space used by the USB / LOWBAT glyph
-          lcd_fill_rect(X_BATTERY, 0, 11, 20, LCD_SET_VALUE);
-        }
+        showGlyph(glyph, &standardFont, X_BATTERY, 0, vmNormal, true, false, false);
       }
     }
-  #endif // DMCP_BUILD
+  #endif // DMCP_BUILD || BATTERYTEST
 
 
   void refreshStatusBar(void) {
@@ -776,6 +835,12 @@ void drawBattery(uint16_t voltage) {
       }
     }
 
+    if(screenHoldsDrawnPixels) {                           // return if CLLCD, PIXEL, POINT or AGRAPH painted, no statusBar activity
+      return;
+    }
+
+    updateShiftOnTline();                                  // the indicator's place below comes from this value, so it is worked out first
+
     #if (DEBUG_INSTEAD_STATUS_BAR == 1)
       char statusMessage[100];
       char catalogstr[10];
@@ -800,7 +865,7 @@ void drawBattery(uint16_t voltage) {
         lcd_fill_rect(0, 0, 158, 20, LCD_SET_VALUE);
       }
       showDateTime();
-      if(Y_SHIFT==0 && X_SHIFT<200) {
+      if(!shiftOnTline && X_SHIFT<200) {
         showShiftState();
       }
       if(GRAPHMODE) {                      // With graph displayed, only update the time, as the other items are clashing with the graph display screen
@@ -834,7 +899,7 @@ void drawBattery(uint16_t voltage) {
       }
       showHideSerialIO();
       showHidePrinter();
-      if(Y_SHIFT==0 && X_SHIFT >300) {
+      if(!shiftOnTline && X_SHIFT >300) {
         showShiftState();
       }
       showHideUserMode();
@@ -850,9 +915,12 @@ void drawBattery(uint16_t voltage) {
 
   #if !defined(DMCP_BUILD)
     void showHideStackLift(void) {
+      if(programRunStop == PGM_RUNNING) {
+        return;
+      }
 
       #if defined(BATTERYTEST)
-        drawBattery(exponentLimit); //test battery indicator
+        showHideUsbLowBattery();    //test battery indicator
         return;                     //test battery indicator
       #endif
 

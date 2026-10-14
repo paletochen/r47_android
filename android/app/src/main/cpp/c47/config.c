@@ -11,6 +11,8 @@
 #define _gprr   3
 #define _gapr   ITM_SPACE_PUNCTUATION
 #define _gaprx  ITM_PERIOD
+#define _gprhex 2
+#define _gprbin 4
 
 TO_QSPI static const struct {
     unsigned tdm24 : 1;
@@ -141,6 +143,8 @@ void configCommon(uint16_t idx) {
 #define FPGRP                 113    // config_grpGroupingRight
 #define IPGRP1                114    // config_grpGroupingGr1Left
 #define IPGRP1x               115    // config_grpGroupingGr1LeftOverflow
+#define HEXGRP                116    // config_grpGroupingHex
+#define BINGRP                117    // config_grpGroupingBin
 #define HIDE                  118    // config_exponentHideLimit
 
 #define DenMaX                120    // config_denmax
@@ -180,6 +184,8 @@ IPGRP,                               xxx,        3,                             
 FPGRP,                               xxx,        3,                              3,               _gprr,                3,                      _gprr,           xxx,             xxx,
 IPGRP1,                              xxx,        0,                              0,               _gpr1,                0,                      _gpr1,           xxx,             xxx,
 IPGRP1x,                             xxx,        0,                              0,               _gpr1x,               1,                      _gpr1x,          xxx,             xxx,
+HEXGRP,                              xxx,        _gprhex,                        _gprhex,         _gprhex,              _gprhex,                _gprhex,         xxx,             xxx,
+BINGRP,                              xxx,        _gprbin,                        _gprbin,         _gprbin,              _gprbin,                _gprbin,         xxx,             xxx,
 
 3,                                   0,          FLAG_IRFRAC,                    xxx,             xxx,                  xxx,                    xxx,             xxx,             xxx,
 3,                                   1,          xxx,                            xxx,             FLAG_IRFRAC,          FLAG_IRFRAC,            xxx,             xxx,             xxx,
@@ -187,12 +193,14 @@ IPGRP1x,                             xxx,        0,                             
 3,                                   1,          xxx,                            xxx,             FLAG_IRFRQ,           FLAG_IRFRQ,             xxx,             xxx,             xxx,
 3,                                   0,          xxx,                            FLAG_ERPN,       xxx,                  xxx,                    xxx,             xxx,             xxx,
 3,                                   1,          FLAG_ERPN,                      xxx,             FLAG_ERPN,            FLAG_ERPN,              FLAG_ERPN,       xxx,             xxx,
+3,                                   1,          FLAG_M_ALL,                     FLAG_M_ALL,      FLAG_M_ALL,           FLAG_M_ALL,             FLAG_M_ALL,      xxx,             xxx,
+3,                                   0,          FLAG_PL_2L,                     FLAG_PL_2L,      FLAG_PL_2L,           FLAG_PL_2L,             FLAG_PL_2L,      xxx,             xxx,
 3,                                   0,          FLAG_CPXMULT,                   xxx,             xxx,                  xxx,                    xxx,             xxx,             xxx,
 3,                                   1,          FLAG_LARGELI,                   xxx,             xxx,                  xxx,                    xxx,             xxx,             xxx,
 3,                                   0,          FLAG_PFX_ALL,                   xxx,             xxx,                  xxx,                    xxx,             xxx,             xxx,
 3,                                   0,          FLAG_DREAL,                     xxx,             xxx,                  xxx,                    xxx,             xxx,             xxx,
 3,                                   1,          xxx,                            xxx,             FLAG_DREAL,           FLAG_DREAL,             xxx,             xxx,             xxx,
-
+3,                                   1,          FLAG_AUTOVALID,                 xxx,             FLAG_AUTOVALID,       FLAG_AUTOVALID,         FLAG_AUTOVALID,  xxx,             xxx,
 
 
 DenMaX,                              xxx,        64,                             xxx,             120,                  999,                    64,              xxx,             xxx,
@@ -200,12 +208,13 @@ DenMaX,                              xxx,        64,                            
 TVMIKnown,                           xxx,        0,                              xxx,             xxx,                  xxx,                    xxx,             xxx,             0,                    // Clear flag TVMIKnown
 TVMIChanges,                         xxx,        0,                              xxx,             xxx,                  xxx,                    xxx,             xxx,             0,                    // Clear flag TVMIChanges
 //TVM,                               n/a,        Reset,                          HP35,            JM,                   RJ,                     C47,             DefltSB,         TVM,
-RESERVED_VARIABLE_LX,                xxx,        -10,                            xxx,             xxx,                  xxx,                    xxx,             xxx,             0,
-RESERVED_VARIABLE_UX,                xxx,        10,                             xxx,             xxx,                  xxx,                    xxx,             xxx,             0,
-RESERVED_VARIABLE_LY,                xxx,        0,                              xxx,             xxx,                  xxx,                    xxx,             xxx,             0,
-RESERVED_VARIABLE_UY,                xxx,        0,                              xxx,             xxx,                  xxx,                    xxx,             xxx,             0,
+RESERVED_VARIABLE_LX,                xxx,        -10,                            xxx,             xxx,                  xxx,                    xxx,             xxx,             xxx,
+RESERVED_VARIABLE_UX,                xxx,        10,                             xxx,             xxx,                  xxx,                    xxx,             xxx,             xxx,
+RESERVED_VARIABLE_LY,                xxx,        0,                              xxx,             xxx,                  xxx,                    xxx,             xxx,             xxx,
+RESERVED_VARIABLE_UY,                xxx,        0,                              xxx,             xxx,                  xxx,                    xxx,             xxx,             xxx,
 RESERVED_VARIABLE_FV,                xxx,        0,                              xxx,             xxx,                  xxx,                    xxx,             xxx,             0,
 RESERVED_VARIABLE_IPONA,             xxx,        0,                              xxx,             xxx,                  xxx,                    xxx,             xxx,             0,
+RESERVED_VARIABLE_IP,                xxx,        0,                              xxx,             xxx,                  xxx,                    xxx,             xxx,             0,
 RESERVED_VARIABLE_NPPER,             xxx,        0,                              xxx,             xxx,                  xxx,                    xxx,             xxx,             0,
 RESERVED_VARIABLE_PMT,               xxx,        0,                              xxx,             xxx,                  xxx,                    xxx,             xxx,             0,
 RESERVED_VARIABLE_PV,                xxx,        0,                              xxx,             xxx,                  xxx,                    xxx,             xxx,             0,
@@ -233,6 +242,7 @@ AMORTP2,                             xxx,        12,                            
 3,                                   1,          xxx,                            xxx,             xxx,                  FLAG_SBcr,              xxx,             xxx,             xxx,                  // Set flag  FLAG_SBcr
 3,                                   1,          FLAG_SBcpx,                     xxx,             xxx,                  xxx,                    xxx,             FLAG_SBcpx,      xxx,                  // Set flag  FLAG_SBcpx
 3,                                   0,          FLAG_SBang,                     xxx,             xxx,                  xxx,                    xxx,             FLAG_SBang,      xxx,                  // Clear flag FLAG_SBang
+3,                                   1,          FLAG_SBadm,                     xxx,             xxx,                  xxx,                    xxx,             FLAG_SBadm,      xxx,                  // Set flag  FLAG_SBadm
 3,                                   1,          FLAG_SBfrac,                    xxx,             xxx,                  xxx,                    xxx,             FLAG_SBfrac,     xxx,                  // Set flag  FLAG_SBfrac
 3,                                   1,          FLAG_SBint,                     xxx,             xxx,                  xxx,                    xxx,             FLAG_SBint,      xxx,                  // Set flag  FLAG_SBint
 3,                                   0,          xxx,                            xxx,             xxx,                  FLAG_SBint,             xxx,             xxx,             xxx,                  // Clear flag FLAG_SBint
@@ -319,7 +329,6 @@ AMORTP2,                             xxx,        12,                            
 
 void Sett(int16_t grp) {
   int16_t ptr = -1;
-  real_t realt;
 
   while(Settings[++ptr*(_numberOfGrps+2) + 0] != 0) {
     if(Settings[  ptr*(_numberOfGrps+2) + 1 + grp] != xxx) {
@@ -345,6 +354,8 @@ void Sett(int16_t grp) {
         case FPGRP                : grpGroupingRight           =  Settings[ptr*(_numberOfGrps+2) + 1 + grp];       break; // FPGRP
         case IPGRP1               : grpGroupingGr1Left         =  Settings[ptr*(_numberOfGrps+2) + 1 + grp];       break; // IPGRP1
         case IPGRP1x              : grpGroupingGr1LeftOverflow =  Settings[ptr*(_numberOfGrps+2) + 1 + grp];       break; // IPGRP1x
+        case HEXGRP               : grpGroupingHex             =  Settings[ptr*(_numberOfGrps+2) + 1 + grp];       break; // HEXGRP
+        case BINGRP               : grpGroupingBin             =  Settings[ptr*(_numberOfGrps+2) + 1 + grp];       break; // BINGRP
         case DenMaX               : denMax                     =  Settings[ptr*(_numberOfGrps+2) + 1 + grp];       break; // DenMaX
         case TVMIKnown            : tvmIKnown                  = (Settings[ptr*(_numberOfGrps+2) + 1 + grp] == 1); break; // TVMIKnown
         case TVMIChanges          : tvmIChanges                = (Settings[ptr*(_numberOfGrps+2) + 1 + grp] == 1); break; // TVMIChanges
@@ -357,14 +368,14 @@ void Sett(int16_t grp) {
         case RESERVED_VARIABLE_UY     :
         case RESERVED_VARIABLE_FV     :
         case RESERVED_VARIABLE_IPONA  :
+        case RESERVED_VARIABLE_IP     :
         case RESERVED_VARIABLE_NPPER  :
         case RESERVED_VARIABLE_PMT    :
         case RESERVED_VARIABLE_PV     :
         case RESERVED_VARIABLE_PPERONA:
         case RESERVED_VARIABLE_CPERONA: {
-            int32ToReal(Settings[ptr*(_numberOfGrps+2) + 1 + grp], &realt);
             reallocateRegister(Settings[ptr*(_numberOfGrps+2) + 0], dtReal34, 0, amNone);
-            realToReal34(&realt, REGISTER_REAL34_DATA(Settings[ptr*(_numberOfGrps+2) + 0]));
+            int32ToReal34(Settings[ptr*(_numberOfGrps+2) + 1 + grp], REGISTER_REAL34_DATA(Settings[ptr*(_numberOfGrps+2) + 0]));
             #if defined(PC_BUILD) && (VERBOSE_LEVEL > -1)
               printf("Sett1A Register %d = ", Settings[ptr*(_numberOfGrps+2) + 0]);
               printRegisterToConsole(Settings[ptr*(_numberOfGrps+2) + 0], " : ", "\n");
@@ -406,7 +417,7 @@ void Sett(int16_t grp) {
 
 
   void fnSetHP35(uint16_t unusedButMandatoryParameter) {
-    #if !defined(SAVE_SPACE_DM42_21_HP35) && !defined(SAVE_SPACE_DM42_24_PROFILES)
+    #if defined(OPTION_HP35) && defined(OPTION_DEVPROFILES)
       getDateString(lastStateFileOpened);
       strcat(lastStateFileOpened, ": HP35 defaults");
       fnKeyExit(0);                            //Clear pending key input
@@ -422,12 +433,12 @@ void Sett(int16_t grp) {
       fnRefreshState();
       screenUpdatingMode = SCRUPD_AUTO;
       refreshScreen(160);
-    #endif //SAVE_SPACE_DM42_21_HP35
+    #endif //OPTION_HP35
   }
 
 
   void fnSetJM(uint16_t unusedButMandatoryParameter){
-  #if !defined(SAVE_SPACE_DM42_24_PROFILES)
+  #if defined(OPTION_DEVPROFILES)
     fnDrop(NOPARAM);
     resetOtherConfigurationStuff(true);
     getDateString(lastStateFileOpened);
@@ -435,11 +446,11 @@ void Sett(int16_t grp) {
 
     Sett(_JM);
 
-    roundingMode = RM_HALF_UP;
+    setRoundingMode(RM_HALF_UP);
     if(!isR47FAM) {
       fnKeysManagement(ITM_RIBBON_C47PL);
     } else {
-      fnKeysManagement(ITM_RIBBON_R47PL);      
+      fnKeysManagement(ITM_RIBBON_R47PL);
     }
 
     itemToBeAssigned = ITM_op_j;
@@ -461,12 +472,12 @@ void Sett(int16_t grp) {
     fnRefreshState();
     screenUpdatingMode = SCRUPD_AUTO;
     refreshScreen(161);
-  #endif //#!SAVE_SPACE_DM42_24_PROFILES
+  #endif //OPTION_DEVPROFILES
   }
 
 
   void fnSetRJ(uint16_t unusedButMandatoryParameter){
-  #if !defined(SAVE_SPACE_DM42_24_PROFILES)
+  #if defined(OPTION_DEVPROFILES)
     resetOtherConfigurationStuff(true);
     getDateString(lastStateFileOpened);
     strcat(lastStateFileOpened, ": RJvM defaults");
@@ -479,7 +490,7 @@ void Sett(int16_t grp) {
     fnRefreshState();
     screenUpdatingMode = SCRUPD_AUTO;
     refreshScreen(165);
-  #endif //!SAVE_SPACE_DM42_24_PROFILES
+  #endif //OPTION_DEVPROFILES
   }
 
 
@@ -525,7 +536,9 @@ void fnClrMod(uint16_t unusedButMandatoryParameter) {        //clear input buffe
     clearSystemFlag(FLAG_IRFRAC);
     clearSystemFlag(FLAG_INTING);
     clearSystemFlag(FLAG_SOLVING);
-    programRunStop = PGM_STOPPED;
+    if(programRunStop != PGM_RUNNING) {                         // as a program step this leaves the graph and carries on; from the keyboard it still stops a halted run
+      programRunStop = PGM_STOPPED;
+    }
 
     if(calcMode == CM_NIM) {
       strcpy(aimBuffer, "+");
@@ -607,6 +620,23 @@ void fnSettingsDispFormatGrpR   (uint16_t param) {
   grpGroupingRight = param;
 }
 
+void fnSettingsDispFormatGrpHex (uint16_t param) {
+  grpGroupingHex = param;
+}
+
+void fnSettingsDispFormatGrpBin (uint16_t param) {
+  grpGroupingBin = param < 4 ? 4 : param;            // TAM minimum field is 2 bits, so 3 is accepted and lifted to 4
+}
+
+void grpGroupingHexBinDefault(void) {         // a restored 0 (older file or Conf register without the fields) takes the default
+  if(grpGroupingHex == 0) {
+    grpGroupingHex = _gprhex;
+  }
+  if(grpGroupingBin == 0) {
+    grpGroupingBin = _gprbin;
+  }
+}
+
 void fnMenuGapL (uint16_t unusedButMandatoryParameter) {
   showSoftmenu(-MNU_GAP_L);
 }
@@ -659,23 +689,144 @@ void fnFreeMemory(uint16_t unusedButMandatoryParameter) {
 }
 
 
+// Rounding mode text, indexed by the RM_* values. The abbreviation is the glyph group the flag browser and the temporary information line display.
+TO_QSPI static const struct {
+  const char name[21];        // 21 bytes: 20 characters + 1 sentinel
+  const char abbreviations[6]; // 6 bytes: 5 bytes of glyphs + 1 sentinel
+} roundingModeName[7] = {
+  /* RM_HALF_EVEN */ { "round half even",      STD_ONE_HALF "E"                   },
+  /* RM_HALF_UP   */ { "round half up",        STD_ONE_HALF STD_UP_ARROW          },
+  /* RM_HALF_DOWN */ { "round half down",      STD_ONE_HALF STD_DOWN_ARROW        },
+  /* RM_UP        */ { "round away from zero", STD_LEFT_ARROW "0" STD_RIGHT_ARROW },
+  /* RM_DOWN      */ { "round towards zero",   STD_RIGHT_ARROW "0" STD_LEFT_ARROW },
+  /* RM_CEIL      */ { "ceiling",              STD_MAT_TL "x" STD_MAT_TR          },
+  /* RM_FLOOR     */ { "floor",                STD_MAT_BL "x" STD_MAT_BR          },
+};
+
+
+/********************************************//**
+ * \brief Returns the text of a rounding mode
+ *
+ * \param[in] RM uint16_t Rounding mode, an RM_* value
+ * \param[in] abbreviated bool_t true returns the display glyphs, false the full name
+ * \return char* Text of the rounding mode
+ ***********************************************/
+const char *getRoundModeName(uint16_t RM, bool_t abbreviated) {
+  if(RM >= nbrOfElements(roundingModeName)) {
+    sprintf(errorMessage, commonBugScreenMessages[bugMsgNotDefinedMustBe], "getRoundModeName", "rounding mode", RM, (uint16_t)(nbrOfElements(roundingModeName) - 1));
+    displayBugScreen(errorMessage);
+    return "???";
+  }
+  return abbreviated ? roundingModeName[RM].abbreviations : roundingModeName[RM].name;
+}
+
+
+
+bool_t displayRoundActive(void) {
+  return currentMenu() == -MNU_DRM;
+}
+
+
+
+void fnGetDisplayRoundingMode(uint16_t unusedButMandatoryParameter) {
+  fnIntInputLongint(displayRoundingMode);
+  temporaryInformation = TI_DISPLAY_ROUNDING_MODE;
+}
+
+
+
+void fnSetDisplayRoundingModeM(uint16_t unusedButMandatoryParameter) {
+  showSoftmenu(-MNU_DRM);
+}
+
+
+
+void fnSetDisplayRoundingModeRegist(uint16_t regist) {
+  uint32_t value;
+  if(getRegisterAsUint32Param(regist, &value) && value <= RM_FLOOR) {
+    displayRoundingMode = value;
+    temporaryInformation = TI_DISPLAY_ROUNDING_MODE;
+  }
+  else if(lastErrorCode == ERROR_NONE) {
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+  }
+}
+
+
 
 void fnGetRoundingMode(uint16_t unusedButMandatoryParameter) {
   fnIntInputLongint(roundingMode);
+  temporaryInformation = TI_ROUNDING_MODE;
 }
 
 
+void setRoundingMode(uint16_t RM) {
+  roundingMode = RM;
+  ctxtReal34.round = roundingModeTable[RM];
+}
 
 void fnSetRoundingMode(uint16_t RM) {
-  roundingMode = RM;
+  if(displayRoundActive() && programRunStop != PGM_RUNNING) {                   // a program step sets RM whatever menu is on show
+    displayRoundingMode = RM;
+    temporaryInformation = TI_DISPLAY_ROUNDING_MODE_ONLY;
+    return;
+  }
+  setRoundingMode(RM);
+  temporaryInformation = TI_ROUNDING_MODE_ONLY;                                 // a mode key of RMODE sets the mode outright, so the X content is not part of the reading
 }
+
+void fnSetRoundingModeM(uint16_t unusedButMandatoryParameter) {
+  showSoftmenu(-MNU_RMODE);
+}
+
+void fnSetRoundingModeRegist(uint16_t regist) {
+  uint32_t value;
+  if(getRegisterAsUint32Param(regist, &value) && value <= RM_FLOOR) {           // a value above the last mode is refused, not clamped, so no reading names the wrong mode
+    if(displayRoundActive()) {
+      setRoundingMode(value);
+    }
+    else {
+      fnSetRoundingMode(value);
+    }
+    temporaryInformation = TI_ROUNDING_MODE;                                    // RM takes its value from X, so the mode is confirmed against that value
+  }
+  else if(lastErrorCode == ERROR_NONE) {
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+  }
+}
+
+// Decnumber PDF:
+// 0 DEC_ROUND_CEILING Round towards +Infinity.
+// 1 DEC_ROUND_UP Round away from 0.
+// 2 DEC_ROUND_HALF_UP Round to nearest; if equidistant, round up.
+// 3 DEC_ROUND_HALF_EVEN Round to nearest; if equidistant, round so that the final digit is even.
+// 4 DEC_ROUND_HALF_DOWN Round to nearest; if equidistant, round down.
+// 5 DEC_ROUND_DOWN Round towards 0 (truncation).
+// 6 DEC_ROUND_FLOOR Round towards -Infinity.
+// 7 DEC_ROUND_05UP The same as DEC_ROUND_UP, except that rounding up only occurs if the digit to be rounded up is 0 or 5 and after Overflow the result is the same as for DEC_ROUND_DOWN.
+
+// C47 definition of roundingMode
+// 0: round half even: ½ E 0.5 rounds to next even number (default, used in science).
+// 1: round half up: 0.5 rounds up (‘business-man’s rounding’ 44).
+// 2: round half down: ½ ↓ 0.5 rounds down.
+// 3: round up: ←0→ rounds away from 0.
+// 4: round down: →0← rounds towards 0.
+// 5: ceiling: ⌈x⌉ rounds towards + ∞.
+// 6: floor: ⌊x⌋ rounds towards – ∞.
+
+
 
 // "enum rounding" does not match with the specification of WP 43s rounding mode.
 // So you need roundingModeTable[roundingMode] rather than roundingMode
 // to specify rounding mode in the real number functions.
 TO_QSPI const enum rounding roundingModeTable[7] = {
-  DEC_ROUND_HALF_EVEN, DEC_ROUND_HALF_UP, DEC_ROUND_HALF_DOWN,
-  DEC_ROUND_UP, DEC_ROUND_DOWN, DEC_ROUND_CEILING, DEC_ROUND_FLOOR
+  DEC_ROUND_HALF_EVEN,
+  DEC_ROUND_HALF_UP,
+  DEC_ROUND_HALF_DOWN,
+  DEC_ROUND_UP,
+  DEC_ROUND_DOWN,
+  DEC_ROUND_CEILING,
+  DEC_ROUND_FLOOR
 };
 
 
@@ -694,6 +845,33 @@ void fnGetWordSize(uint16_t unusedButMandatoryParameter) {
 
 
 
+// Bound a short integer word size arriving from a file. WSIZE's tamMinMax bounds the interactive path; the state file, backup.cfg and a config register supply it raw,
+// and every consumer shifts by it or by one less: config.c below, rotateBits.c:166, :223 and :313, mask.c:36. 0 already spells the widest word.
+uint8_t boundShortIntegerWordSize(uint8_t wordSize) {
+  if(wordSize < 1 || wordSize > MAX_SHORT_INTEGER_WORD_SIZE) {
+    return MAX_SHORT_INTEGER_WORD_SIZE;
+  }
+  return wordSize;
+}
+
+
+void updateShortIntegerMasks(void) {
+  // Derive the word-size-dependent short-integer bit masks from the current shortIntegerWordSize. fnSetWordSize uses this when the size changes interactively;
+  // code that assigns shortIntegerWordSize directly (state-file restore, which stores neither mask) must call it too, so that shortIntegerMask and
+  // shortIntegerSignBit stay consistent with the word size.
+  if(shortIntegerWordSize == 64) {
+    shortIntegerMask    = -1;
+  }
+  else {
+    shortIntegerMask    = ((uint64_t)1 << shortIntegerWordSize) - 1;
+  }
+
+  shortIntegerSignBit = (uint64_t)1 << (shortIntegerWordSize - 1);
+  //printf("shortIntegerMask  =   %08x-%08x\n", (unsigned int)(shortIntegerMask>>32), (unsigned int)(shortIntegerMask&0xffffffff));
+  //printf("shortIntegerSignBit = %08x-%08x\n", (unsigned int)(shortIntegerSignBit>>32), (unsigned int)(shortIntegerSignBit&0xffffffff));
+}
+
+
 void fnSetWordSize(uint16_t WS) {
   if(shortIntegerWordSize != WS) {
     setSystemFlagChanged(SETTING_SINT_WS);
@@ -709,16 +887,7 @@ void fnSetWordSize(uint16_t WS) {
 
   shortIntegerWordSize = WS;
 
-  if(shortIntegerWordSize == 64) {
-    shortIntegerMask    = -1;
-  }
-  else {
-    shortIntegerMask    = ((uint64_t)1 << shortIntegerWordSize) - 1;
-  }
-
-  shortIntegerSignBit = (uint64_t)1 << (shortIntegerWordSize - 1);
-  //printf("shortIntegerMask  =   %08x-%08x\n", (unsigned int)(shortIntegerMask>>32), (unsigned int)(shortIntegerMask&0xffffffff));
-  //printf("shortIntegerSignBit = %08x-%08x\n", (unsigned int)(shortIntegerSignBit>>32), (unsigned int)(shortIntegerSignBit&0xffffffff));
+  updateShortIntegerMasks();
 
   if(reduceWordSize) {
     // reduce the word size of integers on the stack
@@ -762,11 +931,27 @@ void fnBatteryVoltage(uint16_t unusedButMandatoryParameter) {
     int32ToReal(3100, &value);
   #endif // PC_BUILD
 
-  #if defined(DMCP_BUILD)
+  #if defined(DMCP_BUILD) || defined(ANDROID_BUILD)
 //    int32ToReal(get_vbat(), &value);
     int tmpVbat = get_vbat();
-    int32ToReal(tmpVbat < vbatVIntegrated ? tmpVbat : vbatVIntegrated, &value);
-  #endif // DMCP_BUILD
+    if(tmpVbat < vbatVIntegrated) {
+      vbatVIntegrated = tmpVbat;             // Use BATT# outside the sampling schedule to pull the intgrator down. Any opportunity to keep it down in addition to the schedule
+    }
+    int32ToReal(tmpVbat, &value);
+  #endif // DMCP_BUILD || ANDROID_BUILD
+
+  value.exponent -= 3; // value = value / 1000
+  convertRealToResultRegister(&value, REGISTER_X, amNone);   // the actual reading, lifted to Y by the integrator push below
+  setSystemFlag(FLAG_ASLIFT);
+  liftStack();
+
+  #if defined(PC_BUILD)
+    int32ToReal(3100, &value);
+  #endif // PC_BUILD
+
+  #if defined(DMCP_BUILD) || defined(ANDROID_BUILD)
+    int32ToReal(vbatVIntegrated, &value);    // after the pull-down above this equals the previous min(reading, integrator) result
+  #endif // DMCP_BUILD || ANDROID_BUILD
 
   temporaryInformation = TI_BATTV;
   value.exponent -= 3; // value = value / 1000
@@ -822,8 +1007,7 @@ void fnSetFractionDigits(uint16_t S) {
 
 void fnRoundingMode(uint16_t RM) {
   if(RM < nbrOfElements(roundingModeTable)) {
-    roundingMode = RM;
-    ctxtReal34.round = roundingModeTable[RM];
+    setRoundingMode(RM);
   }
   else {
     sprintf(errorMessage, commonBugScreenMessages[bugMsgValueFor], "fnRoundingMode", RM, "RM");
@@ -844,25 +1028,135 @@ void fnAngularMode(uint16_t am) {
 
 
 
+// External ADM encoding (legacy RCL ADM): 0=DEG, 1=D.MS, 2=RAD, 3=MULT<pi>, 4=GRAD; differs from angularMode_t order
+TO_QSPI const uint8_t angularModeToAdm[5] = { 2, 4, 0, 1, 3 };                                    // indexed by angularMode_t: amRadian, amGrad, amDegree, amDMS, amMultPi
+TO_QSPI static const uint8_t admToAngularMode[] = { amDegree, amDMS, amRadian, amMultPi, amGrad };// indexed by external ADM value
+
+
+
 void fnGetADM(uint16_t unusedButMandatoryParameter) {
-  fnIntInputLongint(currentAngularMode);
+  fnIntInputLongint(admValue());
 }
 
 
 
 void fnSetADM(uint16_t regist) {
-  longInteger_t lgInt;
-  if(!getRegisterAsLongInt(regist, lgInt, NULL)) {
-    goto end;
-  }
   uint32_t value;
-  longIntegerToUInt32(lgInt, value);
-  if(value < amNone) {
-    fnAngularMode(value);
+  if(getRegisterAsUint32Param(regist, &value) && value < nbrOfElements(admToAngularMode)) {
+    fnAngularMode(admToAngularMode[value]);
   }
-end:
-  longIntegerFree(lgInt);
+  else if(lastErrorCode == ERROR_NONE) {
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+  }
 }
+
+
+
+static void _getGraSetting(uint8_t setting, uint8_t ti) {
+  fnIntInputLongint(setting);
+  temporaryInformation = ti;
+}
+
+
+
+void fnGetGRAMOD(uint16_t unusedButMandatoryParameter) {
+  _getGraSetting(graMod, TI_GRMOD);
+}
+
+
+
+static void _setGraSetting(uint16_t regist, uint8_t *setting, uint8_t ti) {  // GRMOD takes 0 to 4, GRFNT a code of the font table
+  uint32_t value;
+  bool_t valid = getRegisterAsUint32Param(regist, &value);
+  #if defined(OPTION_ATEXT_FONTS)
+    valid = valid && (ti == TI_GRFNT ? graFontValid(value) : value <= 4);
+  #else // !OPTION_ATEXT_FONTS
+    valid = valid && value <= 4;
+  #endif // OPTION_ATEXT_FONTS
+  if(valid) {
+    *setting = value;
+    temporaryInformation = ti;
+  }
+  else if(lastErrorCode == ERROR_NONE) {
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+  }
+}
+
+
+
+void fnSetGRAMOD(uint16_t regist) {
+  _setGraSetting(regist, &graMod, TI_GRMOD);
+}
+
+
+
+#if defined(OPTION_ATEXT_FONTS)
+void fnGetGRFNT(uint16_t unusedButMandatoryParameter) {
+  _getGraSetting(graFont, TI_GRFNT);
+}
+
+
+
+void fnSetGRFNT(uint16_t regist) {
+  _setGraSetting(regist, &graFont, TI_GRFNT);
+}
+#endif // OPTION_ATEXT_FONTS
+
+
+
+#if defined(OPTION_LP_DP_TIMING)
+static void getPressFactor(int16_t factor, uint8_t ti) {
+  REAL_T_PTR(value, 75);
+
+  liftStack();
+  int32ToReal(10000 + factor, value);
+  value->exponent -= 2; // value = value / 10000 * 100
+  convertRealToResultRegister(value, REGISTER_X, amNone);
+  setSystemFlag(FLAG_ASLIFT);
+  temporaryInformation = ti;
+}
+
+
+
+static void setPressFactor(uint16_t regist, int16_t *factor, uint8_t ti) {
+  REAL_T_PTR(value, 75);
+  if(getRegisterAsReal(regist, value)) {
+    value->exponent += 2; // value = value * 10000 / 100
+    int32_t scaled = realToInt32C47(value, NULL);
+    if(scaled >= 4000 && scaled <= 15000) {
+      *factor = scaled - 10000;
+      temporaryInformation = ti;
+    }
+    else {
+      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+    }
+  }
+}
+
+
+
+void fnGetLPFCT(uint16_t unusedButMandatoryParameter) {
+  getPressFactor(longPressFactor, TI_LPFCT);
+}
+
+
+
+void fnSetLPFCT(uint16_t regist) {
+  setPressFactor(regist, &longPressFactor, TI_LPFCT);
+}
+
+
+
+void fnGetDPFCT(uint16_t unusedButMandatoryParameter) {
+  getPressFactor(doublePressFactor, TI_DPFCT);
+}
+
+
+
+void fnSetDPFCT(uint16_t regist) {
+  setPressFactor(regist, &doublePressFactor, TI_DPFCT);
+}
+#endif // OPTION_LP_DP_TIMING
 
 
 
@@ -873,20 +1167,24 @@ void fnGetIntegerSignMode(uint16_t unusedButMandatoryParameter) {
 
 
 void fnSetISM(uint16_t regist) {
-  longInteger_t lgInt;
-  if(!getRegisterAsLongInt(regist, lgInt, NULL)) {
-    goto end;
-  }
   int32_t value;
-  longIntegerToInt32(lgInt, value);
-  switch(value) {
-    case 2:  shortIntegerMode = SIM_2COMPL; break;
-    case 1:  shortIntegerMode = SIM_1COMPL; break;
-    case 0:  shortIntegerMode = SIM_UNSIGN; break;
-    default: shortIntegerMode = SIM_SIGNMT; break;
+  if(getRegisterAsInt32Param(regist, &value)) {
+    switch(value) {
+      case 2:  shortIntegerMode = SIM_2COMPL; break;
+      case 1:  shortIntegerMode = SIM_1COMPL; break;
+      case 0:  shortIntegerMode = SIM_UNSIGN; break;
+      case -1: shortIntegerMode = SIM_SIGNMT; break;                                             // the four values shortIntegerModeValue() returns
+      default: {
+        if(lastErrorCode == ERROR_NONE) {
+          displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+        }
+        break;
+      }
     }
-end:
-  longIntegerFree(lgInt);
+  }
+  else if(lastErrorCode == ERROR_NONE) {
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+  }
 }
 
 
@@ -898,15 +1196,13 @@ void fnGetDMX(uint16_t unusedButMandatoryParameter) {
 
 
 void fnSetDMX(uint16_t regist) {
-  longInteger_t lgInt;
-  if(!getRegisterAsLongInt(regist, lgInt, NULL)) {
-    goto end;
-  }
   uint32_t value;
-  longIntegerToUInt32(lgInt, value);
-  fnDenMax(value);
-end:
-  longIntegerFree(lgInt);
+  if(getRegisterAsUint32Param(regist, &value)) {
+    fnDenMax(value > MAX_DENMAX ? MAX_DENMAX : value);                                           // fnDenMax takes a uint16_t, so an unbounded value wraps into range instead of clamping
+  }
+  else if(lastErrorCode == ERROR_NONE) {
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+  }
 }
 
 
@@ -918,17 +1214,13 @@ void fnGetREALDF(uint16_t unusedButMandatoryParameter) {
 
 
 void fnSetREALDF                (uint16_t regist) {
-  longInteger_t lgInt;
-  if(!getRegisterAsLongInt(regist, lgInt, NULL)) {
-    goto end;
-  }
   uint32_t value;
-  longIntegerToUInt32(lgInt, value);
-  if(value <= DF_UN) {
+  if(getRegisterAsUint32Param(regist, &value) && value <= DF_UN) {
     displayFormat = value;
   }
-end:
-  longIntegerFree(lgInt);
+  else if(lastErrorCode == ERROR_NONE) {
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+  }
 }
 
 
@@ -939,15 +1231,13 @@ void fnGetNDEC(uint16_t unusedButMandatoryParameter) {
 
 
 void fnSetNDEC(uint16_t regist) {
-  longInteger_t lgInt;
-  if(!getRegisterAsLongInt(regist, lgInt, NULL)) {
-    goto end;
-  }
   uint32_t value;
-  longIntegerToUInt32(lgInt, value);
-  fnDisplayFormatDsp(value);
-end:
-  longIntegerFree(lgInt);
+  if(getRegisterAsUint32Param(regist, &value)) {
+    fnDisplayFormatDsp(value > DSP_MAX ? DSP_MAX : value);                                       // fnDisplayFormatDsp takes a uint16_t, so an unbounded value wraps into range instead of clamping
+  }
+  else if(lastErrorCode == ERROR_NONE) {
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+  }
 }
 
 
@@ -1155,6 +1445,7 @@ void fnClAll(uint16_t confirmation) {
     fnClSigma(CONFIRMED); // Clears and releases the memory of all statistical sums
     if(savedStatisticalSumsPointer != NULL) {
       freeC47Blocks(savedStatisticalSumsPointer, NUMBER_OF_STATISTICAL_SUMS * REAL_SIZE_IN_BLOCKS(75));
+      savedStatisticalSumsPointer = NULL;
     }
 
     // Clear local registers
@@ -1207,7 +1498,7 @@ void fnClAll(uint16_t confirmation) {
 
 
 void addTestPrograms(void) {
-  uint32_t numberOfBytesUsed, numberOfBytesForTheTestPrograms = TO_BYTES(TO_BLOCKS(22000));
+  uint32_t numberOfBytesUsed, numberOfBytesForTheTestPrograms = TO_BYTES(TO_BLOCKS(24000));
 
   resizeProgramMemory(TO_BLOCKS(numberOfBytesForTheTestPrograms));
   firstDisplayedStep            = beginOfProgramMemory;
@@ -1236,7 +1527,17 @@ void addTestPrograms(void) {
   #else // !DMCP_BUILD
     FILE *testPgms;
 
-    testPgms = fopen("res/testPgms/testPgms.bin", "rb");
+    #if defined(ANDROID_BUILD)
+      extern const char *get_android_base_path(void);
+      char testPgmsPath[1024];
+      snprintf(testPgmsPath, sizeof(testPgmsPath), "%s/testPgms.bin", get_android_base_path());
+      testPgms = fopen(testPgmsPath, "rb");
+      if(testPgms == NULL) {
+        testPgms = fopen("res/testPgms/testPgms.bin", "rb");
+      }
+    #else
+      testPgms = fopen("res/testPgms/testPgms.bin", "rb");
+    #endif
     if(testPgms == NULL) {
       printf("Cannot open file res/testPgms/testPgms.bin\n");
       *(beginOfProgramMemory)     = 255; // .END.
@@ -1262,7 +1563,7 @@ void addTestPrograms(void) {
     printf("freeProgramBytes = %u\n", freeProgramBytes);
 
     scanLabelsAndPrograms();
-    leavePem();
+    (void)leavePem();
     printf("freeProgramBytes = %u\n", freeProgramBytes);
     //listPrograms();
     //listLabelsAndPrograms();
@@ -1401,8 +1702,9 @@ void fnShowVersion(uint16_t option) {  //KEYS VERSION LOADED
 }
 
 
-void fnResetTVM (uint16_t unusedButMandatoryParameter) {
-  Sett(_TVM);
+void fnClearAllFin (uint16_t unusedButMandatoryParameter) {
+  Sett(_TVM);                                                                 // the whole FIN group: the TVM variables and i%, pp/a, cp/a, Beg, the amortisation range and the solver's known flags
+  fnRefreshState();
 }
 
 
@@ -1420,10 +1722,11 @@ void resetOtherConfigurationStuff(bool_t allowUserKeys) {
   displayFormat = DF_ALL;
   displayFormatDigits = 3;
   timeDisplayFormatDigits = 0;
+  displayRoundingMode = DRM_DFLT;
 
   shortIntegerMode = SIM_2COMPL;                              //64:2
   fnSetWordSize(64);
-  roundingMode = RM_HALF_EVEN;
+  setRoundingMode(RM_HALF_EVEN);
   pcg32_srandom(0x1963073019931121ULL, 0x1995062319981019ULL); // RNG initialisation
   exponentHideLimit = 0;
   lastCenturyHighUsed = 0;
@@ -1445,6 +1748,12 @@ void resetOtherConfigurationStuff(bool_t allowUserKeys) {
   LongPressF = RBX_F124;
   lastIntegerBase = 0;
   decodedIntegerBase = 0;
+  graMod = 0;
+  #if defined(OPTION_ATEXT_FONTS)
+    graFont = 20;
+  #endif // OPTION_ATEXT_FONTS
+  longPressFactor = 0;
+  doublePressFactor = 0;
   timeLastOp = 0;
   timeLastOp0 = 0;
   timeLastOp1 = 0;
@@ -1500,6 +1809,9 @@ TO_QSPI const nstr2 msg2[] = {
 
 
 void fnReset(uint16_t confirmation) {
+  #if defined(ANDROID_BUILD)
+    loadTestPrograms = true;
+  #endif
   doFnReset(confirmation, doNotLoadAutoSav);
 }
 
@@ -1523,7 +1835,7 @@ void doFnReset(uint16_t confirmation, bool_t autoSav) {
         globalRegister = malloc(sizeof(registerHeader_t) * NUMBER_OF_GLOBAL_REGISTERS);
         freeMemoryRegions = malloc(sizeof(freeMemoryRegion_t) * MAX_FREE_REGIONS);
       }
-    #endif // DMCP_BUILD && OLD_HW
+    #endif // !DMCP_BUILD || !OLD_HW
 
     freeMemoryRegions[0].blockAddress = TO_C47MEMPTR(ram + allReservedVariables[LAST_RESERVED_VARIABLE - FIRST_RESERVED_VARIABLE].header.pointerToRegisterData + REAL34_SIZE_IN_BLOCKS);
     freeMemoryRegions[0].sizeInBlocks = RAM_SIZE_IN_BLOCKS - freeMemoryRegions[0].blockAddress - 1; // - 1: one block for an empty program
@@ -1546,8 +1858,8 @@ void doFnReset(uint16_t confirmation, bool_t autoSav) {
                                                                               // errorMessage     from    0 to (4095       )
        aimBuffer        = errorMessage + ERROR_MESSAGE_LENGTH;   // + 512     // aimBuffer        from  512 to (512  + 1024) or 1536
        nimBufferDisplay = aimBuffer + AIM_BUFFER_LENGTH;         // +1024     // nimBufferDisplay from 1536 to (1536 +  200) or 1736
-       tamBuffer        = nimBufferDisplay + NIM_BUFFER_LENGTH;  // + 200     // tamBuffer        from 1736 to (1736 +   32) or 1768
-                                          // TAM_BUFFER_LENGTH   // +  32
+       tamBuffer        = nimBufferDisplay + NIM_BUFFER_LENGTH;  // + 200     // tamBuffer        from 1736 to (1736 +   56) or 1792
+                                          // TAM_BUFFER_LENGTH   // +  56
 
        tmpStringLabelOrVariableName = tmpString + 1000;
     }
@@ -1563,6 +1875,8 @@ void doFnReset(uint16_t confirmation, bool_t autoSav) {
     firstFreeProgramByte          = beginOfProgramMemory + 2;
     firstDisplayedStep            = beginOfProgramMemory;
     firstDisplayedLocalStepNumber = 0;
+    currentLocalStepNumber        = 1;
+    currentProgramNumber          = 1;
     labelList                     = NULL;
     programList                   = NULL;
     *(beginOfProgramMemory + 0) = (ITM_END >> 8) | 0x80;
@@ -1584,30 +1898,13 @@ void doFnReset(uint16_t confirmation, bool_t autoSav) {
     xcopy(kbd_usr, kbd_std, sizeof(kbd_std));
     //setLongPressFg(calcModel, (calcModel == USER_R47bk_fg ? -MNU_MyMenu : -MNU_HOME));
 
-    // initialize 9 real34 reserved variables: ACC, ↑Lim, ↓Lim, FV, i%/a, NPPER, PPER/a, PMT, and PV
-    for(int i=VAR_NO_ACC; i<=VAR_NO_PV; i++) {
+    // initialize 17 real34 reserved variables: ACC, ↑Lim, ↓Lim, FV, i%/a, NPPER, PPER/a, PMT, PV, i%, ↑X, ↓X, CPERONA, ↑EST, ↓EST, ↑Y, ↓Y
+    for(int i=VAR_NO_ACC; i<=VAR_NO_LY; i++) {
       real34SetZero((real34_t *)TO_PCMEMPTR(allReservedVariables[i].header.pointerToRegisterData));
     }
 
-    // initialize 1 long integer reserved variable: GRAMOD
-    strLgIntHeader_t *ptr = TO_PCMEMPTR(allReservedVariables[VAR_NO_GRAMOD].header.pointerToRegisterData);
-    #if defined(OS64BIT)
-      (ptr++)->dataMaxLengthInBlocks = TO_BLOCKS(8);
-      *(int64_t *)ptr = 0;
-    #else // !OS64BIT
-      (ptr++)->dataMaxLengthInBlocks = TO_BLOCKS(4);
-      *(int32_t *)ptr = 0;
-    #endif // OS64BIT
-
-    // initialize 7 real34 reserved variables: ↑X, ↓X, CPERONA, ↑EST, ↓EST, ↑Y, ↓Y
-    for(int i=VAR_NO_UX; i<=VAR_NO_LY; i++) {
-      real34SetZero((real34_t *)TO_PCMEMPTR(allReservedVariables[i].header.pointerToRegisterData));
-    }
-
-    // initialize the global registers
-    #if defined(DMCP_BUILD) && defined(OLD_HW)
-      memset(globalRegister, 0, sizeof(globalRegister));
-    #endif // DMCP_BUILD && OLD_HW
+    // initialize the global registers, including reserved header bits
+    memset(globalRegister, 0, sizeof(registerHeader_t) * NUMBER_OF_GLOBAL_REGISTERS);
     for(calcRegister_t regist=FIRST_GLOBAL_REGISTER; regist<=LAST_GLOBAL_REGISTER; regist++) {
       setRegisterDataType(regist, dtReal34, amNone);
       memPtr = allocC47Blocks(REAL34_SIZE_IN_BLOCKS);
@@ -1635,6 +1932,7 @@ void doFnReset(uint16_t confirmation, bool_t autoSav) {
     // allocate space for the named variable list
     numberOfNamedVariables = 0;
     allNamedVariables = NULL;
+    invalidateNamedVariableCache();             // the table is gone: nothing findNamedVariable() remembers describes it any more
 
     initSimEqMatABX();
 
@@ -1686,10 +1984,10 @@ void doFnReset(uint16_t confirmation, bool_t autoSav) {
     histElementXorY = -1;
 
 
-    x_min = -10;
-    x_max = 10;
-    y_min = 0;
-    y_max = 1;
+    int32ToReal(-10, x_min);
+    int32ToReal(10, x_max);
+    realSetZero(y_min);
+    realSetOne(y_max);
 
 
 
@@ -1714,9 +2012,7 @@ void doFnReset(uint16_t confirmation, bool_t autoSav) {
     shiftG = false;
     lastshiftF = false;
     lastshiftG = false;
-    secTick1 = false;
-    halfSecTick2 = false;
-    halfSecTick3 = false;
+    resetHalfSecTicks();
     skippedStackLines = false;
     iterations = false;
     explicitTaylorIterVisibilitySelection = false;
@@ -1756,6 +2052,7 @@ void doFnReset(uint16_t confirmation, bool_t autoSav) {
     tam.mode = 0;
     catalog = CATALOG_NONE;
     memset(lastCatalogPosition, 0, NUMBER_OF_CATALOGS * sizeof(lastCatalogPosition[0]));
+    memset(retainedPageFirstItem, 0, NUMBER_OF_RETAINED_PAGE_MENUS * sizeof(retainedPageFirstItem[0]));
     lastDenominator = 4;
     temporaryInformation = TI_RESET;
 
@@ -1850,14 +2147,14 @@ void doFnReset(uint16_t confirmation, bool_t autoSav) {
     // The following lines are test data
     #if defined(TESTSUITE_BUILD)
         addTestPrograms();
-    #elif !defined(SAVE_SPACE_DM42_14)
+    #elif defined(OPTION_SAMPLEPGMS)
                                    #if defined(PC_BUILD) && (VERBOSE_LEVEL > -1)
                                      printf("addTestPrograms\n");
                                    #endif
       if(loadTestPrograms) {
         addTestPrograms();
       }
-    #endif // !SAVE_SPACE_DM42_14
+    #endif // OPTION_SAMPLEPGMS
 
     // Equation formulae
     allFormulae = NULL;
@@ -1866,8 +2163,12 @@ void doFnReset(uint16_t confirmation, bool_t autoSav) {
 
     currentSolverStatus = 0;
     currentSolverProgram = 0xffffu;
+    currentDerivProgram = 0xffffu;
     currentSolverVariable = INVALID_VARIABLE;
     currentSolverNestingDepth = 0;
+    engineNestingDepth = 0;
+    plotEngineActive = 0;
+    graphAccActive = false;
 
     graphVariabl1 = 0;
 
@@ -1902,13 +2203,13 @@ void doFnReset(uint16_t confirmation, bool_t autoSav) {
     }
 
     //Initialize Printer status
-    #if defined(IR_PRINTING)
+    #if defined(OPTION_IR_PRINTING)
       printerState.print_on         = false;          ///< Printing off
       printerState.print_blank_line = 0;              ///< Print space between lines
       printerState.print_mode       = PMODE_DEFAULT;  ///< printer modes;
       printerState.printer_model    = PRINTER_HP;     ///< printer modes;
       printerState.delay            = getLineDelay(); ///< printer line delay
-    #endif //IR_PRINTING
+    #endif //OPTION_IR_PRINTING
 
                                    #if defined(PC_BUILD) && (VERBOSE_LEVEL > -1)
                                      printf("version\n");
@@ -1950,11 +2251,35 @@ void doFnReset(uint16_t confirmation, bool_t autoSav) {
 
   int16_t loop=0;
   int16_t loop2=0;
+
+  // Vbat sampling schedule: entry n gates sample n as the minimum ms since the previous get_vbat() ADC conversion, advancing per sample and saturating on the last entry.
+  // An expended battery has a high internal impedance, so the load of a starting run pulls the terminal voltage sharply down within seconds (decay curves in #154),
+  // while a healthy battery barely moves. The first samples go undelayed to catch that surge for the orderly low battery stop in items.c before an uncontrolled crash,
+  // then once the battery proves not to be in extreme flatness the spacing extends to a steady 2.5 s cadence, keeping the per dispatch ADC cost off healthy batteries.
+  // A top level program run start (runProgram()) and the change over from USB to battery (checkBattery()) restart the schedule.
+  TO_QSPI static const uint16_t vbatSampleDelay[] = {0, 0, 0, 50, 50, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 1000, 2500};
+  static uint8_t  vbatScheduleIdx = 0;
+  static uint32_t vbatSampledAt   = 0;                                                   // 0 = never sampled
+  static int      vbatSample      = 3100;
+
+  void resetVbatSampleSchedule(void) {
+    vbatScheduleIdx = 0;
+  }
+
   int updateVbatIntegrated(bool_t minutePulse) {
-    if(getSystemFlag(FLAG_USB)) {
-        return 3100;
+    // The minute pulse always converts, keeping the integrator creep cadence; every other caller follows vbatSampleDelay. Vbat is measured on USB power too,
+    // so BATT? and the integrator stay live while plugged; checkBattery() and the items.c stop both skip USB power, so USB never trips LOWBAT.
+    const uint32_t now = (uint32_t)sys_current_ms();
+    if(!minutePulse && vbatSampledAt != 0 && (now - vbatSampledAt) < vbatSampleDelay[vbatScheduleIdx]) {
+      return vbatSample;
     }
+    if(vbatScheduleIdx < nbrOfElements(vbatSampleDelay) - 1) {
+      vbatScheduleIdx++;
+    }
+    vbatSampledAt = now;
+
     int tmpVbat = get_vbat();
+    vbatSample = tmpVbat;
     if(tmpVbat > 1500 && tmpVbat < 3100) {
       if(tmpVbat < vbatVIntegrated) {
         vbatVIntegrated = tmpVbat;                                                        //immediately assume the lowest possibe value measured
@@ -2010,11 +2335,12 @@ void doFnReset(uint16_t confirmation, bool_t autoSav) {
       if(getSystemFlag(FLAG_USB)) {
         clearSystemFlag(FLAG_USB);
         showHideUsbLowBattery();
+        resetVbatSampleSchedule();                                                       // the change over to battery is a fresh load step; resample undelayed
       }
 
       int tmpVbat = updateVbatIntegrated(false);
 
-      if(tmpVbat < 2100 || vbatVIntegrated < 2100) { //shutdown from the new integrator system. The indicator uses the integrator.
+      if(tmpVbat < BAT_MINIMUM || vbatVIntegrated < BAT_MINIMUM) { //shutdown from the new integrator system. The indicator uses the integrator.
         if(!getSystemFlag(FLAG_LOWBAT)) {
           setSystemFlag(FLAG_LOWBAT);
           showHideUsbLowBattery();
@@ -2067,8 +2393,9 @@ void runDMCPmenu(uint16_t confirmation) {
 //      #endif // PC_BUILD
       run_menu_item_sys(MI_DMCP_MENU);
       clearScreen(200);
+      screenUpdatingMode = SCRUPD_AUTO;
     }
-  #endif //!PC_BUILD
+  #endif //DMCP_BUILD
 }
 
 void activateUSBdisk(uint16_t confirmation) {
@@ -2080,8 +2407,9 @@ void activateUSBdisk(uint16_t confirmation) {
       cancelFilename = true;
       run_menu_item_sys(MI_MSC);
       clearScreen(201);
+      screenUpdatingMode = SCRUPD_AUTO;
     }
-  #endif //!PC_BUILD
+  #endif //DMCP_BUILD
 }
 
 
@@ -2106,7 +2434,7 @@ void fnKeysManagement(uint16_t choice) {
         }
         else {
           Norm_Key_00.used = false;
-          displayCalcErrorMessage(ERROR_CANNOT_ASSIGN_HERE, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+          displayCalcErrorMessage(ERROR_CANNOT_ASSIGN_HERE, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             moreInfoOnError("In function fnKeysManagement: TO_USER", "the NRM key is not available.", NULL, NULL);
           #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -2119,16 +2447,16 @@ void fnKeysManagement(uint16_t choice) {
         Norm_Key_00.func = kbd_usr[Norm_Key_00_key].primary;
         Norm_Key_00.funcParam[0] = 0;
         Norm_Key_00.used = Norm_Key_00.func != kbd_std[Norm_Key_00_key].primary;
-        char *funcParam = (char *)getNthString((uint8_t *)userKeyLabel, Norm_Key_00_key * 6);
+        char *funcParam = (char *)getUserKeyLabelString(Norm_Key_00_key * 6);
         if((funcParam[0] != 0) && ((Norm_Key_00.func == -MNU_DYNAMIC)|| (Norm_Key_00.func == ITM_XEQ) || (Norm_Key_00.func == ITM_RCL)))  {
-          strcpy(Norm_Key_00.funcParam, (char *)getNthString((uint8_t *)userKeyLabel, Norm_Key_00_key * 6));       // name of a user menu, program or variable assigned to the Norm key
+          strcpy(Norm_Key_00.funcParam, (char *)getUserKeyLabelString(Norm_Key_00_key * 6));       // name of a user menu, program or variable assigned to the Norm key
         }
         fnRefreshState();
         fnClearFlag(FLAG_USER);
       }
       else {
         Norm_Key_00.used = false;
-        displayCalcErrorMessage(ERROR_CANNOT_ASSIGN_HERE, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+        displayCalcErrorMessage(ERROR_CANNOT_ASSIGN_HERE, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function fnKeysManagement: FROM_USER", "the NRM key is not available.", NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)

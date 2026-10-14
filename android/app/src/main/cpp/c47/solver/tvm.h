@@ -10,6 +10,11 @@
   void fnTvmVar      (uint16_t variable);
   void fnTvmBeginMode(uint16_t unusedButMandatoryParameter);
   void fnTvmEndMode  (uint16_t unusedButMandatoryParameter);
+  void tvmSyncIp     (calcRegister_t written);
+  void fnTvmVarIp    (uint16_t unusedButMandatoryParameter);
+  void fnClrTvm      (uint16_t unusedButMandatoryParameter);
+  void fnRstTvm      (uint16_t unusedButMandatoryParameter);
+  void fnTvmBegToggle(uint16_t unusedButMandatoryParameter);
   void fnEff         (uint16_t unusedButMandatoryParameter);
   void fnEffToI      (uint16_t unusedButMandatoryParameter);
 

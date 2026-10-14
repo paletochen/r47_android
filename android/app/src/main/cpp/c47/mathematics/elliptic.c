@@ -9,7 +9,7 @@
 
 #define ELLIPTIC_N 16
 
-#if !defined(SAVE_SPACE_DM42_12ELLIP)
+#if defined(OPTION_ELLIPTIC)
 
 
 void _ellipseE(void) {
@@ -181,7 +181,7 @@ static void _calc_real_elliptic(real_t *sn, real_t *cn, real_t *dn, const real_t
           freeC47Blocks(D, ELLIPTIC_N * REAL_SIZE_IN_BLOCKS(75));
         }
         else {
-          displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+          displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
           realSetNaN(sn);
           realSetNaN(cn);
           realSetNaN(dn);
@@ -189,7 +189,7 @@ static void _calc_real_elliptic(real_t *sn, real_t *cn, real_t *dn, const real_t
         freeC47Blocks(C, ELLIPTIC_N * REAL_SIZE_IN_BLOCKS(75));
       }
       else {
-        displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+        displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
         realSetNaN(sn);
         realSetNaN(cn);
         realSetNaN(dn);
@@ -197,7 +197,7 @@ static void _calc_real_elliptic(real_t *sn, real_t *cn, real_t *dn, const real_t
       freeC47Blocks(NU, ELLIPTIC_N * REAL_SIZE_IN_BLOCKS(75));
     }
     else {
-      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
       realSetNaN(sn);
       realSetNaN(cn);
       realSetNaN(dn);
@@ -205,7 +205,7 @@ static void _calc_real_elliptic(real_t *sn, real_t *cn, real_t *dn, const real_t
     freeC47Blocks(MU, ELLIPTIC_N * REAL_SIZE_IN_BLOCKS(75));
   }
   else {
-    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
     realSetNaN(sn);
     realSetNaN(cn);
     realSetNaN(dn);
@@ -510,7 +510,7 @@ static void _ellipticFE_lambda_mu(const real_t *phi, const real_t *psi, const re
     }
 
     if(realIsZero(&cot2Lambda) && realIsZero(&cot2LambdaI)) {
-      realCopy(const__1, mu);
+      realSetNegativeOne(mu);
     }
     else {
       realFMA(&tan2Phi, &cot2Lambda, const__1, mu, realContext);
@@ -530,7 +530,7 @@ static void _ellipticFE_lambda_mu(const real_t *phi, const real_t *psi, const re
     ArctanComplex(lambda, lambdaI, lambda, lambdaI, realContext);
 
     if(realIsZero(&cot2Lambda) && realIsZero(&cot2LambdaI)) {
-      realCopy(const__1, mu);
+      realSetNegativeOne(mu);
       realSetZero(muI);
     }
     else {
@@ -854,13 +854,16 @@ void ellipticF(const real_t *phi, const real_t *psi, const real_t *m, real_t *re
       realChangeSign(res);
       realChangeSign(resi);
     }
-    if(realIsNegative(phi)) {
-      realChangeSign(res);
-      realChangeSign(resi);
+    if(!realIsZero(psi)) {
+      realSetSignFrom(&psi1, resi);
     }
     ellipticKE(m, &phi1, &psi1, NULL, NULL, realContext);
     realFMA(&phiQuotient, &phi1, res, res, realContext);
     realFMA(&phiQuotient, &psi1, resi, resi, realContext);
+    if(realIsNegative(phi)) {
+      realChangeSign(res);
+      realChangeSign(resi);
+    }
   }
 
   if(realCompareGreaterThan(m, const_1) && (realCompareAbsGreaterThan(phi, const39_piOn2) || realIsZero(psi))) {
@@ -1071,9 +1074,12 @@ void ellipticE(const real_t *phi, const real_t *psi, const real_t *m, real_t *re
         realChangeSign(res);
       }
 
+      if(realIsNegative(psi)) {
+        realChangeSign(resi);
+      }
+
       if(!realIsZero(&phiQuotient)) {
         ellipticKE(m, NULL, NULL, B1, B1_I, realContext);
-        realSetPositiveSign(&phiQuotient);
         realAdd(&phiQuotient, &phiQuotient, &phiQuotient, realContext);
         realMultiply(&phiQuotient, B1, B1, realContext);
         realMultiply(&phiQuotient, B1_I, B1_I, realContext);
@@ -1081,14 +1087,10 @@ void ellipticE(const real_t *phi, const real_t *psi, const real_t *m, real_t *re
         realAdd(resi, B1_I, resi, realContext);
       }
 
-      if(realIsNegative(psi)) {
-        realChangeSign(resi);
-      }
-
       freeC47Blocks(tmpVal, 25 * REAL_SIZE_IN_BLOCKS(75));
     }
     else {
-      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
       realSetNaN(res);
       realSetNaN(resi);
     }
@@ -1184,28 +1186,28 @@ static void _jacobiZeta_Agm(const real_t *phi, const real_t *psi, const real_t *
           freeC47Blocks(bi, ELLIPTIC_N * REAL_SIZE_IN_BLOCKS(75));
         }
         else {
-          displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+          displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
           realSetNaN(res);
           realSetNaN(resi);
         }
         freeC47Blocks(b, ELLIPTIC_N * REAL_SIZE_IN_BLOCKS(75));
       }
       else {
-        displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+        displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
         realSetNaN(res);
         realSetNaN(resi);
       }
       freeC47Blocks(ai, ELLIPTIC_N * REAL_SIZE_IN_BLOCKS(75));
     }
     else {
-      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
       realSetNaN(res);
       realSetNaN(resi);
     }
     freeC47Blocks(a, ELLIPTIC_N * REAL_SIZE_IN_BLOCKS(75));
   }
   else {
-    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
     realSetNaN(res);
     realSetNaN(resi);
   }
@@ -1620,7 +1622,7 @@ void fnEllipticK(uint16_t unusedButMandatoryParameter) {
     convertComplexToResultRegister(&a, &b, REGISTER_X);
   }
   else {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "Cannot calculate K(m) for m > 1 if CPXRES is not set");
       moreInfoOnError("In function fnEllipticK:", errorMessage, NULL, NULL);
@@ -1650,7 +1652,7 @@ void fnEllipticE(uint16_t unusedButMandatoryParameter) {
     convertComplexToResultRegister(&a, &b, REGISTER_X);
   }
   else {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "Cannot calculate K(m) for m > 1 if CPXRES is not set");
       moreInfoOnError("In function fnEllipticE:", errorMessage, NULL, NULL);
@@ -1669,7 +1671,7 @@ void fnEllipticPi(uint16_t unusedButMandatoryParameter) {
   }
 
   if(realIsNegative(&m) || realCompareGreaterEqual(&m, const_1)) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "m is out of range (must in 0 ≤ m < 1)");
       moreInfoOnError("In function fnEllipticPi:", errorMessage, NULL, NULL);
@@ -1684,7 +1686,7 @@ void fnEllipticPi(uint16_t unusedButMandatoryParameter) {
       convertComplexToResultRegister(&rr, &ri, REGISTER_X);
     }
     else {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "Π(n|m) cannot return complex result without CPXRES set");
         moreInfoOnError("In function fnEllipticPi:", errorMessage, NULL, NULL);
@@ -1692,7 +1694,7 @@ void fnEllipticPi(uint16_t unusedButMandatoryParameter) {
     }
   }
   else {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "cannot calculate elliptic integral with %s in X", getRegisterDataTypeName(REGISTER_X, true, false));
       moreInfoOnError("In function fnEllipticPi:", errorMessage, NULL, NULL);
@@ -1720,7 +1722,7 @@ void fnEllipticFphi(uint16_t unusedButMandatoryParameter) {
       convertComplexToResultRegister(&rReal, &rImag, REGISTER_X);
     }
     else {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "F(φ|m) cannot return complex result without CPXRES set");
         moreInfoOnError("In function fnEllipticFphi:", errorMessage, NULL, NULL);
@@ -1752,7 +1754,7 @@ void fnEllipticEphi(uint16_t unusedButMandatoryParameter) {
       convertComplexToResultRegister(&rReal, &rImag, REGISTER_X);
     }
     else {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "E(φ|m) cannot return complex result without CPXRES set");
         moreInfoOnError("In function fnEllipticEphi:", errorMessage, NULL, NULL);
@@ -1784,7 +1786,7 @@ void fnJacobiZeta(uint16_t unusedButMandatoryParameter) {
       convertComplexToResultRegister(&rReal, &rImag, REGISTER_X);
     }
     else {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "Ζ(φ|m) cannot return complex result without CPXRES set");
         moreInfoOnError("In function fnJacobiZeta:", errorMessage, NULL, NULL);
@@ -1798,22 +1800,12 @@ void fnJacobiZeta(uint16_t unusedButMandatoryParameter) {
   adjustResult(REGISTER_X, true, true, REGISTER_X, -1, -1);
 }
 
-#else //SAVE_SPACE_DM42_12ELLIP
+#else //OPTION_ELLIPTIC
   void fnEllipse(uint16_t unusedButMandatoryParameter) {;}
   void fnKtoM(uint16_t unusedButMandatoryParameter) {;}
   void fnMtoK(uint16_t unusedButMandatoryParameter) {;}
   void fnMtoTheta(uint16_t unusedButMandatoryParameter) {;}
   void fnThetatoM(uint16_t unusedButMandatoryParameter) {;}
-  void jacobiElliptic(const real_t *u, const real_t *m, real_t *am, real_t *sn, real_t *cn, real_t *dn, realContext_t *realContext) {;}
-  void jacobiComplexAm(const real_t *ur, const real_t *ui, const real_t *m, real_t *rr, real_t *ri, realContext_t *realContext) {;}
-  void jacobiComplexSn(const real_t *ur, const real_t *ui, const real_t *m, real_t *rr, real_t *ri, realContext_t *realContext) {;}
-  void jacobiComplexCn(const real_t *ur, const real_t *ui, const real_t *m, real_t *rr, real_t *ri, realContext_t *realContext) {;}
-  void jacobiComplexDn(const real_t *ur, const real_t *ui, const real_t *m, real_t *rr, real_t *ri, realContext_t *realContext) {;}
-  void ellipticKE(const real_t *m, real_t *k, real_t *ki, real_t *e, real_t *ei, realContext_t *realContext) {;}
-  void ellipticF(const real_t *phi, const real_t *psi, const real_t *m, real_t *res, real_t *resi, realContext_t *realContext) {;}
-  void ellipticE(const real_t *phi, const real_t *psi, const real_t *m, real_t *res, real_t *resi, realContext_t *realContext) {;}
-  void jacobiZeta(const real_t *phi, const real_t *psi, const real_t *m, real_t *res, real_t *resi, realContext_t *realContext) {;}
-  void ellipticPi(const real_t *n, const real_t *m, real_t *res, real_t *resi, realContext_t *realContext) {;}
   void fnJacobiSn(uint16_t unusedButMandatoryParameter) {;}
   void fnJacobiCn(uint16_t unusedButMandatoryParameter) {;}
   void fnJacobiDn(uint16_t unusedButMandatoryParameter) {;}
@@ -1824,5 +1816,5 @@ void fnJacobiZeta(uint16_t unusedButMandatoryParameter) {
   void fnEllipticFphi(uint16_t unusedButMandatoryParameter) {;}
   void fnEllipticEphi(uint16_t unusedButMandatoryParameter) {;}
   void fnJacobiZeta(uint16_t unusedButMandatoryParameter) {;}
-#endif //SAVE_SPACE_DM42_12ELLIP
+#endif //OPTION_ELLIPTIC
 

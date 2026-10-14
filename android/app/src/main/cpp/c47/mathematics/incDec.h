@@ -13,5 +13,6 @@
   void incDecLonI (uint16_t regist, uint8_t flag);
   void incDecReal (uint16_t regist, uint8_t flag);
   void incDecCplx (uint16_t regist, uint8_t flag);
+  void incDecTime (uint16_t regist, uint8_t flag);
   void incDecShoI (uint16_t regist, uint8_t flag);
 #endif // !INCDEC_H

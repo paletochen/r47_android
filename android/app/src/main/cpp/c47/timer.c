@@ -36,36 +36,29 @@ void fnTicks(uint16_t unusedButMandatoryParameter) {
   longIntegerFree(lgInt);
 }
 
-void LastOpTimerReStart(uint16_t func) {
+void LastOpTimerReStart (uint16_t func) {
   timeLastOp0 = getUptimeMs() / 100;
-  // printf("Func:%s setting %u
-  // Running:%u\n",indexOfItems[func].itemCatalogName, timeLastOp0,
-  // programRunStop == PGM_RUNNING);
+  //printf("Func:%s setting %u Running:%u\n",indexOfItems[func].itemCatalogName, timeLastOp0, programRunStop == PGM_RUNNING);
 }
 
-void LastOpTimerLap(uint16_t func) {
+void LastOpTimerLap (uint16_t func) {
   timeLastOp1 = getUptimeMs() / 100;
-  if (timeLastOp1 >= timeLastOp0) {
+  if(timeLastOp1 >= timeLastOp0) {
     timeLastOp = timeLastOp1 - timeLastOp0;
-    // printf("Func:%s setting STOP %u: %u
-    // Running:%u\n",indexOfItems[func].itemCatalogName, timeLastOp1,
-    // timeLastOp, programRunStop == PGM_RUNNING);
-  } else {
-    timeLastOp = ((int)(0xFFFFFFFF) / 100 - timeLastOp0) +
-                 timeLastOp1; // if loop passed 2^32-1 ms, recalc offset
-    // printf("setting STOP Wrapped %u: %u Running:%u\n",timeLastOp1,
-    // timeLastOp, programRunStop == PGM_RUNNING);
+    //printf("Func:%s setting STOP %u: %u Running:%u\n",indexOfItems[func].itemCatalogName, timeLastOp1, timeLastOp, programRunStop == PGM_RUNNING);
   }
-  if (timeLastOp >
-      30 * 24 * 60 * 60 *
-          10) { // More than one month is an unreasonable amount and probably is
-                // due to either timeLastOp0 or timeLastOp1 not set correctly
+  else {
+    timeLastOp =  ((int)(0xFFFFFFFF) / 100 - timeLastOp0) + timeLastOp1; //if loop passed 2^32-1 ms, recalc offset
+    //printf("setting STOP Wrapped %u: %u Running:%u\n",timeLastOp1, timeLastOp, programRunStop == PGM_RUNNING);
+  }
+  if(timeLastOp > 30*24*60*60*10) {                                      //More than one month is an unreasonable amount and probably is due to either timeLastOp0 or timeLastOp1 not set correctly
     timeLastOp = 0;
-    // printf("setting STOP Error too long %u: %u\n",timeLastOp1, timeLastOp);
+    //printf("setting STOP Error too long %u: %u\n",timeLastOp1, timeLastOp);
   }
 }
 
-void fnLastT(uint16_t unusedButMandatoryParameter) {
+
+void fnLastT (uint16_t unusedButMandatoryParameter) {
   longInteger_t lgInt;
   liftStack();
   longIntegerInit(lgInt);
@@ -74,65 +67,57 @@ void fnLastT(uint16_t unusedButMandatoryParameter) {
   longIntegerFree(lgInt);
 }
 
+
+
 void fnRebuildTimerRefresh(void) {
-#if defined(DMCP_BUILD)
+  #if defined(DMCP_BUILD)
   uint32_t next;
 
-  if (mutexRefreshTimer == false) {
+  if(mutexRefreshTimer == false) {
     nextTimerRefresh = 0;
-    for (int i = 0; i < TMR_NUMBER; i++) {
-      if (timer[i].state == TMR_RUNNING) {
+    for(int i = 0; i < TMR_NUMBER; i++) {
+      if(timer[i].state == TMR_RUNNING) {
         next = timer[i].timer_will_expire;
-        if (nextTimerRefresh != 0 && next < nextTimerRefresh) {
+        if(nextTimerRefresh != 0 && next < nextTimerRefresh) {
           nextTimerRefresh = next;
         }
-        if (nextTimerRefresh == 0) {
+        if(nextTimerRefresh == 0) {
           nextTimerRefresh = next;
         }
       }
     }
   }
-#endif // DMCP_BUILD
+  #endif // DMCP_BUILD
 }
 
+
 #if defined(PC_BUILD)
-/********************************************/ /**
-                                                * \brief Refreshes timer. This
-                                                *function is called every 5 ms
-                                                *by a GTK timer.
-                                                *
-                                                * \param[in] data gpointer Not
-                                                *used
-                                                * \return gboolean         What
-                                                *will happen next?
-                                                *                          *
-                                                *true  = timer will call this
-                                                *function again
-                                                *                          *
-                                                *false = timer stops calling
-                                                *this function
-                                                ***********************************************/
-gboolean refreshTimer(
-    gpointer data) { // This function is called every 5 ms by a GTK timer
+/********************************************//**
+ * \brief Refreshes timer. This function is
+ * called every 5 ms by a GTK timer.
+ *
+ * \param[in] data gpointer Not used
+ * \return gboolean         What will happen next?
+ *                          * true  = timer will call this function again
+ *                          * false = timer stops calling this function
+ ***********************************************/
+gboolean refreshTimer(gpointer data) {      // This function is called every 5 ms by a GTK timer
   gint64 now = g_get_monotonic_time();
 
-  if (now < timerLastCalled) {
-    for (int i = 0; i < TMR_NUMBER; i++) {
-      if (timer[i].state == TMR_RUNNING) {
+  if(now < timerLastCalled) {
+    for(int i = 0; i < TMR_NUMBER; i++) {
+      if(timer[i].state == TMR_RUNNING) {
         timer[i].state = TMR_COMPLETED;
-        if (timer[i].func) {
-          timer[i].func(timer[i].param); // Callback to configured function
-        }
+        timer[i].func(timer[i].param);      // Callback to configured function
       }
     }
-  } else {
-    for (int i = 0; i < TMR_NUMBER; i++) {
-      if (timer[i].state == TMR_RUNNING) {
-        if (timer[i].timer_will_expire <= now) {
+  }
+  else {
+    for(int i = 0; i < TMR_NUMBER; i++) {
+      if(timer[i].state == TMR_RUNNING) {
+        if(timer[i].timer_will_expire <= now) {
           timer[i].state = TMR_COMPLETED;
-          if (timer[i].func) {
-            timer[i].func(timer[i].param); // Callback to configured function
-          }
+          timer[i].func(timer[i].param);    // Callback to configured function
         }
       }
     }
@@ -140,37 +125,33 @@ gboolean refreshTimer(
 
   timerLastCalled = now;
 
-  // fnRebuildTimerRefresh();
+//fnRebuildTimerRefresh();
 
   return TRUE;
 }
 #endif // PC_BUILD
 
 #if defined(DMCP_BUILD)
-void refreshTimer(
-    void) { // This function is called when nextTimerRefresh has been elapsed
+void refreshTimer(void) {                   // This function is called when nextTimerRefresh has been elapsed
   uint32_t now = (uint32_t)sys_current_ms();
 
-  if (now < timerLastCalled) {
-    for (int i = 0; i < TMR_NUMBER; i++) {
-      if (timer[i].state == TMR_RUNNING) {
+  if(now < timerLastCalled) {
+    for(int i = 0; i < TMR_NUMBER; i++) {
+      if(timer[i].state == TMR_RUNNING) {
         timer[i].state = TMR_COMPLETED;
         mutexRefreshTimer = true;
-        if (timer[i].func) {
-          timer[i].func(timer[i].param); // Callback to configured function
-        }
+        timer[i].func(timer[i].param);      // Callback to configured function
         mutexRefreshTimer = false;
       }
     }
-  } else {
-    for (int i = 0; i < TMR_NUMBER; i++) {
-      if (timer[i].state == TMR_RUNNING) {
-        if (timer[i].timer_will_expire <= now) {
+  }
+  else {
+    for(int i = 0; i < TMR_NUMBER; i++) {
+      if(timer[i].state == TMR_RUNNING) {
+        if(timer[i].timer_will_expire <= now) {
           timer[i].state = TMR_COMPLETED;
           mutexRefreshTimer = true;
-          if (timer[i].func) {
-            timer[i].func(timer[i].param); // Callback to configured function
-          }
+          timer[i].func(timer[i].param);    // Callback to configured function
           mutexRefreshTimer = false;
         }
       }
@@ -202,7 +183,7 @@ void fnTimerEndOfActivity(uint16_t param) {
                                   powerMarkerMsF(1, 10000);
                                 #endif //DM42_POWERMARKS
 
-  if(skippedStackLines) {       //update screen after 1 or 2 sec timout, to restore the half-updated screen in battery mode. See refreshRegisterLine() in screen.c
+  if(skippedStackLines) {       //repaint the register lines deferred by the skip in refreshRegisterLine() in screen.c, when TO_KB_ACTV expires, TO_KB_ACTV_MEDIUM/5 after a key release
     screenUpdatingMode = SCRUPD_AUTO | SCRUPD_MANUAL_MENU;
     skippedStackLines = false;
     refreshScreen(32);
@@ -255,6 +236,15 @@ void fnTimerStart(uint8_t nr, uint16_t param, uint32_t time) {//time is in ms
   #if defined(PC_BUILD)
   gint64 now = g_get_monotonic_time();                        //PC time is in us
   #endif // PC_BUILD
+
+  #if defined(OPTION_LP_DP_TIMING)
+  if(nr == TO_CL_LONG || nr == TO_FN_LONG) {
+    time = time * (10000 + longPressFactor) / 10000;          // LPFCT
+  }
+  else if(nr == TO_FN_EXEC) {
+    time = time * (10000 + doublePressFactor) / 10000;        // DPFCT
+  }
+  #endif // OPTION_LP_DP_TIMING
 
   if(nr < TMR_NUMBER) {
     timer[nr].param = param;
@@ -360,7 +350,7 @@ static void _antirewinder(uint32_t currTime) {
 static uint32_t _getTimerValue(void) {
   uint32_t currTime = _currentTime();
 
-  if (timerStartTime == TIMER_APP_STOPPED) {
+  if(timerStartTime == TIMER_APP_STOPPED) {
     return timerValue;
   }
 
@@ -379,7 +369,7 @@ static uint32_t _getTimerValue(void) {
 //#endif // PC_BUILD
 
 void fnItemTimerApp(uint16_t unusedButMandatoryParameter) {
-#if !defined(SAVE_SPACE_DM42_20_TIMER)
+#if defined(OPTION_STOPWATCH)
   calcMode = CM_TIMER;
   rbr1stDigit = true;
   if(timerStartTime != TIMER_APP_STOPPED) {
@@ -388,7 +378,7 @@ void fnItemTimerApp(uint16_t unusedButMandatoryParameter) {
       //  gdk_threads_add_timeout(100, _updateTimer, NULL);
       //#endif // PC_BUILD
   }
-  #endif // !SAVE_SPACE_DM42_20_TIMER
+  #endif // OPTION_STOPWATCH
 }
 
 void fnDecisecondTimerApp(uint16_t unusedButMandatoryParameter) {
@@ -463,7 +453,7 @@ bool_t inputHelper(uint16_t regist, uint32_t *val, bool_t *overflow) {
       break;
     }
     default: {
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "cannot recall %s to the stopwatch", getRegisterDataTypeName(regist, true, false));
         moreInfoOnError("In function inputHelper:", errorMessage, NULL, NULL);
@@ -504,7 +494,7 @@ void fnResetTimerApp(uint16_t unusedButMandatoryParameter) {
 }
 
 void fnStartStopTimerApp(uint16_t unusedButMandatoryParameter) {
-  #if !defined(SAVE_SPACE_DM42_20_TIMER)
+  #if defined(OPTION_STOPWATCH)
   if(timerStartTime == TIMER_APP_STOPPED) {
     setSystemFlag(FLAG_RUNTIM);
     timerStartTime = _currentTime();
@@ -517,11 +507,11 @@ void fnStartStopTimerApp(uint16_t unusedButMandatoryParameter) {
     fnStopTimerApp();
   }
   rbr1stDigit = true;
-#endif // !SAVE_SPACE_DM42_20_TIMER
+#endif // OPTION_STOPWATCH
 }
 
 void fnStopTimerApp(void) {
-  #if !defined(SAVE_SPACE_DM42_20_TIMER)
+  #if defined(OPTION_STOPWATCH)
   if(timerStartTime != TIMER_APP_STOPPED) {
     const uint32_t msec = _currentTime();
     timerValue += msec - timerStartTime;
@@ -536,11 +526,11 @@ void fnStopTimerApp(void) {
     setSystemFlagChanged(SETTING_WATCHICON);
     watchIconEnabled = false;
   }
-#endif // !SAVE_SPACE_DM42_20_TIMER
+#endif // OPTION_STOPWATCH
 }
 
 void fnShowTimerApp(void) {
-  #if !defined(SAVE_SPACE_DM42_20_TIMER)
+  #if defined(OPTION_STOPWATCH)
   if(calcMode == CM_TIMER) {
     const uint32_t msec = _getTimerValue();
     clearRegisterLine(REGISTER_T, true, true);
@@ -620,11 +610,11 @@ void fnShowTimerApp(void) {
         calcModeNormalGui();
       }
     }
-  #endif // !SAVE_SPACE_DM42_20_TIMER
+  #endif // OPTION_STOPWATCH
 }
 
 void fnUpdateTimerApp(void) {
-  #if !defined(SAVE_SPACE_DM42_20_TIMER)
+  #if defined(OPTION_STOPWATCH)
   if(calcMode == CM_TIMER) {
     fnShowTimerApp();
     displayShiftAndTamBuffer();
@@ -635,12 +625,11 @@ void fnUpdateTimerApp(void) {
       refreshLcd(NULL);
     #endif // DMCP_BUILD
   }
-  #endif // !SAVE_SPACE_DM42_20_TIMER
+  #endif // OPTION_STOPWATCH
 }
 
 void fnRegAddTimerApp(uint16_t unusedButMandatoryParameter) {  //ENTER
-printf("fnRegAddTimerApp\n");
-  #if !defined(SAVE_SPACE_DM42_20_TIMER)
+  #if defined(OPTION_STOPWATCH)
   if(rbr1stDigit) {
     real_t tmp;
     uInt32ToReal(_getTimerValue() / 100u, &tmp);
@@ -656,12 +645,11 @@ printf("fnRegAddTimerApp\n");
     timerCraAndDeciseconds = (timerCraAndDeciseconds & 0x80u) + (uint8_t)(aimBuffer[AIM_BUFFER_LENGTH / 2] - '0');
     rbr1stDigit = true;
   }
-  #endif // !SAVE_SPACE_DM42_20_TIMER
+  #endif // OPTION_STOPWATCH
 }
 
 void fnRegAddLapTimerApp(uint16_t unusedButMandatoryParameter) {   //dot
-printf("fnRegAddLapTimerApp\n");
-  #if !defined(SAVE_SPACE_DM42_20_TIMER)
+  #if defined(OPTION_STOPWATCH)
   const uint32_t msec = _getTimerValue();
   real_t tmp;
 
@@ -683,12 +671,11 @@ printf("fnRegAddLapTimerApp\n");
     timerStartTime = _currentTime();
     fnTimerStart(TO_TIMER_APP, TO_TIMER_APP, TIMER_APP_PERIOD);
   }
-  #endif // !SAVE_SPACE_DM42_20_TIMER
+  #endif // OPTION_STOPWATCH
 }
 
 
 void fnAddTimerApp(uint16_t unusedButMandatoryParameter) {           //Send TIM to STATS
-  printf("fnAddTimerApp\n");
   real_t tmp;
 
   uInt32ToReal(_getTimerValue() / 100u, &tmp);
@@ -712,8 +699,7 @@ void fnAddTimerApp(uint16_t unusedButMandatoryParameter) {           //Send TIM 
 
 
 void fnAddLapTimerApp(uint16_t unusedButMandatoryParameter) {
-printf("fnAddLapTimerApp\n");
-  #if !defined(SAVE_SPACE_DM42_20_TIMER)
+  #if defined(OPTION_STOPWATCH)
   const uint32_t msec = _getTimerValue();
   real_t tmp;
 
@@ -750,12 +736,12 @@ printf("fnAddLapTimerApp\n");
   }
 
   refreshScreen(31);
-  #endif // !SAVE_SPACE_DM42_20_TIMER
+  #endif // OPTION_STOPWATCH
 }
 
 
 void fnUpTimerApp(void) {
-  #if !defined(SAVE_SPACE_DM42_20_TIMER)
+  #if defined(OPTION_STOPWATCH)
   if((timerCraAndDeciseconds & 0x7fu) >= 99u) {
     timerCraAndDeciseconds &= 0x80u;
   }
@@ -763,7 +749,7 @@ void fnUpTimerApp(void) {
     ++timerCraAndDeciseconds;
   }
   rbr1stDigit = true;
-  #endif // !SAVE_SPACE_DM42_20_TIMER
+  #endif // OPTION_STOPWATCH
 }
 
 void fnDownTimerApp(void) {
@@ -777,7 +763,7 @@ void fnDownTimerApp(void) {
 }
 
 void fnDigitKeyTimerApp(uint16_t digit) {
-  #if !defined(SAVE_SPACE_DM42_20_TIMER)
+  #if defined(OPTION_STOPWATCH)
   if(rbr1stDigit || aimBuffer[AIM_BUFFER_LENGTH / 2] == 0) {
     aimBuffer[AIM_BUFFER_LENGTH / 2    ] = digit + '0';
     aimBuffer[AIM_BUFFER_LENGTH / 2 + 1] = 0;
@@ -787,7 +773,7 @@ void fnDigitKeyTimerApp(uint16_t digit) {
     timerCraAndDeciseconds = (timerCraAndDeciseconds & 0x80u) + (uint8_t)(aimBuffer[AIM_BUFFER_LENGTH / 2] - '0') * 10u + digit;
     rbr1stDigit = true;
   }
-  #endif // !SAVE_SPACE_DM42_20_TIMER
+  #endif // OPTION_STOPWATCH
 }
 
 
@@ -798,7 +784,7 @@ void fnRecallTimerApp(uint16_t regist) {
     return;
   }
   if(overflow) {
-    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "the %s does not fit to uint32_t", getRegisterDataTypeName(regist, true, false));
       moreInfoOnError("In function fnRecallTimerApp:", errorMessage, NULL, NULL);

@@ -2,6 +2,10 @@
 // SPDX-FileCopyrightText: Copyright The WP43 and C47 Authors
 
 #include "c47.h"
+#include <float.h>
+#if defined(PC_BUILD)
+  #include <locale.h>
+#endif // PC_BUILD
 
 static float fnRealToFloat(const real_t *r);
 
@@ -554,7 +558,7 @@ void convertReal34RegisterToDateRegister(calcRegister_t source, calcRegister_t d
   if((getSystemFlag(FLAG_YMD) && !isValidDay(&part1, &part2, &part3)) ||
     ( getSystemFlag(FLAG_MDY) && !isValidDay(&part3, &part1, &part2)) ||
     ( getSystemFlag(FLAG_DMY) && !isValidDay(&part3, &part2, &part1))) {
-      displayCalcErrorMessage(ERROR_BAD_TIME_OR_DATE_INPUT, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_BAD_TIME_OR_DATE_INPUT, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function convertReal34RegisterToDateRegister:", "Invalid date input like 30 Feb.", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -593,7 +597,7 @@ void convertReal34MatrixRegisterToReal34Matrix(calcRegister_t regist, real34Matr
     }
   }
   else {
-    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
   }
 }
 
@@ -615,7 +619,7 @@ void convertComplex34MatrixRegisterToComplex34Matrix(calcRegister_t regist, comp
     }
   }
   else {
-    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
   }
 }
 
@@ -638,7 +642,7 @@ void convertReal34MatrixToComplex34Matrix(const real34Matrix_t *source, complex3
     }
   }
   else {
-    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
   }
 }
 
@@ -658,6 +662,21 @@ void convertReal34MatrixRegisterToComplex34MatrixRegister(calcRegister_t source,
 }
 
 
+const char *doubleSpecialLabel(double value) {                                 // Returns "NaN", "+Inf" or "-Inf" for a special value, or NULL for a normal finite value.
+  if(value != value) {
+    return "NaN";
+  }
+  if(value > DBL_MAX) {
+    return "+Inf";
+  }
+  if(value < -DBL_MAX) {
+    return "-Inf";
+  }
+  return NULL;
+}
+
+
+
 void sci_fmt(char *buf, int n, double x) {
 /*
  * Usage:
@@ -666,8 +685,18 @@ void sci_fmt(char *buf, int n, double x) {
  *
  * Output format (if buffer allows):
  *   [-]d.dddddddddddddddde±dd\0 (up to 25–30 bytes depending on exponent digits)
+ *   eg. 2.5 -> "2.50000000000000e+00", -0.05 -> "-5.00000007450580e-02", 0 -> "0.00000000000000e+00"
+ *   NaN -> "nan", +Inf -> "inf", -Inf -> "-inf"; compatible with strtof
  */
     int exp = 0, i = 0;
+    if(isnan(x)) {
+      snprintf(buf, n, "nan");
+      return;
+    }
+    if(isinf(x)) {
+      snprintf(buf, n, x < 0 ? "-inf" : "inf");
+      return;
+    }
     if(x < 0) {
         buf[i++] = '-';
         x = -x;
@@ -708,6 +737,11 @@ void sci_fmt(char *buf, int n, double x) {
 
 
   void convertDoubleToString(double x, int16_t n, char *buff) { //Reformatting real strings that are formatted according to different locale settings
+    const char *special = doubleSpecialLabel(x);
+    if(special != NULL) {
+      snprintf(buff, n, "%s", special);  // "NaN", "+Inf" or "-Inf" for a special value
+      return;
+    }
     uint16_t i = 2;
     uint16_t j = 2;
     bool_t error = false;
@@ -869,8 +903,62 @@ void realToFloat(const real_t *vv, float *v) {
 }
 
 
+// d * 10^e without libm. 10^0..10^22 are exact in double, so one multiply or divide rounds once; larger
+// exponents step by 10^22 and saturate to 0 or +Inf on the way, as strtod of the same decimal does.
+// The clamp is exact rather than defensive: d is under 10^19, so |e| past 400 saturates whatever d holds.
+static double scaleByPowerOfTen(double d, int32_t e) {
+  TO_QSPI static const double pow10[] = {
+    1e0,  1e1,  1e2,  1e3,  1e4,  1e5,  1e6,  1e7,  1e8,  1e9,  1e10,
+    1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19, 1e20, 1e21, 1e22
+  };
+  bool_t divide;
+  uint32_t k;
+
+  if(e > 400) {
+    e = 400;
+  }
+  else if(e < -400) {
+    e = -400;
+  }
+  divide = (e < 0);
+  k = (uint32_t)(divide ? -e : e);
+  while(k > 22) {
+    d = divide ? d / 1e22 : d * 1e22;
+    k -= 22;
+    if(d == 0.0 || d > DBL_MAX) {
+      return d;
+    }
+  }
+  return divide ? d / pow10[k] : d * pow10[k];
+}
+
+
+#if defined(PC_BUILD)
+  // Locale-free parse for the simulator's backup file: accepts '.' or ',' regardless of the locale, so a file written under one region setting loads
+  // under another. Buffer sized for a full 75-digit real string with exponent. The device parses no floating-point text, so this stays off DMCP.
+  double stringToDouble(const char *str) {
+    char buf[120];
+    const char radix = *localeconv()->decimal_point;
+    uint32_t i = 0;
+    while(str[i] != 0 && i < sizeof(buf) - 1) {
+      buf[i] = (str[i] == '.' || str[i] == ',') ? radix : str[i];
+      i++;
+    }
+    buf[i] = 0;
+    return strtod(buf, NULL);
+  }
+#endif // PC_BUILD
+
+
+// real_t to double without the string round trip: coefficient units into a uint64_t, one conversion, then scaleByPowerOfTen(). Units are taken
+// while the mantissa is below 10^16, so it ends under 10^19: every digit of a coefficient up to 19 digits, the top 17 to 19 of a longer one; e counts
+// the units left below it. The unit walk is fnRealToFloat()'s. Specials and zero pass their sign through.
 static double fnRealToDouble(const real_t *r) {
-  char buffer[100];
+  const uint64_t unitCap = 10000000000000000ULL;   // 10^16
+  uint64_t mant = 0;
+  int32_t j, e;
+  double d;
+
   if(realIsSpecial(r)) {
     if(realIsNaN(r)) {
       return 0.0 / 0.0;
@@ -880,8 +968,18 @@ static double fnRealToDouble(const real_t *r) {
   if(realIsZero(r)) {
     return realIsPositive(r) ? 0.0 : -0.0;
   }
-  decNumberToString((decNumber*)r, buffer);
-  return strtod(buffer, NULL);
+  j = (r->digits + DECDPUN - 1) / DECDPUN;
+  while(j > 0) {
+    if((mant = r->lsu[--j]) != 0) {
+      break;
+    }
+  }
+  while(--j >= 0 && mant < unitCap) {
+    mant = mant * 1000 + r->lsu[j];
+  }
+  e = r->exponent + (j + 1) * DECDPUN;
+  d = scaleByPowerOfTen((double)mant, e);
+  return realIsNegative(r) ? -d : d;
 }
 
 
@@ -910,7 +1008,7 @@ static bool_t typeIsNumber(uint32_t type, bool_t *cmplx) {
 }
 
 void badTypeError(calcRegister_t reg) {
-  displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_T);
+  displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
 #if (EXTRA_INFO_ON_CALC_ERROR == 1)
   sprintf(errorMessage, "cannot convert Register %d from %s", reg, getRegisterDataTypeName(reg, true, false));
   moreInfoOnError("In function badTypeError:", errorMessage, NULL, NULL);
@@ -918,7 +1016,7 @@ void badTypeError(calcRegister_t reg) {
 }
 
 void badDomainError(calcRegister_t reg) {
-  displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_T);
+  displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
 #if (EXTRA_INFO_ON_CALC_ERROR == 1)
   sprintf(errorMessage, "The input value is outside of the domain.");
   moreInfoOnError("In function badDomainError:", errorMessage, NULL, NULL);
@@ -1106,14 +1204,14 @@ bool_t getRegisterAsShortInt(calcRegister_t reg, bool_t *sign, uint64_t *val, bo
     case dtLongInteger:
       convertLongIntegerRegisterToLongInteger(reg, ival);
     #if defined(OS32BIT) // 32 bit
-      u64 = *(uint32_t *)(ival->_mp_d);
+      u64 = (ival->_mp_size == 0 ? 0 : *(uint32_t *)(ival->_mp_d));
       if(abs(ival->_mp_size) > 1) {
         u64 |= (int64_t)(*(((uint32_t *)(ival->_mp_d)) + 1)) << 32;
       }
       of = abs(ival->_mp_size) > 2 || (u64 & shortIntegerMask) != u64;
       u64 &= shortIntegerMask;
     #else // 64 bit
-      u64 = *(uint64_t *)(ival->_mp_d) & shortIntegerMask;
+      u64 = (ival->_mp_size == 0 ? 0 : *(uint64_t *)(ival->_mp_d)) & shortIntegerMask;
       of = abs(ival->_mp_size) > 1 || (u64 & shortIntegerMask) != u64;
     #endif // OS32BIT
       *sign = longIntegerIsNegative(ival);
@@ -1249,10 +1347,36 @@ bool_t getRegisterAsLongInt(calcRegister_t reg, longInteger_t val, bool_t *fract
   const int err = getRegisterAsLongIntQuiet(reg, val, fractional);
 
   if(err != ERROR_NONE) {
-    displayCalcErrorMessage(err, ERR_REGISTER_LINE, REGISTER_T);
+    displayCalcErrorMessage(err, ERR_REGISTER_LINE);
   }
 
   return err == ERROR_NONE;
+}
+
+bool_t getRegisterAsUint32Param(uint16_t regist, uint32_t *value) {   // For setters' non-negative long integer, returned as uint32
+  longInteger_t lgInt;
+  bool_t ok = getRegisterAsLongInt(regist, lgInt, NULL);
+  if(ok) {
+    ok = longIntegerCompareInt(lgInt, 0) >= 0 && longIntegerCompareUInt(lgInt, UINT32_MAX) <= 0;
+    if(ok) {
+      longIntegerToUInt32(lgInt, *value);
+    }
+  }
+  longIntegerFree(lgInt);
+  return ok;
+}
+
+bool_t getRegisterAsInt32Param(uint16_t regist, int32_t *value) {     // signed variant of getRegisterAsUint32Param
+  longInteger_t lgInt;
+  bool_t ok = getRegisterAsLongInt(regist, lgInt, NULL);
+  if(ok) {
+    ok = longIntegerCompareInt(lgInt, INT32_MIN) >= 0 && longIntegerCompareInt(lgInt, INT32_MAX) <= 0;
+    if(ok) {
+      longIntegerToInt32(lgInt, *value);
+    }
+  }
+  longIntegerFree(lgInt);
+  return ok;
 }
 
 static void longIntegerAngleReduction(calcRegister_t regist, angularMode_t angularMode, real_t *reducedAngle, bool_t reduceLongintegerAngle) {
@@ -1276,19 +1400,28 @@ static void longIntegerAngleReduction(calcRegister_t regist, angularMode_t angul
       }
       case amRadian: {
         //incoming longInteger, converted via tempString to real6147, modulus 2pi into real6147, convert to real75
-        REAL_T_PTR(reducedAngleTmp, 2139); // This cannot be increased to 6147 further. 6147 overruns the stack even if we just have the type in here also when using 2139 digits below.
-        REAL_T_PTR(reducedAngleTmp2, 2139);
+        // The two 2139 digit buffers are 1436 bytes each, 2872 of this function's 2936 byte frame. From the heap the frame falls to 64 bytes.
+        REAL_T_ALLOC(reducedAngleTmp,  2139); // This cannot be increased to 6147 further. 6147 overruns the stack even if we just have the type in here also when using 2139 digits below.
+        REAL_T_ALLOC(reducedAngleTmp2, 2139);
+        if(reducedAngleTmp == NULL || reducedAngleTmp2 == NULL) {
+          REAL_T_FREE(reducedAngleTmp,  2139);
+          REAL_T_FREE(reducedAngleTmp2, 2139);
+          displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
+          return;
+        }
         realContext_t c = ctxtReal75;
         c.digits = 2139;                               // Cannot be increased further. It works well on 1071, worked for a few tests already on 2139 but crashes if this goes to 6147 (together with the real_xxx above)
                                                        // The minimum required for 1000 digits input reduction is slightly less than double, so 1071 is maybe ok for 99.99% cases, but 2139 is preferred as theoretically you will not have a case where 2139 will not work.
         convertLongIntegerRegisterToLongInteger(regist, angle);
 
         if(longIntegerBase10Digits(angle) > 1000) {
-          displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+          displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             moreInfoOnError("In function longIntegerAngleReduction:", "Invalid integer size for angle reduction in radians: exponent too large.", NULL, NULL);
           #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
           longIntegerFree(angle);
+          REAL_T_FREE(reducedAngleTmp,  2139);
+          REAL_T_FREE(reducedAngleTmp2, 2139);
           return;
         }
 
@@ -1297,6 +1430,8 @@ static void longIntegerAngleReduction(calcRegister_t regist, angularMode_t angul
         WP34S_Mod(reducedAngleTmp, const6147_2pi, reducedAngleTmp2, &c);
         realPlus(reducedAngleTmp2, reducedAngle, &ctxtReal75);
         longIntegerFree(angle);
+        REAL_T_FREE(reducedAngleTmp,  2139);
+        REAL_T_FREE(reducedAngleTmp2, 2139);
         return;
       }
       default: { //amNone
@@ -1337,7 +1472,7 @@ bool_t getRegisterAsRealAngle(calcRegister_t reg, real_t *val, angularMode_t *xA
         *xAngularMode = currentAngularMode;
       }
       if(*xAngularMode == amRadian && realGetExponent(val) > 999) {
-        displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+        displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function getRegisterAsRealAngle:", "Invalid real input size for angle reduction in radians: exponent too large.", NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -1358,6 +1493,84 @@ bool_t getRegisterAsRealAngle(calcRegister_t reg, real_t *val, angularMode_t *xA
       return false;
   }
   return true;
+}
+
+void saveRegisterSnapshot(calcRegister_t reg, snap_t *s) {
+  s->mem = NULL;
+  s->blocks = 0;
+  switch(s->t = getRegisterDataType(reg)) {
+    case dtComplex34:
+      real34Copy(REGISTER_REAL34_DATA(reg), &s->r);
+      real34Copy(REGISTER_IMAG34_DATA(reg), &s->i);
+      break;
+    case dtReal34:
+    case dtTime:
+    case dtDate:
+      real34Copy(REGISTER_REAL34_DATA(reg), &s->r);
+      real34SetZero(&s->i);
+      break;
+    case dtLongInteger:
+      getRegisterAsLongInt(reg, s->li, NULL);
+      break;
+    case dtShortInteger:
+      getRegisterAsRawShortInt(reg, &s->siVal, &s->siBase);
+      break;
+    default: // a string, a matrix of either kind and a configuration are a block of data of their own size, so the blocks are copied whole
+      s->blocks = getRegisterFullSizeInBlocks(reg);
+      s->mem = allocC47Blocks(s->blocks);
+      if(s->mem) {
+        xcopy(s->mem, getRegisterDataPointer(reg), TO_BYTES(s->blocks));
+      }
+      else {
+        s->blocks = 0;
+        displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE); // the value is not captured, so the restore would put back nothing
+      }
+      break;
+  }
+  s->tag = getRegisterTag(reg);
+}
+
+// reg may hold a different type (hence allocation size) than the snapshot, so reallocate to s->t before writing back
+void restoreRegisterSnapshot(calcRegister_t reg, snap_t *s) {
+  switch(s->t) {
+    case dtComplex34:
+      reallocateRegister(reg, dtComplex34, COMPLEX34_SIZE_IN_BLOCKS, s->tag);
+      real34Copy(&s->i, REGISTER_IMAG34_DATA(reg));
+      real34Copy(&s->r, REGISTER_REAL34_DATA(reg));
+      break;
+    case dtReal34:
+    case dtTime:
+    case dtDate:
+      reallocateRegister(reg, s->t, REAL34_SIZE_IN_BLOCKS, s->tag);
+      real34Copy(&s->r, REGISTER_REAL34_DATA(reg));
+      break;
+    case dtLongInteger:
+      convertLongIntegerToLongIntegerRegister(s->li, reg);
+      longIntegerFree(s->li);
+      break;
+    case dtShortInteger:
+      reallocateRegister(reg, dtShortInteger, SHORT_INTEGER_SIZE_IN_BLOCKS, s->siBase);
+      *(REGISTER_SHORT_INTEGER_DATA(reg))=s->siVal;
+      setRegisterShortIntegerBase(reg, s->siBase);
+      break;
+    default: // the blocks the save took a copy of go back as they were, and the register's own blocks are freed whatever it holds now
+      if(s->mem) {
+        void *dataPtr = allocC47Blocks(s->blocks); // taken before the register's own blocks go, so a refusal leaves the register with the value it has now
+        if(dataPtr) {
+          freeRegisterData(reg);
+          setRegisterDataPointer(reg, dataPtr);
+          xcopy(dataPtr, s->mem, TO_BYTES(s->blocks));
+        }
+        freeC47Blocks(s->mem, s->blocks);
+        s->mem = NULL;
+        if(!dataPtr) {
+          displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
+          return; // the register keeps the type and the value it has now
+        }
+      }
+      break;
+  }
+  setRegisterDataType(reg, s->t, s->tag);
 }
 
 void processRealComplexMonadicFunction(void (*realf)(void), void (*complexf)(void)) {

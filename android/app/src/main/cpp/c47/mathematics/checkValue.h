@@ -21,5 +21,7 @@
   void fnCheckForZero       (uint16_t mode);
   void fnCheckIsVect2d      (uint16_t unusedButMandatoryParameter);
   void fnCheckIsVect3d      (uint16_t unusedButMandatoryParameter);
+  void fnCheckLessEqualMinusZero  (uint16_t unusedButMandatoryParameter);
+  void fnCheckGreaterEqualPlusZero(uint16_t unusedButMandatoryParameter);
 
 #endif // !CHECKVALUE_H

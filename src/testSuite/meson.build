@@ -8,7 +8,7 @@ testSuite_src = files(
 
 testSuite = executable('testSuite',
   build_by_default    : false,
-  sources             : decNumber_src + c47_src + testSuite_src + [rasterFontsData_c, softmenuCatalogs_h, constantPointers_ch],
+  sources             : decNumber_src + c47_src + testSuite_src + [rasterFontsData_c, softmenuCatalogs_h, constantPointers_ch, conversionsTests_stamp],
   c_args              : '-DTESTSUITE_BUILD',
   include_directories : [decNumber_inc, c47_inc],
   dependencies        : [gtk_dep, gmp_dep, m_dep],

@@ -7,7 +7,7 @@
 
 #include "c47.h"
 
-#if defined(SAVE_SPACE_DM42_17C)
+#if !defined(OPTION_DIST_D)
   void fnGEVP                      (uint16_t unusedButMandatoryParameter){}
   void fnGEVL                      (uint16_t unusedButMandatoryParameter){}
   void fnGEVR                      (uint16_t unusedButMandatoryParameter){}
@@ -27,14 +27,14 @@ static bool_t checkParamGEV(real_t *x, real_t *mu, real_t *sigma, real_t *xi, bo
   }
 
   if(realIsNegative(x)) {
-    displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+    displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function checkParamGEV:", "cannot calculate for x < 0", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
     goto err;
   }
   else if(realIsZero(sigma) || realIsNegative(sigma)) {
-    displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE, REGISTER_X);
+    displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function checkParamGEV:", "the parameter sigma must be positive", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -141,7 +141,7 @@ void fnGEVI(uint16_t unusedButMandatoryParameter) {
   }
 
   if(!domainOkay) {
-    displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+    displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function fnGEVI:", "the argument out of range", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -170,4 +170,4 @@ void fnGEVI(uint16_t unusedButMandatoryParameter) {
   adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
 }
 
-#endif //SAVE_SPACE_DM42_17C
+#endif // !OPTION_DIST_D

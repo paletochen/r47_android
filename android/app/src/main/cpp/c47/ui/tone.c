@@ -3,7 +3,7 @@
 
 #include "c47.h"
 
-TO_QSPI uint32_t frequency[10] = {164814, 220000, 246942, 277183, 293665, 329628, 369995, 415305, 440000, 554365};
+TO_QSPI const uint32_t frequency[10] = {164814, 220000, 246942, 277183, 293665, 329628, 369995, 415305, 440000, 554365};
 
 static void _tonePlay(uint16_t toneNum) {
   if(getSystemFlag(FLAG_QUIET)) {

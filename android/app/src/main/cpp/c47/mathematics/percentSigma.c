@@ -19,7 +19,7 @@ bool_t percentSigma(real_t *xReal, real_t *rReal, realContext_t *realContext) {
       rReal->bits |= DECNEG*realIsNegative(rReal);
     }
     else {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function percentSigma:", "cannot divide a real by 0", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -64,7 +64,7 @@ static void percentSigmaReal(void) {
  ***********************************************/
 void fnPercentSigma(uint16_t unusedButMandatoryParameter) {
   if(!checkMinimumDataPoints(const_1)) {
-    displayCalcErrorMessage(ERROR_NO_SUMMATION_DATA, ERR_REGISTER_LINE, REGISTER_X);
+    displayCalcErrorMessage(ERROR_NO_SUMMATION_DATA, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "There is no statistical data available!");
       moreInfoOnError("In function fnPercentSigma:", errorMessage, NULL, NULL);

@@ -54,6 +54,9 @@ uint16_t convertItemToSubOrSup(uint16_t item, int16_t subOrSup) {
           case ITM_PLUS:     return ITM_SUP_PLUS;
           case ITM_MINUS:    return ITM_SUP_MINUS;
           case ITM_pi:       return ITM_SUP_pi;
+          case ITM_SLASH:    return ITM_SUP_SLASH;
+          case ITM_PERIOD:   return ITM_SUP_DOT;
+          case ITM_COMMA:    return ITM_SUP_COMMA;
           default:           return item;
         }
       }
@@ -205,6 +208,14 @@ TO_QSPI const fInMim_t MimFunctionsType1[] =
 
 TO_QSPI const fInMim_t MimFunctionsType2[] =
   {   //function
+    {ITM_ADD        },
+    {ITM_SUB        },
+    {ITM_MULT       },
+    {ITM_DIV        },
+    {ITM_PC         },
+    {ITM_DELTAPC    },
+    {ITM_YX         },
+    {ITM_XTHROOT    },
     {ITM_SQUARE     },
     {ITM_CUBE       },
     {ITM_SQUAREROOTX},
@@ -376,7 +387,7 @@ TO_QSPI const fInMim_t MimFunctionsType2[] =
     {ITM_RAN        },
     {ITM_RE         },
     {ITM_REexIM     },
-    {ITM_RMODEQ     },
+    {ITM_GET_RM     },
     {ITM_EX1        },
     {ITM_ROUNDI2    },
     {ITM_SETSIG2    },
@@ -464,9 +475,8 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
         if(tam.alpha){
           insertAlphaCharacter(item, &alphaCursor);
         }
-        else if(stringByteLength(aimBuffer) + (item == ITM_poly_SIGN ? 24 : stringByteLength(indexOfItems[item].itemSoftmenuName)) >= AIM_BUFFER_LENGTH) { /// TODO this error should never happen but who knows!
-          sprintf(errorMessage, "In function addItemToBuffer:the AIM input buffer is full! %d bytes for now", AIM_BUFFER_LENGTH);
-          displayBugScreen(errorMessage);
+        else if(stringByteLength(aimBuffer) + (item == ITM_poly_SIGN ? 24 : stringByteLength(indexOfItems[item].itemSoftmenuName)) >= (calcMode == CM_EIM ? MAX_EQUATION_BYTE_LENGTH : AIM_BUFFER_LENGTH)) {  // full: equation store is 255 blocks, alpha is the buffer; refuse the character so the text survives and ENTER still stores it
+          displayCalcErrorMessage(ERROR_INPUT_TOO_LONG, ERR_REGISTER_LINE);
         }
         else if(calcMode == CM_EIM) {
           const char *addChar0 = item == ITM_EEXCHR               ? "E" :                      //PRODUCT_SIGN "10^" :
@@ -505,17 +515,15 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
           int16_t jj = 0;
           addChar[0] = 0;
           if(addChar0[0] == 0) {
-            if(item != ITM_EQUAL) {       //block the entry of "="
-              stringCopy(addChar, indexOfItems[item].itemSoftmenuName);
-              if((indexOfItems[item].itemSoftmenuName[0]!=0) && (indexOfItems[item].status & EIM_STATUS) == EIM_ENABLED) {
-                if(isDyadicFunction(item)) {
-                  stringCopy(addChar + stringByteLength(addChar), "(:)");
-                  jj = 2;
-                }
-                else {
-                  stringCopy(addChar + stringByteLength(addChar), "()");
-                  jj = 1;
-                }
+            stringCopy(addChar, indexOfItems[item].itemSoftmenuName);
+            if((indexOfItems[item].itemSoftmenuName[0]!=0) && (indexOfItems[item].status & EIM_STATUS) == EIM_ENABLED) {
+              if(isDyadicFunction(item)) {
+                stringCopy(addChar + stringByteLength(addChar), "(:)");
+                jj = 2;
+              }
+              else {
+                stringCopy(addChar + stringByteLength(addChar), "()");
+                jj = 1;
               }
             }
           }
@@ -596,7 +604,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
             }
           }
         }
-        else if(stringByteLength(aimBuffer) <= AIM_BUFFER_LENGTH-1 && stringWidthWithLimitC47(aimBuffer, stdNoEnlarge, nocompress, SCREEN_WIDTH * MAXLINES - 16, true, true) < SCREEN_WIDTH * MAXLINES - 16) { //0 means small standard font    //JM
+        else if(stringByteLength(aimBuffer) + stringByteLength(indexOfItems[item].itemSoftmenuName) <= MAX_STRING_BYTE_LENGTH - 1) { // the 1019-byte string limit; the editor scrolls through displayAIMbufferoffset   //JM
           #if defined(TEXT_MULTILINE_EDIT)
             //JMCURSOR vv ADD THE CHARACTER MID-STRING =======================================================
             uint16_t ix = 0;
@@ -606,22 +614,10 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
               ix++;
             }
             T_cursorPos = in;
-            char ixaa[AIM_BUFFER_LENGTH];                           //prepare temporary aimBuffer
-            xcopy(ixaa, aimBuffer, in);                             //copy everything up to the cursor position
-            ixaa[in]=0;                                             //stop new buffer at cursor position to be able to insert new character
-
-            //          strcat(ixaa, indexOfItems[item].itemSoftmenuName);       //add new character
             uint16_t nq = stringByteLength(indexOfItems[item].itemSoftmenuName);
-            xcopy(ixaa + in, indexOfItems[item].itemSoftmenuName, nq+1);
-            ixaa[in + nq]=0;
-
-            //          strcat(ixaa, aimBuffer + in);                            //copy rest of the aimbuffer
             uint16_t nr = stringByteLength(aimBuffer + in);
-            xcopy(ixaa + in + nq, aimBuffer + in, nr+1);
-            ixaa[in + nq + nr]=0;
-
-            //          strcpy(aimBuffer, ixaa);                                 //return temporary string to aimBuffer
-            xcopy(aimBuffer, ixaa, stringByteLength(ixaa)+1);
+            xcopy(aimBuffer + in + nq, aimBuffer + in, nr + 1);      //shift the tail, its terminator included
+            xcopy(aimBuffer + in, indexOfItems[item].itemSoftmenuName, nq);
 
             T_cursorPos = stringNextGlyph(aimBuffer, T_cursorPos);  //place the cursor at the next glyph boundary
             //JMCURSOR ^^ REPLACES THE FOLLOWING XCOPY, WHICH NORMALLY JUST ADDS A CHARACTER TO THE END OF THE STRING
@@ -648,6 +644,9 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
           #else // !TEXT_MULTILINE_EDIT
             xcopy(aimBuffer + stringByteLength(aimBuffer), indexOfItems[item].itemSoftmenuName, stringByteLength(indexOfItems[item].itemSoftmenuName) + 1);
           #endif // TEXT_MULTILINE_EDIT
+        }
+        else {
+          displayCalcErrorMessage(ERROR_INPUT_TOO_LONG, ERR_REGISTER_LINE);  // the text fills the editable width: refuse with feedback rather than dropping the key silently
         }
       }
 
@@ -676,6 +675,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
           stringCopy(asmBuffer + stringByteLength(asmBuffer), indexOfItems[item].itemSoftmenuName);
 
           softmenuStack[0].firstItem = findFirstItem(asmBuffer);
+          doRefreshSoftMenu = true;                            // the search moved the menu to another page, and btnReleased leaves it protected
           setCatalogLastPos();
           fnTimerStart(TO_ASM_ACTIVE, TO_ASM_ACTIVE, 3000);
           light_ASB_icon();
@@ -709,37 +709,37 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
           mimEnter(true);
           setJRegisterAsInt(true, getJRegisterAsInt(true) + 1);
           refreshScreen(51);
-          #if defined(IR_PRINTING)
+          #if defined(OPTION_IR_PRINTING)
             printTrace(item, item);
             printTraceMatElement(LINE_FULL);
-          #endif //IR_PRINTING
+          #endif //OPTION_IR_PRINTING
         }
         else if(item == ITM_LEFT_ARROW) {
           mimEnter(true);
           setJRegisterAsInt(true, getJRegisterAsInt(true) - 1);
           refreshScreen(52);
-          #if defined(IR_PRINTING)
+          #if defined(OPTION_IR_PRINTING)
             printTrace(item, item);
             printTraceMatElement(LINE_FULL);
-          #endif //IR_PRINTING
+          #endif //OPTION_IR_PRINTING
         }
         else if(item == ITM_UP_ARROW) {
           mimEnter(true);
           setIRegisterAsInt(true, getIRegisterAsInt(true) - 1);
           refreshScreen(53);
-          #if defined(IR_PRINTING)
+          #if defined(OPTION_IR_PRINTING)
             printTrace(item, item);
             printTraceMatElement(LINE_FULL);
-          #endif //IR_PRINTING
+          #endif //OPTION_IR_PRINTING
         }
         else if(item == ITM_DOWN_ARROW) {
           mimEnter(true);
           setIRegisterAsInt(true, getIRegisterAsInt(true) + 1);
           refreshScreen(54);
-          #if defined(IR_PRINTING)
+          #if defined(OPTION_IR_PRINTING)
             printTrace(item, item);
             printTraceMatElement(LINE_FULL);
-          #endif //IR_PRINTING
+          #endif //OPTION_IR_PRINTING
         }
 
         if((int16_t)item < 0) {
@@ -844,11 +844,11 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
       return;
     }
 
-    #if defined(IR_PRINTING)
+    #if defined(OPTION_IR_PRINTING)
       if(calcMode == CM_NIM) {
         lastItem = item;
       }
-    #endif // IR_PRINTING
+    #endif // OPTION_IR_PRINTING
 
     if(item >= ITM_A && item <= ITM_F && lastIntegerBase == 0) {
       lastIntegerBase = 16;
@@ -1491,6 +1491,9 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
               nimNumberPart = nimRealPart;
               //debugNIM();
               lastChar--;
+              if(nimNumberPart == NP_INT_10 && aimBuffer[lastChar - 1] == '.') {
+                lastChar--;
+              }
             }
             break;
           }
@@ -1549,7 +1552,6 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
         }
 
         aimBuffer[lastChar--] = 0;
-
         if((calcMode != CM_MIM) && (lastChar == -1 || (lastChar == 0 && aimBuffer[0] == '+'))) {
           screenUpdatingMode &= ~SCRUPD_SKIP_STACK_ONE_TIME;
           calcModeNormal();
@@ -1566,10 +1568,13 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
         done = true;
         screenUpdatingMode &= ~SCRUPD_SKIP_STACK_ONE_TIME;
         closeNim();
+        if(lastErrorCode != 0) {
+          return; // closeNim rejected buffer; skip display rebuild
+        }
         if(calcMode != CM_NIM && lastErrorCode == 0) {
-          #if defined(IR_PRINTING)
+          #if defined(OPTION_IR_PRINTING)
             printTrace(ITM_ENTER, NOPARAM);   // Close NIM ended with entering the value on the stack
-          #endif //IR_PRINTING
+          #endif //OPTION_IR_PRINTING
           setSystemFlag(FLAG_ASLIFT);
           if(item == ITM_EXIT1) {
             #if defined(DEBUGUNDO)
@@ -1688,10 +1693,10 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
             setRegisterAngularMode(REGISTER_X, amDMS);
 
             setSystemFlag(FLAG_ASLIFT);
-            #if defined(IR_PRINTING)
+            #if defined(OPTION_IR_PRINTING)
               printTraceX(LINE_NOLF);
               printTrace(ITM_ENTER, NOPARAM);   // Close NIM ended with entering the value on the stack
-            #endif //IR_PRINTING
+            #endif //OPTION_IR_PRINTING
             return;
           }
         }
@@ -1731,10 +1736,10 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
 
             if(lastErrorCode == 0) {
               setSystemFlag(FLAG_ASLIFT);
-              #if defined(IR_PRINTING)
+              #if defined(OPTION_IR_PRINTING)
                 printTraceX(LINE_NOLF);
                 printTrace(ITM_ENTER, NOPARAM);   // Close NIM ended with entering the value on the stack
-              #endif //IR_PRINTING
+              #endif //OPTION_IR_PRINTING
             }
             else {
               #if defined(DEBUGUNDO)
@@ -1745,9 +1750,14 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
             return;
           }
         }
-        else {                      //JM
-          done = true;              //JM
+        else if(nimNumberPart == NP_INT_10 && lastIntegerBase == 0) {
+          nimNumberPart = NP_REAL_FLOAT_PART;
           closeNim();               //JM
+          return;
+        }
+        else if(nimNumberPart == NP_REAL_EXPONENT) {
+          closeNim();
+          return;
         }
         break;
       }
@@ -1768,10 +1778,10 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
             hmmssInRegisterToSeconds(REGISTER_X);
             if(lastErrorCode == 0) {
               setSystemFlag(FLAG_ASLIFT);
-              #if defined(IR_PRINTING)
+              #if defined(OPTION_IR_PRINTING)
                 printTraceX(LINE_NOLF);
                 printTrace(ITM_ENTER, NOPARAM);   // Close NIM ended with entering the value on the stack
-              #endif //IR_PRINTING
+              #endif //OPTION_IR_PRINTING
             }
             else {
               #if defined(DEBUGUNDO)
@@ -1789,11 +1799,14 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
         if(nimNumberPart == NP_INT_10 || nimNumberPart == NP_REAL_FLOAT_PART || nimNumberPart == NP_REAL_EXPONENT) {
           done = true;
           closeNim();
-          fnAngularModeJM(amDMS); //it cannot be an angle at this point. If closed input, it is only real or longint
-          #if defined(IR_PRINTING)
-            printTrace(ITM_DMS2, NOPARAM);
-            printTraceX(LINE_FULL);
-          #endif //IR_PRINTING
+          if(calcMode != CM_NIM && lastErrorCode == 0) {
+            fnAngularModeJM(amDMS); //it cannot be an angle at this point. If closed input, it is only real or longint
+            #if defined(OPTION_IR_PRINTING)
+              printTrace(ITM_DMS2, NOPARAM);
+              printTraceX(LINE_FULL);
+            #endif //OPTION_IR_PRINTING
+            return;
+          }
         }
         break;
       }
@@ -1824,10 +1837,10 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
 
             if(lastErrorCode == 0) {
               setSystemFlag(FLAG_ASLIFT);
-              #if defined(IR_PRINTING)
+              #if defined(OPTION_IR_PRINTING)
                 printTraceX(LINE_NOLF);
                 printTrace(ITM_ENTER, NOPARAM);   // Close NIM ended with entering the value on the stack
-              #endif //IR_PRINTING
+              #endif //OPTION_IR_PRINTING
             }
             else {
               undo();
@@ -1981,6 +1994,9 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
           default:
             screenUpdatingMode &= ~SCRUPD_SKIP_STACK_ONE_TIME;
             closeNim();
+            if(calcMode == CM_NIM && item > 0) {    // close refused, NIM stays open: a function does nothing more, a menu still opens
+              keyActionProcessed = true;
+            }
         }
       }
       if(calcMode != CM_NIM) {
@@ -2083,7 +2099,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
       case NP_INT_BASE:                  // +123AB#16.    ; Change GROUPWIDTH_LEFT from user selection to this table, for entry
         switch(lastIntegerBase) {
           case  0: GROUPWIDTH_LEFT = GROUPWIDTH_LEFTM; break;
-          case  2: GROUPWIDTH_LEFT = 4; break;
+          case  2: GROUPWIDTH_LEFT = grpGroupingBin; break;
           case  3: GROUPWIDTH_LEFT = 3; break;
           case  4: GROUPWIDTH_LEFT = 2; break;
           case  5:
@@ -2097,12 +2113,12 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
           case 13:
           case 14:
           case 15: GROUPWIDTH_LEFT = 3; break;
-          case 16: GROUPWIDTH_LEFT = 2; break;
+          case 16: GROUPWIDTH_LEFT = grpGroupingHex; break;
           default: ;
         }
         break;
-      case NP_INT_16:                    // +123AB.       ; Change to 2 for hex.
-        GROUPWIDTH_LEFT = 2;
+      case NP_INT_16:                    // +123AB.       ; Change to HEXGRP for hex.
+        GROUPWIDTH_LEFT = grpGroupingHex;
         break;
       default: ;
     }                                                         //JMGAP ^^
@@ -2178,7 +2194,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
 
   void nimFractionToReal34(char* source, real34_t *dest) {
     int16_t i, posSpace, posSlash, lg;
-    int32_t integer, numer, denom;
+    int32_t numer, denom;
     real34_t temp;
 
     setSystemFlag(getSystemFlag(FLAG_IRFRQ) ? FLAG_IRFRAC : FLAG_FRACT);          //1     //NOTE CHANGE HERE TO SWITCH OFF AUTO FRAC MODE AFTER FRACTION INPUT
@@ -2195,7 +2211,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
 
     for(i=1; i<posSpace; i++) {
       if(source[i]<'0' || source[i]>'9') { // This should never happen
-        displayCalcErrorMessage(ERROR_BAD_INPUT, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+        displayCalcErrorMessage(ERROR_BAD_INPUT, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function nimFractionToReal34:", "there is a non numeric character in the integer part of the fraction!", NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -2213,7 +2229,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
 
     for(i=posSpace+1; i<posSlash; i++) {
       if(source[i]<'0' || source[i]>'9') { // This should never happen
-       displayCalcErrorMessage(ERROR_BAD_INPUT, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+       displayCalcErrorMessage(ERROR_BAD_INPUT, ERR_REGISTER_LINE);
        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
          moreInfoOnError("In function nimFractionToReal34:", "there is a non numeric character in the numerator part of the fraction!", NULL, NULL);
        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -2224,7 +2240,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
     if(source[posSlash + 1] != 0) {
       for(i=posSlash+1; i<lg; i++) {
         if(source[i]<'0' || source[i]>'9') {
-          displayCalcErrorMessage(ERROR_BAD_INPUT, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+          displayCalcErrorMessage(ERROR_BAD_INPUT, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             moreInfoOnError("In function nimFractionToReal34:", "there is a non numeric character in the denominator part of the fraction!", NULL, NULL);
           #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -2235,10 +2251,6 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
 
     if(posSpace != 0) {
       source[posSpace] = 0;
-      integer = toInt32(source + 1);
-    }
-    else {
-      integer = 0;
     }
     source[posSlash] = 0;
     numer   = toInt32(source + posSpace + 1);
@@ -2253,7 +2265,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
     }
 
     if(denom == 0 && !getSystemFlag(FLAG_SPCRES)) {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function nimFractionToReal34:", "the denominator of the fraction should not be 0!", "Unless D flag (Danger) is set.", NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -2263,8 +2275,10 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
     int32ToReal34(numer, dest);
     int32ToReal34(denom, &temp);
     real34Divide(dest, &temp, dest);
-    int32ToReal34(integer, &temp);
-    real34Add(dest, &temp, dest);
+    if(posSpace != 0) {
+      stringToReal34(source + 1, &temp);
+      real34Add(dest, &temp, dest);
+    }
     if(source[0] == '-') {
       real34SetNegativeSign(dest);
     }
@@ -2403,12 +2417,12 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
         }
         bool_t is_i     = nimNumberPart == NP_COMPLEX_INT_PART && aimBuffer[lastChar] == 'i';
         bool_t is_theta = nimNumberPart == NP_COMPLEX_INT_PART && aimBuffer[lastChar-1]*256 + aimBuffer[lastChar]*256 == 0xa221;
-        if((is_i || is_theta) && !getSystemFlag(FLAG_POLAR)) { // complex i
-          aimBuffer[++lastChar] = '1';                                                   //JM 2020-06-22 CHANGED FROM "1" to "0". DEFAULTING TO 0+0xi WHEN ABORTING CC ENTRY. #6072aee
-          aimBuffer[lastChar + 1] = 0;                                                   //JM 2023-09-18 reverted partially (for RECT) from "0" to "1", specifically for a blank i
+        if((is_i || is_theta) && !((getSystemFlag(FLAG_POLAR) && !temporaryFlagRect) || temporaryFlagPolar)) { //  i          //JM 2026-08-22 nothing typed after ix: the imaginary part becomes 1, in POLAR mode too
+          aimBuffer[++lastChar] = '1';                                                                                        //JM 2020-06-22 CHANGED FROM "1" to "0". DEFAULTING TO 0+0xi WHEN ABORTING CC ENTRY. #6072aee
+          aimBuffer[lastChar + 1] = 0;                                                                                        //JM 2023-09-18 reverted partially (for RECT) from "0" to "1", specifically for a blank i
         }
-        else if((is_i || is_theta) && getSystemFlag(FLAG_POLAR)) { // complex measured angle
-          aimBuffer[++lastChar] = '0';                                                   //JM 2020-06-22 CHANGED FROM "1" to '0'. DEFAULTING TO 0+0xi WHEN ABORTING CC ENTRY. #6072aee
+        else if((is_i || is_theta) && ((getSystemFlag(FLAG_POLAR) && !temporaryFlagRect) || temporaryFlagPolar)) { // i_pol   //JM 2026-08-22 nothing typed after i_pol: the angle becomes 0, in RECT mode too
+          aimBuffer[++lastChar] = '0';                                                                                        //JM 2020-06-22 CHANGED FROM "1" to '0'. DEFAULTING TO 0+0xi WHEN ABORTING CC ENTRY. #6072aee
           aimBuffer[lastChar + 1] = 0;
         }
 
@@ -2454,7 +2468,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
             for(i=posHash+1; i<lg; i++) {
               if(aimBuffer[i]<'0' || aimBuffer[i]>'9') {
                 // This should never happen
-                displayCalcErrorMessage(ERROR_INVALID_INTEGER_INPUT, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+                displayCalcErrorMessage(ERROR_INVALID_INTEGER_INPUT, ERR_REGISTER_LINE);
                 #if (EXTRA_INFO_ON_CALC_ERROR == 1)
                   moreInfoOnError("In function closeNIM:", "there is a non numeric character in the base of the integer!", NULL, NULL);
                 #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -2464,7 +2478,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
 
             base = stringToInt32(aimBuffer + posHash + 1);
             if(base < 2 || base > 16) {
-              displayCalcErrorMessage(ERROR_INVALID_INTEGER_INPUT, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+              displayCalcErrorMessage(ERROR_INVALID_INTEGER_INPUT, ERR_REGISTER_LINE);
               #if (EXTRA_INFO_ON_CALC_ERROR == 1)
                moreInfoOnError("In function closeNIM:", "the base of the integer must be from 2 to 16!", NULL, NULL);
               #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -2473,7 +2487,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
 
             for(i=aimBuffer[0] == '-' ? 1 : 0; i<posHash; i++) {
               if((aimBuffer[i] > '9' ? aimBuffer[i] - 'A' + 10 : aimBuffer[i] - '0') >= base) {
-                displayCalcErrorMessage(ERROR_INVALID_INTEGER_INPUT, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+                displayCalcErrorMessage(ERROR_INVALID_INTEGER_INPUT, ERR_REGISTER_LINE);
                 #if (EXTRA_INFO_ON_CALC_ERROR == 1)
                   sprintf(errorMessage, "digit %c is not allowed in base %d!", aimBuffer[i], base);
                   moreInfoOnError("In function closeNIM:", errorMessage, NULL, NULL);
@@ -2525,7 +2539,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
             }
 
             if(longIntegerCompare(value, minVal) < 0 || longIntegerCompare(value, maxVal) > 0) {
-              displayCalcErrorMessage(ERROR_WORD_SIZE_TOO_SMALL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+              displayCalcErrorMessage(ERROR_WORD_SIZE_TOO_SMALL, ERR_REGISTER_LINE);
               #if (EXTRA_INFO_ON_CALC_ERROR == 1)
                 char strMin[22], strMax[22];
                 longIntegerToAllocatedString(minVal, strMin, sizeof(strMin));
@@ -2673,7 +2687,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
   //    }
     }
 
-    #if defined(IR_PRINTING)
+    #if defined(OPTION_IR_PRINTING)
       if((lastItem != ITM_ms) && (lastItem != ITM_dotD) && (lastItem != ITM_DRG)) {  // Avoid double tracing for functions changing X after closeNim
         #if defined(PC_BUILD) && defined(MONITOR_IRPRINT)
           printf("**[DL]** closeNim printTraceX lastItem %d\n", lastItem);
@@ -2682,10 +2696,12 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
         printTraceX(LINE_NOLF);
       }
       lastItem = 0;
-    #endif //IR_PRINTING
+    #endif //OPTION_IR_PRINTING
 
     closeNim_exit:
-    nimNumberPart = NP_EMPTY;   //Added to ensure test for nimNumberPart in insertStepInProgram() will have the correct value
+    if(calcMode != CM_NIM) {      // a refused close keeps NIM open
+      nimNumberPart = NP_EMPTY;   //Added to ensure test for nimNumberPart in insertStepInProgram() will have the correct value
+    }
   }
 
 

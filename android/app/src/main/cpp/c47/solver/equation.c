@@ -127,7 +127,7 @@ void fnEqNew(uint16_t unusedButMandatoryParameter) {
       currentSolverVariable = INVALID_VARIABLE;
     }
     else {
-      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function fnEqNew:", "there is not enough memory for a new equation!", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -149,7 +149,7 @@ void fnEqNew(uint16_t unusedButMandatoryParameter) {
       graphVariabl1 = 0;
     }
     else {
-      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function fnEqNew:", "there is not enough memory for a new equation!", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -214,7 +214,18 @@ void fnEqCalc(uint16_t unusedButMandatoryParameter) {
 
 
 void setEquation(uint16_t equationId, const char *equationString) {
-  uint32_t newSizeInBlocks = TO_BLOCKS(stringByteLength(equationString) + 1);
+  uint32_t byteLen = stringByteLength(equationString);
+  if(byteLen >= MAX_EQUATION_BYTE_LENGTH) {                                    // a crafted state file may be longer: cut on a glyph boundary so the 8-bit block count cannot wrap
+    byteLen = 0;
+    while(equationString[byteLen] != 0) {
+      uint32_t step = (equationString[byteLen] & 0x80) ? 2 : 1;
+      if(byteLen + step > MAX_EQUATION_BYTE_LENGTH - 1) {
+        break;
+      }
+      byteLen += step;
+    }
+  }
+  uint32_t newSizeInBlocks = TO_BLOCKS(byteLen + 1);
   uint8_t *newPtr;
   if(allFormulae[equationId].sizeInBlocks == 0) {
     newPtr = allocC47Blocks(newSizeInBlocks);
@@ -226,14 +237,15 @@ void setEquation(uint16_t equationId, const char *equationString) {
     allFormulae[equationId].pointerToFormulaData = TO_C47MEMPTR(newPtr);
   }
   else {
-    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function setEquation:", "there is not enough memory for a new equation!", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
     return;
   }
   allFormulae[equationId].sizeInBlocks = newSizeInBlocks;
-  xcopy(TO_PCMEMPTR(allFormulae[equationId].pointerToFormulaData), equationString, stringByteLength(equationString) + 1);
+  xcopy(newPtr, equationString, byteLen);
+  newPtr[byteLen] = 0;
 }
 
 void deleteEquation(uint16_t equationId) {
@@ -254,6 +266,114 @@ void deleteEquation(uint16_t equationId) {
     graphVariabl1 = 0;
     currentSolverVariable = INVALID_VARIABLE;
   }
+}
+
+
+
+void fnVecToEqn(uint16_t unusedButMandatoryParameter) {
+#if defined(OPTION_SLVP_POLY)
+  real34Matrix_t x;
+  real34_t absC;
+  uint16_t rows, cols;
+  uint32_t m, lead, j, k, len, termLen;
+  char term[80], *p = tmpString;
+  bool_t firstTerm = true, negative, unitCoef;
+
+  if(getRegisterDataType(REGISTER_X) != dtReal34Matrix) {
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+      moreInfoOnError("In function fnVecToEqn:", "V" STD_RIGHT_ARROW "EQ expects a real coefficient vector in X; complex coefficients have no equation rendering", NULL, NULL);
+    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+    return;
+  }
+  linkToRealMatrixRegister(REGISTER_X, &x);
+  rows = x.header.matrixRows;
+  cols = x.header.matrixColumns;
+  if(rows != 1 && cols != 1) {
+    displayCalcErrorMessage(ERROR_MATRIX_MISMATCH, ERR_REGISTER_LINE);
+    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+      sprintf(errorMessage, "V" STD_RIGHT_ARROW "EQ needs a coefficient vector, not (%d" STD_CROSS "%d)", rows, cols);
+      moreInfoOnError("In function fnVecToEqn:", errorMessage, NULL, NULL);
+    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+    return;
+  }
+  m = (uint32_t)rows * cols;
+
+  for(j = 0; j < m; j++) {
+    if(real34IsNaN(x.matrixElements + j) || real34IsInfinite(x.matrixElements + j)) {
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+        moreInfoOnError("In function fnVecToEqn:", "a NaN or infinite coefficient has no equation text", NULL, NULL);
+      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+      return;
+    }
+  }
+
+  lead = 0;                                                              // a leading zero coefficient carries no degree: drop it silently, the SLVC/SLVP precedent
+  while(lead < m && real34IsZero(x.matrixElements + lead)) {
+    lead++;
+  }
+
+  for(j = lead; j < m; j++) {
+    const real34_t *c = x.matrixElements + j;
+    char *t = term;
+    if(real34IsZero(c)) {                                                // a zero coefficient contributes no term
+      continue;
+    }
+    k = m - 1 - j;                                                       // the degree of this term
+    negative = real34IsNegative(c);
+    real34Copy(c, &absC);
+    real34SetPositiveSign(&absC);
+    // |c| = 1 drops the coefficient glyphs, except on a negative leading term: -1×X^k parses the same under a unary or a binary reading of the minus, -X^k need not
+    unitCoef = (k > 0) && real34CompareEqual(&absC, const34_1) && !(firstTerm && negative);
+    if(firstTerm) {
+      if(negative) {
+        *t++ = '-';
+      }
+    }
+    else {
+      *t++ = negative ? '-' : '+';
+    }
+    if(!unitCoef) {
+      real34ToString(&absC, t);                                          // exact decQuad text: plain or E notation, both re-parse through stringToReal34
+      t += strlen(t);
+    }
+    if(k > 0) {
+      if(!unitCoef) {
+        *t++ = PRODUCT_SIGN[0];
+        *t++ = PRODUCT_SIGN[1];
+      }
+      *t++ = 'x';
+      if(k > 1) {
+        t += sprintf(t, "^%u", (unsigned int)k);
+      }
+    }
+    *t = 0;
+    termLen = (uint32_t)(t - term);
+    if((uint32_t)(p - tmpString) + termLen >= MAX_EQUATION_BYTE_LENGTH) { // headed for the 255-block equation store: what cannot fit is refused whole
+      displayCalcErrorMessage(ERROR_STRING_WOULD_BE_TOO_LONG, ERR_REGISTER_LINE);
+      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+        moreInfoOnError("In function fnVecToEqn:", "the polynomial text does not fit the equation buffer", NULL, NULL);
+      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+      return;
+    }
+    xcopy(p, term, termLen + 1);
+    p += termLen;
+    firstTerm = false;
+  }
+  if(firstTerm) {                                                        // every coefficient is zero: the zero polynomial still renders
+    *p++ = '0';
+    *p = 0;
+  }
+
+  len = (uint32_t)(p - tmpString) + 1;
+  if(!saveLastX()) {
+    return;
+  }
+  reallocateRegister(REGISTER_X, dtString, TO_BLOCKS(len), amNone);      // x dangles from here: the linked matrix memory is gone
+  xcopy(REGISTER_STRING_DATA(REGISTER_X), tmpString, len);
+  adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
+#endif // OPTION_SLVP_POLY
 }
 
 
@@ -382,7 +502,7 @@ void showEquation(uint16_t equationId, uint16_t startAt, uint16_t cursorAt, bool
     *cursorShown = false;
     *rightEllipsis = false;
 
-    for(uint32_t i = 0; i < 7; ++i) {
+    for(uint32_t i = 0; i < 7 && *tmpPtr != 0; ++i) {
       tmpPtr += ((*tmpPtr) & 0x80) ? 2 : 1;
       if(*tmpPtr == ':') {
         inLabel = (startAt <= (i + 1));
@@ -510,11 +630,16 @@ void showEquation(uint16_t equationId, uint16_t startAt, uint16_t cursorAt, bool
         }
 
         /* Operators */
-        else if((!inLabel) && ((*strPtr) == '=' || (*strPtr) == '+' || (*strPtr) == '-' || (*strPtr) == '/' || (*strPtr) == '!' || (*strPtr) == '|')) {
+        else if((!inLabel) && ((*strPtr) == '=' || (*strPtr) == '+' || (*strPtr) == '-' || (*strPtr) == '/' || (*strPtr) == '!' || (*strPtr) == '|' || compareChar(strPtr, STD_DIVIDE) == 0)) {
           if((*strPtr) != '|' || (strLength > (startAt + 1))) {
             _addSpace(&bufPtr, &strWidth, &doubleBytednessHistory);
           }
-          *bufPtr       = *strPtr;
+          if(compareChar(strPtr, STD_DIVIDE) == 0) {   // the obelus is a synonym of /
+            *bufPtr = '/';
+          }
+          else {
+            *bufPtr = *strPtr;
+          }
           *(bufPtr + 1) = 0;
           strWidth += stringWidth(bufPtr, &standardFont, true, true);
           *(bufPtr + 1) = STD_SPACE_PUNCTUATION[0];
@@ -530,7 +655,7 @@ void showEquation(uint16_t equationId, uint16_t startAt, uint16_t cursorAt, bool
         }
 
         /* Multiply */
-        else if((!inLabel) && (compareChar(strPtr, STD_CROSS) == 0 || compareChar(strPtr, STD_DOT) == 0)) {
+        else if((!inLabel) && (compareChar(strPtr, STD_CROSS) == 0 || compareChar(strPtr, STD_DOT) == 0 || (*strPtr) == '*')) {   // * is a synonym of the multiply glyph
           _addSpace(&bufPtr, &strWidth, &doubleBytednessHistory);
           *bufPtr       = PRODUCT_SIGN[0];
           *(bufPtr + 1) = PRODUCT_SIGN[1];
@@ -664,6 +789,12 @@ void showEquation(uint16_t equationId, uint16_t startAt, uint16_t cursorAt, bool
 
 
 
+// The derivative's step key. It carries a name rather than an item because it is a named variable, which is what the MVAR menu's own key handler stores into.
+static void _deltaMenuItem(char *bufPtr) {
+  xcopy(bufPtr, STD_delta STD_SUB_d, stringByteLength(STD_delta STD_SUB_d) + 1);
+  bufPtr[stringByteLength(STD_delta STD_SUB_d) + 1] = 0;
+}
+
 static void _menuItem(int16_t item, char *bufPtr) {
   xcopy(bufPtr, indexOfItems[item].itemSoftmenuName, stringByteLength(indexOfItems[item].itemSoftmenuName) + 1);
   bufPtr[stringByteLength(indexOfItems[item].itemSoftmenuName)+1]=0;
@@ -733,7 +864,7 @@ static void _pushNumericStack(char *mvarBuffer, const real34_t *re, const real34
     ++(*PARSER_NUMERIC_STACK_POINTER);
   }
   else {
-    displayCalcErrorMessage(ERROR_EQUATION_TOO_COMPLEX, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_EQUATION_TOO_COMPLEX, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function _pushNumericStack:", "numeric stack overflow!", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -749,7 +880,7 @@ static void _popNumericStack(char *mvarBuffer, real34_t *re, real34_t *im) {
     }
   }
   else {
-    displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function _popNumericStack:", "numeric stack is empty!", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -887,7 +1018,7 @@ static void _processOperator(uint16_t func, char *mvarBuffer) {
         switch(PARSER_OPERATOR_STACK[i]) {
           case PARSER_OPERATOR_ITM_PARENTHESIS_LEFT: {
             if(func == PARSER_OPERATOR_ITM_VERTICAL_BAR_RIGHT) {
-              displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+              displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE);
               #if (EXTRA_INFO_ON_CALC_ERROR == 1)
                 moreInfoOnError("In function _processOperator:", "parentheses mismatch!", "parenthesis not closed", NULL);
               #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -897,7 +1028,7 @@ static void _processOperator(uint16_t func, char *mvarBuffer) {
           case PARSER_OPERATOR_ITM_VERTICAL_BAR_LEFT: {
             _runEqFunction(mvarBuffer, ITM_MAGNITUDE);
             if(func == PARSER_OPERATOR_ITM_PARENTHESIS_RIGHT) {
-              displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+              displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE);
               #if (EXTRA_INFO_ON_CALC_ERROR == 1)
                 moreInfoOnError("In function _processOperator:", "parentheses mismatch!", "unpaired vertical bar within parentheses", NULL);
               #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -931,7 +1062,7 @@ static void _processOperator(uint16_t func, char *mvarBuffer) {
             if(func == PARSER_OPERATOR_ITM_PARENTHESIS_RIGHT || func == PARSER_OPERATOR_ITM_VERTICAL_BAR_RIGHT) {
               return;
             }
-            displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+            displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE);
             #if (EXTRA_INFO_ON_CALC_ERROR == 1)
               moreInfoOnError("In function _processOperator:", "parentheses mismatch!", "parenthesis not closed", NULL);
             #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -941,21 +1072,23 @@ static void _processOperator(uint16_t func, char *mvarBuffer) {
       }
       switch(func) {
         case PARSER_OPERATOR_ITM_PARENTHESIS_RIGHT: {
-          displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+          displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             moreInfoOnError("In function _processOperator:", "parentheses mismatch!", "no corresponding opening parenthesis", NULL);
           #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
           break;
         }
         case PARSER_OPERATOR_ITM_VERTICAL_BAR_RIGHT: {
-          displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+          displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             moreInfoOnError("In function _processOperator:", "parentheses mismatch!", "no corresponding opening vertical bar", NULL);
           #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
           break;
         }
         case PARSER_OPERATOR_ITM_EQUAL: {
-          fnToReal(NOPARAM);
+          if(getRegisterDataType(REGISTER_X) != dtComplex34) {   //a complex left hand side cannot convert: the complex solver leaves one in X
+            fnToReal(NOPARAM);
+          }
           _popNumericStack(mvarBuffer, PARSER_LEFT_VALUE_REAL, PARSER_LEFT_VALUE_IMAG);
           break;
         }
@@ -999,7 +1132,7 @@ static void _processOperator(uint16_t func, char *mvarBuffer) {
           PARSER_OPERATOR_STACK[i] = func;
         }
         else {
-          displayCalcErrorMessage(ERROR_EQUATION_TOO_COMPLEX, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+          displayCalcErrorMessage(ERROR_EQUATION_TOO_COMPLEX, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             moreInfoOnError("In function _processOperator:", "operator stack overflow!", NULL, NULL);
           #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -1023,7 +1156,7 @@ static void _processOperator(uint16_t func, char *mvarBuffer) {
     }
   }
   else {
-    displayCalcErrorMessage(ERROR_EQUATION_TOO_COMPLEX, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_EQUATION_TOO_COMPLEX, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function _processOperator:", "operator stack overflow!", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -1033,7 +1166,7 @@ static void _processOperator(uint16_t func, char *mvarBuffer) {
 static void _parseWord(char *strPtr, uint16_t parseMode, uint16_t parserHint, char *mvarBuffer, const char *pointerInFormula) {
   uint32_t tmpVal = 0;
   if(parserHint != PARSER_HINT_NUMERIC && stringGlyphLength(strPtr) > 7) {
-    displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function _parseWord:", strPtr, "token too long!", NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -1087,7 +1220,7 @@ static void _parseWord(char *strPtr, uint16_t parseMode, uint16_t parserHint, ch
           bufPtr += stringByteLength(strPtr) + 1;
           bufPtr[0] = 0;
           if(((currentSolverStatus & SOLVER_STATUS_EQUATION_MODE) == SOLVER_STATUS_EQUATION_SOLVER || (currentSolverStatus & SOLVER_STATUS_EQUATION_MODE) == SOLVER_STATUS_EQUATION_GRAPHER ) && var >= FIRST_RESERVED_VARIABLE) {
-            displayCalcErrorMessage(ERROR_RESERVED_VARIABLE_NAME, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+            displayCalcErrorMessage(ERROR_RESERVED_VARIABLE_NAME, ERR_REGISTER_LINE);
             xcopy(errorMessage, strPtr, stringByteLength(strPtr)+1);
             screenUpdatingMode = SCRUPD_AUTO;
             refreshRegisterLine(ERR_REGISTER_LINE);   //[DL] added to force error line refresh
@@ -1113,19 +1246,19 @@ static void _parseWord(char *strPtr, uint16_t parseMode, uint16_t parserHint, ch
               _menuItem(ITM_CALC, bufPtr);
             }
             else if(tmpVal == 3 && ((currentSolverStatus & SOLVER_STATUS_EQUATION_MODE) == SOLVER_STATUS_EQUATION_1ST_DERIVATIVE)) {
-              _menuItem(MNU_GRAPHS, bufPtr);
+              _deltaMenuItem(bufPtr);   // the step key, where the other engines put their tool menu
               bufPtr += stringByteLength(bufPtr) + 1;
               _menuItem(ITM_FPHERE, bufPtr);
             }
             else if(tmpVal == 3 && ((currentSolverStatus & SOLVER_STATUS_EQUATION_MODE) == SOLVER_STATUS_EQUATION_2ND_DERIVATIVE)) {
-              _menuItem(MNU_GRAPHS, bufPtr);
+              _deltaMenuItem(bufPtr);
               bufPtr += stringByteLength(bufPtr) + 1;
               _menuItem(ITM_FPPHERE, bufPtr);
             }
           }
         }
         else {
-          displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+          displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             moreInfoOnError("In function _parseWord 1:", strPtr, "is not a valid name!", NULL);
           #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -1170,7 +1303,7 @@ static void _parseWord(char *strPtr, uint16_t parseMode, uint16_t parserHint, ch
           fnDrop(NOPARAM);
         }
         else {
-          displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+          displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             moreInfoOnError("In function _parseWord 2:", strPtr, "is not a valid name!", NULL);
           #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -1248,7 +1381,7 @@ static void _parseWord(char *strPtr, uint16_t parseMode, uint16_t parserHint, ch
             return;
           }
         }
-        displayCalcErrorMessage(ERROR_FUNCTION_NOT_FOUND, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+        displayCalcErrorMessage(ERROR_FUNCTION_NOT_FOUND, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function _parseWord:", strPtr, "is not recognized as a function", "or not for equations");
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -1263,6 +1396,16 @@ static void _parseWord(char *strPtr, uint16_t parseMode, uint16_t parserHint, ch
 }
 
 void parseEquation(uint16_t equationId, uint16_t parseMode, char *buffer, char *mvarBuffer) {
+  // No equation, or an empty one: allFormulae may be NULL here, so this check must precede the dereference below.
+  if(equationId >= numberOfFormulae || allFormulae[equationId].pointerToFormulaData == C47_NULL) {
+    buffer[0] = 0;
+    mvarBuffer[0] = 0;
+    displayCalcErrorMessage(ERROR_NO_EQUATION_DEFINED, ERR_REGISTER_LINE);
+    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+      moreInfoOnError("In function parseEquation:", "no equation defined", NULL, NULL);
+    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+    return;
+  }
   const char *strPtr = (char *)TO_PCMEMPTR(allFormulae[equationId].pointerToFormulaData);
   char *bufPtr = buffer;
   const char *pointerInFormula = strPtr;
@@ -1286,7 +1429,7 @@ void parseEquation(uint16_t equationId, uint16_t parseMode, char *buffer, char *
    // }
   }
 
-  for(uint32_t i = 0; i < 7; ++i) {
+  for(uint32_t i = 0; i < 7 && *strPtr != 0; ++i) {
     strPtr += ((*strPtr) & 0x80) ? 2 : 1;
     if(*strPtr == ':') {
       labeled = true;
@@ -1312,7 +1455,7 @@ void parseEquation(uint16_t equationId, uint16_t parseMode, char *buffer, char *
     #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
     switch(*strPtr) {
       case ';': {
-        displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+        displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           sprintf(errorMessage, "%c", *strPtr);
           moreInfoOnError("In function parseEquation:", errorMessage, "cannot be appeared in equations", NULL);
@@ -1325,7 +1468,7 @@ void parseEquation(uint16_t equationId, uint16_t parseMode, char *buffer, char *
           *(bufPtr++) = 0;
           ++strPtr;
           if(stringGlyphLength(buffer) == numericCount) {
-            displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+            displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE);
             #if (EXTRA_INFO_ON_CALC_ERROR == 1)
               moreInfoOnError("In function parseEquation:", "attempt to call a number as a function!", NULL, NULL);
             #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -1357,7 +1500,7 @@ void parseEquation(uint16_t equationId, uint16_t parseMode, char *buffer, char *
       case ':':
       case '|':
         if(equalAppeared && (*strPtr == '=')) {
-          displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+          displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             moreInfoOnError("In function parseEquation:", "= appears more than once", NULL, NULL);
           #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -1475,7 +1618,7 @@ void parseEquation(uint16_t equationId, uint16_t parseMode, char *buffer, char *
         }
 
         else {
-          displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+          displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             moreInfoOnError("In function parseEquation:", buffer, "unexpected operator", NULL);
           #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -1498,6 +1641,12 @@ void parseEquation(uint16_t equationId, uint16_t parseMode, char *buffer, char *
           ++strPtr;
         }
         _parseWord(buffer, parseMode, PARSER_HINT_OPERATOR, mvarBuffer, pointerInFormula);
+        if(buffer[0] == '=' && eqnDrawLhsOnly && parseMode == EQUATION_PARSER_XEQ) {   //Draw takes its value from the left hand side: return it as the result and skip the right hand side
+          _pushNumericStack(mvarBuffer, PARSER_LEFT_VALUE_REAL, PARSER_LEFT_VALUE_IMAG);
+          real34SetZero(PARSER_LEFT_VALUE_REAL);
+          real34SetZero(PARSER_LEFT_VALUE_IMAG);
+          strPtr += stringByteLength(strPtr);
+        }
         bufPtr = buffer;
         buffer[0] = 0;
         pointerInFormula = strPtr;
@@ -1533,11 +1682,23 @@ void parseEquation(uint16_t equationId, uint16_t parseMode, char *buffer, char *
           exponentSignCanOccur = false;
         }
 
-        if(compareChar(strPtr, STD_CROSS) == 0 || compareChar(strPtr, STD_DOT) == 0) {
+        if(compareChar(strPtr, STD_CROSS) == 0 || compareChar(strPtr, STD_DOT) == 0 || (*strPtr) == '*' || compareChar(strPtr, STD_DIVIDE) == 0) {   // * is a synonym of the multiply glyph, the obelus of /
           *(bufPtr++) = 0;
           _parseWord(buffer, parseMode, PARSER_HINT_REGULAR, mvarBuffer, pointerInFormula);
-          buffer[0] = *(strPtr++);
-          buffer[1] = *(strPtr++);
+          if((*strPtr) == '*') {
+            buffer[0] = STD_CROSS[0];
+            buffer[1] = STD_CROSS[1];
+            ++strPtr;
+          }
+          else if(compareChar(strPtr, STD_DIVIDE) == 0) {
+            buffer[0] = '/';
+            buffer[1] = 0;
+            strPtr += 2;
+          }
+          else {
+            buffer[0] = *(strPtr++);
+            buffer[1] = *(strPtr++);
+          }
           buffer[2] = 0;
           _parseWord(buffer, parseMode, PARSER_HINT_OPERATOR, mvarBuffer, pointerInFormula);
           bufPtr = buffer;
@@ -1614,12 +1775,12 @@ void parseEquation(uint16_t equationId, uint16_t parseMode, char *buffer, char *
       }
       if(tmpVal == 4) {
         if((currentSolverStatus & SOLVER_STATUS_EQUATION_MODE) == SOLVER_STATUS_EQUATION_1ST_DERIVATIVE) {
-          _menuItem(MNU_GRAPHS, bufPtr);
+          _deltaMenuItem(bufPtr);   // the step key, where the other engines put their tool menu
           bufPtr += stringByteLength(bufPtr) + 1;
           _menuItem(ITM_FPHERE, bufPtr);
         }
         else {
-          _menuItem(MNU_GRAPHS, bufPtr);
+          _deltaMenuItem(bufPtr);
           bufPtr += stringByteLength(bufPtr) + 1;
           _menuItem(ITM_FPPHERE, bufPtr);
         }

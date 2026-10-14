@@ -13,7 +13,7 @@ void fnDblMultiply(uint16_t unusedButMandatoryParameter) {
   const uint8_t sim = shortIntegerMode;
 
   if(getRegisterDataType(REGISTER_X) != dtShortInteger) {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_T);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "the input type %s is not allowed for DBL" STD_CROSS "!", getDataTypeName(getRegisterDataType(REGISTER_X), false, false));
       moreInfoOnError("In function fnDblMultiply:", errorMessage, NULL, NULL);
@@ -21,7 +21,7 @@ void fnDblMultiply(uint16_t unusedButMandatoryParameter) {
     return;
   }
   if(getRegisterDataType(REGISTER_Y) != dtShortInteger) {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_T);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "the input type %s is not allowed for DBL" STD_CROSS "!", getDataTypeName(getRegisterDataType(REGISTER_Y), false, false));
       moreInfoOnError("In function fnDblMultiply:", errorMessage, NULL, NULL);

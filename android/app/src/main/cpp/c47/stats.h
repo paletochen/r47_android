@@ -78,4 +78,4 @@
   void   fnConvertStatsToHisto   (uint16_t statsVariableToHistogram);
   void   setStatisticalSumsUpdate(bool_t para);
 
-#endif // STATS_H
+#endif // !STATS_H
