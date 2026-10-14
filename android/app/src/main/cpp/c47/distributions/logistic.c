@@ -7,11 +7,15 @@
 
 #include "c47.h"
 
-#if !defined(OPTION_DIST_B)
+#if defined(SAVE_SPACE_DM42_17B)
   void fnLogisticP     (uint16_t unusedButMandatoryParameter){}
   void fnLogisticL     (uint16_t unusedButMandatoryParameter){}
   void fnLogisticR     (uint16_t unusedButMandatoryParameter){}
   void fnLogisticI     (uint16_t unusedButMandatoryParameter){}
+  void WP34S_Pdf_Logit (const real_t *x, const real_t *mu, const real_t *s, real_t *res, realContext_t *realContext){}
+  void WP34S_Cdfu_Logit(const real_t *x, const real_t *mu, const real_t *s, real_t *res, realContext_t *realContext){}
+  void WP34S_Cdf_Logit (const real_t *x, const real_t *mu, const real_t *s, real_t *res, realContext_t *realContext){}
+  void WP34S_Qf_Logit  (const real_t *x, const real_t *mu, const real_t *s, real_t *res, realContext_t *realContext){}
 
 #else
   static bool_t checkParamLogistic(real_t *x, real_t *i, real_t *j) {
@@ -24,7 +28,7 @@
     }
 
     if(realIsZero(j) || realIsNegative(j)) {
-      displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE);
+      displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function checkParamLogistic:", "cannot calculate for " STD_sigma " " STD_LESS_EQUAL " 0", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -75,7 +79,7 @@
 
     if(checkParamLogistic(&val, &mu, &s)) {
       if(realCompareLessEqual(&val, const_0) || realCompareGreaterEqual(&val, const_1)) {
-        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function fnLogisticI:", "the argument must be 0 < x < 1", NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -169,4 +173,4 @@
     realAdd(&p, mu, res, realContext);
   }
 
-#endif // !OPTION_DIST_B
+#endif //SAVE_SPACE_DM42_17B

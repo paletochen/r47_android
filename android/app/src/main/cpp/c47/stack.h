@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WP43 and C47 Authors
 
 /**
- * \file stack.h
+ * \file stack.c
  * Stack management.
  */
 #if !defined(STACK_H)

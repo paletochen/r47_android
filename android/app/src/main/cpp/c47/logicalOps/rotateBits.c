@@ -9,7 +9,7 @@
 
 static bool_t getShiftInput(uint64_t *w, uint32_t *base) {
   if(!getRegisterAsRawShortInt(REGISTER_X, w, base)) {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "cannot shift/rotate %s", getRegisterDataTypeName(REGISTER_X, true, false));
       moreInfoOnError("In function fnAsr:", errorMessage, NULL, NULL);
@@ -259,8 +259,6 @@ void fnLj(uint16_t unusedButMandatoryParameter) {
     return;
   }
 
-  w &= shortIntegerMask; // cleanse over-wide bits, else w <<= count is UB
-
   if(w == 0) {
     count = shortIntegerWordSize;
   }
@@ -309,8 +307,8 @@ void fnMirror(uint16_t unusedButMandatoryParameter) {
   }
 
   for(uint32_t i=0; i<shortIntegerWordSize; i++) {
-    if(x & (1ULL << i)) {
-      r |= 1ULL << (shortIntegerWordSize-i-1);
+    if(x & (1LL << i)) {
+      r |= 1LL << (shortIntegerWordSize-i-1);
     }
   }
 
@@ -386,7 +384,7 @@ void fnZip(uint16_t unusedButMandatoryParameter) {
   unsigned int i, j;
 
   if(!getRegisterAsRawShortInt(REGISTER_Y, &y, &base)) {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_Y);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "cannot shift/rotate %s", getRegisterDataTypeName(REGISTER_Y, true, false));
       moreInfoOnError("In function fnZip:", errorMessage, NULL, NULL);

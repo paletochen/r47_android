@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WP43 and C47 Authors
 
 #include "c47.h"
+#include "log10.h"
 
 static void log2LonI(void) {
   logxyLonI(const39_ln2);

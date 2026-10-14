@@ -8,4 +8,4 @@
   #define INTEGERPARTSHORT_H
 
   void fnSint   (uint16_t unusedButMandatoryParameter);
-#endif // !INTEGERPARTSHORT_H
+#endif // !INTEGERPARTLONG_H

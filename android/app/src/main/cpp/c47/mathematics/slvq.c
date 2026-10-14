@@ -12,21 +12,15 @@
 /********************************************//**
  * \brief (c, b, a) ==> (x1, x2, r) c ==> regL
  * enables stack lift and refreshes the stack
- * A coefficient vector in X (highest degree first, 2 to 4 elements) returns all roots as a row vector in X instead.
  *
  * \param[in] unusedButMandatoryParameter uint16_t
  * \return void
  ***********************************************/
 void fnSlvq(uint16_t unusedButMandatoryParameter) {
-#if defined(OPTION_SLVQ_SLVC)
+#if !defined(SAVE_SPACE_DM42_12)
   bool_t realCoefs=false, realRoots=true, complexCoefs=false;
   real_t aReal, bReal, cReal, rReal, x1Real, x2Real;
   real_t aImag, bImag, cImag, rImag, x1Imag, x2Imag;
-
-  if(getRegisterDataType(REGISTER_X) == dtReal34Matrix || getRegisterDataType(REGISTER_X) == dtComplex34Matrix) {   // a coefficient vector takes the matrix path: the element count picks the solver
-    solveCoefficientVector();
-    return;
-  }
 
   if(!(getRegisterAsComplexOrReal(REGISTER_X, &cReal, &cImag, &complexCoefs) &&
        getRegisterAsComplexOrReal(REGISTER_Y, &bReal, &bImag, &complexCoefs) &&
@@ -36,7 +30,7 @@ void fnSlvq(uint16_t unusedButMandatoryParameter) {
   realCoefs = !complexCoefs;
 
   if(   realIsZero(&aReal) && realIsZero(&aImag) && realIsZero(&bReal) && realIsZero(&bImag)) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function fnSlvq:", "cannot use 0 for Y and Z as input of SLVQ", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -51,7 +45,44 @@ void fnSlvq(uint16_t unusedButMandatoryParameter) {
     realRoots = false;
   }
 
-  solveQuadratic(&aReal, &aImag, &bReal, &bImag, &cReal, &cImag, &rReal, &rImag, &x1Real, &x1Imag, &x2Real, &x2Imag);
+#if defined(OPTION_SQUARE_159)
+    realContext_t c = ctxtReal75;
+    c.digits = 159;
+    REAL_T_PTR(x1r, 159);
+    REAL_T_PTR(x1i, 159);
+    REAL_T_PTR(x2r, 159);
+    REAL_T_PTR(x2i, 159);
+    REAL_T_PTR(r0r, 159);
+    REAL_T_PTR(r0i, 159);
+    REAL_T_PTR(aRealH, 159);
+    REAL_T_PTR(aImagH, 159);
+    REAL_T_PTR(bRealH, 159);
+    REAL_T_PTR(bImagH, 159);
+    REAL_T_PTR(cRealH, 159);
+    REAL_T_PTR(cImagH, 159);
+
+    realPlus(&aReal, aRealH, &c);
+    realPlus(&aImag, aImagH, &c);
+    realPlus(&bReal, bRealH, &c);
+    realPlus(&bImag, bImagH, &c);
+    realPlus(&cReal, cRealH, &c);
+    realPlus(&cImag, cImagH, &c);
+    realSetZero(r0r);
+    realSetZero(r0i);
+    realSetZero(x1r);
+    realSetZero(x1i);
+    realSetZero(x2r);
+    realSetZero(x2i);
+    solveQuadraticEquation159(aRealH, aImagH, bRealH, bImagH, cRealH, cImagH, r0r, r0i, x1r, x1i, x2r, x2i, &c);
+    realPlus(r0r, &rReal,  &ctxtReal39);
+    realPlus(r0i, &rImag,  &ctxtReal39);
+    realPlus(x1r, &x1Real, &ctxtReal39);
+    realPlus(x1i, &x1Imag, &ctxtReal39);
+    realPlus(x2r, &x2Real, &ctxtReal39);
+    realPlus(x2i, &x2Imag, &ctxtReal39);
+#else // OPTION_SQUARE_159
+  solveQuadraticEquation(&aReal, &aImag, &bReal, &bImag, &cReal, &cImag, &rReal, &rImag, &x1Real, &x1Imag, &x2Real, &x2Imag, &ctxtReal75);
+#endif // OPTION_SQUARE_159
 
   realRoots &= realIsZero(&x1Imag) && realIsZero(&x2Imag);
 
@@ -106,53 +137,8 @@ void fnSlvq(uint16_t unusedButMandatoryParameter) {
   #else
     fnDropZ(0);
   #endif //DISCRIMINANT
-#endif // OPTION_SLVQ_SLVC
+#endif // !SAVE_SPACE_DM42_12
 }
-
-
-// a x^2 + b x + c = 0 at the precision the build selects: 159 digits under OPTION_SQUARE_159, 75 otherwise, results rounded to 39.
-#if defined(OPTION_SLVQ_SLVC)
-void solveQuadratic(const real_t *aReal, const real_t *aImag, const real_t *bReal, const real_t *bImag, const real_t *cReal, const real_t *cImag, real_t *rReal, real_t *rImag, real_t *x1Real, real_t *x1Imag, real_t *x2Real, real_t *x2Imag) {
-#if defined(OPTION_SQUARE_159)
-  realContext_t c = ctxtReal75;
-  c.digits = 159;
-  REAL_T_PTR(x1r, 159);
-  REAL_T_PTR(x1i, 159);
-  REAL_T_PTR(x2r, 159);
-  REAL_T_PTR(x2i, 159);
-  REAL_T_PTR(r0r, 159);
-  REAL_T_PTR(r0i, 159);
-  REAL_T_PTR(aRealH, 159);
-  REAL_T_PTR(aImagH, 159);
-  REAL_T_PTR(bRealH, 159);
-  REAL_T_PTR(bImagH, 159);
-  REAL_T_PTR(cRealH, 159);
-  REAL_T_PTR(cImagH, 159);
-
-  realPlus(aReal, aRealH, &c);
-  realPlus(aImag, aImagH, &c);
-  realPlus(bReal, bRealH, &c);
-  realPlus(bImag, bImagH, &c);
-  realPlus(cReal, cRealH, &c);
-  realPlus(cImag, cImagH, &c);
-  realSetZero(r0r);
-  realSetZero(r0i);
-  realSetZero(x1r);
-  realSetZero(x1i);
-  realSetZero(x2r);
-  realSetZero(x2i);
-  solveQuadraticEquation159(aRealH, aImagH, bRealH, bImagH, cRealH, cImagH, r0r, r0i, x1r, x1i, x2r, x2i, &c);
-  realPlus(r0r, rReal,  &ctxtReal39);
-  realPlus(r0i, rImag,  &ctxtReal39);
-  realPlus(x1r, x1Real, &ctxtReal39);
-  realPlus(x1i, x1Imag, &ctxtReal39);
-  realPlus(x2r, x2Real, &ctxtReal39);
-  realPlus(x2i, x2Imag, &ctxtReal39);
-#else // OPTION_SQUARE_159
-  solveQuadraticEquation(aReal, aImag, bReal, bImag, cReal, cImag, rReal, rImag, x1Real, x1Imag, x2Real, x2Imag, &ctxtReal75);
-#endif // OPTION_SQUARE_159
-}
-#endif // OPTION_SLVQ_SLVC
 
 
 void solveQuadraticEquation(const real_t *aReal, const real_t *aImag, const real_t *bReal, const real_t *bImag, const real_t *cReal, const real_t *cImag, real_t *rReal, real_t *rImag, real_t *x1Real, real_t *x1Imag, real_t *x2Real, real_t *x2Imag, realContext_t *realContext) {

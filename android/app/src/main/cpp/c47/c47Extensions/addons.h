@@ -20,12 +20,12 @@ void fn_cnst_op_a   (uint16_t unusedButMandatoryParameter);
 void fn_cnst_0_cpx  (uint16_t unusedButMandatoryParameter);
 void fn_cnst_1_cpx  (uint16_t unusedButMandatoryParameter);
 void fnJM_2SI       (uint16_t unusedButMandatoryParameter);
+void _fnAngularMode (calcRegister_t regist, uint16_t AMODE);
 void fnAngularModeJM(uint16_t unusedButMandatoryParameter);
 void fnDRG          (uint16_t unusedButMandatoryParameter);
 void fnChangeBaseJM (uint16_t unusedButMandatoryParameter);
 void fnChangeBaseMNU(uint16_t unusedButMandatoryParameter);
 void fnInDefault    (uint16_t inputDefault);
-void set_def_Input_Default(void);
 void fnMinute       (uint16_t unusedButMandatoryParameter);
 void fnSecond       (uint16_t unusedButMandatoryParameter);
 void fnHrDeg        (uint16_t unusedButMandatoryParameter);
@@ -53,6 +53,10 @@ void exponentToUnitDisplayString(int32_t exponent, bool_t flag2To10, char *displ
 
 
 
+void   doubleToXRegisterReal34  (double x);                 //Convert from double to X register REAL34
+double convert_to_double        (calcRegister_t regist);    //Convert from X register to double
+
+
 void   fnStrtoX                 (const char buffer[]);      //DONE
 void   fnStrtoReg               (const char buffer[], calcRegister_t regist);                            //DONE
 void   fnStrInputReal34         (char inp1[]);              // CONVERT STRING to REAL IN X      //DONE
@@ -69,6 +73,19 @@ void fnDisplayFormatCycle       (uint16_t unusedButMandatoryParameter);
 //JM To determine the menu number for a given menuId          //JMvv
 int16_t mm(int16_t id);
 //vv EXTRA DRAWINGS FOR RADIO_BUTTON AND CHECK_BOX
+void JM_LINE2(uint32_t xx, uint32_t yy);
+void rbColumnCcccccc(uint32_t xx, uint32_t yy);
+void rbColumnCcSssssCc(uint32_t xx, uint32_t yy);
+void rbColumnCcSssssssCc(uint32_t xx, uint32_t yy);
+void rbColumnCSssCccSssC(uint32_t xx, uint32_t yy);
+void rbColumnCSsCSssCSsC(uint32_t xx, uint32_t yy);
+void rbColumnCcSsNnnSsCc(uint32_t xx, uint32_t yy);
+void rbColumnCSsNnnnnSsC(uint32_t xx, uint32_t yy);
+void rbColumnCSNnnnnnnSC(uint32_t xx, uint32_t yy);
+void cbColumnCcccccccccc(uint32_t xx, uint32_t yy);
+void cbColumnCSssssssssC(uint32_t xx, uint32_t yy);
+void cbColumnCSsCccccSsC(uint32_t xx, uint32_t yy);
+void cbColumnCSNnnnnnnSC(uint32_t xx, uint32_t yy);
 void RB_CHECKED(uint32_t xx, uint32_t yy);
 void RB_UNCHECKED(uint32_t xx, uint32_t yy);
 void CB_CHECKED(uint32_t xx, uint32_t yy);

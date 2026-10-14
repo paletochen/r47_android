@@ -53,22 +53,14 @@ internal class StorageAccessCoordinator(
             showFirstRunDialog()
         } else {
             validateWorkDirectory()
-            if (hasWorkDirectory) {
-                WorkDirectory.ensureAllSubfolders(activity)
-            }
         }
     }
 
     fun requestNativeFile(isSave: Boolean, defaultName: String, fileType: Int) {
         try {
-            val treeUriString = WorkDirectory.readTreeUriString(activity)
-            if (treeUriString == null) {
-                showWorkDirectoryMissingSnackbar("Work Directory not set")
-            }
-
             val initialUri = WorkDirectory.resolveSubfolder(
                 contentResolver = activity.contentResolver,
-                treeUriString = treeUriString,
+                treeUriString = WorkDirectory.readTreeUriString(activity),
                 fileType = fileType,
             )
 
@@ -108,7 +100,6 @@ internal class StorageAccessCoordinator(
                 defaultName.endsWith(".s47") -> "application/octet-stream"
                 defaultName.endsWith(".p47") -> "application/octet-stream"
                 defaultName.endsWith(".sav") -> "application/octet-stream"
-                defaultName.endsWith(".d47") -> "application/octet-stream"
                 else -> "*/*"
             }
             putExtra(Intent.EXTRA_TITLE, defaultName)

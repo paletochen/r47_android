@@ -12,31 +12,6 @@ void fnXSWAP (uint16_t mode) {
   #define isEdit (mode > 0)
   #define isSwap (!isEdit)
 
-    if(programRunStop == PGM_RUNNING) {
-      // Programmed X.SWAP/X.EDIT: a running program has no editor buffer (the interactive branches below open or serve an editor), so operate on the stored
-      // current formula directly, whatever calcMode the program started from. X.SWAP returns the old formula text in X; X.EDIT drops it.
-      if(getRegisterDataType(REGISTER_X) != dtString) {
-        displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
-      }
-      else if(stringByteLength(REGISTER_STRING_DATA(REGISTER_X)) < AIM_BUFFER_LENGTH) {
-        if(numberOfFormulae == 0) {
-          fnEqNew(NOPARAM);
-        }
-        const char *oldFormula = TO_PCMEMPTR(allFormulae[currentFormula].pointerToFormulaData);
-        int16_t len = (oldFormula ? stringByteLength(oldFormula) : 0) + 1;
-        xcopy(tmpString, oldFormula ? oldFormula : "", len);
-        setEquation(currentFormula, REGISTER_STRING_DATA(REGISTER_X));
-        if(isSwap) {
-          reallocateRegister(REGISTER_X, dtString, TO_BLOCKS(len), amNone);
-          xcopy(REGISTER_STRING_DATA(REGISTER_X), tmpString, len);
-        }
-        else {
-          fnDrop(NOPARAM);
-        }
-      }
-      return;
-    }
-
     if(calcMode == CM_EIM || calcMode == CM_AIM) {
       if(calcMode==CM_AIM) {
         fnSwapXY(0);
@@ -121,10 +96,7 @@ void fnXSWAP (uint16_t mode) {
       }
     }
     else if(calcMode == CM_NORMAL && getRegisterDataType(REGISTER_X) != dtString) {
-      char *line1 = malloc(TMP_STR_LENGTH);   // off the stack: this branch runs inside fnXSWAP, whose frame was 2600 bytes of the DM42's stack grant
-      if(line1 == NULL) {
-        return;
-      }
+      char line1[TMP_STR_LENGTH];
       line1[0] = 0;
       strcpy(line1, " ");
       int16_t len = stringByteLength(line1);
@@ -134,7 +106,6 @@ void fnXSWAP (uint16_t mode) {
       liftStack();
       reallocateRegister(REGISTER_X, dtString, TO_BLOCKS(len), amNone);
       strcpy(REGISTER_STRING_DATA(REGISTER_X), line1);
-      free(line1);
       fnXSWAP(0);
     }
 

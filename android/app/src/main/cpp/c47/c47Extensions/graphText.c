@@ -549,23 +549,13 @@ void preventFilenameTimeout(void){
   /*-DMCP-*/
   /*-DMCP-*/
   /*-DMCP-*/  int16_t export_xy_to_file(float x, float y) {
-  /*-DMCP-*/    char *line = malloc(TMP_STR_LENGTH); // Line buffer, on the heap: this calls export_append_string_to_file, and the pair overran the DM42 stack grant
-  /*-DMCP-*/    char xs[24], ys[24];
-  /*-DMCP-*/    if(line == NULL) {
-  /*-DMCP-*/      return 1;
-  /*-DMCP-*/    }
+  /*-DMCP-*/    char line[TMP_STR_LENGTH]; // Line buffer
   /*-DMCP-*/    create_filename(".STAT.TSV");
-  /*-DMCP-*/    sci_fmt(xs, sizeof(xs), x);
-  /*-DMCP-*/    sci_fmt(ys, sizeof(ys), y);
-  /*-DMCP-*/    radixProcess(xs, xs); //radix mark setting, as REGS.TSV does
-  /*-DMCP-*/    radixProcess(ys, ys);
-  /*-DMCP-*/    sprintf(line, "%s%s%s%s", xs, CSV_TAB, ys, CSV_NEWLINE);
+  /*-DMCP-*/    sprintf(line, "%.16e%s%.16e%s", x, CSV_TAB, y, CSV_NEWLINE);
   /*-DMCP-*/    if(export_append_string_to_file(line, APPEND, filename_csv) != 0) {
   /*-DMCP-*/      //ERROR ALREADY ANNOUNCED
-  /*-DMCP-*/      free(line);
   /*-DMCP-*/      return 1;
   /*-DMCP-*/    }
-  /*-DMCP-*/    free(line);
   /*-DMCP-*/    return 0;
   /*-DMCP-*/  }
   /*-DMCP-*/
@@ -829,30 +819,13 @@ void preventFilenameTimeout(void){
   int16_t export_append_line(const char *inputstring) {
     FILE *outfile;
 
-    #if defined(ANDROID_BUILD)
-      #include <unistd.h>
-      #include <android/log.h>
-      extern int openDirectDocumentFd(int fileType, const char *fileName, const char *mode);
-      int directFd = openDirectDocumentFd(4 /* DATA */, filename_csv, "wa");
-      if(directFd < 0) {
-        __android_log_print(ANDROID_LOG_INFO, "R47Native", "export_append_line: openDirectDocumentFd returned %d for %s", directFd, filename_csv);
-        return 0;
-      }
-      outfile = fdopen(directFd, "a");
-      if(outfile == NULL) {
-        __android_log_print(ANDROID_LOG_ERROR, "R47Native", "export_append_line: fdopen failed for %s (directFd=%d)", filename_csv, directFd);
-        close(directFd);
-        return 1;
-      }
-    #else
-      //strcpy(dirfile, "PROGRAMS/C47_LOG.TXT");
-      outfile = fopen(filename_csv, "ab");
-      if(outfile == NULL) {
-        printf("Cannot open to append ID011: %s %s\n", filename_csv, inputstring);
-        fflush(stdout);
-        return 1;
-      }
-    #endif // ANDROID_BUILD
+    //strcpy(dirfile, "PROGRAMS/C47_LOG.TXT");
+    outfile = fopen(filename_csv, "ab");
+    if(outfile == NULL) {
+      printf("Cannot open to append ID011: %s %s\n", filename_csv, inputstring);
+      fflush(stdout);
+      return 1;
+    }
     int frr = 0;
     char line[200]; // Line buffer
     frr = fputs(inputstring, outfile);
@@ -900,13 +873,8 @@ void preventFilenameTimeout(void){
 
   int16_t export_xy_to_file(float x, float y) {
     char line[200]; // Line buffer
-    char xs[24], ys[24];
     create_filename(".STAT.TSV");
-    sci_fmt(xs, sizeof(xs), x);
-    sci_fmt(ys, sizeof(ys), y);
-    radixProcess(xs, xs); //radix mark setting, as REGS.TSV does
-    radixProcess(ys, ys);
-    sprintf(line, "%s%s%s%s", xs, CSV_TAB, ys, CSV_NEWLINE);
+    sprintf(line, "%.16e%s%.16e%s", x, CSV_TAB, y, CSV_NEWLINE);
     export_append_line(line);
     return 0;
   }
@@ -1039,14 +1007,10 @@ void print_inlinestr(const char *line1, bool_t endline) {  //prints with or with
 
 
 void print_Register_line(calcRegister_t regist, char *before, char *after, bool_t line_init) {
-  char *str = malloc(TMP_STR_LENGTH);              // off the stack: this calls copyRegisterToClipboardString, which holds another CLIPSTR buffer
-  if(str == NULL) {
-    return;
-  }
+  char str[TMP_STR_LENGTH];
 
   copyRegisterToClipboardString2(regist, str);
   addStrBothSides(str, before, after);
 
   print_numberstr(str, line_init);
-  free(str);
 }

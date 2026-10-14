@@ -8,8 +8,6 @@
   #define MANAGE_H
 
   uint32_t _getProgramSize                     (void);
-  uint8_t boundProgramNameLength               (const uint8_t *nameStart, uint8_t claimedLength);
-  bool_t programMemoryHasOverlongLabelName     (uint8_t *step);
   void scanLabelsAndPrograms                   (void);
   void defineCurrentProgramFromGlobalStepNumber(int16_t globalStepNumber);
   void defineCurrentProgramFromCurrentStep     (void);
@@ -28,9 +26,8 @@
   void insertUserItemInProgram                 (int16_t func, char *funcParam);
   void addStepInProgram                        (int16_t func);
 
-  calcRegister_t findNamedLabel                (const char *labelName, uint8_t labelType);
-  calcRegister_t findNamedLabelWithDuplicate   (const char *labelName, int16_t dupNum, uint8_t labelType);
-  calcRegister_t findProgramLabel              (uint16_t label, const char *caller);
+  calcRegister_t findNamedLabel                (const char *labelName);
+  calcRegister_t findNamedLabelWithDuplicate   (const char *labelName, int16_t dupNum);
   uint16_t       getNumberOfSteps              (void);
 
   bool_t         isAtEndOfPrograms             (const uint8_t *step); // check for .END.

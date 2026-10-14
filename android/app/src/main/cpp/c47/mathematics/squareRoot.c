@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WP43 and C47 Authors
 
 /********************************************//**
- * \file squareRoot.c
+ * \file sqrt.c
  ***********************************************/
 
 #include "c47.h"
@@ -26,73 +26,6 @@ static void sqrtShoI(void) {
 
 
 
-/********************************************//**
- * \brief The exact square root of x rounded once by RM to 34 digits
- *
- * r is the square root decNumber rounds correctly at 39 digits, so the rounding by RM of r to 34 digits is the answer or one of its two 34-digit neighbours.
- * Exact squares at 75 digits decide which: a 34-digit square has 68 digits, a midpoint's square 70. A midpoint's square ends in 25 and has more than 34 digits,
- * so it is never x and no tie is reached.
- *
- * \param[in]     x const real_t* a positive real of 34 digits, or a long integer of at most 75 digits that is not a square
- * \param[in,out] r real_t*       the root at 39 digits, replaced by the root at 34 digits
- * \return void
- ***********************************************/
-static void sqrtRoundedOnce(const real_t *x, real_t *r) {
-  real34_t c34, lo34, hi34;
-  real_t c, lo, hi, sq;
-
-  realToReal34(r, &c34);                                                        // by RM
-  real34NextMinus(&c34, &lo34);
-  real34NextPlus(&c34, &hi34);
-  real34ToReal(&c34, &c);
-  real34ToReal(&lo34, &lo);
-  real34ToReal(&hi34, &hi);
-
-  if(roundingMode == RM_DOWN || roundingMode == RM_FLOOR) {                     // the largest c with c² <= x
-    realMultiply(&c, &c, &sq, &ctxtReal75);
-    if(realCompareGreaterThan(&sq, x)) {
-      realCopy(&lo, &c);
-    }
-    else {
-      realMultiply(&hi, &hi, &sq, &ctxtReal75);
-      if(!realCompareGreaterThan(&sq, x)) {
-        realCopy(&hi, &c);
-      }
-    }
-  }
-  else if(roundingMode == RM_UP || roundingMode == RM_CEIL) {                   // the smallest c with c² >= x
-    realMultiply(&c, &c, &sq, &ctxtReal75);
-    if(realCompareLessThan(&sq, x)) {
-      realCopy(&hi, &c);
-    }
-    else {
-      realMultiply(&lo, &lo, &sq, &ctxtReal75);
-      if(!realCompareLessThan(&sq, x)) {
-        realCopy(&lo, &c);
-      }
-    }
-  }
-  else {                                                                        // the neighbour nearest the root, on the side of its midpoint
-    realAdd(&lo, &c, &sq, &ctxtReal75);
-    realMultiply(&sq, const_1on2, &sq, &ctxtReal75);
-    realMultiply(&sq, &sq, &sq, &ctxtReal75);
-    if(realCompareGreaterThan(&sq, x)) {
-      realCopy(&lo, &c);
-    }
-    else {
-      realAdd(&c, &hi, &sq, &ctxtReal75);
-      realMultiply(&sq, const_1on2, &sq, &ctxtReal75);
-      realMultiply(&sq, &sq, &sq, &ctxtReal75);
-      if(realCompareLessThan(&sq, x)) {
-        realCopy(&hi, &c);
-      }
-    }
-  }
-  realCopy(&c, r);
-}
-
-
-
 static void sqrtReal(void) {
   real_t a;
 
@@ -101,20 +34,15 @@ static void sqrtReal(void) {
   }
 
   if(realIsInfinite(&a) && !getSystemFlag(FLAG_SPCRES)) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      moreInfoOnError("In function sqrtReal:", "cannot use " STD_PLUS_MINUS STD_INFINITY " as X input of sqrt when flag SPCRES is not set", NULL, NULL);
+      moreInfoOnError("In function sqrtReal:", "cannot use " STD_PLUS_MINUS STD_INFINITY " as X input of sqrt when flag D is not set", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
     return;
   }
 
-  if(realIsPositive(&a) || realIsZero(&a)) {                                    // a zero of either sign is the real 0
-    real_t x;
-    realCopy(&a, &x);
+  if(realIsPositive(&a)) {
     realSquareRoot(&a, &a, &ctxtReal39);
-    if(!realIsZero(&a) && !realIsSpecial(&a)) {
-      sqrtRoundedOnce(&x, &a);
-    }
     convertRealToResultRegister(&a, REGISTER_X, amNone);
   }
   else if(getFlag(FLAG_CPXRES)) {
@@ -123,7 +51,7 @@ static void sqrtReal(void) {
     convertComplexToResultRegister(const_0, &a, REGISTER_X);
   }
   else {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, STD_SQUARE_ROOT STD_x_UNDER_ROOT " doesn't work on a negative real when flag I is not set!");
       moreInfoOnError("In function sqrtReal:", errorMessage, NULL, NULL);
@@ -147,18 +75,6 @@ void rootLonI(int32_t n) {
     mpz_rootrem(root, rem, lgInt, n); // square root
     if(longIntegerIsZero(rem)) {
       convertLongIntegerToLongIntegerRegister(root, REGISTER_X);
-      longIntegerFree(rem);
-      longIntegerFree(root);
-      goto end;
-    }
-    if(n == 2 && longIntegerBase10Digits(lgInt) > 75) {   // the root has 38 digits or more and is not an integer: 10·⌊√x⌋ + 5 rounds by RM to the digits √x rounds to
-      real_t a;
-
-      longIntegerMultiplyUInt(root, 10, root);
-      longIntegerAddUInt(root, 5, root);
-      convertLongIntegerToReal(root, &a, &ctxtReal34);
-      realDivide(&a, const_10, &a, &ctxtReal34);
-      convertRealToResultRegister(&a, REGISTER_X, amNone);
       longIntegerFree(rem);
       longIntegerFree(root);
       goto end;
@@ -351,11 +267,7 @@ void fnSquareRoot(uint16_t unusedButMandatoryParameter) {
   const uint32_t type = getRegisterDataType(REGISTER_X);
 
   if(type == dtReal34Matrix || type == dtComplex34Matrix) {
-#if defined(OPTION_EIGEN)
     fnMatrixSquareRoot(NOPARAM);
-#else
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
-#endif // OPTION_EIGEN
   }
   else {
     processIntRealComplexMonadicFunction(&sqrtReal, &sqrtCplx, &sqrtShoI, &sqrtLonI);

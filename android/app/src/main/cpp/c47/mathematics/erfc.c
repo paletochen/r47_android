@@ -7,8 +7,6 @@
 
 #include "c47.h"
 
-// erfc is computed from the normal CDF in normal.c, so it goes with OPTION_DIST_NORMAL
-#if defined(OPTION_DIST_NORMAL)
 static void erfcReal(void) {
   real_t x;
 
@@ -19,7 +17,6 @@ static void erfcReal(void) {
   WP34S_Erfc(&x, &x, &ctxtReal39);
   convertRealToResultRegister(&x, REGISTER_X, amNone);
 }
-#endif // OPTION_DIST_NORMAL
 
 /********************************************//**
  * \brief regX ==> regL and erfc(regX) ==> regX
@@ -29,7 +26,5 @@ static void erfcReal(void) {
  * \return void
  ***********************************************/
 void fnErfc(uint16_t unusedButMandatoryParameter) {
-#if defined(OPTION_DIST_NORMAL)
   processRealComplexMonadicFunction(&erfcReal, NULL);
-#endif // OPTION_DIST_NORMAL
 }

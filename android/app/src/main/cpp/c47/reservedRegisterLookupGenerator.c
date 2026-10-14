@@ -41,7 +41,7 @@ struct {
   {1, 'U',  0,   0,   0,   0,   0},
   {1, 'V',  0,   0,   0,   0,   0},
   {1, 'W',  0,   0,   0,   0,   0},
-#endif // 0
+#endif
   {{3, 'A', 'C', 'C',  0,   0,   0 }, "RESERVED_VARIABLE_ACC" },
   {{5, 161, 145, 'L', 'i', 'm',  0 }, "RESERVED_VARIABLE_ULIM" },
   {{5, 161, 147, 'L', 'i', 'm',  0 }, "RESERVED_VARIABLE_LLIM" },
@@ -51,7 +51,7 @@ struct {
   {{6, 'P', 'P', 'E', 'R', '/', 'a'}, "RESERVED_VARIABLE_PPERONA" },
   {{3, 'P', 'M', 'T',  0,   0,   0 }, "RESERVED_VARIABLE_PMT" },
   {{2, 'P', 'V',  0,   0,   0,   0 }, "RESERVED_VARIABLE_PV" },
-  {{2, 'i', '%',  0,   0,   0,   0 }, "RESERVED_VARIABLE_IP" },
+  {{6, 'G', 'R', 'A', 'M', 'O', 'D'}, "RESERVED_VARIABLE_GRAMOD" },
   {{3, 161, 145, 'X',  0,   0,   0 }, "RESERVED_VARIABLE_UX" },
   {{3, 161, 147, 'X',  0,   0,   0 }, "RESERVED_VARIABLE_LX" },
   {{6, 'C', 'P', 'E', 'R', '/', 'a'}, "RESERVED_VARIABLE_CPERONA" },

@@ -4,9 +4,10 @@
 #include "c47.h"
 
 
-#if defined(OPTION_IR_PRINTING)
+#if defined(IR_PRINTING)
 
   #define RETURN_IF_PRINT_OFF do { if(!getSystemFlag(FLAG_PRTACT)) { return; } } while(0)
+  #define BREAK_IF_EXIT       do { if(key_pop() == KEY_EXIT)       { break;  } } while(0)
 
   //
   // Alias table for instruction names to get nice prints
@@ -48,13 +49,13 @@
   /* 0x01, */ 0x0000, // #UNDEFINED
   /* 0x02, */ 0x0000, // #UNDEFINED
   /* 0x03, */ 0x0000, // #UNDEFINED
-  /* 0x04, */ 0x2404, // #CARRIAGE RIGHT
+  /* 0x04, */ 0x0004, // #PRINT LINE AND LEAVE PRINT HEAD AT RIGHT
   /* 0x05, */ 0x0000, // #UNDEFINED
   /* 0x06, */ 0x0000, // #UNDEFINED
   /* 0x07, */ 0x0000, // #UNDEFINED
   /* 0x08, */ 0x0000, // #UNDEFINED
   /* 0x09, */ 0x0000, // #UNDEFINED
-  /* 0x0A, */ 0x240A, // #LINE FEED
+  /* 0x0A, */ 0x000A, // #LINE FEED
   /* 0x0B, */ 0x0000, // #UNDEFINED
   /* 0x0C, */ 0x0000, // #UNDEFINED
   /* 0x0D, */ 0x0000, // #UNDEFINED
@@ -72,7 +73,7 @@
   /* 0x18, */ 0x0000, // #UNDEFINED
   /* 0x19, */ 0x0000, // #UNDEFINED
   /* 0x1A, */ 0x0000, // #UNDEFINED
-  /* 0x1B, */ 0x0000, // #ESCAPE
+  /* 0x1B, */ 0x001B, // #ESCAPE
   /* 0x1C, */ 0x0000, // #UNDEFINED
   /* 0x1D, */ 0x0000, // #UNDEFINED
   /* 0x1E, */ 0x0000, // #UNDEFINED
@@ -186,7 +187,7 @@
   /* 0x83, */ 0x221A, // #SQUARE ROOT
   /* 0x84, */ 0x222B, // #INTEGRAL
   /* 0x85, */ 0x2211, // #N-ARY SUMMATION
-  /* 0x86, */ 0x25B8, // #BLACK RIGHT-POINTING SMALL TRIANGLE                *
+  /* 0x86, */ 0x25B6, // #BLACK RIGHT-POINTING TRIANGLE                *
   /* 0x87, */ 0x03C0, // #GREEK SMALL LETTER PI
   /* 0x88, */ 0x2202, // #PARTIAL DIFFERENTIAL
   /* 0x89, */ 0x2264, // #LESS-THAN OR EQUAL TO
@@ -197,7 +198,7 @@
   /* 0x8E, */ 0x2190, // #LEFTWARDS ARROW
   /* 0x8F, */ 0x03BC, // #GREEK SMALL LETTER MU
 
-  /* 0x90, */ 0x240A, // #SYMBOL FOR LINE FEED
+  /* 0x90, */ 0x21B5, // #DOWNWARDS ARROW WITH CORNER LEFTWARDS
   /* 0x91, */ 0x00B0, // #DEGREE SIGN
   /* 0x92, */ 0x00AB, // #LEFT-POINTING DOUBLE ANGLE QUOTATION MARK
   /* 0x93, */ 0x00BB, // #RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK
@@ -320,14 +321,7 @@
 
   uint8_t charMap(uint16_t charCode) {
     uint8_t i;
-    if(lastFunc == ITM_PRINTERALPHA) {  // map the control character symbols only for pr_alpha, otherwise print the symbol
-      for(i=0; i<32; i++) {     // map characters below 0x20
-        if(hp82240CharMap[i] == (charCode & ~0x8000)) {
-          return (i);
-        }
-      }
-    }
-    for(i=128; i<255; i++) {  // map characters above 0x80
+    for(i=128; i<255; i++) {
       if(hp82240CharMap[i] == (charCode & ~0x8000)) {
         return (i);
       }
@@ -394,13 +388,7 @@
   }
 
 
-  static bool_t printExitPressed = false;   // EXIT taken at a line advance
-
   static bool_t _exitKeyPressed() {
-    if(printExitPressed) {
-      printExitPressed = false;
-      return true;
-    }
     #if defined(DMCP_BUILD)
       int key = C47PopKeyNoBuffer(!DISPLAY_WAIT_FOR_RELEASE) + 1;
       if(key == 36 || key == 33 ) {  // R/S or EXIT
@@ -422,10 +410,59 @@
   static void setPrinterSBI(bool_t status) {
     printerIconEnabled = status;
     setSystemFlagChanged(SETTING_PRINTERICON);
-    printerIconRefresh = true;   // the GTK simulator does not wait for a painted frame for the print annunciator, which changes twice per printed line
     refreshStatusBar();
-    printerIconRefresh = false;
   }
+
+unsigned int charlengths(unsigned int c) {
+  static const unsigned char widths[171] = {
+    162, 143, 210, 208, 215, 179, 100, 209, 130, 167, 178, 199,
+    215,  85, 107, 123, 160, 172, 172,  88, 178, 177, 208, 208,
+    166, 208, 179, 173, 209, 215, 130, 165, 170, 172, 172, 165,
+    177, 172, 172, 214, 171, 117, 131, 209, 143, 215, 131, 178,
+    215, 213, 143, 201, 213, 179, 172, 214, 170, 172, 215, 209,
+    215,  95, 129, 129, 172, 172, 172, 172, 129, 207, 215, 136,
+    172, 208, 173, 172, 172, 172, 136, 129, 172, 172, 166, 172,
+    172, 112, 135, 147, 129, 171, 130, 129, 176, 131, 141, 208,
+    115, 143,  82, 140,  50,  93, 129, 129,  57, 128, 165, 129,
+    129,  57, 135, 137, 171, 129, 135,  93, 123, 123, 129, 129,
+     87, 195, 129, 129, 129, 131,  57, 135, 141, 172, 171, 131,
+    207, 165, 202, 177,  93, 167, 178, 135, 165, 124, 129, 177,
+    136, 142, 143,  86, 129, 129, 129, 129, 129,  87, 165, 129,
+    129, 129, 129, 129, 129, 129, 129, 129, 123, 129, 129, 129,
+    129, 129,  21
+  };
+  static const unsigned char divs[3] = { 1, 6, 36 };
+  return (widths[c/3] / divs[c%3]) % 6 + 1;
+}
+
+void findlengths(unsigned short int posns[257], int smallp) {
+  const int mask = smallp ? 256 : 0;
+  int i;
+
+  posns[0] = 0;
+  for(i=0; i<256; i++) {
+    posns[i+1] = posns[i] + charlengths(i + mask) - 1;
+  }
+}
+
+
+/* Determine the pixel length of the string if it were displayed
+*/
+int pixel_length(const char *s, int smallp) {
+  int len = 0;
+  const int offset = smallp ? 256 : 0;
+  while(*s != '\0') {
+    #if defined(INCLUDE_FONT_ESCAPE)
+    if(s[0] == '\007') {
+      len += s[1] & 0x1F;
+      s += 3;
+      continue;
+    }
+    #endif // INCLUDE_FONT_ESCAPE
+    len += charlengths((unsigned char)*s++ + offset);
+  }
+  return len;
+}
 
 
 void prepareNewLine(void) {
@@ -442,7 +479,7 @@ void prepareNewLine(void) {
   }
   setSystemFlag(FLAG_PRTACT);
   //finish_PRT();
-#endif // DMCP_BUILD
+#endif // !DMCP_BUILD
 }
 
 
@@ -450,7 +487,7 @@ void prepareNewLine(void) {
  *  Print to IR
  */
 void printIR(uint8_t c) { // prints a single character
-  const printModes_t mode = printerState.print_mode;
+  const print_modes_t mode = printerState.print_mode;
 
   if(c == '\n' && (mode == PMODE_GRAPHICS || mode == PMODE_SMALLGRAPHICS)) {
     // better LF for graphics printing
@@ -479,9 +516,6 @@ void printAdvance(uint8_t nlMode) {
     printIR(nlMode ? 0x04 : '\n');
   }
   prepareNewLine();
-  if(_exitKeyPressed()) {   // once per paper line
-    printExitPressed = true;
-  }
 }
 
 
@@ -671,6 +705,31 @@ void printGlyph24(uint16_t charCode, const font_t *font) {
   printerColumn += 14;
 }
 
+/*
+//
+//  Determine the length of a string in printer pixels based on the current mode.
+//
+static int buffer_width(const char *buff) {
+  const int mode = printerState.print_mode;
+  unsigned int c;
+  int l = 0;
+
+  while((c = 0xff & *buff++) != '\0') {
+    switch(mode) {
+    default:
+      l += 7;
+      break;
+
+    case PMODE_SMALLGRAPHICS:
+      c += 256;
+    case PMODE_GRAPHICS:
+      l += charlengths(c);
+      break;
+    }
+  }
+  return l;
+}
+*/
 
 
 //
@@ -689,16 +748,7 @@ static void wrap(int width) {
 //
 //  Print a complete line using character set translation
 //
-#if defined(ANDROID_BUILD)
-extern void printPrettyLine(const char *str);
-#endif
-
 void printLine(const char *buff, int with_lf) {
-  #if defined(ANDROID_BUILD)
-  if(with_lf) {
-    printPrettyLine(buff);
-  }
-  #endif
   const int mode = printerState.print_mode;
   uint8_t c;
   //unsigned short int posns[257];
@@ -710,13 +760,9 @@ void printLine(const char *buff, int with_lf) {
 
   // Show Print SBI
   setPrinterSBI(true);
-  printExitPressed = false;   // an abort raised by the previous line has been reported by then; this line starts clean
 
   // Print line
   while((c = *((const unsigned char *)buff++)) != '\0') {
-    if(printExitPressed) {    // EXIT at the last advance: stop before the next glyph
-      break;
-    }
     w= 0;
     switch(mode) {
       case PMODE_DEFAULT:      // Mixed character and graphic printing
@@ -766,8 +812,9 @@ void printLine(const char *buff, int with_lf) {
 //  Print buffer right justified
 //
 void printJustified(const char *buff) {
-  //printModes_t pmode = printerState.print_mode;
-  uint16_t len = stringGlyphLength(buff) * 7 - 1;
+  print_modes_t pmode = printerState.print_mode;
+  uint16_t len = pmode == PMODE_DEFAULT ? stringGlyphLength(buff) * 7 - 1
+                                        : pixel_length(buff, pmode == PMODE_SMALLGRAPHICS);
   uint16_t paperWidth = PAPER_WIDTH;
 
   if(len >= paperWidth - printerColumn) {
@@ -783,8 +830,9 @@ void printJustified(const char *buff) {
 //  Print buffer justified on the left half of the paper line
 //
 void printJustifiedLeft(const char *buff) {
-  //printModes_t pmode = printerState.print_mode;
-  uint16_t len = stringGlyphLength(buff) * 7 - 1;
+  print_modes_t pmode = printerState.print_mode;
+  uint16_t len = pmode == PMODE_DEFAULT ? stringGlyphLength(buff) * 7 - 1
+                                        : pixel_length(buff, pmode == PMODE_SMALLGRAPHICS);
   uint16_t paperWidth = (PAPER_WIDTH / 2) - 7;
 
   if(len >= paperWidth - printerColumn) {
@@ -986,52 +1034,9 @@ static void _complex34ToPrintString(real34_t *registReal34, real34_t *registImag
 }
 
 //
-//  Pad the value already built in tmpString and send it to the paper
-//
-
-static void _printTmpString(const char *label, printArea_t where) {
-  if(label == NULL && (where == LINE_FULL || (where == LINE_NOLF))) {     // Padding for PRX
-    uint16_t i, padding;
-    uint16_t glen = stringGlyphLength(tmpString);
-    if((where == LINE_NOLF) && (glen < 17)) {
-      padding = 17 - glen;
-      printTab(padding * 7 - 1);
-    }
-
-    if(glen > 17) {
-      glen = glen % 24;
-      padding = (glen <= 17 ? 17 - glen : 24 - (glen - 17));
-      for(i=0; i < padding; i++) {
-        strcat(tmpString, " ");  // pad string to ensure "***" will be right aligned
-      }
-    }
-
-    if(where == LINE_FULL) {
-      strcpy(tmpString + strlen(tmpString), "    ***");   // End line with "    ***" as on the HP-41 and 42
-    }
-  }
-
-  switch(where) {
-    case LINE_FULL:
-    case LINE_RIGHT:
-      printJustified(tmpString);
-      break;
-    case LINE_LEFT:
-      printJustifiedLeft(tmpString);
-      break;
-    case LINE_NOLF:
-    case LINE_ASIS:
-      printLine(tmpString, 0);
-      break;
-    default:
-      printJustified(tmpString);
-  }
-}
-
-//
 //  Print a single register
 //
-void printReg(uint16_t regist, const char *label, bool_t eq, printArea_t where, bool prSigma) {
+void printReg(uint16_t regist, const char *label, bool_t eq, print_area_t where, bool prSigma) {
   uint16_t tagAngle;
   uint16_t tagPolar;
   real34_t *real34;
@@ -1160,7 +1165,42 @@ void printReg(uint16_t regist, const char *label, bool_t eq, printArea_t where, 
       break;
   }
 
-  _printTmpString(label, where);
+  if(label == NULL && (where == LINE_FULL || (where == LINE_NOLF))) {     // Padding for PRX
+    uint16_t i, padding;
+    uint16_t glen = stringGlyphLength(tmpString);
+    if((where == LINE_NOLF) && (glen < 17)) {
+      padding = 17 - glen;
+      printTab(padding * 7 - 1);
+    }
+
+    if(glen > 17) {
+      glen = glen % 24;
+      padding = (glen <= 17 ? 17 - glen : 24 - (glen - 17));
+      for(i=0; i < padding; i++) {
+        strcat(tmpString, " ");  // pad string to ensure "***" will be right aligned
+      }
+    }
+
+    if(where == LINE_FULL) {
+      strcpy(tmpString + strlen(tmpString), "    ***");   // End line with "    ***" as on the HP-41 and 42
+    }
+  }
+
+  switch(where) {
+    case LINE_FULL:
+    case LINE_RIGHT:
+      printJustified(tmpString);
+      break;
+    case LINE_LEFT:
+      printJustifiedLeft(tmpString);
+      break;
+    case LINE_NOLF:
+    case LINE_ASIS:
+      printLine(tmpString, 0);
+      break;
+    default:
+      printJustified(tmpString);
+  }
 }
 
 
@@ -1197,7 +1237,7 @@ void cmdPrint(uint16_t arg, printArgument_t op) {
 
   if(!getSystemFlag(FLAG_PRTACT)) {
     if(getSystemFlag(FLAG_PRTEN) || ((programRunStop != PGM_RUNNING) && (programRunStop != PGM_SINGLE_STEP))) {
-      displayCalcErrorMessage(ERROR_PRINTING_DISABLED, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_PRINTING_DISABLED, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
       #if defined(PC_BUILD)
         sprintf(errorMessage, "Printing is disabled");
         moreInfoOnError("In function cmdPrint:", errorMessage, NULL, NULL);
@@ -1256,7 +1296,7 @@ uint8_t reverse(uint8_t b) {
 }
 
 //
-//  Print LCD screen on Martel printers
+//  Print LCD screen
 //
 void printLcd(void) {
   int32_t x, y;
@@ -1265,7 +1305,9 @@ void printLcd(void) {
   int16_t i;
   int32_t offset;
 
+  //setPrintMode(0x01);  // 48 chars/line
   sendByteIR('\n');
+  //for(x=0; x<SCREEN_WIDTH/8; x++) {
   for(x=16; x>=0; x--) {
     //New graphic line
     printerColumn = 0;
@@ -1307,9 +1349,7 @@ void printLcd(void) {
     sendByteIR(0xff);
     sendByteIR((x == 0 ? 0xf1 : 0xff));
     sendByteIR('\n');
-    if(_exitKeyPressed()) {
-      break;
-    }
+    //print_lf();
   }
 
   setPrintMode(0x00);  // Default 24 chars/line
@@ -1493,7 +1533,7 @@ void _getRegisterLabel(uint16_t registerNo, char *label) {
     sprintf(label, "R%02d", registerNo);
   }
   else if(FIRST_LOCAL_REGISTER <= registerNo && registerNo <= LAST_LOCAL_REGISTER) {
-    sprintf(label, "R.%02d", registerNo - FIRST_LOCAL_REGISTER);
+    sprintf(label, "R.%03d", registerNo-100);
   }
   else if(FIRST_NAMED_VARIABLE <= registerNo && registerNo <= LAST_NAMED_VARIABLE) {
     sprintf(label, "%s", (char *)allNamedVariables[registerNo - FIRST_NAMED_VARIABLE].variableName + 1);
@@ -1667,9 +1707,8 @@ void printTrace(int16_t func, uint16_t param) {
             else if((param >= FIRST_LABEL) && (param <= LAST_LABEL)) { // Alpha labels
               strcat(tmpString, " " STD_LEFT_SINGLE_QUOTE);
               uint16_t strLength = stringByteLength(tmpString);
-              uint8_t lblNameLen = boundProgramNameLength(labelList[param - FIRST_LABEL].labelPointer + 1, *(labelList[param - FIRST_LABEL].labelPointer));
-              xcopy(tmpString + strLength, labelList[param - FIRST_LABEL].labelPointer + 1, lblNameLen);
-              tmpString[strLength + lblNameLen] = 0;
+              xcopy(tmpString + strLength, labelList[param - FIRST_LABEL].labelPointer + 1, *(labelList[param - FIRST_LABEL].labelPointer));
+              tmpString[strLength + *(labelList[param - FIRST_LABEL].labelPointer)] = 0;
               strcat(tmpString, STD_RIGHT_SINGLE_QUOTE);
             }
           }
@@ -1750,7 +1789,7 @@ void printTrace(int16_t func, uint16_t param) {
       if(func == ITM_LBL) {
         printAdvance(0); // Skip one line before printing the label
         sprintf(traceBuffer, " %02d", currentLocalStepNumber);
-        strcat(traceBuffer, STD_BLACK_RIGHTSMALLTRIANGLE);
+        strcat(traceBuffer, STD_BLACK_RIGHT_TRIANGLE);
         strcat(traceBuffer, tmpString);
         printJustified(traceBuffer);     // Current step & step number
         #if defined(PC_BUILD) && defined(MONITOR_IRPRINT)
@@ -1858,7 +1897,7 @@ void printProgram(bool_t list, uint16_t lines) {
         }
         printAdvance(0); // Skip one line before printing the label
         sprintf(tmpString, " %02d" , firstDisplayedLocalStepNumber + line - lineOffset + lineOffsetTam);
-        strcat(tmpString, STD_BLACK_RIGHTSMALLTRIANGLE);
+        strcat(tmpString, STD_BLACK_RIGHT_TRIANGLE);
         printLine(tmpString, 0);
       }
       else if(!startOfLine) {
@@ -1872,7 +1911,7 @@ void printProgram(bool_t list, uint16_t lines) {
     }
     else {
       sprintf(tmpString, "%02d" , firstDisplayedLocalStepNumber + line - lineOffset + lineOffsetTam);
-      strcat(tmpString, (isLabel ? STD_BLACK_RIGHTSMALLTRIANGLE : " "));
+      strcat(tmpString, (isLabel ? STD_BLACK_RIGHT_TRIANGLE : " "));
       printLine(tmpString, 0);
     }
 
@@ -1921,7 +1960,7 @@ static uint16_t _getUnicodeValue(calcRegister_t regist) {
 
     int32ToReal34(0x8000, &maxValue34);
     if(real34CompareLessThan(REGISTER_REAL34_DATA(regist), const34_0) || real34CompareLessEqual(&maxValue34, REGISTER_REAL34_DATA(regist))) {
-      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
       #if defined(PC_BUILD)
         real34ToString(REGISTER_REAL34_DATA(regist), errorMessage);
         sprintf(tmpString, "x %" PRId16 " = %s:", regist, errorMessage);
@@ -1937,7 +1976,7 @@ static uint16_t _getUnicodeValue(calcRegister_t regist) {
 
     convertLongIntegerRegisterToLongInteger(regist, lgInt);
     if(longIntegerCompareUInt(lgInt, 0) < 0 || longIntegerCompareUInt(lgInt, 0x8000) >= 0) {
-      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
       #if defined(PC_BUILD)
         longIntegerToAllocatedString(lgInt, errorMessage, ERROR_MESSAGE_LENGTH);
         sprintf(tmpString, "register %" PRId16 " = %s:", regist, errorMessage);
@@ -1953,13 +1992,14 @@ static uint16_t _getUnicodeValue(calcRegister_t regist) {
   else if(getRegisterDataType(regist) == dtShortInteger) {
     longInteger_t lgInt;
 
-    convertShortIntegerRegisterToLongInteger(regist, lgInt); // initialises lgInt
+    longIntegerInit(lgInt);
+    convertShortIntegerRegisterToLongInteger(regist, lgInt);
     longIntegerToUInt32(lgInt, value);
     longIntegerFree(lgInt);
   }
 
   else {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
     #if defined(PC_BUILD)
       sprintf(errorMessage, "register %" PRId16 " is %s:", regist, getRegisterDataTypeName(regist, true, false));
       moreInfoOnError("In function _getPositionFromRegister:", errorMessage, "not suited for addressing!", NULL);
@@ -1969,7 +2009,7 @@ static uint16_t _getUnicodeValue(calcRegister_t regist) {
 
   return value;
 }
-#endif // OPTION_IR_PRINTING
+#endif // IR_PRINTING
 
 
 //********************************************************
@@ -1978,7 +2018,7 @@ static uint16_t _getUnicodeValue(calcRegister_t regist) {
 
 // Printer On/Off
 void fnP_PrinterOnOff(uint16_t op) {
-  //#if defined(OPTION_IR_PRINTING)
+  //#if defined(IR_PRINTING)
     if(op == PRON) {
       printerState.print_on = true;
       setSystemFlag(FLAG_PRTACT);
@@ -1989,12 +2029,12 @@ void fnP_PrinterOnOff(uint16_t op) {
       clearSystemFlag(FLAG_PRTACT);
       fnClearFlag(FLAG_PRTEN);
     }
-  //#endif //OPTION_IR_PRINTING
+  //#endif //IR_PRINTING
 }
 
 // Printer Mode
 void fnP_PrinterMode(uint16_t mode) {
-  //#if defined(OPTION_IR_PRINTING)
+  //#if defined(IR_PRINTING)
     if(mode == MAN) {
       fnClearFlag(FLAG_NORM);
       fnClearFlag(FLAG_TRACE);
@@ -2011,19 +2051,19 @@ void fnP_PrinterMode(uint16_t mode) {
       fnSetFlag(FLAG_NORM);
       fnSetFlag(FLAG_TRACE);
     }
-  //#endif //OPTION_IR_PRINTING
+  //#endif //IR_PRINTING
 }
 
 // Printer model selection
 void fnSetPrinter(uint16_t model) {
-  //#if defined(OPTION_IR_PRINTING)
+  //#if defined(IR_PRINTING)
     printerState.printer_model = model;
-  //#endif //OPTION_IR_PRINTING
+  //#endif //IR_PRINTING
 }
 
 // Get printer line delay
 void fnP_GetDelay(uint16_t unusedButMandatoryParameter) {
-  #if defined(OPTION_IR_PRINTING)
+  #if defined(IR_PRINTING)
     longInteger_t delay;
 
     liftStack();
@@ -2032,73 +2072,73 @@ void fnP_GetDelay(uint16_t unusedButMandatoryParameter) {
     int32ToLongInteger(getLineDelay(), delay);
     convertLongIntegerToLongIntegerRegister(delay, REGISTER_X);
     longIntegerFree(delay);
-  #endif //OPTION_IR_PRINTING
+  #endif //IR_PRINTING
 }
 
 // Set printer line delay
 void fnP_SetDelay(uint16_t delay) {
-  #if defined(OPTION_IR_PRINTING)
+  #if defined(IR_PRINTING)
     printerState.delay = delay;
     setLineDelay(delay);
-  #endif //OPTION_IR_PRINTING
+  #endif //IR_PRINTING
 }
 
 // Printer paper advance
 void fnP_Advance(uint16_t unusedButMandatoryParameter) {
-  #if defined(OPTION_IR_PRINTING)  // Show Print SBI
+  #if defined(IR_PRINTING)  // Show Print SBI
     setPrinterSBI(true);
     print_lf();
     setPrinterSBI(false);
-  #endif //OPTION_IR_PRINTING
+  #endif //IR_PRINTING
 }
 
 // Print program list
 void fnP_PrinterList(uint16_t lines) {
-  #if defined(OPTION_IR_PRINTING)
+  #if defined(IR_PRINTING)
     printProgram(LIST, lines);
-  #endif //OPTION_IR_PRINTING
+  #endif //IR_PRINTING
 }
 
 // Print byte
 void fnP_Byte(uint16_t byte) {
-  #if defined(OPTION_IR_PRINTING)
+  #if defined(IR_PRINTING)
     setPrinterSBI(true);
     cmdPrint(byte, PRINT_BYTE);
     setPrinterSBI(false);
-  #endif //OPTION_IR_PRINTING
+  #endif //IR_PRINTING
 }
 
 // Print a character using character set translation
 void fnP_Char(uint16_t registerNo) {
-  #if defined(OPTION_IR_PRINTING)
+  #if defined(IR_PRINTING)
     uint16_t character;
     setPrinterSBI(true);
     character = _getUnicodeValue(registerNo);
     cmdPrint(character, PRINT_CHAR);
     setPrinterSBI(false);
-  #endif //OPTION_IR_PRINTING
+  #endif //IR_PRINTING
 }
 
 
 // Print Tab
 void fnP_Tab(uint16_t column) {
-  #if defined(OPTION_IR_PRINTING)
+  #if defined(IR_PRINTING)
     setPrinterSBI(true);
     cmdPrint(column, PRINT_TAB);
     setPrinterSBI(false);
-  #endif //OPTION_IR_PRINTING
+  #endif //IR_PRINTING
 }
 
 
 // Print User
 void fnP_User(uint16_t unusedButMandatoryParameter) {
-  #if defined(OPTION_IR_PRINTING)
-    char label[256]; // a global label name is a 1-byte-length string, so up to 255 bytes
+  #if defined(IR_PRINTING)
+    char label[16];
     currentKeyCode = 255;
 
     if(!getSystemFlag(FLAG_PRTACT)) {
       if(getSystemFlag(FLAG_PRTEN) || ((programRunStop != PGM_RUNNING) && (programRunStop != PGM_SINGLE_STEP))) {
-        displayCalcErrorMessage(ERROR_PRINTING_DISABLED, ERR_REGISTER_LINE);
+        displayCalcErrorMessage(ERROR_PRINTING_DISABLED, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
         #if defined(PC_BUILD)
           sprintf(errorMessage, "Printing is disabled");
           moreInfoOnError("In function fnP_User:", errorMessage, NULL, NULL);
@@ -2141,9 +2181,8 @@ void fnP_User(uint16_t unusedButMandatoryParameter) {
       nextStep = findNextStep(step);
       if(checkOpCodeOfStep(step, ITM_LBL)) { // LBL
         if(*(step + 1) > LAST_LOCAL_LABEL) { // Global label
-          uint8_t lblNameLen = boundProgramNameLength(step + 3, *(step + 2));
-          xcopy(label, step + 3, lblNameLen);
-          label[lblNameLen] = 0;
+          xcopy(label, step + 3, *(step+2));
+          label[*(step+2)] = 0;
           printLine("LBL " STD_LEFT_SINGLE_QUOTE, 0);
           printLine(label, 0);
           printLine(STD_RIGHT_SINGLE_QUOTE, !firstProgramLabel);
@@ -2174,24 +2213,20 @@ void fnP_User(uint16_t unusedButMandatoryParameter) {
 
     printLine(".END.", 1);
 
-  #endif //OPTION_IR_PRINTING*
+  #endif //IR_PRINTING*
 }
 
 // Print LCD
 void fnP_LCD(uint16_t unusedButMandatoryParameter) {
   if(getSystemFlag(FLAG_PRTACT)) {  // Print to the printer)
-    #if defined(OPTION_IR_PRINTING)
-      #if defined(DMCP_BUILD)
-        if(printerState.printer_model == PRINTER_MARTEL) { // Only for Martel on HW, not on simulator and not for 82240
-          setPrinterSBI(true);
-          resetShiftState();                  //JM To avoid f or g top left of the screen, clear to make sure
-          refreshScreen(80);
-          printLcd();
-          screenUpdatingMode &= ~SCRUPD_MANUAL_STATUSBAR;
-          setPrinterSBI(false);
-        }
-      #endif // DMCP_BUILD
-    #endif //OPTION_IR_PRINTING
+    #if defined(IR_PRINTING)
+    return; // Not yet working for the 82240 printer
+    setPrinterSBI(true);
+    resetShiftState();                  //JM To avoid f or g top left of the screen, clear to make sure
+    refreshScreen(80);
+    printLcd();
+    setPrinterSBI(false);
+    #endif //IR_PRINTING
   }
   else {                             // SNAP
     fnSNAP(NOPARAM);
@@ -2202,11 +2237,11 @@ void fnP_LCD(uint16_t unusedButMandatoryParameter) {
 // Print Alpha string
 void fnP_Alpha(uint16_t registerNo) {
   if(getSystemFlag(FLAG_PRTACT)) {  // Print to the printer)
-  #if defined(OPTION_IR_PRINTING)
+  #if defined(IR_PRINTING)
     if(getRegisterDataType(registerNo) == dtString) {
       printAlpha(REGISTER_STRING_DATA(registerNo), PRINT_ALPHA);
     }
-  #endif //OPTION_IR_PRINTING
+  #endif //IR_PRINTING
   }
   else {                             // Print to file
     if(calcMode != CM_AIM) {
@@ -2236,7 +2271,7 @@ void fnP_Alpha(uint16_t registerNo) {
 
 void fnP_Regs (uint16_t registerNo) {
   if(getSystemFlag(FLAG_PRTACT)) {  // Print to the printer
-  #if defined(OPTION_IR_PRINTING)
+  #if defined(IR_PRINTING)
     char label[16];
     label[0] = 0;
     if(REGISTER_X <= registerNo && registerNo <= REGISTER_W) {
@@ -2247,7 +2282,7 @@ void fnP_Regs (uint16_t registerNo) {
       sprintf(label, "R%02d", registerNo);
     }
     else if(FIRST_LOCAL_REGISTER <= registerNo && registerNo <= LAST_LOCAL_REGISTER) {
-      sprintf(label, "R.%02d", registerNo - FIRST_LOCAL_REGISTER);
+      sprintf(label, "R.%03d", registerNo-100);
     }
     else if(FIRST_NAMED_VARIABLE <= registerNo && registerNo <= LAST_NAMED_VARIABLE) {
       sprintf(label, "%s", (char *)allNamedVariables[registerNo - FIRST_NAMED_VARIABLE].variableName + 1);
@@ -2256,7 +2291,7 @@ void fnP_Regs (uint16_t registerNo) {
       sprintf(label, "%s", (char *)allReservedVariables[registerNo - FIRST_RESERVED_VARIABLE].reservedVariableName + 1);
     }
     printReg(registerNo, label, true, LINE_FULL, false );
-  #endif //OPTION_IR_PRINTING
+  #endif //IR_PRINTING
   }
   else {                             // Print to file
     if(calcMode != CM_NORMAL) {
@@ -2315,10 +2350,10 @@ void fnP_Sigma(uint16_t unusedButMandatoryParameter) {
   currentKeyCode = 255;
   if(statisticalSumsPointer != NULL) {
     if(getSystemFlag(FLAG_PRTACT)) {  // Print to the printer
-    #if defined(OPTION_IR_PRINTING)
+    #if defined(IR_PRINTING)
       uint16_t regist;
       if(!getSystemFlag(FLAG_PRTEN) && ((programRunStop == PGM_RUNNING) || (programRunStop == PGM_SINGLE_STEP))) {
-        displayCalcErrorMessage(ERROR_PRINTING_DISABLED, ERR_REGISTER_LINE);
+        displayCalcErrorMessage(ERROR_PRINTING_DISABLED, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
         #if defined(PC_BUILD)
           sprintf(errorMessage, "Printing is disabled");
           moreInfoOnError("In function fnP_Sigma:", errorMessage, NULL, NULL);
@@ -2332,13 +2367,13 @@ void fnP_Sigma(uint16_t unusedButMandatoryParameter) {
           return;
         }
       }
-    #endif //OPTION_IR_PRINTING
+    #endif //IR_PRINTING
     }
     else {                             // Print to file
     }
   }
   else {
-    displayCalcErrorMessage(ERROR_NO_SUMMATION_DATA, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_NO_SUMMATION_DATA, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function fnP_Sigma:", "There is no statistical data available!", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -2348,10 +2383,9 @@ void fnP_Sigma(uint16_t unusedButMandatoryParameter) {
 
 void fnP_All_Regs(uint16_t option) {
   if(getSystemFlag(FLAG_PRTACT)) {  // Print to the printer
-  #if defined(OPTION_IR_PRINTING)
+  #if defined(IR_PRINTING)
     bool_t exited;
     uint16_t s, n;
-    currentKeyCode = 255;  // an EXIT pressed before this print does not stop it
     switch(option) {
       case PRN_ALL:
         exited = _printRegRange(REGISTER_X, REGISTER_W);  // Lettered registers
@@ -2381,20 +2415,12 @@ void fnP_All_Regs(uint16_t option) {
           _printRegRange(s, (s + n) -1);
         }
         else {
-          displayCalcErrorMessage(lastErrorCode, ERR_REGISTER_LINE);
+          displayCalcErrorMessage(lastErrorCode, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
         }
         break;
 
       case PRN_Xr:
         printReg(REGISTER_X, NULL, false, LINE_FULL, false );  // Print register X without name header
-        break;
-
-      case PRN_XFN:
-        #if defined(OPTION_XFN_1000)
-          if(registerFMAOutputPlainString(REGISTER_X, "", tmpString)) {  // every digit of X x Y + Z, the string the .d47 export writes
-            _printTmpString(NULL, LINE_FULL);                            // wraps over paper lines the way a long integer does under PRN_Xr
-          }
-        #endif // OPTION_XFN_1000
         break;
 
       case PRN_STK:
@@ -2421,7 +2447,7 @@ void fnP_All_Regs(uint16_t option) {
                 return;
               }
               default: {
-                displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+                displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_Y);
                 #if (EXTRA_INFO_ON_CALC_ERROR == 1)
                   sprintf(errorMessage, "invalid data type %s for register Y", getRegisterDataTypeName(REGISTER_Y, true, false));
                   moreInfoOnError("In function fnP_All_Regs(PRN_XYr):", errorMessage, NULL, NULL);
@@ -2456,7 +2482,7 @@ void fnP_All_Regs(uint16_t option) {
               }
             }
             else {
-              displayCalcErrorMessage(ERROR_MATRIX_MISMATCH, ERR_REGISTER_LINE);
+              displayCalcErrorMessage(ERROR_MATRIX_MISMATCH, ERR_REGISTER_LINE, REGISTER_X);
               #if (EXTRA_INFO_ON_CALC_ERROR == 1)
                 sprintf(errorMessage, "cannot print xy when matrix size is %d x %d", x.header.matrixRows, x.header.matrixColumns);
                 moreInfoOnError("In function fnP_All_Regs(PRN_XYr):", errorMessage, NULL, NULL);
@@ -2488,7 +2514,7 @@ void fnP_All_Regs(uint16_t option) {
               }
             }
             else {
-              displayCalcErrorMessage(ERROR_MATRIX_MISMATCH, ERR_REGISTER_LINE);
+              displayCalcErrorMessage(ERROR_MATRIX_MISMATCH, ERR_REGISTER_LINE, REGISTER_X);
               #if (EXTRA_INFO_ON_CALC_ERROR == 1)
                 sprintf(errorMessage, "cannot print xy when matrix size is %d x %d", xc.header.matrixRows, xc.header.matrixColumns);
                 moreInfoOnError("In function fnP_All_Regs(PRN_XYr):", errorMessage, NULL, NULL);
@@ -2498,7 +2524,7 @@ void fnP_All_Regs(uint16_t option) {
           }
 
           default: {
-            displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+            displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
             #if (EXTRA_INFO_ON_CALC_ERROR == 1)
               sprintf(errorMessage, "invalid data type %s for register X", getRegisterDataTypeName(REGISTER_X, true, false));
               moreInfoOnError("In function fnP_All_Regs(PRN_XYr):", errorMessage, NULL, NULL);
@@ -2510,7 +2536,7 @@ void fnP_All_Regs(uint16_t option) {
 
       default: ;
     }
-  #endif //OPTION_IR_PRINTING
+  #endif //IR_PRINTING
   }
   else {                             // Print to file
     if(calcMode != CM_NORMAL && calcMode != CM_NO_UNDO) {
@@ -2548,7 +2574,7 @@ void fnP_All_Regs(uint16_t option) {
           stackregister_csv_out(s, (s + n) -1 , !ONELINE);
         }
         else {
-          displayCalcErrorMessage(lastErrorCode, ERR_REGISTER_LINE);
+          displayCalcErrorMessage(lastErrorCode, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
         }
         break;
 
@@ -2581,15 +2607,6 @@ void fnP_All_Regs(uint16_t option) {
         stackregister_csv_out(REGISTER_X, REGISTER_X, !ONELINE);
         break;
 
-      case PRN_XFN:
-        #if defined(OPTION_XFN_1000)
-          if(registerFMAOutputPlainString(REGISTER_X, "", tmpString)) {
-            export_append_line(tmpString);                               // one row, every digit of X x Y + Z
-            export_append_line(CSV_NEWLINE);
-          }
-        #endif // OPTION_XFN_1000
-        break;
-
       case PRN_TMP:
         stackregister_csv_out(TEMP_REGISTER_1, TEMP_REGISTER_1, !ONELINE);
         break;
@@ -2608,7 +2625,7 @@ void fnP_All_Regs(uint16_t option) {
 //  Print all items (test function)
 //
 void fnP_PrintAllItems (uint16_t unusedButMandatoryParameter) {
-  #if defined(PC_BUILD) && defined(OPTION_IR_PRINTING)
+  #if defined(PC_BUILD) && defined(IR_PRINTING)
     int32_t item;
     currentKeyCode = 255;
     if(getSystemFlag(FLAG_PRTACT)) {
@@ -2627,6 +2644,6 @@ void fnP_PrintAllItems (uint16_t unusedButMandatoryParameter) {
       }
       temporaryInformation = TI_PRINT_COMPLETE;
     }
-  #endif //PC_BUILD && OPTION_IR_PRINTING
+  #endif //PC_BUILD && IR_PRINTING
 }
 

@@ -7,7 +7,7 @@
 
 #include "c47.h"
 
-#if !defined(OPTION_DIST_C)
+#if defined(SAVE_SPACE_DM42_17)
   void fnHypergeometricP  (uint16_t unusedButMandatoryParameter){}
   void fnHypergeometricL  (uint16_t unusedButMandatoryParameter){}
   void fnHypergeometricR  (uint16_t unusedButMandatoryParameter){}
@@ -27,7 +27,7 @@
     }
 
     if(!getRegisterAsReal(REGISTER_X, x) || !getRegisterAsReal(REGISTER_M, i) || !getRegisterAsReal(REGISTER_N, j) || !getRegisterAsReal(REGISTER_Q, k)) {
-      displayDomainErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+      displayDomainErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "Values in register X, I, J and K must be of the real or long integer type");
         moreInfoOnError("In function checkParamHyper:", errorMessage, NULL, NULL);
@@ -44,21 +44,21 @@
     realCopy(realCompareLessThan(k, j) ? k : j, &xmax);
 
     if((!checkRegisterNoFP(i)) || (!checkRegisterNoFP(j)) || (!checkRegisterNoFP(k))) {
-      displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE);
+      displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function checkParamHyper:", "N, n and/or K is not an integer", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
       return false;
     }
     if(realIsNegative(x) || realCompareLessThan(x, &xmin) || realCompareGreaterThan(x, &xmax)) {
-      displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+      displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function checkParamHyper:", "cannot calculate for x < max(0, n + K - N) or x > min(n, K)", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
       return false;
     }
     if(realIsNegative(k) || realCompareGreaterThan(k, i) || realIsNegative(j) || realCompareGreaterThan(j, i) || realIsNegative(i)) {
-      displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE);
+      displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function checkParamHyper:", "the parameters must be integer, and 0 " STD_LESS_EQUAL " K " STD_LESS_EQUAL " N, 0 " STD_LESS_EQUAL " n " STD_LESS_EQUAL " N, and N " STD_GREATER_EQUAL " 0", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -79,7 +79,7 @@
         realSetZero(&ans);
       }
       if(realIsNaN(&ans)) {
-        displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE);
+        displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE, REGISTER_X);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function fnHypergeometricP:", "a parameter is invalid", NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -98,7 +98,7 @@
     if(checkParamHyper(&val, &spec, &samp, &batch)) {
       cdf_Hypergeometric(&val, &spec, &samp, &batch, &ans, &ctxtReal75);
       if(realIsNaN(&ans)) {
-        displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE);
+        displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE, REGISTER_X);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function fnHypergeometricL:", "a parameter is invalid", NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -117,7 +117,7 @@
     if(checkParamHyper(&val, &spec, &samp, &batch)) {
       cdfu_Hypergeometric(&val, &spec, &samp, &batch, &ans, &ctxtReal75);
       if(realIsNaN(&ans)) {
-        displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE);
+        displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE, REGISTER_X);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function fnHypergeometricR:", "a parameter is invalid", NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -135,7 +135,7 @@
 
     if(checkParamHyper(&val, &spec, &samp, &batch)) {
       if(realCompareLessThan(&val, const_0) || realCompareGreaterThan(&val, const_1)) {
-        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function fnHypergeometricI:", "the argument must be 0 " STD_LESS_EQUAL " x " STD_LESS_EQUAL " 1", NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -146,7 +146,7 @@
       }
       qf_Hypergeometric(&val, &spec, &samp, &batch, &ans, &ctxtReal75);
       if(realIsNaN(&ans)) {
-        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function fnHypergeometricI:", "WP34S_Qf_Binomial did not converge", NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -165,17 +165,11 @@
   void pdf_Hypergeometric(const real_t *x, const real_t *k0, const real_t *n, const real_t *n0, real_t *res, realContext_t *realContext) {
     real_t a, b, c, q;
 
-    realCopy(k0, &a);
-    realCopy(x, &b);
-    logCyxReal(&a, &b, &q, realContext);     // K C k
-    realSubtract(n0, k0, &a, realContext);
-    realSubtract(n, x, &b, realContext);
-    logCyxReal(&a, &b, &c, realContext);
-    realAdd(&q, &c, &q, realContext);       // (N-K) C (n-k)
-    realCopy(n0, &a);
-    realCopy(n, &b);
-    logCyxReal(&a, &b, &c, realContext);
-    realSubtract(&q, &c, &q, realContext);  // N C n
+    realCopy(k0, &a), realCopy(x, &b), logCyxReal(&a, &b, &q, realContext);     // K C k
+    realSubtract(n0, k0, &a, realContext), realSubtract(n, x, &b, realContext);
+    logCyxReal(&a, &b, &c, realContext), realAdd(&q, &c, &q, realContext);       // (N-K) C (n-k)
+    realCopy(n0, &a), realCopy(n, &b);
+    logCyxReal(&a, &b, &c, realContext), realSubtract(&q, &c, &q, realContext);  // N C n
     realExp(&q, res, realContext);
   }
 
@@ -188,18 +182,12 @@
     cvgTol.exponent -= realContext->digits - 2;
 
     // (n C (k+1)) ((N-n) C (K-k-1)) / (N C K)
-    realCopy(n, &a);
-    realAdd(x, const_1, &b, realContext);
+    realCopy(n, &a), realAdd(x, const_1, &b, realContext);
     logCyxReal(&a, &b, &binomPart, realContext);                                                // n C (k+1)
-    realSubtract(n0, n, &a, realContext);
-    realSubtract(k0, x, &b, realContext);
-    realSubtract(&b, const_1, &b, realContext);
-    logCyxReal(&a, &b, &c, realContext);
-    realAdd(&binomPart, &c, &binomPart, realContext);      // (N-n) C (K-k-1)
-    realCopy(n0, &a);
-    realCopy(k0, &b);
-    logCyxReal(&a, &b, &c, realContext);
-    realSubtract(&binomPart, &c, &binomPart, realContext); // N C K
+    realSubtract(n0, n, &a, realContext), realSubtract(k0, x, &b, realContext), realSubtract(&b, const_1, &b, realContext);
+    logCyxReal(&a, &b, &c, realContext), realAdd(&binomPart, &c, &binomPart, realContext);      // (N-n) C (K-k-1)
+    realCopy(n0, &a), realCopy(k0, &b);
+    logCyxReal(&a, &b, &c, realContext), realSubtract(&binomPart, &c, &binomPart, realContext); // N C K
 
     // generalized hypergeometric function 3F2
     realSetOne(&a1);
@@ -229,23 +217,12 @@
       }
 
       signHgp = realIsNegative(&a1) ^ realIsNegative(&a2) ^ realIsNegative(&a3) ^ realIsNegative(&b1) ^ realIsNegative(&b2);
-      realCopyAbs(&a1, &a);
-      WP34S_Ln(&a, &a, realContext);
-      realAdd(&hypergeomPart, &a, &hypergeomPart, realContext);
-      realCopyAbs(&a2, &a);
-      WP34S_Ln(&a, &a, realContext);
-      realAdd(&hypergeomPart, &a, &hypergeomPart, realContext);
-      realCopyAbs(&a3, &a);
-      WP34S_Ln(&a, &a, realContext);
-      realAdd(&hypergeomPart, &a, &hypergeomPart, realContext);
-      realCopyAbs(&b1, &a);
-      WP34S_Ln(&a, &a, realContext);
-      realSubtract(&hypergeomPart, &a, &hypergeomPart, realContext);
-      realCopyAbs(&b2, &a);
-      WP34S_Ln(&a, &a, realContext);
-      realSubtract(&hypergeomPart, &a, &hypergeomPart, realContext);
-      WP34S_Ln(&i, &a, realContext);
-      realSubtract(&hypergeomPart, &a, &hypergeomPart, realContext);
+      realCopyAbs(&a1, &a), WP34S_Ln(&a, &a, realContext), realAdd(&hypergeomPart, &a, &hypergeomPart, realContext);
+      realCopyAbs(&a2, &a), WP34S_Ln(&a, &a, realContext), realAdd(&hypergeomPart, &a, &hypergeomPart, realContext);
+      realCopyAbs(&a3, &a), WP34S_Ln(&a, &a, realContext), realAdd(&hypergeomPart, &a, &hypergeomPart, realContext);
+      realCopyAbs(&b1, &a), WP34S_Ln(&a, &a, realContext), realSubtract(&hypergeomPart, &a, &hypergeomPart, realContext);
+      realCopyAbs(&b2, &a), WP34S_Ln(&a, &a, realContext), realSubtract(&hypergeomPart, &a, &hypergeomPart, realContext);
+      WP34S_Ln(&i, &a, realContext), realSubtract(&hypergeomPart, &a, &hypergeomPart, realContext);
 
       realAdd(&binomPart, &hypergeomPart, &a, realContext);
       realExp(&a, &a, realContext);
@@ -354,4 +331,4 @@
     WP34S_Qf_Newton(QF_NEWTON_HYPERGEOMETRIC, x, &s, k0, n, n0, res, realContext);
   }
 
-#endif // !OPTION_DIST_C
+#endif //SAVE_SPACE_DM42_17

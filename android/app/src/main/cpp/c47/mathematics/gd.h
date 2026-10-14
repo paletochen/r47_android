@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WP43 and C47 Authors
 
 /********************************************//**
- * \file gd.h
+ * \file fib.h
  ***********************************************/
 #if !defined(GD_H)
   #define GD_H

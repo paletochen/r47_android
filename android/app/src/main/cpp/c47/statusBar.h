@@ -24,7 +24,6 @@
    */
   bool_t timeChanged          (void);
   bool_t showDateTime         (void);
-  void   paintDateTimeForCapture(void);
 
   /**
    * Displays the complex result mode C or R in the status bar.

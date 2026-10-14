@@ -87,11 +87,6 @@
 
 
   //Section to convert doubles and floats
-  const char *doubleSpecialLabel                             (double value);
-  void    sci_fmt                                            (char *buf, int n, double x);       //Scientific notation without printf float support; replaces snprintf(buf, n, "%.16e", x)
-  #if defined(PC_BUILD)
-    double  stringToDouble                                   (const char *str);                  //Locale-free strtod for the simulator's backup file: accepts '.' or ',' regardless of the region setting
-  #endif // PC_BUILD
   void    convertDoubleToString                              (double x, int16_t n, char *buff);  //Reformatting double/float strings that are formatted according to different locale settings
   void    convertDoubleToReal                                (double x, real_t *destination, realContext_t *ctxt);
   void    convertDoubleToReal34Register                      (double x, calcRegister_t destination);
@@ -117,8 +112,6 @@
   #define ifLongIntegerDoAngleReduction true
   bool_t getRegisterAsRealAngle(calcRegister_t reg, real_t *val, angularMode_t *xAngularMode, bool_t reduceLongintegerAngle);
   bool_t getRegisterAsLongInt(calcRegister_t reg, longInteger_t val, bool_t *fractional);
-  bool_t getRegisterAsUint32Param(uint16_t regist, uint32_t *value);
-  bool_t getRegisterAsInt32Param(uint16_t regist, int32_t *value);
   bool_t getRegisterAsShortInt(calcRegister_t reg, bool_t *sign, uint64_t *val, bool_t *overflow, bool_t *fractional);
   bool_t getRegisterAsRawShortInt(calcRegister_t reg, uint64_t *val, uint32_t *base);
 
@@ -128,23 +121,6 @@
   bool_t getRegisterAsComplexOrAnyRealQuiet(calcRegister_t reg, real_t *r, real_t *i, bool_t *cmplx);
   /* returns error code or ERROR_NONE if okay */
   int getRegisterAsLongIntQuiet(calcRegister_t reg, longInteger_t val, bool_t *fractional);
-
-  // Snapshot of a register's value, type and tag, for code that has to put a register back the way it found it. saveRegisterSnapshot takes the copy and
-  // restoreRegisterSnapshot writes it back and frees what it owns, so the pair is used once. Every data type is captured: the four whose value fits the
-  // fields below are held there, and a string, a date, a matrix of either kind and a configuration are held as a copy of the register's own blocks.
-  typedef struct {
-    uint8_t t;
-    real34_t r, i;
-    longInteger_t li;
-    uint64_t siVal;
-    uint32_t siBase;
-    uint32_t tag;
-    void     *mem;    // the block copy, NULL when the value is held in the fields above
-    uint16_t blocks;  // its size, 0 when there is none
-  } snap_t;
-
-  void saveRegisterSnapshot(calcRegister_t reg, snap_t *s);
-  void restoreRegisterSnapshot(calcRegister_t reg, snap_t *s);
 
   void processRealComplexMonadicFunction(void (*realf)(void), void (*complexf)(void));
   void processIntRealComplexMonadicFunction(void (*realf)(void), void (*complexf)(void), void (*shortintf)(void), void (*longintf)(void));

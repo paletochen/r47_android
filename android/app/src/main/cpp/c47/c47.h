@@ -31,7 +31,7 @@
     #define PRIu8 "u"
     #undef PRIi8
     #define PRIi8 "i"
-  #endif // DMCP_BUILD
+  #endif // DMCP_BUILD && OLD_HW
 
   #if !defined(GENERATE_CATALOGS) && !defined(GENERATE_CONSTANTS) && !defined(GENERATE_TESTPGMS)
     #include <gmp.h>
@@ -43,15 +43,11 @@
       #ifndef ANDROID_BUILD
 #include <gdk/gdk.h>
 #endif
-
-      #include <stdarg.h>
-
-      #if defined(__linux__) || defined(__APPLE__)
-        #include <dlfcn.h>
-        #include <execinfo.h>
-      #endif
-
     #endif // PC_BUILD
+
+    #if defined(WIN32)
+      #include <locale.h>
+    #endif // WIN32
 
     #if defined(DMCP_BUILD)
       #define DBG_PRINT
@@ -190,11 +186,9 @@
 
     #include "mathematics/pcg_basic.h"
 
-    #if defined(__linux__) || defined(__APPLE__)
-      #include <execinfo.h>
-    #endif
     #include "realType.h"
     #include "typeDefinitions.h"
+
   #endif // GENERATE_CONSTANTS
 
   #if defined(GENERATE_TESTPGMS)
@@ -232,7 +226,6 @@
     extern uint32_t             deadKey;
     extern bool_t               testDeadKeys;
     extern bool_t               swapCtrlCode;
-    extern bool_t               snapKeepShift;
     extern bool_t               calcLandscape;
     extern bool_t               calcAutoLandscapePortrait;
     extern GtkWidget           *screen;
@@ -245,8 +238,6 @@
   #endif //PC_BUILD
 
   extern bool_t                headlessMode;
-  extern bool_t                snapSkipRefresh;
-  extern bool_t                screenHoldsDrawnPixels;   // CLLCD, PIXEL, POINT or AGRAPH painted the screen and no refresh has repainted over it since
   extern bool_t                loadTestPrograms;
   extern bool_t                loadTestData;
 
@@ -260,7 +251,7 @@
   extern const reservedVariableHeader_t  allReservedVariables[];
   extern const reservedVariableDescStr_t varDescr[];
   extern const char                      commonBugScreenMessages[NUMBER_OF_BUG_SCREEN_MESSAGES][SIZE_OF_EACH_BUG_SCREEN_MESSAGE];
-  const char *errorMessageOf(uint8_t errorCode);
+  extern const char                      errorMessages[NUMBER_OF_ERROR_CODES][SIZE_OF_EACH_ERROR_MESSAGE];
   extern const calcKey_t                 kbd_std_C47[37];
   extern const calcKey_t                 kbd_std_DM42[37];
   extern const calcKey_t                 kbd_std_R47[37];
@@ -272,13 +263,8 @@
   #if defined(PC_BUILD)
     #define kbd_std                      (calcModel == USER_C47 ? kbd_std_C47 : calcModel == USER_DM42 ? kbd_std_DM42 : calcModel == USER_R47f_g ? kbd_std_R47f_g : calcModel == USER_R47bk_fg ? kbd_std_R47bk_fg : calcModel == USER_R47fg_bk ? kbd_std_R47fg_bk : calcModel == USER_R47fg_g ? kbd_std_R47fg_g : \
                                           calcModel == USER_E47 ? kbd_std_E47 : calcModel == USER_D47 ?  kbd_std_D47 :  calcModel == USER_V47 ? kbd_std_V47 : calcModel == USER_N47 ?     kbd_std_N47 : calcModel == USER_DM42 ?     kbd_std_DM42 :    kbd_std_C47)
-  #elif CALCMODEL == USER_R47
-    // A hardware build carries only its own personality's layouts: the backup writer refuses to persist a foreign
-    // model (saveRestoreBackup.c) and the state loader only applies one from a matching file (saveRestoreCalcState.c),
-    // so the other tables are unreachable there and gating the selector lets the linker drop them.
-    #define kbd_std                      (calcModel == USER_R47bk_fg ? kbd_std_R47bk_fg : calcModel == USER_R47fg_bk ? kbd_std_R47fg_bk : calcModel == USER_R47fg_g ? kbd_std_R47fg_g : kbd_std_R47f_g)
-  #else //!PC_BUILD && CALCMODEL != USER_R47
-    #define kbd_std                      (calcModel == USER_DM42 ? kbd_std_DM42 : kbd_std_C47)
+  #else //!PC_BUILD
+    #define kbd_std                      (calcModel == USER_C47 ? kbd_std_C47 : calcModel == USER_DM42 ? kbd_std_DM42 : calcModel == USER_R47f_g ? kbd_std_R47f_g : calcModel == USER_R47bk_fg ? kbd_std_R47bk_fg : calcModel == USER_R47fg_bk ? kbd_std_R47fg_bk : calcModel == USER_R47fg_g ? kbd_std_R47fg_g : kbd_std_C47)
   #endif //!PC_BUILD
 
   #if defined(PC_BUILD)
@@ -295,7 +281,6 @@
   extern const char                      registerFlagLetters[27];
   extern any34Matrix_t                   openMatrixMIMPointer;
   extern uint16_t                        matrixIndex;
-  extern int16_t                         shadowI, shadowJ;
   extern void                            (* const addition[NUMBER_OF_DATA_TYPES_FOR_CALCULATIONS][NUMBER_OF_DATA_TYPES_FOR_CALCULATIONS])(void);
   extern void                            (* const subtraction[NUMBER_OF_DATA_TYPES_FOR_CALCULATIONS][NUMBER_OF_DATA_TYPES_FOR_CALCULATIONS])(void);
   extern void                            (* const multiplication[NUMBER_OF_DATA_TYPES_FOR_CALCULATIONS][NUMBER_OF_DATA_TYPES_FOR_CALCULATIONS])(void);
@@ -312,7 +297,6 @@
   extern bool_t                 hourGlassIconEnabled;
   extern bool_t                 watchIconEnabled;
   extern bool_t                 printerIconEnabled;
-  extern bool_t                 printerIconRefresh;
   extern bool_t                 serialIOIconEnabled;
   extern bool_t                 shiftF;
   extern bool_t                 shiftG;
@@ -325,8 +309,10 @@
   extern bool_t                 lastProgramListEnd;
   extern bool_t                 programListEnd;
   extern bool_t                 pemCursorIsZerothStep;
+  extern bool_t                 secTick1;
+  extern bool_t                 halfSecTick2;
+  extern bool_t                 halfSecTick3;
   extern bool_t                 skippedStackLines;
-  extern bool_t                 bulkAssign;
   extern bool_t                 iterations;
   extern bool_t                 explicitTaylorIterVisibilitySelection;
 
@@ -334,9 +320,7 @@
   extern bool_t                 refreshNIMdone;
   extern bool_t                 cleanupAfterShift;
   extern bool_t                 solverEstimatesUsed;
-  extern bool_t                 graphAccActive;
   extern bool_t                 updateOldConstants;
-  extern bool_t                 eqnDrawLhsOnly;
 
 
   extern realContext_t          ctxtReal4;    //   Limited digits: used for high speed internal calcs
@@ -430,14 +414,10 @@
   extern uint8_t                fractionDigits;
   extern uint8_t                shortIntegerMode;
   extern uint8_t                previousCalcMode;
-  extern bool_t                 graphToRemainOnScreen;
   extern uint8_t                grpGroupingLeft;
   extern uint8_t                grpGroupingGr1LeftOverflow;
   extern uint8_t                grpGroupingGr1Left;
   extern uint8_t                grpGroupingRight;
-  extern uint8_t                grpGroupingHex;
-  extern uint8_t                grpGroupingBin;
-  extern uint8_t                displayRoundingMode;
   extern uint8_t                roundingMode;
   extern uint8_t                calcMode;
   extern uint8_t                nextChar;
@@ -478,7 +458,6 @@
   extern int16_t                rbrRegister;
   extern int16_t                catalog;
   extern int16_t                lastCatalogPosition[NUMBER_OF_CATALOGS];
-  extern int16_t                retainedPageFirstItem[NUMBER_OF_RETAINED_PAGE_MENUS];
   extern int16_t                lastKeyItemDetermined;
   extern bool_t                 lastUserMode;                 //used in btnReleased and btnFnReleased
   extern int16_t                lastItem;                     //used in btnReleased, for CM_ASN_BROWSER and SHOW/SCREENDUMP
@@ -511,10 +490,6 @@
   extern int16_t                lastT_cursorPos;
   extern int16_t                displayAIMbufferoffset;       //JMCURSOR
   extern uint16_t               showRegis;                    //JMSHOW
-  #if defined(OPTION_MX_SHOW)
-    extern uint8_t              showMatrixUserDisplayFormat;  // the user format, stashed for SHOW
-    extern uint8_t              showMatrixUserDisplayFormatDigits;
-  #endif // OPTION_MX_SHOW
   extern uint8_t                overrideShowBottomLine;
   extern int16_t                ListXYposition;               //JM
   extern uint8_t                DRG_Cycling;                  //JM
@@ -522,6 +497,7 @@
   extern int16_t                JM_auto_doublepress_autodrop_enabled;  //JM TIMER CLRDROP //drop
   extern int16_t                JM_auto_longpress_enabled;    //JM TIMER CLRDROP //clstk
   extern uint8_t                JM_SHIFT_HOME_TIMER1;         //Local to keyboard.c, but defined here
+  extern bool_t                 ULFL, ULGL;                   //JM Underline
   extern int16_t                FN_key_pressed, FN_key_pressed_last; //JM LONGPRESS FN
   extern bool_t                 FN_timeouts_in_progress;      //JM LONGPRESS FN
   extern bool_t                 Shft_timeouts;                //JM SHIFT NEW FN
@@ -548,7 +524,6 @@
   extern uint16_t               freeProgramBytes;
   extern uint16_t               firstDisplayedLocalStepNumber;
   extern uint16_t               numberOfLabels;
-  extern uint16_t               numberOfStructureLabels;
   extern uint16_t               numberOfPrograms;
   extern uint16_t               numberOfNamedVariables;
   extern uint16_t               currentLocalStepNumber;
@@ -564,12 +539,8 @@
   extern uint16_t               currentViewRegister;
   extern uint16_t               currentSolverStatus;
   extern uint16_t               currentSolverProgram;
-  extern uint16_t               currentDerivProgram;             // PGMDRV, the derivative's own program, so a derivative does not repoint what SOLVE, INT and PLOT run
   extern uint16_t               currentSolverVariable;
   extern uint16_t               currentSolverNestingDepth;
-  extern uint16_t               engineNestingDepth;              // PLOT, INT and SOLVE combined, capped at MAX_ENGINE_NESTING_DEPTH; PLOT only at level 1
-  extern uint16_t               plotEngineActive;                // non-zero while a plot sweep runs, so PLOT_NESTING_ALLOWED can refuse an engine inside it
-  extern bool_t                 engineNestingWasRefused;         // why the run stopped, durable across the unwind where lastErrorCode is not: FLAG_IGN1ER wipes that
   extern uint16_t               numberOfFormulae;
   extern uint16_t               currentFormula;
   extern uint16_t               numberOfUserMenus;
@@ -592,10 +563,6 @@
 
   extern uint32_t               firstGregorianDay;
   extern uint32_t               denMax;
-  extern uint8_t                graMod;
-  extern uint8_t                graFont;
-  extern int16_t                longPressFactor;               // LPFCT minus 1, times 10000
-  extern int16_t                doublePressFactor;             // DPFCT minus 1, times 10000
   extern uint32_t               lastDenominator;
   extern uint32_t               lastIntegerBase;
   extern uint32_t               decodedIntegerBase;
@@ -605,6 +572,8 @@
   extern uint32_t               timerValue;
   extern uint32_t               timerStartTime;
   extern uint32_t               timerTotalTime;
+  extern uint32_t               pointerOfFlashPgmLibrary;
+  extern uint32_t               sizeOfFlashPgmLibrary;
 
   extern uint64_t               shortIntegerMask;
   extern uint64_t               shortIntegerSignBit;
@@ -643,12 +612,6 @@
   extern  char                  lastStateFileOpened[stateFileNameVarLength+12];
   extern  char                  fileNameSelected[stateFileNameVarLength];
 
-  #if defined(PC_BUILD)
-    extern char                 lastFolderData[C47_PATH_MAX];                    // folder the file chooser was left in, one per group of disk functions, saved in backup.cfg
-    extern char                 lastFolderState[C47_PATH_MAX];                   // empty means the group has no folder yet, so the chooser opens on the default folder
-    extern char                 lastFolderPrograms[C47_PATH_MAX];
-  #endif // PC_BUILD
-
   extern char                   filename_csv[FILENAMELEN]; //JMMAX                //JM_CSV
   extern uint32_t               mem__32;                                          //JM_CSV
   extern bool_t                 cancelFilename;
@@ -656,12 +619,12 @@
   extern uint8_t                firstDayOfWeek;
   extern uint8_t                firstWeekOfYearDay;
 
-  //#if defined(OPTION_IR_PRINTING)
+  //#if defined(IR_PRINTING)
     extern printerState_t         printerState;
     extern const printerFont_t    printerFont8;
     extern const martelFont24_t   martelFont24;
     extern uint16_t               printerColumn;
-  //#endif //OPTION_IR_PRINTING
+  //#endif //IR_PRINTING
 
   extern uint16_t               alphaRegister;
   extern bool_t                 varMenu42;

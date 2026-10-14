@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WP43 and C47 Authors
 
 /**
- * \file plotstat.h
+ * \file plot.h
  ***********************************************/
 #if !defined(PLOTSTAT_H)
 #define PLOTSTAT_H
@@ -21,20 +21,23 @@
 
 
 //Graph options
+extern  float    graph_dx;
+extern  float    graph_dy;
 extern  bool_t   roundedTicks;
+extern  bool_t   PLOT_INTG;
+extern  bool_t   PLOT_DIFF;
+extern  bool_t   PLOT_RMS;
+extern  bool_t   PLOT_SHADE;
 extern  bool_t   PLOT_AXIS;
 extern  int8_t   PLOT_ZOOM;
 extern  uint8_t  drawHistogram;
-extern  uint8_t  plotStatScale;
 
 #define _VECT 0
 #define _SCAT 1
 
 extern  int8_t   plotmode;    //VECTOR or SCATTER
-extern  double   tick_int_x;
-extern  double   tick_int_y;
-extern  int16_t  graph_dx;
-extern  int16_t  graph_dy;
+extern  float    tick_int_x;
+extern  float    tick_int_y;
 extern  uint32_t xzero;
 extern  uint32_t yzero;
 
@@ -62,15 +65,13 @@ void    plotline2          (int16_t xo, int16_t yo, int16_t xn, int16_t yn);
 void    plotline3          (int16_t xo, int16_t yo, int16_t xn, int16_t yn, bool_t first_time, bool_t final_segment);
 void    graphAxisDraw      (void);
 void    graph_axis         (void);
-double  auto_tick          (double tick_int_f);
+float   auto_tick          (float tick_int_f);
 void    plotPointGeneric   (int16_t xn, int16_t yn, int16_t xo, int16_t yo, bool_t PLOT_CROSS, bool_t PLOT_BOXFAT, bool_t PLOT_BOX, bool_t PLOT_PLUS, bool_t PLOT_LINE);
+void    showGraphTickText  (float tick_int_x, float tick_int_y, int32_t xoff, int32_t yoff1, int32_t yoff2, uint16_t acc);
 
 //graph functions
-extern uint16_t plotXYn;
 float   grf_x(int i);
 float   grf_y(int i);
-void    grf_x_r(int i, real_t *v);
-void    grf_y_r(int i, real_t *v);
 
 #define PLOT_TMP_BUF_SIZE   32
 char    *radixProcess(char *output, const char * ss);
@@ -83,11 +84,6 @@ char    *formatDoubleWidth(real34_t *real34, int digits, char* itemName, bool_t*
 int16_t screen_window_x(float x_min, float x, float x_max);
 int16_t screen_window_y(float y_min, float y, float y_max);
 int16_t screen_window_y_nolimit(float y_min, float y, float y_max);
-int16_t screenX(double x);
-int16_t screenY(double y);
-int16_t screen_window_x_r(const real_t *x_min, const real_t *x, const real_t *x_max);
-int16_t screen_window_y_r(const real_t *y_min, const real_t *y, const real_t *y_max);
-int16_t screen_window_y_nolimit_r(const real_t *y_min, const real_t *y, const real_t *y_max);
 int32_t statMxN(void);
 
 void    statGraphReset     (void);

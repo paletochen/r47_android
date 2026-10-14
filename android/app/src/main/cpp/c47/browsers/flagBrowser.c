@@ -55,7 +55,7 @@ TO_QSPI const  letteredFlagDisplay_t letteredFlagDisplay[] = {
    * \return void
    ***********************************************/
   void flagBrowser(uint16_t init) {
-  #if defined(OPTION_FLAGBROWSER)
+  #if !defined(SAVE_SPACE_DM42_8FL)
     static int16_t line;
     int16_t f, i;
     bool_t firstFlag;
@@ -172,8 +172,47 @@ TO_QSPI const  letteredFlagDisplay_t letteredFlagDisplay[] = {
       tmpString[CHARS_PER_LINE * ++line] = 0;
 
       // Rounding mode
-      strcpy(tmpString + CHARS_PER_LINE * ++line, "RM=");
-      strcat(tmpString + CHARS_PER_LINE * line, getRoundModeName(roundingMode, abbreviation));
+      strcpy(tmpString + CHARS_PER_LINE * ++line, "RMODE=");
+      switch(roundingMode) {
+        case RM_HALF_EVEN: {
+          strcat(tmpString + CHARS_PER_LINE * line, STD_ONE_HALF "E");
+          break;
+        }
+
+        case RM_HALF_UP: {
+          strcat(tmpString + CHARS_PER_LINE * line, STD_ONE_HALF STD_UP_ARROW);
+          break;
+        }
+
+        case RM_HALF_DOWN: {
+          strcat(tmpString + CHARS_PER_LINE * line, STD_ONE_HALF STD_DOWN_ARROW);
+          break;
+        }
+
+        case RM_UP: {
+          strcat(tmpString + CHARS_PER_LINE * line, STD_LEFT_ARROW "0" STD_RIGHT_ARROW);
+          break;
+        }
+
+        case RM_DOWN: {
+          strcat(tmpString + CHARS_PER_LINE * line, STD_RIGHT_ARROW "0" STD_LEFT_ARROW);
+          break;
+        }
+
+        case RM_CEIL: {
+          strcat(tmpString + CHARS_PER_LINE * line, STD_MAT_TL "x" STD_MAT_TR);
+          break;
+        }
+
+        case RM_FLOOR: {
+          strcat(tmpString + CHARS_PER_LINE * line, STD_MAT_BL "x" STD_MAT_BR);
+          break;
+        }
+
+        default: {
+          strcat(tmpString + CHARS_PER_LINE * line, "???");
+        }
+      }
 
       // Significant digits
       strcat(tmpString + CHARS_PER_LINE * line, "  SDIGS=");
@@ -220,10 +259,6 @@ TO_QSPI const  letteredFlagDisplay_t letteredFlagDisplay[] = {
         default: {
         }
       }
-
-      // Display rounding mode
-      strcpy(tmpString + CHARS_PER_LINE * ++line, "DRM=");
-      strcat(tmpString + CHARS_PER_LINE * line, getRoundModeName(displayRoundingMode, abbreviation));
       tmpString[CHARS_PER_LINE * ++line] = 0;
     }
 
@@ -311,5 +346,5 @@ TO_QSPI const  letteredFlagDisplay_t letteredFlagDisplay[] = {
       }
     }
     lastFlgScr = currentFlgScr;
-  #endif // OPTION_FLAGBROWSER
+  #endif // !SAVE_SPACE_DM42_8FL
   }

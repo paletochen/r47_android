@@ -15,12 +15,8 @@ void PowerReal(const real_t *y, const real_t *x, real_t *res, realContext_t *rea
   real_t lny;
 
   if(realIsNegative(y) && realIsAnInteger(x)){
-    bool_t isOdd = false;
-
-    if(!realIsInfinite(x)) {                             // realIsAnInteger() is true for an infinity, which is neither odd nor even
-      realDivideRemainder(x, const_2, &lny, realContext);
-      isOdd = !realIsZero(&lny);
-    }
+    realDivideRemainder(x, const_2, &lny, realContext);
+    bool_t isOdd = !realIsZero(&lny);
     realCopyAbs(y, &lny);
     WP34S_Ln(&lny, &lny, realContext);
     realMultiply(x, &lny, res, realContext);
@@ -37,54 +33,6 @@ void PowerReal(const real_t *y, const real_t *x, real_t *res, realContext_t *rea
     realMultiply(x, &lny, res, realContext);
     realExp(res, res, realContext);
   }
-}
-
-
-/********************************************//**
- * \brief x to the integer power n, when the power is exact
- *
- * The power is taken at 75 digits half even, by repeated multiplication. It is exact when no digit is dropped, which the Inexact status of the context
- * reports.
- *
- * \param[in]  x   const real_t* a real
- * \param[in]  n   const real_t* the exponent
- * \param[out] res real_t*       x^n, when the result is true
- * \return bool_t true when n is an integer below 10000 in magnitude and res is x^n exactly
- ***********************************************/
-bool_t realIntegerPowerExact(const real_t *x, const real_t *n, real_t *res) {
-  realContext_t c = ctxtReal75;
-
-  if(realIsSpecial(x) || realIsSpecial(n) || !realIsAnInteger(n) || (!realIsZero(n) && realGetExponent(n) > 3)) {
-    return false;
-  }
-  c.round = DEC_ROUND_HALF_EVEN;
-  c.status = 0;
-  realPower(x, n, res, &c);
-  return (c.status & (DEC_Inexact | DEC_Overflow | DEC_Underflow | DEC_Invalid_operation | DEC_Division_by_zero)) == 0 && !realIsSpecial(res);
-}
-
-
-/********************************************//**
- * \brief The n-th root of x, exact where x is the n-th power of a number of 34 digits
- *
- * root rounded half even to 34 digits is the exact root when one of 34 digits exists. The test is that its n-th power is x exactly.
- *
- * \param[in]     x    const real_t* a positive real
- * \param[in]     n    const real_t* an integer of 2 or more
- * \param[in,out] root real_t*       the root at working precision, replaced by the exact root when there is one
- * \return bool_t true when root is replaced
- ***********************************************/
-bool_t realExactRoot(const real_t *x, const real_t *n, real_t *root) {
-  real_t c, p;
-  realContext_t c34 = ctxtReal34;
-
-  c34.round = DEC_ROUND_HALF_EVEN;
-  realPlus(root, &c, &c34);
-  if(!realIntegerPowerExact(&c, n, &p) || !realCompareEqual(&p, x)) {
-    return false;
-  }
-  realCopy(&c, root);
-  return true;
 }
 
 
@@ -165,7 +113,7 @@ static void powLonI(void) {
   }
 
   if(longIntegerIsZero(exponent) && longIntegerIsZero(base)) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function powLonI: Cannot calculate 0^0!", NULL, NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -211,62 +159,23 @@ static void powReal(void) {
     return;
   }
 
-  if(realIsInfinite(&y)) {                             // y (the base) is +/- infinity
-    if(realIsNaN(&x)) {                                // inf ^ NaN is NaN; must precede the tests below, realIsPositive() is true for a NaN
-      realSetNaN(&res);
-    }
-    else if(realIsZero(&x)) {                          // inf ^ 0 is indeterminate
+  if(realIsInfinite(&y)) {
+    if(realIsZero(&x)) {
       realSetNaN(&res);
     }
     else {
-      bool_t oddIntegerExponent = false;
-      if(!realIsInfinite(&x)) {                        // ReM p.202: y^(+/-inf) follows the exponent sign alone; realIsAnInteger() is true for an infinity
-        if(realIsAnInteger(&x)) {
-          WP34S_Mod(&x, const_2, &res, &ctxtReal39);
-          oddIntegerExponent = !realIsZero(&res);
-        }
-        else if(realIsNegative(&y)) {                  // (-inf) ^ non-integer is not a real number
-          if(getFlag(FLAG_CPXRES)) {
-            powCplx();
-            return;
-          }
-          displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
-          #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-            moreInfoOnError("In function powReal:", "cannot do complex results if CPXRES is not set", NULL, NULL);
-          #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-          return;
-        }
+      if(realIsPositive(&x) && realIsAnInteger(&x)) {
+        WP34S_Mod(&x, const_2, &res, &ctxtReal39);
+        realCopy(realIsZero(&res) ? const_plusInfinity : const_minusInfinity, &res);
       }
-      if(realIsPositive(&x)) {                         // exponent > 0  ==> +/- infinity
+      else {
         realSetPlusInfinity(&res);
       }
-      else {                                           // exponent < 0  ==> +/- zero
-        realSetZero(&res);
-      }
-      if(realIsNegative(&y) && oddIntegerExponent) {   // (-inf) ^ odd keeps the negative sign
-        realSetNegativeSign(&res);
-      }
     }
-    goto finish;
-  }
-
-  if(realIsZero(&y) && !realIsAnInteger(&x)) {        // (-0) ^ non-integer is (+0) ^ non-integer, a real
-    realSetPositiveSign(&y);
-  }
-
-  if(!realIsZero(&y) && realIntegerPowerExact(&y, &x, &res)) {   // an integer exponent with an exact power: the power itself, rounded once by RM
     goto finish;
   }
 
   PowerReal(&y, &x, &res, &ctxtReal39);
-
-  if(realIsPositive(&y) && !realIsZero(&x) && !realIsSpecial(&res)) {   // an exponent 1/n with an exact n-th root of y gives that root
-    real_t n;
-    realDivide(const_1, &x, &n, &ctxtReal39);
-    if(realIsAnInteger(&n) && realCompareGreaterThan(&n, const_1)) {
-      realExactRoot(&y, &n, &res);
-    }
-  }
 
   if(realIsNaN(&res) && realIsNegative(&y) && !realIsAnInteger(&x)) {
     if(getFlag(FLAG_CPXRES)) {
@@ -274,7 +183,7 @@ static void powReal(void) {
       return;
     }
     else {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function powReal:", "cannot do complex results if CPXRES is not set", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -292,67 +201,19 @@ finish:
 /******************************************************************************************************************************************************************************************/
 
 /*
- * ReM p.B-18: a power of (r ; phi) is (r^x ; phi.x). An infinite base sits on one of the 8 sector boundaries that
- * getInfiniteComplexAngle() reports, so phi.x is representable only when it lands on one too. Returns false when it does
- * not, the exponent being infinite or the product fractional, leaving the caller to return an infinity of no angle.
- */
-static bool_t setInfiniteComplexPower(const real_t *yReal, const real_t *yImag, const real_t *xReal, real_t *rReal, real_t *rImag, realContext_t *realContext) {
-  real_t re, im, sector;
-
-  if(realIsInfinite(xReal)) {                            // phi.x is then unbounded, and WP34S_Mod() of it is a NaN
-    return false;
-  }
-
-  realCopy(yReal, &re);                                  // getInfiniteComplexAngle() takes non-const operands
-  realCopy(yImag, &im);
-  int32ToReal(getInfiniteComplexAngle(&re, &im), &sector);
-  realMultiply(&sector, xReal, &sector, realContext);
-  WP34S_Mod(&sector, const_8, &sector, realContext);     // remainder is truncated, so lift it into [0, 8) = one revolution
-  if(realIsNegative(&sector)) {
-    realAdd(&sector, const_8, &sector, realContext);
-  }
-
-  if(!realIsAnInteger(&sector)) {
-    return false;
-  }
-  setInfiniteComplexAngle(realToInt32C47(&sector, NULL), rReal, rImag);
-  return true;
-}
-
-
-/*
  * Calculate y^x for complex numbers.
  */
 uint8_t PowerComplex(const real_t *yReal, const real_t *yImag, const real_t *xReal, const real_t *xImag, real_t *rReal, real_t *rImag, realContext_t *realContext) {
   uint8_t errorCode = ERROR_NONE;
 
-  if(realIsInfinite(yReal) || realIsInfinite(yImag)) {   // the base has an infinite component
-    if(realIsNaN(xReal) || realIsNaN(xImag)) {           // inf ^ NaN is NaN
+  if(realIsInfinite(yReal) || realIsInfinite(yImag)) {
+    if(realIsZero(xReal) && realIsZero(xImag)) {
       realSetNaN(rReal);
       realSetNaN(rImag);
     }
-    else if(realIsZero(xReal) && realIsZero(xImag)) {    // inf ^ 0 is indeterminate
-      realSetNaN(rReal);
-      realSetNaN(rImag);
-    }
-    else if(realIsZero(xReal)) {                         // Re(exponent) == 0 (pure imaginary) is indeterminate
-      realSetNaN(rReal);
-      realSetNaN(rImag);
-    }
-    else if(realIsNegative(xReal)) {                     // Re(exponent) < 0 ==> modulus collapses to 0, where the angle no longer counts
-      realSetZero(rReal);
-      realSetZero(rImag);
-    }
-    else {                                               // Re(exponent) > 0 ==> infinite modulus
-      bool_t onSector = false;
-
-      if(realIsZero(xImag)) {                            // Im(exponent) != 0 adds Im(x).ln r to the argument, leaving it unbounded
-        onSector = setInfiniteComplexPower(yReal, yImag, xReal, rReal, rImag, realContext);
-      }
-      if(!onSector) {
-        realSetPlusInfinity(rReal);
-        realSetPlusInfinity(rImag);
-      }
+    else {
+      realSetPlusInfinity(rReal);
+      realSetPlusInfinity(rImag);
     }
   }
   else if(realIsZero(yReal) && realIsZero(yImag)) {
@@ -454,7 +315,7 @@ static void powCplx(void) {
   uint8_t errorCode = PowerComplex(&yReal, &yImag, &xReal, &xImag, &rReal, &rImag, &ctxtReal39);
 
   if(errorCode != ERROR_NONE) {
-    displayCalcErrorMessage(errorCode, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(errorCode, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "cannot raise %s", getRegisterDataTypeName(REGISTER_Y, true, false));
       sprintf(errorMessage + ERROR_MESSAGE_LENGTH/2, "to %s", getRegisterDataTypeName(REGISTER_X, true, false));

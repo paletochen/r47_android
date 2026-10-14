@@ -30,7 +30,16 @@ All the below: because both Last x and savestack does not work due to multiple s
  Check for savestack in jm.c
 */
 
-#if defined(OPTION_EDIT_X)
+#if !defined(SAVE_SPACE_DM42_23_EDIT2)
+  static void _getStringLabelOrVariableName(uint8_t *stringAddress) {
+    uint8_t stringLength = *(uint8_t *)(stringAddress++);
+    xcopy(tmpStringLabelOrVariableName, stringAddress, stringLength);
+    tmpStringLabelOrVariableName[stringLength] = 0;
+  }
+#endif // !SAVE_SPACE_DM42_23_EDIT2
+
+
+#if !defined(SAVE_SPACE_DM42_22_EDIT1)
 void _fractionToString(calcRegister_t regist, char *displayString, int16_t *lessEqualGreater) {
   int16_t  sign;
   uint64_t intPart, numer, denom;
@@ -277,21 +286,21 @@ static void _real34ToNim(const real34_t *real34, char *nimInput, char *nimDispla
 // nimDisplay : used to fill nimBufferDisplay
 
 //}
-#endif // OPTION_EDIT_X
+#endif // !SAVE_SPACE_DM42_22_EDIT1
 
 
 void fnEdit (uint16_t unusedParamButMandatory) {
   //fnEdit: this is simply the stub with the currently working edit routines, linked via ITM_EDIT, which is also located on long press Backspace.
   //All might have to be changed have a propoer generic EDIT function.
-    #if defined(OPTION_EDIT_X) || defined(OPTION_EDIT_PEM)
+    #if !defined(SAVE_SPACE_DM42_22_EDIT1) || !defined(SAVE_SPACE_DM42_23_EDIT2)
       int16_t index;
-    #endif //defined(OPTION_EDIT_X) || defined(OPTION_EDIT_PEM)
+    #endif //!defined(SAVE_SPACE_DM42_22_EDIT1) || !defined(SAVE_SPACE_DM42_23_EDIT2)
 
-    #if defined(OPTION_EDIT_X) || defined(OPTION_EDIT_PEM)
+    #if !defined(SAVE_SPACE_DM42_22_EDIT1) || !defined(SAVE_SPACE_DM42_23_EDIT2)
       uint8_t grpGroupingLeftOld;
       uint8_t grpGroupingRightOld;
     #endif
-    #if defined(OPTION_EDIT_PEM)
+    #if !defined(SAVE_SPACE_DM42_23_EDIT2)
       char    varOrLblName[32];
     #endif
 
@@ -307,7 +316,7 @@ void fnEdit (uint16_t unusedParamButMandatory) {
         }
         else {
           switch(getRegisterDataType(REGISTER_X)) {
-#if defined(OPTION_EDIT_X)
+#if !defined(SAVE_SPACE_DM42_22_EDIT1)
             case dtLongInteger: {
               #define NIM_BUFFER_EXTENDED_LENGTH    1400      // provision for very long integers (up to 1000 digits + separators)
               memset(nimBufferDisplay, 0, NIM_BUFFER_EXTENDED_LENGTH);
@@ -519,10 +528,8 @@ void fnEdit (uint16_t unusedParamButMandatory) {
                   }
                 }
               }
-              #if defined(PC_BUILD)
-                printf("**[DL]** dtComplex34 aimBuffer %s nimBufferDisplay %s\n", aimBuffer, nimBufferDisplay);
-                fflush(stdout);
-              #endif //PC_BUILD
+              printf("**[DL]** dtComplex34 aimBuffer %s nimBufferDisplay %s\n", aimBuffer, nimBufferDisplay);
+              fflush(stdout);
 
               exponentSignLocation = realExponentSignLocation;
               calcMode = CM_NIM;
@@ -554,7 +561,7 @@ void fnEdit (uint16_t unusedParamButMandatory) {
               goto edit_dtReal34;
               break;
             }
-#endif // OPTION_EDIT_X
+#endif // !SAVE_SPACE_DM42_22_EDIT1
 
             case dtString: {
               setSystemFlag(FLAG_ASLIFT);
@@ -576,7 +583,7 @@ void fnEdit (uint16_t unusedParamButMandatory) {
               break;
             }
 
-#if defined(OPTION_EDIT_X)
+#if !defined(SAVE_SPACE_DM42_22_EDIT1)
             case dtShortInteger: {
               uint16_t i;
               grpGroupingLeftOld  = grpGroupingLeft;
@@ -627,7 +634,7 @@ void fnEdit (uint16_t unusedParamButMandatory) {
               cursorFont = &numericFont;
               break;
             }
-#endif // OPTION_EDIT_X
+#endif // !SAVE_SPACE_DM42_22_EDIT1
 
             // case dtConfig: Not relevant for EDIT
             default: {
@@ -655,7 +662,7 @@ void fnEdit (uint16_t unusedParamButMandatory) {
           func |= currentStep[i++];
         }
         uint8_t opParam  = currentStep[i++];
-        #if defined(OPTION_EDIT_PEM)
+        #if !defined(SAVE_SPACE_DM42_23_EDIT2)
           uint8_t opParam2 = currentStep[i++];
           uint8_t opParam3 = currentStep[i];
         #endif
@@ -663,13 +670,13 @@ void fnEdit (uint16_t unusedParamButMandatory) {
         //printf("**[DL]** fnEdit cmPem func %d opParam %d opParam2 %d decodedLiteralType %d\n", func, opParam, opParam2, decodedLiteralType);
         //fflush(stdout);
 
-        if((func == ITM_LITERAL) || (func == ITM_REM) || (func == ITM_FINISH)) {
+        if((func == ITM_LITERAL) || (func == ITM_REM)) {
           memset(aimBuffer, 0, AIM_BUFFER_LENGTH);
 
           if(opParam == STRING_LABEL_VARIABLE) {
             pemAlphaEdit(NOPARAM);
           }
-#if defined(OPTION_EDIT_PEM)
+#if !defined(SAVE_SPACE_DM42_23_EDIT2)
           else if((opParam == BINARY_SHORT_INTEGER) || (opParam == STRING_SHORT_INTEGER) || (opParam == STRING_LONG_INTEGER) ||
                   (opParam == BINARY_REAL34)        || (opParam == STRING_REAL34)        ||
                   (opParam == BINARY_COMPLEX34)     || (opParam == STRING_COMPLEX34)     ||
@@ -681,7 +688,7 @@ void fnEdit (uint16_t unusedParamButMandatory) {
             bool isDate = (opParam == STRING_DATE ? true : false);
 
             if((opParam == STRING_REAL34)|| (opParam == STRING_COMPLEX34))  {
-              getStringLabelOrVariableName(&currentStep[2]);
+              _getStringLabelOrVariableName(&currentStep[2]);
               strcpy(tempBuffer, tmpStringLabelOrVariableName);
             }
             else {
@@ -871,27 +878,18 @@ void fnEdit (uint16_t unusedParamButMandatory) {
             //printf("**[DL]** fnEdit editingLiteralType %d aimBuffer %s\n", editingLiteralType, aimBuffer);
             //fflush(stdout);
           }
-#endif // OPTION_EDIT_PEM
+#endif // !SAVE_SPACE_DM42_23_EDIT2
           else {
             ;
           }
         }
-#if defined(OPTION_EDIT_PEM)
+#if !defined(SAVE_SPACE_DM42_23_EDIT2)
         else {
           uint16_t regNumber;
           uint16_t paramMode = (indexOfItems[func].status & PTP_STATUS) >> 9;
-          if((opParam == STRING_LABEL_VARIABLE) || (opParam == LOCAL_LABEL_VARIABLE) || (opParam == INDIRECT_VARIABLE)) {
-            // opParam2 is a name length read from the step; a corrupt or imported
-            // step can make it exceed varOrLblName, so clamp the copy and the
-            // terminator to the buffer while still consuming opParam2 bytes.
-            for(index = 0; index < opParam2; index++) {
-              if(index < (int16_t)(sizeof(varOrLblName) - 1)) {
-                varOrLblName[index] = currentStep[i];
-              }
-              i++;
-            }
-            if(index > (int16_t)(sizeof(varOrLblName) - 1)) {
-              index = (int16_t)(sizeof(varOrLblName) - 1);
+          if((opParam == STRING_LABEL_VARIABLE) || (opParam == INDIRECT_VARIABLE)) {
+            for(index = 0;  index < opParam2; index++) {
+              varOrLblName[index] = currentStep[i++];
             }
             varOrLblName[index] = 0;
           }
@@ -996,10 +994,7 @@ void fnEdit (uint16_t unusedParamButMandatory) {
               //fflush(stdout);
               tamProcessInput(func);
               //scrollPemBackwards();
-              if((opParam == STRING_LABEL_VARIABLE) || (opParam == LOCAL_LABEL_VARIABLE)) {      // Variable name : Label or  edit name string
-                if(opParam == LOCAL_LABEL_VARIABLE) {
-                  tamProcessInput(ITM_COLON);
-                }
+              if(opParam == STRING_LABEL_VARIABLE) {      // Variable name : Label or  edit name string
                 tamProcessInput(ITM_alpha);
                 if(stringGlyphLength(varOrLblName) == 7) {
                   varOrLblName[stringLastGlyph(varOrLblName)] = 0;  // Ensure name is 6 characters maximum
@@ -1053,13 +1048,13 @@ void fnEdit (uint16_t unusedParamButMandatory) {
             }
           }
         }
-#endif // OPTION_EDIT_PEM
+#endif // !SAVE_SPACE_DM42_23_EDIT2
         break;
       }
 
       default:
 err:
-        displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+        displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           sprintf(errorMessage, "Calculator mode or type not supported for EDIT command");
           moreInfoOnError("In function fnEdit:", errorMessage, NULL, NULL);
@@ -1073,27 +1068,15 @@ err:
 #if defined(DMCP_BUILD)
   void standardScreenDump(void) {
   resetShiftState();                  //JM To avoid f or g top left of the screen, clear to make sure
-  paintDateTimeForCapture();
-  char *savedBuffers = malloc(ERROR_MESSAGE_LENGTH + AIM_BUFFER_LENGTH + NIM_BUFFER_LENGTH + TAM_BUFFER_LENGTH);          // on the heap: tmpString is DMCP's own aux buffer, so it is not a safe place to hold a backup across create_screenshot
-  if(savedBuffers == NULL) {
-    return;
-  }
-  #if defined(OUT_VOL_MAX)
-    int32_t vol = getBeepVolume();
-
-    if(vol > 1) {                     // the lowest setting is left alone; anything above is raised for the capture marks and put back below
-      fnSetVolume(11);
-    }
-  #endif // OUT_VOL_MAX
+  int32_t vol = 0;
+  vol = getBeepVolume();
+  fnSetVolume(11);
   _Buzz(100, 5);
-  xcopy(savedBuffers, errorMessage, ERROR_MESSAGE_LENGTH + AIM_BUFFER_LENGTH + NIM_BUFFER_LENGTH + TAM_BUFFER_LENGTH);    //backup portion of the "message buffer" area in DMCP used by ERROR..AIM..NIM buffers. DMCP uses this area during create_screenshot.
+  xcopy(tmpString, errorMessage, ERROR_MESSAGE_LENGTH + AIM_BUFFER_LENGTH + NIM_BUFFER_LENGTH + TAM_BUFFER_LENGTH);       //backup portion of the "message buffer" area in DMCP used by ERROR..AIM..NIM buffers, to the tmpstring area in DMCP. DMCP uses this area during create_screenshot.
   create_screenshot(0);      //Screen dump
-  xcopy(errorMessage, savedBuffers, ERROR_MESSAGE_LENGTH + AIM_BUFFER_LENGTH + NIM_BUFFER_LENGTH + TAM_BUFFER_LENGTH);
+  xcopy(errorMessage, tmpString, ERROR_MESSAGE_LENGTH + AIM_BUFFER_LENGTH + NIM_BUFFER_LENGTH + TAM_BUFFER_LENGTH);        //   This total area must be less than the tmpString storage area, which it is.
   _Buzz(100, 5);
-  #if defined(OUT_VOL_MAX)
-    fnSetVolume((uint16_t)vol);
-  #endif // OUT_VOL_MAX
-  free(savedBuffers);
+  fnSetVolume((uint16_t)vol);
 }
 #endif // DMCP_BUILD
 
@@ -1110,27 +1093,17 @@ bool_t anyKeyWaiting(void) {
 
 
 
-// EXIT (32) or R/S (35) both stop a long computation (solver, integrator, grapher, prime, matrix, ...)
 bool_t exitKeyWaiting(void) {
   #if defined(DMCP_BUILD)
-    int interruptKey = C47PopKeyNoBuffer(DISPLAY_WAIT_FOR_RELEASE);                   // drains and checks the DMCP SDK buffer (EXIT/R/S priority)
-    bool_t ringInterrupt = interruptKeyInBuffer();                                    // EXIT (33) / R/S (36) that a refresh's keyBuffer_pop parked in the C47 ring buffer, where C47PopKeyNoBuffer (SDK buffer only) cannot see it
-    bool_t checkKey = (interruptKey == 32 || interruptKey == 35) || ringInterrupt;    // 32 = EXIT, 35 = R/S (SDK buffer, in the -1 scheme, C47PopKeyNoBuffer returns)
+    bool_t checkKey = C47PopKeyNoBuffer(DISPLAY_WAIT_FOR_RELEASE) == 32;
     if(!checkKey) {
       key_pop_all();
       clearKeyBuffer();
     }
-    else if(ringInterrupt) {
-      clearKeyBuffer();                  // consume the ring-buffer interrupt key so a queued R/S cannot later relaunch fnRunProgram; the original EXIT-in-SDK path is left untouched
-    }
     return checkKey;
   #elif defined(PC_BUILD) // !DMCP_BUILD
     //printf("KeyWaiting keyCode=%u", currentKeyCode);
-    if(currentKeyCode == 35) {           // R/S: interrupt, and consume the key (R/S is a run/stop toggle; a surviving press was being re-read as "run" and relaunched the operation)
-      currentKeyCode = 255;
-      return true;
-    }
-    return currentKeyCode == 32;         // EXIT1 / EXIT key //Do not us gtk_events_pending() as it triggers for timers too
+    return currentKeyCode == 32; //EXIT1 / EXIT key //Do not us gtk_events_pending() as it triggers for timers too
   #endif // PC_BUILD
   return false;
 }
@@ -1317,9 +1290,9 @@ void fnFrom_msRegister(calcRegister_t regist){
       if(tmpString100_OUT[0] != 0) {
         reallocateRegister(regist, dtReal34, 0, amNone);
         stringToReal34(tmpString100_OUT, REGISTER_REAL34_DATA(regist));
-        #if (EXTRA_INFO_ON_CALC_ERROR == 1) && defined(PC_BUILD)
+        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           printf("\n ------- 003 >>>%s<<<\n", tmpString100_OUT);
-        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1) && PC_BUILD
+        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
       }
     }
 
@@ -1408,7 +1381,7 @@ void fnTo_ms(uint16_t unusedButMandatoryParameter) {
             fnHRtoTM(0);
           }
           else {
-            displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+            displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
             #if (EXTRA_INFO_ON_CALC_ERROR == 1)
               sprintf(errorMessage, "cannot calculate specific type/tag");
               moreInfoOnError("In function fnTo_ms:", errorMessage, NULL, NULL);
@@ -1580,7 +1553,7 @@ void fn_cnst_op_A(uint16_t option) {
   if(initMatrixRegister(REGISTER_X, 3, 3, true)) {
   }
   else {
-    displayCalcErrorMessage(ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "Not enough memory for a %" PRIu32 STD_CROSS "%" PRIu32 " matrix", 1, 1);
       moreInfoOnError("In function fn_cnst_op_A:", errorMessage, NULL, NULL);
@@ -1623,33 +1596,30 @@ void fn_cnst_op_A(uint16_t option) {
 #if defined(OPTION_VECTOR) || defined(OPTION_ELEC)
 TO_QSPI static const struct {
     unsigned rows  : 2;
-    unsigned cols  : 3;
+    unsigned cols  : 2;
     unsigned x     : 2;
     unsigned y     : 2;
     unsigned z     : 2;
-    unsigned t     : 2;
     unsigned xdef  : 2;
     unsigned ydef  : 2;
     unsigned zdef  : 2;
-    unsigned tdef  : 2;
 } vecCreate[] = {
 
-//            type          r  c   x   y   z   t     xdef      ydef      zdef      tdef
-/* 1 */ [ VECT_CR_zxy ] = { 1, 3,  0,  1,  2,  3,   V_COPY,   V_COPY,   V_COPY,   V_NANA },     // 1x3 vector created from zyx FOR MATX menu, when converting internally, xy swapped, PHYS STYLE
-/* 2 */ [ VECT_CR_zyx ] = { 1, 3,  0,  1,  2,  3,   V_COPY,   V_COPY,   V_COPY,   V_NANA },     // 1x3 vector created from zyx FOR MATX menu
-/* 3 */ [ VECT_CR_100 ] = { 1, 3,  0,  1,  2,  3,   V_D0  ,   V_D0  ,   V_D1  ,   V_NANA },     // V_DEF1x3 unity vectors 100
-/* 4 */ [ VECT_CR_010 ] = { 1, 3,  0,  1,  2,  3,   V_D0  ,   V_D1  ,   V_D0  ,   V_NANA },     // V_DEF1x3 unity vectors 010
-/* 5 */ [ VECT_CR_001 ] = { 1, 3,  0,  1,  2,  3,   V_D1  ,   V_D0  ,   V_D0  ,   V_NANA },     // V_DEF1x3 unity vectors 001
-/* 6 */ [ VECT_CR_yx  ] = { 1, 2,  0,  1,  3,  3,   V_COPY,   V_COPY,   V_NANA,   V_NANA },     // 1x2 vector created from yx
-/* 7 */ [ VECT_CR_10  ] = { 1, 2,  0,  1,  3,  3,   V_D0  ,   V_D1  ,   V_NANA,   V_NANA },     // V_DEF1x2 unity vectors 10
-/* 8 */ [ VECT_CR_01  ] = { 1, 2,  0,  1,  3,  3,   V_D1  ,   V_D0  ,   V_NANA,   V_NANA },     // V_DEF1x2 unity vectors 01
-/* 9 */ [ VECT_CR_tzyx] = { 1, 4,  0,  1,  2,  3,   V_COPY,   V_COPY,   V_COPY,   V_COPY }      // 1x4 vector created from tzyx, T first: the highest-degree-first coefficient order SLVC, SLVQ and SLVP take
+//            type          r  c   x   y   z     xdef      ydef      zdef
+/* 1 */ [ VECT_CR_zxy ] = { 1, 3,  0,  1,  2,   V_COPY,   V_COPY,   V_COPY },     // 1x3 vector created from zyx FOR MATX menu, when converting internally, xy swapped, PHYS STYLE
+/* 2 */ [ VECT_CR_zyx ] = { 1, 3,  0,  1,  2,   V_COPY,   V_COPY,   V_COPY },     // 1x3 vector created from zyx FOR MATX menu
+/* 3 */ [ VECT_CR_100 ] = { 1, 3,  0,  1,  2,   V_D0  ,   V_D0  ,   V_D1   },     // V_DEF1x3 unity vectors 100
+/* 4 */ [ VECT_CR_010 ] = { 1, 3,  0,  1,  2,   V_D0  ,   V_D1  ,   V_D0   },     // V_DEF1x3 unity vectors 010
+/* 5 */ [ VECT_CR_001 ] = { 1, 3,  0,  1,  2,   V_D1  ,   V_D0  ,   V_D0   },     // V_DEF1x3 unity vectors 001
+/* 6 */ [ VECT_CR_yx  ] = { 1, 2,  0,  1,  3,   V_COPY,   V_COPY,   V_NANA },     // 1x2 vector created from yx
+/* 7 */ [ VECT_CR_10  ] = { 1, 2,  0,  1,  3,   V_D0  ,   V_D1  ,   V_NANA },     // V_DEF1x2 unity vectors 10
+/* 8 */ [ VECT_CR_01  ] = { 1, 2,  0,  1,  3,   V_D1  ,   V_D0  ,   V_NANA }      // V_DEF1x2 unity vectors 01
 
     // r c is the size of the matrix to be created, eg. 1x3 or 2x1 etc.
-    // x y z t are the matrix element number mapping to the register name, eg. x=2 means x register goes to internal matrix element 2; 3 means not copied (except t=3 in a 1x4)
-    // xdef/ydef/zdef/tdef
+    // x y z are the matrix element number mapping to the register name, eg. x=2 means x register goes to internal matrix element 2; 3 means not copied
+    // xdef/ydef/zdef
     //   = 1/0 : the value to be pre-loaded into the matrix element
-    //   = 2   : the value is copied from register X, Y, Z or T to the specified matrix element
+    //   = 2   : the value is copied from register X, Y or Z to the specified matrix element
     //   = 3   : not copied
   };
 
@@ -1671,7 +1641,6 @@ TO_QSPI static const struct {
 void fnExchangeStkToMx(uint16_t opType) {
 #if defined(OPTION_VECTOR)
   switch(opType) {
-#if defined(OPTION_VECTOR)
     case ITM_stkexV2:{
       if(isRegisterMatrix2dVector(REGISTER_X)) {
         fnConvertMxToStk(indexOfItems[ITM_V2toSTK].param);
@@ -1681,7 +1650,7 @@ void fnExchangeStkToMx(uint16_t opType) {
       }
       else {
         #if !defined(TESTSUITE_BUILD)
-          displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+          displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             sprintf(errorMessage, "invalid data type %s and %s", getRegisterDataTypeName(REGISTER_Y, true, false), getRegisterDataTypeName(REGISTER_X, true, false));
             moreInfoOnError("In function fnExchangeStkToMx:", errorMessage, NULL, NULL);
@@ -1702,7 +1671,7 @@ void fnExchangeStkToMx(uint16_t opType) {
       }
       else {
         #if !defined(TESTSUITE_BUILD)
-          displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+          displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             sprintf(errorMessage, "invalid data type %s and %s", getRegisterDataTypeName(REGISTER_Y, true, false), getRegisterDataTypeName(REGISTER_X, true, false));
             moreInfoOnError("In function fnExchangeStkToMx:", errorMessage, NULL, NULL);
@@ -1711,18 +1680,6 @@ void fnExchangeStkToMx(uint16_t opType) {
       }
       break;
     }
-#endif //OPTION_VECTOR
-
-    case ITM_stkexV4:{                                   // a matrix in X unpacks; anything else packs and the register read raises the type error
-      if(getRegisterDataType(REGISTER_X) == dtReal34Matrix || getRegisterDataType(REGISTER_X) == dtComplex34Matrix) {
-        fnConvertMxToStk(VECT_CR_tzyx);
-      }
-      else {
-        fnConvertStkToMx(VECT_CR_tzyx);
-      }
-      break;
-    }
-
     default:break;
   }
 #endif //OPTION_VECTOR
@@ -1732,7 +1689,7 @@ void fnExchangeStkToMx(uint16_t opType) {
 void fnConvertStkToMx(uint16_t constVector1) {
 #if defined(OPTION_VECTOR) || defined(OPTION_ELEC)
   bool_t complexCoefs = false;
-  struct cmplxPair x[4];
+  struct cmplxPair x[3];
   real34Matrix_t matrix;
   complex34Matrix_t matrixC;
   uint16_t elements;
@@ -1762,25 +1719,17 @@ void fnConvertStkToMx(uint16_t constVector1) {
   if(!processDefaultVector(REGISTER_Y, vecCreate[constVector].y, vecCreate[constVector].ydef, x, &complexCoefs)) return;   //if not successful register input, return
   if(max(vecCreate[constVector].z, vecCreate[constVector].zdef) != V_NANA &&
      !processDefaultVector(REGISTER_Z, vecCreate[constVector].z, vecCreate[constVector].zdef, x, &complexCoefs)) return;   //if not successful register input, return
-  if(vecCreate[constVector].tdef != V_NANA &&
-     !processDefaultVector(REGISTER_T, vecCreate[constVector].t, vecCreate[constVector].tdef, x, &complexCoefs)) return;   //if not successful register input, return
 
   if(!saveLastX()) {
     return;
   }
 
 
-#if defined(OPTION_VECTOR) || defined(OPTION_ELEC)
   uint32_t ang2Dx, ang2Dy, ang3Dx, ang3Dy, ang3Dz;
   bool_t validPolarInput, valid2DRInput, validSPHInput, validCYLInput, valid3DRInput;
 
-  if(complexCoefs) {                                   // a complex is a value, never a vector angle: its polar tag does not make a SPH or CYL input
-    ang2Dx = ang2Dy = ang3Dx = ang3Dy = ang3Dz = amNone;
-    validPolarInput = valid2DRInput = validSPHInput = validCYLInput = false;
-    valid3DRInput = true;
-  }
-  else if(!is_2D3D_Register_Ready(&ang2Dx, &ang2Dy, &ang3Dx, &ang3Dy, &ang3Dz, &validPolarInput, &valid2DRInput, &validSPHInput, &validCYLInput, &valid3DRInput, constVector)) {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_POLAR_RECT, ERR_REGISTER_LINE);
+  if(!is_2D3D_Register_Ready(&ang2Dx, &ang2Dy, &ang3Dx, &ang3Dy, &ang3Dz, &validPolarInput, &valid2DRInput, &validSPHInput, &validCYLInput, &valid3DRInput, constVector)) {
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_POLAR_RECT, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "No valid coordinates for 2D/3D Rect/Polar/Spherical/Cylindrical");
       moreInfoOnError("In function fnConvertStkToMx:", errorMessage, NULL, NULL);
@@ -1789,7 +1738,7 @@ void fnConvertStkToMx(uint16_t constVector1) {
   }
   else {
     if(constVector1 == M_CR_zyx && !valid3DRInput) {
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "No angles allowed for ELEC M");
         moreInfoOnError("In function fnConvertStkToMx:", errorMessage, NULL, NULL);
@@ -1817,7 +1766,6 @@ void fnConvertStkToMx(uint16_t constVector1) {
   else if(validCYLInput) {
     convertAngleFromTo(&x[vecCreate[constVector].y].r, ang3Dy, amRadian, &ctxtReal39);
   }
-#endif //OPTION_VECTOR || OPTION_ELEC
 
 
 
@@ -1830,9 +1778,6 @@ void fnConvertStkToMx(uint16_t constVector1) {
     if(elements > 2) {
       fnDrop(NOPARAM);
     }
-    if(elements > 3) {
-      fnDrop(NOPARAM);
-    }
   }
 
 
@@ -1841,7 +1786,7 @@ void fnConvertStkToMx(uint16_t constVector1) {
     if(initMatrixRegister(REGISTER_X, vecCreate[constVector].rows, vecCreate[constVector].cols, complexCoefs)) {
     }
     else {
-      displayCalcErrorMessage(ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "Not enough memory for a %" PRIu32 STD_CROSS "%" PRIu32 " matrix", 1, 1);
         moreInfoOnError("In function fnConvertStkToMx:", errorMessage, NULL, NULL);
@@ -1859,7 +1804,6 @@ void fnConvertStkToMx(uint16_t constVector1) {
   else {
     linkToRealMatrixRegister(REGISTER_X,  &matrix);
 
-#if defined(OPTION_VECTOR) || defined(OPTION_ELEC)
     if(ang2Dx != amNone && ang2Dy == amNone && constVector == VECT_CR_yx) {
       convertPOLto2D(&x[1].r, &x[0].r, amRadian, &matrix, &ctxtReal39);
       matrixRegisterLoaded = true;
@@ -1877,7 +1821,6 @@ void fnConvertStkToMx(uint16_t constVector1) {
       convertCYLto3D(&x[2].r, &x[1].r, &x[0].r, amRadian, &matrix, &ctxtReal39);
       matrixRegisterLoaded = true;
     }
-#endif //OPTION_VECTOR || OPTION_ELEC
   }
 
 
@@ -1893,22 +1836,8 @@ void fnConvertStkToMx(uint16_t constVector1) {
     }
   }
 
-  if(constVector1 == M_CR_zyx) {                       // ELEC M is the 3x1 column, the transpose of the vector row
-    if(complexCoefs) {
-      transposeComplexMatrix(&matrixC, &matrixC);
-      REGISTER_MATRIX_HEADER(REGISTER_X)->matrixRows    = matrixC.header.matrixRows;
-      REGISTER_MATRIX_HEADER(REGISTER_X)->matrixColumns = matrixC.header.matrixColumns;
-    }
-    else {
-      transposeRealMatrix(&matrix, &matrix);
-      REGISTER_MATRIX_HEADER(REGISTER_X)->matrixRows    = matrix.header.matrixRows;
-      REGISTER_MATRIX_HEADER(REGISTER_X)->matrixColumns = matrix.header.matrixColumns;
-    }
-  }
-
   adjustResult(REGISTER_X, false, true, REGISTER_X, -1, -1);
 
-#if defined(OPTION_VECTOR) || defined(OPTION_ELEC)
   if(validPolarInput) {
     setVectorRegisterAngularMode(REGISTER_X, ang2Dx);
     setVectorRegisterPolarMode(REGISTER_X, amPolar);
@@ -1925,7 +1854,6 @@ void fnConvertStkToMx(uint16_t constVector1) {
     temporaryInformation = TI_VECTOR;
   }
 #endif //OPTION_VECTOR || OPTION_ELEC
-#endif //OPTION_VECTOR || OPTION_ELEC
 }
 
 
@@ -1936,11 +1864,13 @@ void fnConvertMxToStk(uint16_t param1) { //first try the vector type in lower ni
   uint16_t Xrows, Xcols;
 
   if(!(getRegisterDataType(REGISTER_X) == dtReal34Matrix || getRegisterDataType(REGISTER_X) == dtComplex34Matrix)) {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
-    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      sprintf(errorMessage, "invalid data type %s and %s", getRegisterDataTypeName(REGISTER_Y, true, false), getRegisterDataTypeName(REGISTER_X, true, false));
-      moreInfoOnError("In function fnConvertMxToStk:", errorMessage, NULL, NULL);
-    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+    #if !defined(TESTSUITE_BUILD)
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
+      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+        sprintf(errorMessage, "invalid data type %s and %s", getRegisterDataTypeName(REGISTER_Y, true, false), getRegisterDataTypeName(REGISTER_X, true, false));
+        moreInfoOnError("In function fnConvertMxToStk:", errorMessage, NULL, NULL);
+      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+    #endif // !TESTSUITE_BUILD
     return;
   }
 
@@ -1996,11 +1926,6 @@ void fnConvertMxToStk(uint16_t param1) { //first try the vector type in lower ni
   if(!((Xrows == vecCreate[constVector].rows && Xcols == vecCreate[constVector].cols) || (Xrows == vecCreate[constVector].cols && Xcols == vecCreate[constVector].rows))) {
     constVector = (param & 0xF0) >> 4; //vector type in higher nibble
     if(constVector == 0 || !((Xrows == vecCreate[constVector].rows && Xcols == vecCreate[constVector].cols) || (Xrows == vecCreate[constVector].cols && Xcols == vecCreate[constVector].rows))) {
-      displayCalcErrorMessage(ERROR_MATRIX_MISMATCH, ERR_REGISTER_LINE);
-      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-        sprintf(errorMessage, "a vector is needed, not (%" PRIu16 STD_CROSS "%" PRIu16 ")", Xrows, Xcols);
-        moreInfoOnError("In function fnConvertMxToStk:", errorMessage, NULL, NULL);
-      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
       return;
     }
   }
@@ -2011,22 +1936,34 @@ void fnConvertMxToStk(uint16_t param1) { //first try the vector type in lower ni
     return;
   }
 
-  //2, 3 or 4 elements: clear X, then lift and clear once per further element
+  //can only be 2 or 3 elements
+  //assuming 2 elements, clearing X and preparing Y
 
-  for(uint16_t e = 0; e < elements; e++) {
-    if(e > 0) {
+  if(getRegisterDataType(TEMP_REGISTER_1) == dtReal34Matrix) {
+    convertRealToResultRegister(const_0, REGISTER_X, amNone);
+    setSystemFlag(FLAG_ASLIFT);
+    liftStack();
+    convertRealToResultRegister(const_0, REGISTER_X, amNone);
+  }
+  else {
+    convertComplexToResultRegisterRPangle(const_0, const_0, REGISTER_X, amNone, !amPolar);
+    setSystemFlag(FLAG_ASLIFT);
+    liftStack();
+    convertComplexToResultRegisterRPangle(const_0, const_0, REGISTER_X, amNone, !amPolar);
+  }
+  if(elements > 2) {
+    if(getRegisterDataType(TEMP_REGISTER_1) == dtReal34Matrix) {
       setSystemFlag(FLAG_ASLIFT);
       liftStack();
-    }
-    if(getRegisterDataType(TEMP_REGISTER_1) == dtReal34Matrix) {
       convertRealToResultRegister(const_0, REGISTER_X, amNone);
     }
     else {
+      setSystemFlag(FLAG_ASLIFT);
+      liftStack();
       convertComplexToResultRegisterRPangle(const_0, const_0, REGISTER_X, amNone, !amPolar);
     }
   }
 
-#if defined(OPTION_VECTOR) || defined(OPTION_ELEC)
   if(constVector == VECT_CR_yx && ang2Dx != amNone) {
     real_t theta, magnitude;
     real34ToReal(&matrix.matrixElements[0], &magnitude);
@@ -2058,13 +1995,11 @@ void fnConvertMxToStk(uint16_t param1) { //first try the vector type in lower ni
       realToReal34(&theta , &matrix.matrixElements[1]);
     }
   }
-#endif //OPTION_VECTOR || OPTION_ELEC
 
   for(int i = 0; i < elements; i++) {
     uint16_t rg = vecCreate[constVector].x == elements-1-i ? REGISTER_X : \
                   vecCreate[constVector].y == elements-1-i ? REGISTER_Y : \
-                  vecCreate[constVector].z == elements-1-i ? REGISTER_Z : \
-                  vecCreate[constVector].t == elements-1-i ? REGISTER_T : 0;
+                  vecCreate[constVector].z == elements-1-i ? REGISTER_Z : 0;
     if(getRegisterDataType(TEMP_REGISTER_1) == dtComplex34Matrix) {
       real34Copy(VARIABLE_REAL34_DATA(&matrixC.matrixElements[i]), REGISTER_REAL34_DATA(rg));
       real34Copy(VARIABLE_IMAG34_DATA(&matrixC.matrixElements[i]), REGISTER_IMAG34_DATA(rg));
@@ -2093,9 +2028,7 @@ void fnConvertMxToStk(uint16_t param1) { //first try the vector type in lower ni
     temporaryInformation = TI_VECTORCOMP_3DCYL;
   }
   else if((constVector == VECT_CR_zyx || constVector == VECT_CR_zxy) && ang3Dy == amNone && ang3Dx == amNone) { //RECT
-    if(getRegisterDataType(TEMP_REGISTER_1) == dtReal34Matrix) {     // a complex element keeps the polar tag copied from the matrix
-      setRegisterAngularMode(REGISTER_Y, ang3Dy);
-    }
+    setRegisterAngularMode(REGISTER_Y, ang3Dy);
     temporaryInformation = TI_VECTORCOMP_3DRECT;
   }
 #endif //OPTION_VECTOR || OPTION_ELEC
@@ -2165,11 +2098,6 @@ TO_QSPI static const char ITSIprefixes[22] = "K  M  G  T  P  E  Z  ";
   displayString[1] = 0;
   displayString[2] = 0;
   displayString[3] = 0;
-
-  if(displayValueString != NULL && !flag2To10) {                         // a binary prefix is multiplied into the mantissa by the caller
-    sprintf(displayValueString, "e%" PRId32, exponent);
-    displayValueString = NULL;
-  }
 
   if(!flag2To10 && !getSystemFlag(FLAG_2TO10)) {
       if((-15 <= exponent && exponent <= 15) || (-30 <= exponent && exponent <= 30 && getSystemFlag(FLAG_PFX_ALL))) {
@@ -2480,14 +2408,6 @@ void fnInDefault(uint16_t inputDefault) {
 }
 
 
-// A restore takes this byte from a file unchecked, and a value outside the four reaches no branch of initLocalRegisters() and no case in closeNim().
-void set_def_Input_Default(void) {
-  if(Input_Default != ID_43S && Input_Default != ID_DP && Input_Default != ID_CPXDP && Input_Default != ID_LI) {
-    Input_Default = ID_43S;
-  }
-}
-
-
 void fnByteShortcutsS(uint16_t size) { //JM POC BASE2 vv
   fnSetWordSize(size);
   fnIntegerMode(SIM_2COMPL);
@@ -2497,6 +2417,17 @@ void fnByteShortcutsS(uint16_t size) { //JM POC BASE2 vv
 void fnByteShortcutsU(uint16_t size) {
   fnSetWordSize(size);
   fnIntegerMode(SIM_UNSIGN);
+}
+
+
+void doubleToXRegisterReal34(double x) { //Convert from double to X register REAL34
+  setSystemFlag(FLAG_ASLIFT);
+  liftStack();
+  reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
+  snprintf(tmpString, TMP_STR_LENGTH, "%.16e", x);
+  stringToReal34(tmpString, REGISTER_REAL34_DATA(REGISTER_X));
+  //adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
+  setSystemFlag(FLAG_ASLIFT);
 }
 
 
@@ -2562,6 +2493,25 @@ void fnRCL(int16_t inp) { //DONE
   else {
     fnRecall(inp);
   }
+}
+
+
+double convert_to_double(calcRegister_t regist) { //Convert from X register to double
+  double y;
+  real_t tmpy;
+  switch(getRegisterDataType(regist)) {
+    case dtLongInteger:
+      convertLongIntegerRegisterToReal(regist, &tmpy, &ctxtReal39);
+      break;
+    case dtReal34:
+      real34ToReal(REGISTER_REAL34_DATA(regist), &tmpy);
+      break;
+    default:
+      return 0;
+  }
+  realToString(&tmpy, tmpString);
+  y = strtof(tmpString, NULL);
+  return y;
 }
 
 
@@ -2635,9 +2585,94 @@ void timeToReal34(uint16_t hms) { //always 24 hour time;
 }
 
 
+void dms34ToReal34(uint16_t dms) {
+  real34_t angle34;
+  calcRegister_t regist = REGISTER_X;
+  real34_t d34, m34, s34, fs34;
+  real34Copy(REGISTER_REAL34_DATA(regist), &angle34);
+
+  uint32_t m, s, fs;
+  int16_t sign;
+
+  real_t temp, degrees, minutes, seconds;
+
+  real34ToReal(&angle34, &temp);
+
+  sign = 1 - 2*realIsNegative(&temp);
+  realSetPositiveSign(&temp);
+
+  // Get the degrees
+  realToIntegralValue(&temp, &degrees, DEC_ROUND_DOWN, &ctxtReal39);
+
+  // Get the minutes
+  realSubtract(&temp, &degrees, &temp, &ctxtReal39);
+  temp.exponent += 2; // temp = temp * 100
+  realToIntegralValue(&temp, &minutes, DEC_ROUND_DOWN, &ctxtReal39);
+
+  // Get the seconds
+  realSubtract(&temp, &minutes, &temp, &ctxtReal39);
+  temp.exponent += 2; // temp = temp * 100
+  realToIntegralValue(&temp, &seconds, DEC_ROUND_DOWN, &ctxtReal39);
+
+  // Get the fractional seconds
+  realSubtract(&temp, &seconds, &temp, &ctxtReal39);
+  temp.exponent += 2; // temp = temp * 100
+
+  fs = realToUint32C47(&temp, NULL);
+  s  = realToUint32C47(&seconds, NULL);
+  m  = realToUint32C47(&minutes, NULL);
+
+  if(fs >= 100) {
+    fs -= 100;
+    s++;
+  }
+
+  if(s >= 60) {
+    s -= 60;
+    m++;
+  }
+
+  if(m >= 60)  {
+    m -= 60;
+    realAdd(&degrees, const_1, &degrees, &ctxtReal39);
+  }
+
+  real34_t *ptr;
+  switch(dms)  {
+    case 0: //d
+      realToReal34(&degrees, &d34);
+      ptr = &d34;
+      break;
+
+    case 1: //m
+      int32ToReal34(m, &m34);
+      ptr = &m34;
+      break;
+
+    case 2: //s
+      int32ToReal34(fs, &fs34);
+      real34Divide(&fs34, const34_100, &fs34);
+
+      int32ToReal34(s, &s34);
+      real34Add(&s34, &fs34, &s34);
+
+      ptr = &s34;
+      break;
+
+    default: ptr = NULL; // cannot happen
+  }
+
+  if(sign == -1) {
+    real34ChangeSign(ptr);
+  }
+  reallocateRegister(regist, dtReal34, 0, amNone);
+  real34Copy(ptr, REGISTER_REAL34_DATA(regist));
+}
+
+
 void notSexa(void) {
   copySourceRegisterToDestRegister(REGISTER_L, REGISTER_X);
-  displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+  displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
   #if (EXTRA_INFO_ON_CALC_ERROR == 1)
     sprintf(errorMessage, "data type %s cannot be converted!", getRegisterDataTypeName(REGISTER_X, false, false));
     moreInfoOnError("In function notSexa:", errorMessage, NULL, NULL);
@@ -2649,7 +2684,10 @@ void fnHrDeg(uint16_t unusedButMandatoryParameter) {
   if(!saveLastX()) {
     return;
   }
-  if(getRegisterDataType(REGISTER_X) == dtTime) {
+  if(getRegisterAngularMode(REGISTER_X) == amDMS && getRegisterDataType(REGISTER_X) == dtReal34) {
+    dms34ToReal34(0);
+  }
+  else if(getRegisterDataType(REGISTER_X) == dtTime) {
     timeToReal34(0);
   }
   else {
@@ -2663,9 +2701,7 @@ void fnMinute(uint16_t unusedButMandatoryParameter) {
     return;
   }
   if(getRegisterAngularMode(REGISTER_X) == amDMS && getRegisterDataType(REGISTER_X) == dtReal34) {
-    fnTo_ms(0);
-    timeToReal34(1);
-    temporaryInformation = TI_NO_INFO; // the conversion sets TI_FROM_DMS; the result is a plain real
+    dms34ToReal34(1);
   }
   else if(getRegisterDataType(REGISTER_X) == dtTime) {
     timeToReal34(1);
@@ -2681,9 +2717,7 @@ void fnSecond(uint16_t unusedButMandatoryParameter){
     return;
   }
   if(getRegisterAngularMode(REGISTER_X) == amDMS && getRegisterDataType(REGISTER_X) == dtReal34) {
-    fnTo_ms(0);
-    timeToReal34(2);
-    temporaryInformation = TI_NO_INFO; // the conversion sets TI_FROM_DMS; the result is a plain real
+    dms34ToReal34(2);
   }
   else if(getRegisterDataType(REGISTER_X) == dtTime) {
     timeToReal34(2);
@@ -2699,7 +2733,16 @@ void fnTimeTo(uint16_t unusedButMandatoryParameter) {
     return;
   }
 
-  if(getRegisterDataType(REGISTER_X) == dtTime) {
+  if(getRegisterAngularMode(REGISTER_X) == amDMS && getRegisterDataType(REGISTER_X) == dtReal34) {
+    dms34ToReal34(0);
+    liftStack();
+    copySourceRegisterToDestRegister(REGISTER_L, REGISTER_X);
+    dms34ToReal34(1);
+    liftStack();
+    copySourceRegisterToDestRegister(REGISTER_L, REGISTER_X);
+    dms34ToReal34(2);
+  }
+  else if(getRegisterDataType(REGISTER_X) == dtTime) {
     timeToReal34(0);
     liftStack();
     copySourceRegisterToDestRegister(REGISTER_L, REGISTER_X);
@@ -2712,6 +2755,67 @@ void fnTimeTo(uint16_t unusedButMandatoryParameter) {
     notSexa();
     return;
   }
+}
+
+
+/********************************************//**
+ * \brief Check if time is valid (e.g. 10:61:61 is invalid)
+ *
+ * \param[in] hour real34_t*
+ * \param[in] minute real34_t*
+ * \param[in] second real34_t*
+ * \return bool_t true if valid
+ ***********************************************/
+bool_t isValidTime(const real34_t *hour, const real34_t *minute, const real34_t *second) {
+  real34_t val;
+
+  // second
+  real34ToIntegralValue(second, &val, DEC_ROUND_FLOOR);
+  real34Subtract(second, &val, &val);
+  if(!real34IsZero(&val)) {
+    return false;
+  }
+
+  if(real34CompareLessThan(second, const34_0)) {
+    return false;
+  }
+
+  if(real34CompareGreaterEqual(second, const34_60)) {
+    return false;
+  }
+
+  // minute
+  real34ToIntegralValue(minute, &val, DEC_ROUND_FLOOR);
+  real34Subtract(minute, &val, &val);
+  if(!real34IsZero(&val)) {
+    return false;
+  }
+
+  if(real34CompareLessThan(minute, const34_0)) {
+    return false;
+  }
+
+  if(real34CompareGreaterEqual(minute, const34_60)) {
+    return false;
+  }
+
+  // hour
+  real34ToIntegralValue(hour, &val, DEC_ROUND_FLOOR);
+  real34Subtract(hour, &val, &val);
+  if(!real34IsZero(&val)) {
+    return false;
+  }
+
+  if(real34CompareLessThan(hour, const34_0)) {
+    return false;
+  }
+
+  if(real34CompareGreaterEqual(hour, const34_24)) {
+    return false;
+  }
+
+  // Valid time
+  return true;
 }
 
 
@@ -2743,7 +2847,7 @@ void fnToTime(uint16_t unusedButMandatoryParameter) {
         /* fallthrough */
 
       default:
-        displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+        displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           sprintf(errorMessage, "data type %s cannot be converted to a time!", getRegisterDataTypeName(toTimeParamReg[i], false, false));
           moreInfoOnError("In function fnToTime:", errorMessage, NULL, NULL);
@@ -3000,7 +3104,7 @@ bool_t checkForAndChange(char *displayString, const real_t *valueReal, const rea
     fraction(TEMP_REGISTER_1, &sign1, &intPart, &numer, &denom, &lessEqualGreater);   //does not yet work in all the frac modes.
     //printf("aaaaaaa: %i%llu + %llu / %llu \n", sign1, intPart, numer, denom);
     int32_t smallestDenom = denom;
-#else // IRFRAC_ENGINE
+#else // FRACT_ENGINE
     //* This section uses the new special demoninator search engine
     int32_t smallestDenom = getSmallestDenom(&multConstant);                                                    //denominator
 #endif // !IRFRAC_ENGINE
@@ -3157,8 +3261,7 @@ bool_t checkForAndChange(char *displayString, const real_t *valueReal, const rea
       changeToSub(smallestDenom, denomStr);                                                                     // "/12"
     }
 
-    const int32_t last = stringByteLength(resultingIntStr)-1;
-    if((last<0 || resultingIntStr[last]==' ' || resultingIntStr[last]==0) &&  denomStr[0]=='/' && cStr[0]==0) {
+    if((resultingIntStr[stringByteLength(resultingIntStr)-1]==' ' || resultingIntStr[max(0, stringByteLength(resultingIntStr)-1)]==0) &&  denomStr[0]=='/' && cStr[0]==0) {
       sprintf(tmpstr, STD_SUP_1 "%s", denomStr);
       strcpy(denomStr, tmpstr);
     }

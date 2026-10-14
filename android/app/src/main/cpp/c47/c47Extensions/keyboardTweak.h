@@ -34,7 +34,6 @@ bool_t   func_lookup         (int16_t  fn, int16_t itemShift, int16_t *funk);
 void     execFnTimeout       (uint16_t key                    );                         //dr - delayed call of the primary function key
 void     shiftCutoff         (uint16_t unusedButMandatoryParameter);     //dr - press shift three times within one second to call HOME timer
 void     Check_MultiPresses  (int16_t  * result, int8_t key_no);
-int16_t  alphaLongpress      (int16_t  item);
 void     Setup_MultiPresses  (int16_t  result                 );
 int16_t  nameFunction        (int16_t fn, bool_t shiftF, bool_t shiftG);   //JM LONGPRESS FN
 void     resetKeytimers      (void);
@@ -82,7 +81,6 @@ uint8_t  outKeyBufferDoubleClick();
 bool_t   fullKeyBuffer        ();
 bool_t   emptyKeyBuffer       ();
 void     clearKeyBuffer       ();
-bool_t   interruptKeyInBuffer ();
 
 
 void     btnFnPressed_StateMachine (void *unused, void *data);

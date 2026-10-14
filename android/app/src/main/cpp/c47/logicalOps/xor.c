@@ -6,6 +6,7 @@
  ***********************************************/
 
 #include "c47.h"
+#include "and.h"
 
 static void xorCplx(void) {
   static TO_QSPI const unsigned char xorTable[4] = { 0, 1, 1, 0 };

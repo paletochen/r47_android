@@ -327,43 +327,23 @@ TO_QSPI const fInMim_t MimFunctionsType3Conv[NUM_CONVERT_PAIRS] =
     {ITM_KGtoUNSLUG     },
     {ITM_KGtoUNSLINCH   },
     {ITM_UNSLINCHtoKG   },
-    {ITM_MPHtoKNOT      },
-    {ITM_KNOTtoMPH      },
-    {ITM_MPHtoFPS       },
-    {ITM_FPStoMPH       },
-    {ITM_MGEUStoK100K   },
-    {ITM_K100KtoMGEUS   },
-    {ITM_MGEUKtoK100K   },
-    {ITM_K100KtoMGEUK   },
-    {ITM_MIKtoK100K     },
-    {ITM_K100KtoMIK     },
-    {ITM_DEGtoMIL       },
-    {ITM_MILtoDEG       },
-    {ITM_DEGtoARCSEC    },
-    {ITM_ARCSECtoDEG    },
-    {ITM_DEGtoMRAD      },
-    {ITM_MRADtoDEG      },
-    {ITM_MWtoDBM        },
-    {ITM_DBMtoMW        },
-    {ITM_WtoDBW         },
-    {ITM_DBWtoW         },
-    {ITM_VtoDBV         },
-    {ITM_DBVtoV         },
      // do mimRunFunction(item, indexOfItems[item].param);
    };
 
 
 
 //==============================================================================
-         // CONV step 3/6 of ADDING to CONV    [grep for "add conversion items to CONV menu"]
-         // =================================================================================
-         // Three tables to extend in this file:
-         //   1. conversionFactors[]      one designated entry: [constFactor<Xxx>] = const_<Name>
-         //   2. convertPairs[]           two rows, one per direction, five fields each (field semantics in the convPair_t comment below; unity/exponent conventions per type in the unitType_t comments). 
-         //                               KEEP THE ARRAY SORTED ASCENDING by the first item code: the binary search in findPair() silently fails on unsorted entries.
-         //   3. MimFunctionsType3Conv[]  two entries (catalog lookup)
-         // The testSuite build aborts with a per-problem fix message on any table inconsistency (src/generateTests/generateTests.py).
-         // Next Step: CONV step 4/6 in src/c47/items.h.
+// ADD A NEW CONVERSION PAIR TO THE PAIR-LIST
+//==============================================================================
+// 1. Add the pair to the matching menu_Conv* array in items.h. Two adjacent ITM_ entries in a row form one pair (positions 0/1, 2/3, 4/5, ...).
+//
+// 2. Add TWO rows below, bidirectional
+//      { ITM_AtoB , ITM_BtoA },   // NNN <-> MMM
+//      { ITM_BtoA , ITM_AtoB },   // MMM <-> NNN
+//
+// 3. KEEP THE ARRAY SORTED ASCENDING by the FIRST item code. The binary search in isOneOfAConvertPair() silently fails on unsorted entries.
+//
+// 4. Update NUM_CONVERT_PAIRS by 2.
 //==============================================================================
 
 typedef enum {
@@ -622,24 +602,24 @@ TO_QSPI static const convPair_t convertPairs[NUM_CONVERT_PAIRS] = {             
   { ITM_KMHtoFPS         /* 2188 */, ITM_FPStoKMH         , ITM_FPStoMPS       , +0 , UT_SPEED                    },
   { ITM_FPStoMPS         /* 2189 */, ITM_MPStoFPS         , ITM_NULL           , +0 , UT_SPEED                    },
   { ITM_MPStoFPS         /* 2190 */, ITM_FPStoMPS         , ITM_FPStoMPS       , +0 , UT_SPEED                    },
-  { ITM_L100toKML        /* 2204 */, ITM_KMLtoL100        , ITM_KMLtoL100      , +0 , UT_FUELECON                 },
+  { ITM_L100toKML        /* 2204 */, ITM_KMLtoL100        , ITM_NULL           , +0 , UT_FUELECON                 },
   { ITM_KMLtoL100        /* 2205 */, ITM_L100toKML        , ITM_NULL           , +0 , UT_FUELECON                 },
   { ITM_KMLEtoK100K      /* 2206 */, ITM_K100KtoKMLE      , ITM_NULL           , +0 , UT_EVECON                   },
-  { ITM_K100KtoKMLE      /* 2207 */, ITM_KMLEtoK100K      , ITM_KMLEtoK100K    , +0 , UT_EVECON                   },
-  { ITM_K100KtoKMK       /* 2208 */, ITM_KMKtoK100K       , ITM_KMKtoK100K     , +0 , UT_EVECON                   },
+  { ITM_K100KtoKMLE      /* 2207 */, ITM_KMLEtoK100K      , ITM_NULL           , +0 , UT_EVECON                   },
+  { ITM_K100KtoKMK       /* 2208 */, ITM_KMKtoK100K       , ITM_NULL           , +0 , UT_EVECON                   },
   { ITM_KMKtoK100K       /* 2209 */, ITM_K100KtoKMK       , ITM_NULL           , +0 , UT_EVECON                   },
-  { ITM_L100toMGUS       /* 2210 */, ITM_MGUStoL100       , ITM_MGUStoL100     , +0 , UT_FUELECON                 },
+  { ITM_L100toMGUS       /* 2210 */, ITM_MGUStoL100       , ITM_NULL           , +0 , UT_FUELECON                 },
   { ITM_MGUStoL100       /* 2211 */, ITM_L100toMGUS       , ITM_NULL           , +0 , UT_FUELECON                 },
-  { ITM_MGEUStoK100M     /* 2212 */, ITM_K100MtoMGEUS     , ITM_K100MtoK100K   , +0 , UT_EVECON                   },
-  { ITM_K100MtoMGEUS     /* 2213 */, ITM_MGEUStoK100M     , ITM_MGEUStoK100K   , +0 , UT_EVECON                   },
-  { ITM_K100KtoK100M     /* 2214 */, ITM_K100MtoK100K     , ITM_K100MtoK100K   , +0 , UT_EVECON                   },
+  { ITM_MGEUStoK100M     /* 2212 */, ITM_K100MtoMGEUS     , ITM_NULL           , +0 , UT_EVECON                   },
+  { ITM_K100MtoMGEUS     /* 2213 */, ITM_MGEUStoK100M     , ITM_NULL           , +0 , UT_EVECON                   },
+  { ITM_K100KtoK100M     /* 2214 */, ITM_K100MtoK100K     , ITM_NULL           , +0 , UT_EVECON                   },
   { ITM_K100MtoK100K     /* 2215 */, ITM_K100KtoK100M     , ITM_NULL           , +0 , UT_EVECON                   },
-  { ITM_L100toMGUK       /* 2216 */, ITM_MGUKtoL100       , ITM_MGUKtoL100     , +0 , UT_FUELECON                 },
+  { ITM_L100toMGUK       /* 2216 */, ITM_MGUKtoL100       , ITM_NULL           , +0 , UT_FUELECON                 },
   { ITM_MGUKtoL100       /* 2217 */, ITM_L100toMGUK       , ITM_NULL           , +0 , UT_FUELECON                 },
-  { ITM_MGEUKtoK100M     /* 2218 */, ITM_K100MtoMGEUK     , ITM_K100MtoK100K   , +0 , UT_EVECON                   },
-  { ITM_K100MtoMGEUK     /* 2219 */, ITM_MGEUKtoK100M     , ITM_MGEUKtoK100K   , +0 , UT_EVECON                   },
-  { ITM_K100MtoMIK       /* 2220 */, ITM_MIKtoK100M       , ITM_MIKtoK100K     , +0 , UT_EVECON                   },
-  { ITM_MIKtoK100M       /* 2221 */, ITM_K100MtoMIK       , ITM_K100MtoK100K   , +0 , UT_EVECON                   },
+  { ITM_MGEUKtoK100M     /* 2218 */, ITM_K100MtoMGEUK     , ITM_NULL           , +0 , UT_EVECON                   },
+  { ITM_K100MtoMGEUK     /* 2219 */, ITM_MGEUKtoK100M     , ITM_NULL           , +0 , UT_EVECON                   },
+  { ITM_K100MtoMIK       /* 2220 */, ITM_MIKtoK100M       , ITM_NULL           , +0 , UT_EVECON                   },
+  { ITM_MIKtoK100M       /* 2221 */, ITM_K100MtoMIK       , ITM_NULL           , +0 , UT_EVECON                   },
   { ITM_EVtoJ            /* 2464 */, ITM_JtoEV            , ITM_NULL           , +0 , UT_ENERGY                   },
   { ITM_JtoEV            /* 2465 */, ITM_EVtoJ            , ITM_EVtoJ          , +0 , UT_ENERGY                   },
   { ITM_BANANAtoINCH     /* 2466 */, ITM_INCHtoBANANA     , ITM_INCHtoCM       , -2 , UT_DISTANCE                 },
@@ -714,28 +694,6 @@ TO_QSPI static const convPair_t convertPairs[NUM_CONVERT_PAIRS] = {             
   { ITM_KGtoUNSLUG       /* 2839 */, ITM_UNSLUGtoKG       , ITM_UNSLUGtoKG     , +0 , UT_MASS                     },
   { ITM_UNSLINCHtoKG     /* 2840 */, ITM_KGtoUNSLINCH     , ITM_NULL           , +0 , UT_MASS                     },
   { ITM_KGtoUNSLINCH     /* 2841 */, ITM_UNSLINCHtoKG     , ITM_UNSLINCHtoKG   , +0 , UT_MASS                     },
-  { ITM_MPHtoKNOT        /* 2860 */, ITM_KNOTtoMPH        , ITM_KNOTtoMPS      , +0 , UT_SPEED                    },
-  { ITM_KNOTtoMPH        /* 2861 */, ITM_MPHtoKNOT        , ITM_MPHtoMPS       , +0 , UT_SPEED                    },
-  { ITM_MPHtoFPS         /* 2862 */, ITM_FPStoMPH         , ITM_FPStoMPS       , +0 , UT_SPEED                    },
-  { ITM_FPStoMPH         /* 2863 */, ITM_MPHtoFPS         , ITM_MPHtoMPS       , +0 , UT_SPEED                    },
-  { ITM_MGEUStoK100K     /* 2864 */, ITM_K100KtoMGEUS     , ITM_NULL           , +0 , UT_EVECON                   },
-  { ITM_K100KtoMGEUS     /* 2865 */, ITM_MGEUStoK100K     , ITM_MGEUStoK100K   , +0 , UT_EVECON                   },
-  { ITM_MGEUKtoK100K     /* 2866 */, ITM_K100KtoMGEUK     , ITM_NULL           , +0 , UT_EVECON                   },
-  { ITM_K100KtoMGEUK     /* 2867 */, ITM_MGEUKtoK100K     , ITM_MGEUKtoK100K   , +0 , UT_EVECON                   },
-  { ITM_MIKtoK100K       /* 2868 */, ITM_K100KtoMIK       , ITM_NULL           , +0 , UT_EVECON                   },
-  { ITM_K100KtoMIK       /* 2869 */, ITM_MIKtoK100K       , ITM_MIKtoK100K     , +0 , UT_EVECON                   },
-  { ITM_DEGtoMIL         /* 2870 */, ITM_MILtoDEG         , ITM_NULL           , +0 , UT_NOT_CONFIGURABLE         },
-  { ITM_MILtoDEG         /* 2871 */, ITM_DEGtoMIL         , ITM_NULL           , +0 , UT_NOT_CONFIGURABLE         },
-  { ITM_DEGtoARCSEC      /* 2872 */, ITM_ARCSECtoDEG      , ITM_NULL           , +0 , UT_NOT_CONFIGURABLE         },
-  { ITM_ARCSECtoDEG      /* 2873 */, ITM_DEGtoARCSEC      , ITM_NULL           , +0 , UT_NOT_CONFIGURABLE         },
-  { ITM_DEGtoMRAD        /* 2874 */, ITM_MRADtoDEG        , ITM_NULL           , -3 , UT_ANGLE                    },
-  { ITM_MRADtoDEG        /* 2875 */, ITM_DEGtoMRAD        , ITM_DEGtoRAD       , +0 , UT_ANGLE                    },
-  { ITM_MWtoDBM          /* 2880 */, ITM_DBMtoMW          , ITM_NULL           , +0 , UT_NOT_CONFIGURABLE         },
-  { ITM_DBMtoMW          /* 2881 */, ITM_MWtoDBM          , ITM_NULL           , +0 , UT_NOT_CONFIGURABLE         },
-  { ITM_WtoDBW           /* 2885 */, ITM_DBWtoW           , ITM_NULL           , +0 , UT_NOT_CONFIGURABLE         },
-  { ITM_DBWtoW           /* 2886 */, ITM_WtoDBW           , ITM_NULL           , +0 , UT_NOT_CONFIGURABLE         },
-  { ITM_VtoDBV           /* 2887 */, ITM_DBVtoV           , ITM_NULL           , +0 , UT_NOT_CONFIGURABLE         },
-  { ITM_DBVtoV           /* 2888 */, ITM_VtoDBV           , ITM_NULL           , +0 , UT_NOT_CONFIGURABLE         },
 };
 
 static const convPair_t *findPair(int16_t input) {                              // binary search; NULL if not found
@@ -810,10 +768,7 @@ void runConversionFromSI(int16_t itemNr) {
     fnMultiplySI(100 - entry->exponent);                                         // undo the exponent
   }
   if(entry->unity != ITM_NULL) {
-    const convPair_t *unityEntry = findPair(entry->unity);                       // a unity outside convertPairs[] must not crash
-    if(unityEntry != NULL) {
-      runFunction(unityEntry->partner);                                          // execute the inverse of the unity step
-    }
+    runFunction(findPair(entry->unity)->partner);                                // execute the inverse of the unity step
   }
   runFunction(entry->partner);                                                   // execute the inverse of the user's choice
 }
@@ -904,7 +859,7 @@ static void unitConversion(const real_t * const coefficient, uint16_t multiplyDi
       convertRealToResultRegister(realIsNegative(&reX) ? const_minusInfinity : const_plusInfinity, REGISTER_X, amNone);
     }
     else {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function unitConversion:", "cannot calculate divide by zero", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -941,11 +896,11 @@ TO_QSPI static const real_t * const conversionFactors[constFactorEND] = {
     [constFactorCwtKg]        = const_CwtToKg,
     [constFactorFtM]          = const_FtToM,
     [constFactorSfeetM]       = const39_SfeetToM,
-    [constFactorFlozukIn3]    = const39_FlozukToIn3,
+    [constFactorFlozukIn3]    = const_FlozukToIn3,
     [constFactorFlozukMl]     = const_FlozukToMl,
     [constFactorFlozusIn3]    = const_FlozusToIn3,
     [constFactorFlozusMl]     = const_FlozusToMl,
-    [constFactorFt3toGalUS]   = const39_Ft3ToGalUS,
+    [constFactorFt3toGalUS]   = const_Ft3ToGalUS,
     [constFactorGalukL]       = const_GalukToL,
     [constFactorGalusL]       = const_GalusToL,     /*  20 */
     [constFactorHpeW]         = const_HpeToW,
@@ -998,13 +953,13 @@ TO_QSPI static const real_t * const conversionFactors[constFactorEND] = {
     [constFactorNmiMi]        = const39_NmiToMi,
     [constFactorFurtom]       = const_furToM,
     [constFactorFtntos]       = const_ftnToS,       /*  70 */
-    [constFactorFpftomps]     = const39_fpfToMps,
+    [constFactorFpftomps]     = const_fpfToMps,
     [constFactorBrdstom]      = const_brdsTom,
     [constFactorFirtokg]      = const_firToKg,
-    [constFactorFpftokph]     = const39_fpfToKph,
-    [constFactorBrdstoin]     = const39_brdsToIn,
+    [constFactorFpftokph]     = const_fpfToKph,
+    [constFactorBrdstoin]     = const_brdsToIn,
     [constFactorFirtolb]      = const_firToLb,
-    [constFactorFpftomph]     = const39_fpfToMph,
+    [constFactorFpftomph]     = const_fpfToMph,
     [constFactorFpstokph]     = const_fpsToKph,
     [constFactorFpstomps]     = const_fpsToMps,
     [constFactorL100Tokml]    = const_100,          /*  80 */
@@ -1054,8 +1009,8 @@ TO_QSPI static const real_t * const conversionFactors[constFactorEND] = {
     [constFactorGlukFt3]      = const_Ft3Gluk,
     [constFactorLFt3]         = const_Ft3L,
     [constFactorFt3L]         = const_Ft3L,
-    [constFactorLQtus]        = const39_LQtus,
-    [constFactorQtusL]        = const39_LQtus,
+    [constFactorLQtus]        = const_LQtus,
+    [constFactorQtusL]        = const_LQtus,
     [constFactorGlukFzuk]     = const_GlukFzuk,
     [constFactorFzukGluk]     = const_GlukFzuk,     /* 130 */
     [constFactorGlusFzus]     = const_GlusFzus,
@@ -1092,14 +1047,6 @@ TO_QSPI static const real_t * const conversionFactors[constFactorEND] = {
     [constFactorKgmNpm]       = const_gEarth,
     [constFactorInchM]        = const_InchToM,      /* 163 */
     [constFactorLbfKgf]       = const_LbToKg,
-    [constFactorMphKnot]      = const39_MphToKnot,
-    [constFactorMphFps]       = const39_MphToFps,   /* 166 */
-    [constFactorMgeusK100K]   = const39_MgeusToK100K,
-    [constFactorMgeukK100K]   = const39_MgeukToK100K,
-    [constFactorMikK100K]     = const39_MikToK100K, /* 169 */
-    [constFactorDegMil]       = const39_DegToMil,
-    [constFactorDegArcsec]    = const_3600,
-    [constFactorDegMrad]      = const39_DegToMrad,  /* 172 */
   };
 
 
@@ -1113,7 +1060,7 @@ void fnUnitConvert(uint16_t arg) {
 
 
 //  {[(x - B) / C] * D} + E
-TO_QSPI static const real_t * const cvtTempConsts[12][4] = {
+TO_QSPI static const real_t * const cvtTempConsts[13][4] = {
   //   B              C             D             E
   {const_0,       const_1,       const_9on5,    const_32     }, // ITM_CtoF     ix =  0
   {const_32,      const_9on5,    const_1,       const_0      }, // ITM_FtoC     ix =  1
@@ -1159,27 +1106,28 @@ void fnCvtTemp(uint16_t ix) {
 }
 
 
-// The three angle converters share one body: clear the angular tag when converting away
-// from the tagged unit, then scale. Folded because each referenced a different pair of
-// angular modes and a different constant, which identical-code folding cannot merge.
-static void _cvtAngle(uint16_t multiplyDivide, uint16_t amDiv, uint16_t amMul, const real_t *factor) {
+void fnCvtDegRad(uint16_t multiplyDivide) {
   if(getRegisterDataType(REGISTER_X) == dtReal34 && (
-    ((getRegisterAngularMode(REGISTER_X) == amDiv) && multiplyDivide == divide) || ((getRegisterAngularMode(REGISTER_X) == amMul) && multiplyDivide == multiply) )) {
+    ((getRegisterAngularMode(REGISTER_X) == amDegree) && multiplyDivide == divide) || ((getRegisterAngularMode(REGISTER_X) == amRadian) && multiplyDivide == multiply) )) {
     setRegisterAngularMode(REGISTER_X, amNone);
   }
-  unitConversion(factor, multiplyDivide, noninverting);
-}
-
-void fnCvtDegRad(uint16_t multiplyDivide) {
-  _cvtAngle(multiplyDivide, amDegree, amRadian, const39_180onPi);
+  unitConversion(const39_180onPi, multiplyDivide, noninverting);
 }
 
 void fnCvtDegGrad(uint16_t multiplyDivide) {
-  _cvtAngle(multiplyDivide, amDegree, amGrad, const_9on10);
+  if(getRegisterDataType(REGISTER_X) == dtReal34 && (
+    ((getRegisterAngularMode(REGISTER_X) == amDegree) && multiplyDivide == divide) || ((getRegisterAngularMode(REGISTER_X) == amGrad) && multiplyDivide == multiply) )) {
+    setRegisterAngularMode(REGISTER_X, amNone);
+  }
+  unitConversion(const_9on10, multiplyDivide, noninverting);
 }
 
 void fnCvtGradRad(uint16_t multiplyDivide) {
-  _cvtAngle(multiplyDivide, amGrad, amRadian, const39_200onPi);
+  if(getRegisterDataType(REGISTER_X) == dtReal34 && (
+    ((getRegisterAngularMode(REGISTER_X) == amGrad) && multiplyDivide == divide) || ((getRegisterAngularMode(REGISTER_X) == amRadian) && multiplyDivide == multiply) )) {
+    setRegisterAngularMode(REGISTER_X, amNone);
+  }
+  unitConversion(const39_200onPi, multiplyDivide, noninverting);
 }
 
 void fnKmletok100K   (uint16_t multiplyDivide) {

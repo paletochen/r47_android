@@ -7,9 +7,7 @@
 #if !defined(CHARSTRING_H)
 #define CHARSTRING_H
 
-#if defined(PC_BUILD)
-  void debug_utf8_string(const char *label, const uint8_t *str, size_t max_len);
-#endif //PC_BUILD
+void debug_utf8_string(const char *label, const uint8_t *str, size_t max_len);
 
 /********************************************//**
  * \brief Returns a pointer to the last glyph of a string
@@ -121,7 +119,6 @@ void     expandAbbreviations   (char *msg1);
 void     convertDigits         (char * refstr, char * outstr);
 void     stringToUtf8          (const char *str, uint8_t *utf8);
 void     utf8ToString          (const uint8_t *utf8, char *str);
-void     utf8ToStringWithLength (const uint8_t *utf8, char *str, size_t maxBytes);
 void     stringToASCII         (const char *str, char *ascii);
 void     stringToRTF           (const char *str, char *ascii);
 void     stringToFileNameChars (const char *str, char *ascii, uint8_t distinctQuotes);
@@ -129,7 +126,6 @@ void    *xcopy                 (void *dest, const void *source, uint32_t n);
 void     strReplace            (char *haystack, const char *needle, const char *newNeedle);
 void     addChrBothSides       (uint8_t t, char * str);
 void     addStrBothSides       (char * str, char * str_b, char * str_e);
-void     stripTrailingRadix    (char * str);
 
 bool_t   findTwoChars          (const char *tmpString, uint8_t char1, uint8_t char2, uint16_t *position);
 void     truncateAtString      (char *label, const char *search);

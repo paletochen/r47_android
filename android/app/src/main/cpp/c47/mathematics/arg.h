@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WP43 and C47 Authors
 
 /********************************************//**
- * \file arg.h
+ * \file arctan.h
  ***********************************************/
 #if !defined(ARG_H)
   #define ARG_H

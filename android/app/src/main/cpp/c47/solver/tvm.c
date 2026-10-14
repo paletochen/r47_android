@@ -21,7 +21,7 @@
 
 
  // Create context for this module only
- static realContext_t ctxtTvm42;
+ static decContext ctxtTvm42;
  static inline void ensureTvmContext(void) {
    if(ctxtTvm42.digits == 0) {
      ctxtTvm42 = ctxtReal39;
@@ -40,13 +40,13 @@
   #define ctxtTvmHi        ctxtReal51  // only some exp/log parts
   #define ctxtSolverTvmHi  ctxtReal51  // only the exp/log parts
   #define ctxtSolverTvmInv ctxtReal51  // only the inverting of i
-#endif // DMCP_BUILD && (HARDWARE_MODEL == HWM_DM42)
+#endif
 
 
 static void doubleExp(const real_t *x, real_t *exp, real_t *expm1, realContext_t *realContext) {
   real_t v, w;
 
-  realExp(x, exp, realContext);
+  decNumberExp(exp, x, realContext);
 
   // Code from WP34S_ExpM1 to get accurate result for e^x-1
   realSubtract(exp, const_1, &v, realContext);
@@ -54,7 +54,7 @@ static void doubleExp(const real_t *x, real_t *exp, real_t *expm1, realContext_t
     realCopy(x, expm1);
   }
   else if(realCompareEqual(&v, const__1)) {
-    realSetNegativeOne(expm1);
+    realCopy(const__1, expm1);
   }
   else if(realCompareAbsLessThan(x, const_1on10)) {
     realMultiply(&v, x, &w, realContext);
@@ -84,7 +84,7 @@ static void doubleExp(const real_t *x, real_t *exp, real_t *expm1, realContext_t
 
 
 static int tvmRangeError(int errorCode) {
-  displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+  displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
   #if (EXTRA_INFO_ON_CALC_ERROR == 1)
     moreInfoOnError("In function tvmRangeError:", tvmErrorMessages[errorCode], " Out of range error", NULL);
   #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -103,11 +103,11 @@ static void calculateEffectiveRate(const real_t *iPercentPerYear,
   real_t ic, temp, exponent;
 
   // Check for zero frequencies
-  if(realIsZero(compoundPerYear)) {
+  if(decNumberIsZero((decNumber *)compoundPerYear)) {
     *error = tvmRangeError(6);
     return;
   }
-  if(realIsZero(paymentPerYear)) {
+  if(decNumberIsZero((decNumber *)paymentPerYear)) {
     *error = tvmRangeError(5);
     return;
   }
@@ -118,7 +118,7 @@ static void calculateEffectiveRate(const real_t *iPercentPerYear,
 
   // When CPER/a = PPER/a, ip = ic (shortcut)
   realSubtract(compoundPerYear, paymentPerYear, &temp, &ctxtTvm);
-  if(realIsZero(&temp)) {
+  if(decNumberIsZero((decNumber *)&temp)) {
     realCopy(&ic, ip);
     *error = 0;
     return;
@@ -274,7 +274,7 @@ int calculatePMT(const real_t *pv,
   int error = 0;
 
   // Check for zero periods
-  if(realIsZero(npper)) {
+  if(decNumberIsZero((decNumber *)npper)) {
     return tvmRangeError(2);
   }
 
@@ -317,7 +317,7 @@ int calculatePMT(const real_t *pv,
   realMultiply(&temp2, &temp3, &denominator, &ctxtTvm);
 
   // Check for zero denominator
-  if(realIsZero(&denominator)) {
+  if(decNumberIsZero((decNumber *)&denominator)) {
     return tvmRangeError(0);
   }
 
@@ -353,7 +353,7 @@ int calculateNPPER(const real_t *pv,
   // Check if ip ≈ 0 (use special formula)
   if(realCompareAbsLessThan(&ip, const_1e_37)) {
     // Case 3: NPPER = -(PV + FV) / PMT
-    if(realIsZero(pmt)) {
+    if(decNumberIsZero((decNumber *)pmt)) {
       return tvmRangeError(0);
     }
     realAdd(pv, fv, &temp1, &ctxtTvm);
@@ -363,10 +363,10 @@ int calculateNPPER(const real_t *pv,
   }
 
   // Check if PMT = 0 (simple compound interest)
-  if(realIsZero(pmt)) {
+  if(decNumberIsZero((decNumber *)pmt)) {
     // Case 1: NPPER = ln(-FV/PV) / ln(1+ip)
     // Check for PV = 0 before division
-    if(realIsZero(pv)) {
+    if(decNumberIsZero((decNumber *)pv)) {
       return tvmRangeError(7);
     }
 
@@ -382,7 +382,7 @@ int calculateNPPER(const real_t *pv,
     WP34S_Ln1P(&ip, &lnBase, &ctxtTvm);
 
     // Check for zero denominator (should not happen for valid ip, but check anyway)
-    if(realIsZero(&lnBase)) {
+    if(decNumberIsZero((decNumber *)&lnBase)) {
       return tvmRangeError(0);
     }
 
@@ -403,7 +403,7 @@ int calculateNPPER(const real_t *pv,
   realFMA(pmt, &temp2, &temp1, &b, &ctxtTvm);
 
   // Check for zero denominator
-  if(realIsZero(&b)) {
+  if(decNumberIsZero((decNumber *)&b)) {
     return tvmRangeError(0);
   }
 
@@ -420,7 +420,7 @@ int calculateNPPER(const real_t *pv,
   WP34S_Ln1P(&ip, &lnBase, &ctxtTvm);
 
   // Check for zero denominator
-  if(realIsZero(&lnBase)) {
+  if(decNumberIsZero((decNumber *)&lnBase)) {
     return tvmRangeError(0);
   }
 
@@ -449,7 +449,7 @@ int calculatePPER(const real_t *pv,
   real_t ip_effective;
 
   // Check for zero compounding frequency
-  if(realIsZero(compoundPerYear)) {
+  if(decNumberIsZero((decNumber *)compoundPerYear)) {
     return tvmRangeError(6);
   }
 
@@ -460,12 +460,12 @@ int calculatePPER(const real_t *pv,
   // Calculate effective interest rate ip from the TVM parameters
   // For PMT = 0 (simple compound interest): ip = (-FV/PV)^(1/NPPER) - 1
 
-  if(realIsZero(pmt)) {
+  if(decNumberIsZero((decNumber *)pmt)) {
     // Simple case: compound interest only
-    if(realIsZero(pv)) {
+    if(decNumberIsZero((decNumber *)pv)) {
       return tvmRangeError(7);
     }
-    if(realIsZero(npper)) {
+    if(decNumberIsZero((decNumber *)npper)) {
       return tvmRangeError(2);
     }
 
@@ -520,7 +520,7 @@ int calculatePPER(const real_t *pv,
   }
   WP34S_Ln1P(&ip_effective, &lnTarget, &ctxtTvm);
 
-  if(realIsZero(&lnTarget)) {
+  if(decNumberIsZero((decNumber *)&lnTarget)) {
     return tvmRangeError(0);
   }
 
@@ -556,17 +556,17 @@ int calculateCPER(const real_t *pv,
   const int maxIterations = 100;
 
   // Check for zero payment frequency
-  if(realIsZero(paymentPerYear)) {
+  if(decNumberIsZero((decNumber *)paymentPerYear)) {
     return tvmRangeError(5);
   }
 
   // Calculate effective interest rate per payment period (ip)
-  if(realIsZero(pmt)) {
+  if(decNumberIsZero((decNumber *)pmt)) {
     // Simple case: compound interest only
-    if(realIsZero(pv)) {
+    if(decNumberIsZero((decNumber *)pv)) {
       return tvmRangeError(7);
     }
-    if(realIsZero(npper)) {
+    if(decNumberIsZero((decNumber *)npper)) {
       return tvmRangeError(2);
     }
 
@@ -719,7 +719,7 @@ int solveTvmVariable51(uint16_t variable) {
 
   if(error != 0) {
     //Not stopping for an error, but letting it through to the old solver for erroring and/or solving
-    //displayCalcErrorMessage(ERROR_NO_ROOT_FOUND, ERR_REGISTER_LINE);
+    //displayCalcErrorMessage(ERROR_NO_ROOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function solveTvmVariable51:", tvmErrorMessages[error], " Cannot compute TVM equation with current parameters", NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -766,7 +766,7 @@ void fnTvmVar(uint16_t variable) {
       printRegisterToConsole(RESERVED_VARIABLE_PPERONA, "pp/a=", ", ");
       printRegisterToConsole(RESERVED_VARIABLE_CPERONA, "cp/a=", ", ");
       printf("END=%d\n", getSystemFlag(FLAG_ENDPMT));
-    #endif // PC_BUILD && TVMDEBUG2
+    #endif
 
     switch(variable) {
       case RESERVED_VARIABLE_FV:
@@ -944,7 +944,7 @@ void fnTvmVar(uint16_t variable) {
 
           if(iter == nIter) {
             if(lastErrorCode != ERROR_SOLVER_ABORT) {
-              displayCalcErrorMessage(ERROR_NO_ROOT_FOUND, ERR_REGISTER_LINE);
+              displayCalcErrorMessage(ERROR_NO_ROOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
             }
             #if (EXTRA_INFO_ON_CALC_ERROR == 1)
               moreInfoOnError("In function fnTvmVar:", "cannot compute TVM equation", "with current parameters", NULL);
@@ -979,94 +979,6 @@ void fnTvmVar(uint16_t variable) {
 }
 
 
-
-void tvmSyncIp(calcRegister_t written) {                      // automatic I%/a <-> i% coupling in 39 digits. i% is the engine's own rate per period: iA/pperA, and
-  real_t v, pperA, cperA, r, t;                               // (1 + (iA/100)/pperA/r)^r - 1 when r = cperA/pperA differs from 1, the same expression tvmEquation uses
-  real34ToReal(REGISTER_REAL34_DATA(RESERVED_VARIABLE_PPERONA), &pperA);
-  real34ToReal(REGISTER_REAL34_DATA(RESERVED_VARIABLE_CPERONA), &cperA);
-  if(realIsZero(&pperA)) {                                    // no payment frequency to convert with: leave the partner as it stands
-    return;
-  }
-  realDivide(&cperA, &pperA, &r, &ctxtReal39);
-  if(written == RESERVED_VARIABLE_IPONA) {
-    real34ToReal(REGISTER_REAL34_DATA(RESERVED_VARIABLE_IPONA), &v);
-    realDivide(&v, &pperA, &v, &ctxtReal39);
-    if(!(realIsZero(&r) || realCompareEqual(const_1, &r))) {
-      realDivide(&v, const_100, &v, &ctxtReal39);
-      realDivide(&v, &r, &v, &ctxtReal39);
-      WP34S_Ln1P(&v, &t, &ctxtReal39);
-      realMultiply(&t, &r, &t, &ctxtReal39);
-      WP34S_ExpM1(&t, &v, &ctxtReal39);
-      realMultiply(&v, const_100, &v, &ctxtReal39);
-    }
-    realToReal34(&v, REGISTER_REAL34_DATA(RESERVED_VARIABLE_IP));
-  }
-  else {
-    real34ToReal(REGISTER_REAL34_DATA(RESERVED_VARIABLE_IP), &v);
-    if(!(realIsZero(&r) || realCompareEqual(const_1, &r))) {   // invert the above: iA = 100 * pperA * r * ((1 + i)^(1/r) - 1)
-      realDivide(&v, const_100, &v, &ctxtReal39);
-      WP34S_Ln1P(&v, &t, &ctxtReal39);
-      realDivide(&t, &r, &t, &ctxtReal39);
-      WP34S_ExpM1(&t, &v, &ctxtReal39);
-      realMultiply(&v, &r, &v, &ctxtReal39);
-      realMultiply(&v, const_100, &v, &ctxtReal39);
-    }
-    realMultiply(&v, &pperA, &v, &ctxtReal39);
-    realToReal34(&v, REGISTER_REAL34_DATA(RESERVED_VARIABLE_IPONA));
-  }
-}
-
-void fnClrTvm(uint16_t unusedButMandatoryParameter) {         // CLRTVM: clears only the TVM variables n, I%/a, i%, PV, PMT, FV
-  const calcRegister_t tvmVars[] = { RESERVED_VARIABLE_NPPER, RESERVED_VARIABLE_IPONA, RESERVED_VARIABLE_IP, RESERVED_VARIABLE_PV, RESERVED_VARIABLE_PMT, RESERVED_VARIABLE_FV };
-  for(uint_fast8_t i = 0; i < nbrOfElements(tvmVars); i++) {   // a reserved variable is permanently dtReal34, so no reallocateRegister is needed or accepted here
-    real34SetZero(REGISTER_REAL34_DATA(tvmVars[i]));
-  }
-}
-
-void fnRstTvm(uint16_t unusedButMandatoryParameter) {         // RSTTVM: CLRTVM plus pp/a = cp/a = 12 and Beg cleared (ENDPMT set)
-  fnClrTvm(NOPARAM);
-  int32ToReal34(12, REGISTER_REAL34_DATA(RESERVED_VARIABLE_PPERONA));
-  int32ToReal34(12, REGISTER_REAL34_DATA(RESERVED_VARIABLE_CPERONA));
-  setSystemFlag(FLAG_ENDPMT);
-  fnRefreshState();
-}
-
-void fnTvmBegToggle(uint16_t unusedButMandatoryParameter) {   // Beg softkey: toggles begin mode, the inverse of ENDPMT
-  if(getSystemFlag(FLAG_ENDPMT)) {
-    clearSystemFlag(FLAG_ENDPMT);
-  }
-  else {
-    setSystemFlag(FLAG_ENDPMT);
-  }
-  fnRefreshState();
-}
-
-void fnTvmVarIp(uint16_t unusedButMandatoryParameter) {       // i% softkey: the rate per period. The engine holds I%/a, so a store goes to i% and the sync writes I%/a; a solve
-  real_t v;                                                   // runs the engine on I%/a, whose write syncs i%, and the answer line takes i% itself rather than converting X a second time
-  ensureTvmContext();
-  if(currentSolverStatus & SOLVER_STATUS_READY_TO_EXECUTE || programRunStop == PGM_RUNNING || programRunStop == PGM_PAUSED || testing) {
-    fnTvmVar(RESERVED_VARIABLE_IPONA);
-    if(lastErrorCode == ERROR_NONE) {
-      real34ToReal(REGISTER_REAL34_DATA(RESERVED_VARIABLE_IP), &v);
-      reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-      convertRealToReal34ResultRegister(&v, REGISTER_X);
-      currentSolverVariable = RESERVED_VARIABLE_IP;                  // the answer line names i%, not the annual rate the engine solved
-    }
-  }
-  else {
-    fnToReal(NOPARAM);
-    if(lastErrorCode == ERROR_NONE) {
-      currentSolverStatus |= SOLVER_STATUS_TVM_APPLICATION;
-      currentSolverVariable = RESERVED_VARIABLE_IP;
-      tvmIKnown = false;
-      reallyRunFunction(ITM_STO, RESERVED_VARIABLE_IP);
-      currentSolverStatus |= SOLVER_STATUS_READY_TO_EXECUTE;
-      temporaryInformation = TI_SOLVER_VARIABLE;
-    }
-    adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-    setSystemFlag(FLAG_ASLIFT);
-  }
-}
 
 void fnTvmBeginMode(uint16_t unusedButMandatoryParameter) {
   clearSystemFlag(FLAG_ENDPMT);
@@ -1103,7 +1015,7 @@ void fnEff(uint16_t unusedButMandatoryParameter) {
     temporaryInformation = TI_TVM_EFF;
   }
   else {
-    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function fnEff:", "cannot compute EFF%/a ", "with parameter cp/a = 0", NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -1130,14 +1042,13 @@ void fnEffToI(uint16_t unusedButMandatoryParameter) {
     realMultiply(&tmp, &cperA, &tmp, &ctxtReal39);
 
     realToReal34(&tmp, REGISTER_REAL34_DATA(RESERVED_VARIABLE_IPONA));
-    tvmSyncIp(RESERVED_VARIABLE_IPONA);
     reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
     convertRealToReal34ResultRegister(&tmp, REGISTER_X);
 
     temporaryInformation = TI_TVM_IA;
   }
   else {
-    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function fnEffToI:", "cannot compute I%/a ", "with parameters n = 0 & EFF/a < 0 ", NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -1262,12 +1173,12 @@ void tvmEquation(calcRegister_t variable, real_t *ioVal, real_t *derivative) {
       switch(variable) {
         case RESERVED_VARIABLE_PMT:   realCopy(&nPer,    derivative); break;  // df/dPMT = N
         case RESERVED_VARIABLE_PV:    realSetOne( derivative);        break;  // df/dPV = 1
-        case RESERVED_VARIABLE_FV:    realSetNegativeOne(derivative); break;  // df/dFV = -1
+        case RESERVED_VARIABLE_FV:    realCopy(const__1, derivative); break;  // df/dFV = -1
         case RESERVED_VARIABLE_NPPER: realCopy(&pmt,     derivative); break;  // df/dN = PMT
         default:                      realSetNaN(derivative);         break;  // IPONA: NaN -> Brent fallback
       }
     }
-    #endif // OPTION_TVM_NEWTON
+    #endif
     return;
   }
 
@@ -1613,7 +1524,7 @@ void fnAmortBal(uint16_t unusedButMandatoryParameter) {
   real_t sumInt, sumPrn, bal;
 
   if(!amortCompute(&sumInt, &sumPrn, &bal)) {
-    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function fnAmortBal:", "cannot compute BAL ", "with cp/a = 0 or P/YR = 0", NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -1627,7 +1538,7 @@ void fnAmortPrn(uint16_t unusedButMandatoryParameter) {
   real_t sumInt, sumPrn, bal;
 
   if(!amortCompute(&sumInt, &sumPrn, &bal)) {
-    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function fnAmortPrn:", "cannot compute ΣPRN ", "with cp/a = 0 or P/YR = 0", NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -1641,7 +1552,7 @@ void fnAmortInt(uint16_t unusedButMandatoryParameter) {
   real_t sumInt, sumPrn, bal;
 
   if(!amortCompute(&sumInt, &sumPrn, &bal)) {
-    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function fnAmortInt:", "cannot compute ΣINT ", "with cp/a = 0 or P/YR = 0", NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)

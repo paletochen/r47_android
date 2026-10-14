@@ -606,21 +606,19 @@ static bool_t forHasNext(void) {
 }
 
 // True when the two registers hold the same value. Long and short integers compare exactly. A complex value is compared part by part, the ordinary compare having no
-// meaning for it.
+// meaning for it. Comparing the components directly also avoids rounding a difference merely to test whether it is zero.
 static bool_t forValuesEqual(uint16_t first, uint16_t second) {
   int8_t cmp;
 
   if(getRegisterDataType(first) == dtComplex34 || getRegisterDataType(second) == dtComplex34) {
-    real_t firstRe, firstIm, secondRe, secondIm;
+    cplx_t firstValue, secondValue;
     bool_t cmplx;
 
-    if(!getRegisterAsComplexOrAnyRealQuiet(first,  &firstRe,  &firstIm,  &cmplx)
-    || !getRegisterAsComplexOrAnyRealQuiet(second, &secondRe, &secondIm, &cmplx)) {
+    if(!getRegisterAsComplexOrAnyRealQuiet(first,  &firstValue,  &cmplx)
+    || !getRegisterAsComplexOrAnyRealQuiet(second, &secondValue, &cmplx)) {
       return false;
     }
-    realSubtract(&firstRe, &secondRe, &firstRe, &ctxtReal39);
-    realSubtract(&firstIm, &secondIm, &firstIm, &ctxtReal39);
-    return realIsZero(&firstRe) && realIsZero(&firstIm);
+    return realCompareEqual(&firstValue.Real, &secondValue.Real) && realCompareEqual(&firstValue.Imag, &secondValue.Imag);
   }
   return registerCmp(first, second, &cmp) && cmp == 0;
 }
@@ -654,27 +652,28 @@ static bool_t forStepCannotMove(uint16_t value, uint16_t stepReg) {
 
 // True when the counter has passed the end value, which ends the loop. A real or integer counter compares against the end directly, upwards for a positive step and
 // downwards for a negative one or a descending row, in an arithmetic that keeps a long integer exact. A complex value in any of the three compares two lengths from the
-// origin instead, the counter's against the end value's, squared so no root is needed and no answer changes.
+// origin instead, the counter's against the end value's, squared so no root is needed and no answer changes. Each Real34 square has at most 68 coefficient digits and
+// their sum at most 69, so p75 preserves the exact finite squared lengths used for this control-flow decision.
 static bool_t forCounterPastEnd(uint16_t counter, uint16_t endReg, uint16_t stepReg, bool_t descends) {
   int8_t cmp;
 
   if(getRegisterDataType(counter) == dtComplex34 || getRegisterDataType(endReg) == dtComplex34
   || getRegisterDataType(stepReg) == dtComplex34) {
-    real_t counterRe, counterIm, endRe, endIm, reach, target, term;
+    real_t reach, target, term;
+    cplx_t counterValue, endValue;
     bool_t cmplx;
 
-    if(!getRegisterAsComplexOrAnyRealQuiet(counter, &counterRe, &counterIm, &cmplx)
-    || !getRegisterAsComplexOrAnyRealQuiet(endReg,  &endRe,     &endIm,     &cmplx)) {
+    if(!getRegisterAsComplexOrAnyRealQuiet(counter, &counterValue, &cmplx)
+    || !getRegisterAsComplexOrAnyRealQuiet(endReg,  &endValue,     &cmplx)) {
       return true; // a value the arithmetic cannot read ends the loop instead of running for ever
     }
-    realMultiply(&counterRe, &counterRe, &reach,  &ctxtReal39);
-    realMultiply(&counterIm, &counterIm, &term,   &ctxtReal39);
-    realAdd(&reach, &term, &reach, &ctxtReal39);
-    realMultiply(&endRe, &endRe, &target, &ctxtReal39);
-    realMultiply(&endIm, &endIm, &term,   &ctxtReal39);
-    realAdd(&target, &term, &target, &ctxtReal39);
-    realCompare(&reach, &target, &term, &ctxtReal39);
-    return !realIsZero(&term) && realIsPositive(&term);
+    realMultiply(&counterValue.Real, &counterValue.Real, &reach,  &ctxtReal75);
+    realMultiply(&counterValue.Imag, &counterValue.Imag, &term,   &ctxtReal75);
+    realAdd(&reach, &term, &reach, &ctxtReal75);
+    realMultiply(&endValue.Real, &endValue.Real, &target, &ctxtReal75);
+    realMultiply(&endValue.Imag, &endValue.Imag, &term,   &ctxtReal75);
+    realAdd(&target, &term, &target, &ctxtReal75);
+    return realCompareGreaterThan(&reach, &target);
   }
 
   real_t step39;
@@ -861,9 +860,7 @@ void fnForYx(uint16_t regist) {
       break;
     }
     case dtComplex34: {
-      reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
-      real34Copy(const34_1, REGISTER_REAL34_DATA(REGISTER_X));
-      real34Copy(const34_0, REGISTER_IMAG34_DATA(REGISTER_X));
+      convertReal34ToComplex34Register(const34_1, const34_0, REGISTER_X);
       break;
     }
     default: { // liftStack() has made X a real34 already, so only the value is left to write

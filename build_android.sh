@@ -141,7 +141,7 @@ echo "--- Fixing function call signatures ---"
 sed -i 's|gtk_widget_queue_draw(screen);|// stub|g' "$CPP_DIR/c47/softmenus.c"
 sed -i 's|while(gtk_events_pending())|if(0)|g' "$CPP_DIR/c47/softmenus.c"
 
-# 6. Make restoreRegister non-static for JNI pasteTextNative
+# 6. Expose restoreRegister for JNI
 sed -i 's/^[[:space:]]*static void restoreRegister(/  void restoreRegister(/' "$CPP_DIR/c47/saveRestoreCalcState.c"
 
 # Copy decNumberICU
@@ -177,7 +177,6 @@ mkdir -p "$DRAWABLE_DIR"
 ASSETS_FONTS_DIR="$ANDROID_PROJECT_DIR/app/src/main/assets/fonts"
 mkdir -p "$ASSETS_FONTS_DIR"
 cp -v res/fonts/*.ttf "$ASSETS_FONTS_DIR/"
-cp -v res/testPgms/testPgms.bin "$ANDROID_PROJECT_DIR/app/src/main/assets/"
 
 # Copy GMP (mini-gmp)
 echo "--- Setting up GMP ---"

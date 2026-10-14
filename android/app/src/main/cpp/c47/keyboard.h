@@ -12,7 +12,7 @@ void    setLastKeyCode              (int key);
 void    processAimInput             (int16_t item);
 
 
-bool_t leavePem      (void);
+void leavePem        (void);
 void processKeyAction(int16_t item);
 
 /**

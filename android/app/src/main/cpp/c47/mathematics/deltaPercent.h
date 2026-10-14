@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WP43 and C47 Authors
 
 /********************************************//**
- * \file deltaPercent.h
+ * \file percentT.h
  ***********************************************/
 #if !defined(DELTAPERCENT_H)
   #define DELTAPERCENT_H

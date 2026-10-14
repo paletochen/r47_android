@@ -14,7 +14,6 @@
    * \return Data type
    */
   uint32_t       getRegisterDataType             (calcRegister_t regist);
-  void           clampShortIntegerRegistersToWordSize(void);
 
   /**
    * Returns the data pointer of a register.
@@ -149,14 +148,6 @@
   calcRegister_t findNamedVariable               (const char *variableName);
 
   /**
-   * Whether regist is the named variable STATS, matching findNamedVariable("STATS") on the single register without scanning the list.
-   *
-   * \param[in] regist Register number
-   * \return true when regist is the STATS matrix variable
-   */
-  bool_t         namedVariableIsStats            (calcRegister_t regist);
-
-  /**
    * Retrieves the register number for the named variable, allocating it if it doesn't exist.
    *
    * \param[in] variableName Register name
@@ -164,21 +155,6 @@
    *         if not possible to allocate (all named variables defined)
    */
   calcRegister_t findOrAllocateNamedVariable     (const char *variableName);
-
-  /********************************************//**
-   * \brief Allocates a new named variable; call only after findNamedVariable() returned INVALID_VARIABLE. The new variable is a real34 zero.
-   *
-   * \param[in] variableName const char* name of the variable
-   * \return calcRegister_t the new register, or INVALID_VARIABLE
-   ***********************************************/
-  calcRegister_t allocateNamedVariableOnMiss     (const char *variableName);
-
-  /**
-   * Drops the scan hits findNamedVariable() remembers. Call it from anything that removes a named variable or rebuilds the
-   * whole table, so a remembered index cannot outlive the entry it named. Appending a variable, and changing a variable's
-   * value or type, leave every index describing the same variable and need no call.
-   */
-  void           invalidateNamedVariableCache    (void);
 
   /**
    * Returns the full data size of a register in blocks.
@@ -261,7 +237,6 @@
   void           fnToReal                        (uint16_t unusedButMandatoryParameter);
 
   void           printStringToConsole            (const char *str, const char *before, const char *after);
-  void           printC47ShortStringToConsole    (const char *s, const char *prefix, const char *suffix);
   void           printReal34ToConsole            (const real34_t *value, const char *before, const char *after);
   void           printRealToConsole              (const real_t *value, const char *before, const char *after);
   void           printRealInfoToConsole          (const real_t *value, const char *name);
@@ -300,7 +275,7 @@
   #define getComplexRegisterPolarMode(reg)       (getRegisterTag(reg) & amPolar)
   //#define setComplexRegisterPolarMode(reg, pm) setRegisterTag(reg, (getRegisterTag(reg) & amAngleMask) | (pm & amPolar))    // Intended to maintain bits 0-3 for amAngle (amAngleMask), clear the polar bit 4, and then OR only the polar bit.
   #define setComplexRegisterPolarMode(reg, pm)   setRegisterTag(reg, (((pm & amPolar) != 0) ? (getRegisterTag(reg) & amAngleMask) : amNone) | (pm & amPolar))   // if polar bit clear, force angle to amNone; if set, preserve angle bits
-  #define isXYRegisterMatrix                      ((getRegisterDataType(REGISTER_X) == dtReal34Matrix) || (getRegisterDataType(REGISTER_X) == dtComplex34Matrix) || (getRegisterDataType(REGISTER_Y) == dtReal34Matrix) || (getRegisterDataType(REGISTER_Y) == dtComplex34Matrix) )
+  #define isXYRegisterMatrix                      ((getRegisterDataType(REGISTER_X) == dtReal34Matrix) || (getRegisterDataType(REGISTER_X) == dtComplex34Matrix) || (getRegisterDataType(REGISTER_Y) == dtReal34Matrix) || (getRegisterDataType(REGISTER_X) == dtComplex34Matrix) )
 
 
   #define amPolarCYL 64  //  virtual bit, working in addition to the tag bit 4 = amPolar = 16; bit 5 usid by 32-bit pointer changes; real bits 6 & 7 spare. Real bits not used, in favour of these virtual logic bits,  as the register header also only has bits 0-4.
@@ -337,7 +312,4 @@
   void           fnRegSwap                       (uint16_t unusedButMandatoryParameter);
   bool_t         isFunctionAllowingNewVariable   (uint16_t op);
   uint8_t        getRegParam                     (bool_t *f, uint16_t *s, uint16_t *n, uint16_t *d);
-
-
-  extern const registerLetter_t registerLetter[];
 #endif // !REGISTERS_H

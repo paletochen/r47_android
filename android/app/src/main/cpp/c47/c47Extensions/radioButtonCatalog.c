@@ -92,7 +92,6 @@ TO_QSPI const radiocb_t indexOfRadioCbEepromItems[] = {
   {ITM_CLK24,            TF_H24,                 RB_TF},  //SetSetting          /*   76 */ //fnTimeFormat
   {ITM_BEGINP,           FN_BEG,                 RB_TV},  //SetSetting
   {ITM_ENDP,             FN_END,                 RB_TV},  //SetSetting
-  {ITM_PMT_Beg,          FLAG_ENDPMT,            CB_JC},  //SetSetting
 
   {ITM_USER_C47,         USER_C47,               RB_KY},  //SetSetting
   {ITM_USER_DM42,        USER_DM42,              RB_KY},  //SetSetting
@@ -109,6 +108,10 @@ TO_QSPI const radiocb_t indexOfRadioCbEepromItems[] = {
   {ITM_SHTIM,            FLAG_SHFT_4s,           CB_JC},  //SetSetting
 
   {ITM_TEST,             JC_ITM_TST,             CB_JC},  //fnSetInlineTest
+  {ITM_INTG,             JC_INTG,                CB_JC},  //
+  {ITM_DIFF,             JC_DIFF,                CB_JC},  //
+  {ITM_RMS,              JC_RMS,                 CB_JC},  //
+  {ITM_SHADE,            JC_SHADE,               CB_JC},  //
 
   {ITM_CB_CPXRES,        FLAG_CPXRES ,           CB_JC},  //SetSetting
   {ITM_CB_SPCRES,        FLAG_SPCRES ,           CB_JC},  //SetSetting
@@ -127,14 +130,12 @@ TO_QSPI const radiocb_t indexOfRadioCbEepromItems[] = {
   {ITM_PRTACT,           FLAG_PRTACT ,           CB_JC},  // SFL_PRTACT
 //  {ITM_TRACE,            FLAG_TRACE ,            CB_JC},  // SFL_TRACE
   {ITM_ERPN,             FLAG_ERPN   ,           CB_JC},  //SetSetting
-  {ITM_M_ALL,            FLAG_M_ALL  ,           CB_JC},  //SetSetting
   {ITM_CARRY,            FLAG_CARRY  ,           CB_JC},  //SetSetting
   {ITM_OVERFLOW,         FLAG_OVERFLOW,          CB_JC},  //SetSetting
   {ITM_FRCYC,            FLAG_FRCYC  ,           CB_JC},
   {ITM_LARGELI,          FLAG_LARGELI,           CB_JC},  //SetSetting
   {ITM_IRFRAC,           FLAG_IRFRAC ,           CB_JC},  //SetSetting
   {ITM_CPXPLOT,          FLAG_CPXPLOT,           CB_JC},  // graph EQN & PLSTAT options
-  {ITM_IMPLOT,           FLAG_IMPLOT,            CB_JC},  // graph EQN & PLSTAT options
   {ITM_SHOWX,            FLAG_SHOWX  ,           CB_JC},  // graph EQN & PLSTAT options
   {ITM_SHOWY,            FLAG_SHOWY  ,           CB_JC},  // graph EQN & PLSTAT options
   {ITM_PBOX,             FLAG_PBOX   ,           CB_JC},  // graph EQN & PLSTAT options
@@ -145,17 +146,11 @@ TO_QSPI const radiocb_t indexOfRadioCbEepromItems[] = {
   {ITM_SCALE,            FLAG_SCALE  ,           CB_JC},  // graph EQN & PLSTAT options
   {ITM_VECT,             FLAG_VECT   ,           CB_JC},  // graph EQN & PLSTAT options
   {ITM_NVECT,            FLAG_NVECT  ,           CB_JC},  // graph EQN & PLSTAT options
-  {ITM_RMS,              FLAG_PRMS   ,           CB_JC},  // graph EQN & PLSTAT options
-  {ITM_INTG,             FLAG_PINTG  ,           CB_JC},  // graph EQN & PLSTAT options
-  {ITM_DIFF,             FLAG_PDIFF  ,           CB_JC},  // graph EQN & PLSTAT options
-  {ITM_SHADE,            FLAG_PSHADE ,           CB_JC},  // graph EQN & PLSTAT options
-  {ITM_PL_2L,            FLAG_PL_2L  ,           CB_JC},  // graph PLSTAT option
   {CHR_num,              FLAG_NUMLOCK     ,      CB_JC},  //
   {ITM_USERMODE,         FLAG_USER        ,      CB_JC},  //
   {ITM_SH_LONGPRESS,     FLAG_SH_LONGPRESS,      CB_JC},  //
   {ITM_DREAL,            FLAG_DREAL       ,      CB_JC},  //
   {ITM_CPXMULT,          FLAG_CPXMULT,           CB_JC},  //
-  {ITM_AUTOVALID,        FLAG_AUTOVALID,         CB_JC},  //SetSetting
 
 
   {CHR_case,             JC_UC,                  CB_JC},  //
@@ -212,13 +207,6 @@ TO_QSPI const radiocb_t indexOfRadioCbEepromItems[] = {
   {ITM_GAPWIDPER_RX,     ITM_WPERIOD,            RB_RX},
   {ITM_GAPCOM_RX,        ITM_COMMA,              RB_RX},
   {ITM_GAPWIDCOM_RX,     ITM_WCOMMA,             RB_RX},
-  {ITM_RM_HALF_EVEN,     0,                      RB_RM},
-  {ITM_RM_HALF_UP,       1,                      RB_RM},
-  {ITM_RM_HALF_DOWN,     2,                      RB_RM},
-  {ITM_RM_UP,            3,                      RB_RM},
-  {ITM_RM_DOWN,          4,                      RB_RM},
-  {ITM_RM_CEILING,       5,                      RB_RM},
-  {ITM_RM_FLOOR,         6,                      RB_RM},
 
   {ITM_S08,              ITM_S08,                MB_MAC},
   {ITM_U08,              ITM_U08,                MB_MAC},
@@ -280,14 +268,12 @@ TO_QSPI const uint16_t systemFlagParams[] = {  // CB_JC CHECK BOX System flags c
   FLAG_FRACT,
   FLAG_PRTACT,
   FLAG_ERPN,
-  FLAG_M_ALL,
   FLAG_CARRY,
   FLAG_OVERFLOW,
   FLAG_FRCYC,
   FLAG_LARGELI,
   FLAG_IRFRAC,
   FLAG_CPXPLOT,
-  FLAG_IMPLOT,
   FLAG_SHOWX,
   FLAG_SHOWY,
   FLAG_PBOX,
@@ -298,11 +284,6 @@ TO_QSPI const uint16_t systemFlagParams[] = {  // CB_JC CHECK BOX System flags c
   FLAG_SCALE,
   FLAG_VECT,
   FLAG_NVECT,
-  FLAG_PRMS,
-  FLAG_PINTG,
-  FLAG_PDIFF,
-  FLAG_PSHADE,
-  FLAG_PL_2L,
   FLAG_NUMLOCK,
   FLAG_USER,
   FLAG_SH_LONGPRESS,
@@ -315,8 +296,7 @@ TO_QSPI const uint16_t systemFlagParams[] = {  // CB_JC CHECK BOX System flags c
   FLAG_FGGR,
   FLAG_3DPHYS,
   FLAG_3DXYZ,
-  FLAG_TRACE,
-  FLAG_AUTOVALID
+  FLAG_TRACE
 };
 
 
@@ -422,9 +402,6 @@ int8_t fnCbIsSet(int16_t item) {
         case RB_RX:  rb_param = gapItemRadix;
                      break;
 
-        case RB_RM:  rb_param = displayRoundActive() ? displayRoundingMode : roundingMode;
-                     break;
-
         case RB_KY:  rb_param = calcModel;
                      if(itemNr == ITM_USER_R47) {
                        switch(calcModel) {
@@ -502,6 +479,11 @@ int8_t fnCbIsSet(int16_t item) {
 
                           case JC_ORTHOGONAL_FITTING: cb_param = (orOrtho(lrSelection) == CF_ORTHOGONAL_FITTING); break;
 
+                          case JC_DIFF:            cb_param = PLOT_DIFF;                              break;
+                          case JC_INTG:            cb_param = PLOT_INTG;                              break;
+                          case JC_RMS:             cb_param = PLOT_RMS;                               break;
+                          case JC_SHADE:           cb_param = PLOT_SHADE;                             break;
+
                           case JC_UC:              cb_param = !alphaCase;                             break;
                           case JC_SS:              cb_param = scrLock != NC_NORMAL;                   break;
 
@@ -528,8 +510,6 @@ int8_t fnCbIsSet(int16_t item) {
                               clearSystemFlag(FLAG_FGLNLIM);
                             }
                             break;
-
-                          case FLAG_ENDPMT:       cb_param = !getSystemFlag(FLAG_ENDPMT);             break;
 
                           #if defined(INLINE_TEST)
                             case JC_ITM_TST:       cb_param = testEnabled;                            break;
@@ -589,15 +569,7 @@ int16_t fnItemShowValue(int16_t item) {
     case ITM_SCR:       result = (scrLock & 0x03) | (nextChar & 0x03);              break;
     case ITM_DSP:       result = displayFormatDigits;                               break;
 //    case ITM_GET_ADM:
-    case ITM_SET_ADM:   result = admValue();                                        break;
-    case ITM_SET_GRAMOD: result = graMod;                                          break;
-  #if defined(OPTION_ATEXT_FONTS)
-    case ITM_SET_GRFNT: result = graFont;                                         break;
-  #endif // OPTION_ATEXT_FONTS
-  #if defined(OPTION_LP_DP_TIMING)
-    case ITM_SET_LPFCT: result = (10000 + longPressFactor) / 100;                   break;  // factor in percent: 3 digits fit beside the label
-    case ITM_SET_DPFCT: result = (10000 + doublePressFactor) / 100;                 break;
-  #endif // OPTION_LP_DP_TIMING
+    case ITM_SET_ADM:   result = currentAngularMode;                                break;
 //    case ITM_GET_ISM:
     case ITM_SET_ISM:   result = shortIntegerModeValue();                           break;
 //    case ITM_GET_REALDF:
@@ -608,9 +580,7 @@ int16_t fnItemShowValue(int16_t item) {
     case ITM_SET_NDEC:  result = displayFormatDigits;                               break;
     case ITM_HIDE:      result = exponentHideLimit;                                 break;
     case ITM_BESTF:     result = (lrSelection) & 0x1FF;                             break;
-    case ITM_SET_DRM:   result = displayRoundingMode;                               break;
     case ITM_RMODE:     result = roundingMode;                                      break;
-    case ITM_SET_RM:    result = roundingMode;                                      break;
     case ITM_HASH_JM:   if(lastIntegerBase != 0) {
                           result = (int16_t)lastIntegerBase;
                         }
@@ -622,10 +592,7 @@ int16_t fnItemShowValue(int16_t item) {
     case ITM_VOL:
     case ITM_VOLPLUS:
     case ITM_VOLMINUS:  result = getBeepVolume();                                   break; // DL
-    case ITM_PRINTERDLAY: result = printerState.delay;                              break; // DL
-    case ITM_SET_42ALPHA:
-    case ITM_SET_42ALPHAX:
-                        result = regCtoKS(alphaRegister);                         break; // DL
+    case ITM_PRINTERDLAY: result = printerState.delay;                              break; // DLr
     default:            if(indexOfItems[itemNr].func == itemToBeCoded) {
                          result = ITEM_NOT_CODED;
                         }

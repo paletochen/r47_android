@@ -74,9 +74,6 @@ static void argRema(void) {
   real_t r;
 
   convertReal34MatrixRegisterToReal34Matrix(REGISTER_X, &x);
-  if(lastErrorCode != 0) {
-    return;
-  }
   const int numOfElements = x.header.matrixRows * x.header.matrixColumns;
 
   for(int i = 0; i < numOfElements; ++i) {
@@ -107,7 +104,7 @@ static void argCxma(void) {
     realMatrixFree(&rMat);
   }
   else {
-    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
   }
 }
 

@@ -25,23 +25,15 @@ void fnSHIFTfg(uint16_t unusedButMandatoryParameter) {
 
 
 //Length in ms, frequency in Hz
-void _keyClick(uint8_t lengthMs, uint32_t f) {  //Debugging on scope, a millisecond input pulse length after every key edge. The prior volume setting is saved and put back
+void _keyClick(uint8_t lengthMs, uint32_t f) {  //Debugging on scope, a millisecond input pulse length after every key edge. !!!!! Destroys the prior volume setting
   #if defined(DMCP_BUILD)
     #if (defined(DM42_KEYCLICK) || defined(CLICK_REFRESHSCR) || defined(DM42_POWERMARKS) || defined(DM42_POWERMARK_KEYPRESS))
-      if(getSystemFlag(FLAG_QUIET)) {                              // QUIET silences every sound the calculator makes, without exception
-        return;
+      while(get_beep_volume() < 11) {
+        beep_volume_up();
       }
-      #if defined(OUT_VOL_MAX)
-        uint16_t savedVolume = getBeepVolume();
-
-        fnSetVolume(11);
-      #endif // OUT_VOL_MAX
       start_buzzer_freq(f*1000); //Click 1kHz for 1 ms
       sys_delay((uint32_t)lengthMs);
       stop_buzzer();
-      #if defined(OUT_VOL_MAX)
-        fnSetVolume(savedVolume);
-      #endif // OUT_VOL_MAX
     #endif // DM42_KEYCLICK
   #endif // DMCP_BUILD
 }
@@ -209,9 +201,9 @@ void resetKeytimers(void) {
           }
           if(getSystemFlag(FLAG_USER)) {    // USER mode
             if((calcMode != CM_AIM) && (calcMode != CM_EIM) && (item > 0)) {
-              #if defined(OPTION_LONGPRESS_CFG)   // only when allowed by OPTION_LONGPRESS_CFG
+              #if defined(LONGPRESS_CFG)   // only when allowed by LONGPRESS_CFG
                 _executeItem(item, keyCode);
-              #endif // OPTION_LONGPRESS_CFG
+              #endif // LONGPRESS_CFG
 
               screenUpdatingMode = SCRUPD_AUTO;
               refreshScreen(1000);
@@ -219,7 +211,7 @@ void resetKeytimers(void) {
             else {;
               if(item < 0) {
                 if(item == -MNU_DYNAMIC) {
-                  char *funcParam = (char *)getUserKeyLabelString(keyCode * 6 + 1);
+                  char *funcParam = (char *)getNthString((uint8_t *)userKeyLabel, keyCode * 6 + 1);
                   setCurrentUserMenu(item, funcParam);
                 }
                 target_HOME = ((item == -MNU_HOME) && getSystemFlag(FLAG_MYM_TRIPLE) ? -MNU_MyMenu : item);
@@ -331,57 +323,8 @@ void resetKeytimers(void) {
   }
 
 
-/* KEY TIMING SYSTEMS, AND WHERE EACH ONE IS ARMED
- *
- * Six independent systems time a key, all of them off the shared timer pool configured in c47.c. They are listed here because the two functions below arm
- * three of them, and because none of them may run while the SHOW softmenu is on screen.
- *
- * 1. Command preview. showFunctionName() in screen.c prints the item name over the T line while a key is held, and hides it again on release. It is armed
- *    from Check_MultiPresses() below through JM_auto_longpress_enabled and the TO_CL_LONG timer, and painted from the timer service in screen.c. Note that
- *    showFunctionName() clears temporaryInformation, so a preview that fires over a temporary screen takes that screen down with it.
- * 2. Normal key long press. The same TO_CL_LONG timer and the longpressDelayedkey1/2/3 chain in Check_MultiPresses() below. The chain is what gives one key
- *    up to three timed stages, each stage a different item.
- * 3. Backspace double press to DROP. Its own branch, Setup_MultiPresses() below, on the TO_CL_DROP timer. Half of it lives with system 2 because the second
- *    press is detected where the long press is set up, but the timing and the item are separate.
- * 4. Function key long press and double press. btnFnPressed_StateMachine() further down this file, on TO_FN_LONG and TO_FN_EXEC. Not armed from here.
- *    btnFnPressed() in keyboard.c already returns before that state machine while the SHOW softmenu is up, so a softkey cannot start it.
- * 5. Shift key long press. commonShiftProcessing() in keyboard.c, on TO_FG_LONG, with TO_FG_TIMR for the four second shift hold and TO_3S_CTFF for the
- *    three presses in a second cutoff. Not armed from here either, and NOT covered by the guard below. Detail in the section under this one.
- * 6. Key auto repeat. execAutoRepeat() on TO_AUTO_REPEAT, armed in c47.c and in keyboard.c, and only where a scrolling softmenu or a browser mode wants a
- *    held key to repeat. It never arms in CM_NORMAL without a scrolling softmenu, so a SHOW page cannot be repeated into. Not armed from here.
- *
- * The remaining timers in the c47.c configuration block are not key gestures: TO_KB_ACTV paces the refresh after a press and a release, TO_ASM_ACTIVE holds
- * the alpha select indicator for three seconds, and TO_TIMER_APP belongs to the TIMER application.
- *
- * THE SHOW SOFTMENU RULE. MNU_SHOW is the blank menu: it carries no softkeys and no labels. It is put up by a real SHOW, by the WHO screen, and by a plot
- * that a running program drew. With no softkeys on screen there is nothing for a long press to reach, and a preview firing under the finger repaints over
- * the screen the user is reading. So both functions below return without arming anything while currentMenu() is -MNU_SHOW. The test is on that menu and
- * not on GRAPHMODE, because an interactive plot is also GRAPHMODE and there the 3x2 softmenu is on screen and needs its long press.
- */
-
-
-/* SYSTEM 5 IN DETAIL: THE SHIFT KEYS ON A TIMER. NONE OF IT IS ARMED OR STOPPED BY THE TWO FUNCTIONS BELOW
- *
- * Recorded here because it is a timed keyboard operation and belongs with the list above, but it lives entirely in commonShiftProcessing() in keyboard.c and
- * in Shft_handler() in screen.c. The guard in the two functions below does not reach it. In a real SHOW it is already inert, because determineItem() sends f
- * and fg to the key release and returns ITM_NOP before the shift processing runs; on the WHO screen and under a programmed plot it still arms.
- *
- * The combined fg key, C47. commonShiftProcessing() sets Shft_timeouts and starts TO_FG_LONG at JM_TO_FG_LONG, 580 ms. Each timeout in Shft_handler() steps
- * the shift on and restarts the same timer, so holding the key walks no shift, f, g, and then resetShiftState() back to no shift. That is the wraparound.
- * With FLAG_SHFT_4s set the same press also starts TO_FG_TIMR at JM_SHIFT_TIMER, 4000 ms, which is how long a shift survives without a following key.
- * TO_3S_CTFF, JM_TO_3S_CTFF, 600 ms in the simulator and 900 ms on hardware, counts three shift presses inside one second and opens HOME or MyMenu.
- *
- * The standalone f key and g key, R47, added by Didier 2025-12-03 and built only under OPTION_LONGPRESS_CFG. A press of either sets Shft_LongPress_f_g and,
- * only when FLAG_SH_LONGPRESS is set, starts TO_FG_LONG at 1.5 times, 870 ms. On timeout Shft_handler() runs the gShifted item of the key, kbd_usr[10] for f
- * and kbd_usr[11] for g, then clears both shifts. It has its own branches for ASSIGN, where it stores a long press assignment, for NIM, where it closes the
- * number first unless the item belongs in the number, for USER mode, and for TAM and alpha. It is disabled in EIM, MIM and GRAPHMODE.
- */
-
   void Setup_MultiPresses(int16_t result) {                            //Setup and start double press for DROP timer, and check for second press
     JM_auto_doublepress_autodrop_enabled = 0;                          //JM TIMER CLRDROP. Autodrop means double click normal key.
-    if(currentMenu() == -MNU_SHOW) {                                   //blank menu: SHOW, WHO or a programmed plot is on screen, so no key arms a timer
-      return;
-    }
     int16_t tmp = 0;
     if(calcMode == CM_NORMAL && result == ITM_BACKSPACE && tam.mode == 0 && !getSystemFlag(FLAG_CLX_DROP)) {             //Set up backspace double click to DROP
       tmp = ITM_DROP;
@@ -405,49 +348,19 @@ void resetKeytimers(void) {
 // and this is the only way fnBaseMenu() can be run, via the item ITM_BASEMENU which is created for that purpose.
 // fnBaseMenu() opens MNU_MyMenu, and due to the reasons given, MNU_MyMenu cannot be used directly, as it needs to first set some flags, hence in a way it is like an invisible pseudo-menu, opened by an item.
 
-  /********************************************//**
-   * \brief Substitutes a character for a gShiftedAim function word, for the alpha modes that are not EIM
-   *
-   * \param[in] item int16_t the gShiftedAim item of the key
-   * \return int16_t the item the long press and the key label take
-   *
-   ***********************************************/
-  //The gShiftedAim column takes the function words LOG, LN, SIN, COS and TAN, which belong in an equation and not in a name. That one column serves every alpha mode,
-  //so EIM takes it as it is and the others take a character in its place. The key label in gtkGui.c calls this as well, so the label and the long press are one table.
-  int16_t alphaLongpress(int16_t item) {
-    switch(item) {
-      case ITM_LG_SIGN:
-        return ITM_INFINITY;
-      case ITM_LN_SIGN:
-        return ITM_EulerE;
-      case ITM_SIN_SIGN:
-        return ITM_op_i_char;
-      case ITM_COS_SIGN:
-        return ITM_op_j_char;
-      case ITM_TAN_SIGN:
-        return ITM_omega;
-      default:
-        return item;
-    }
-  }
-
   void Check_MultiPresses(int16_t *result, int8_t key_no) { //Set up longpress
     int16_t longpressDelayedkey1 = 0;                                   //To Setup the timer locally for the next timed stage
             longpressDelayedkey2 = 0;                                   //To Store the next timed stage
             longpressDelayedkey3 = 0;                                   //To Store the next timed stage
-    if(currentMenu() == -MNU_SHOW && !(SHOWMODE && *result == ITM_EXIT1)) {   //blank menu SHOW, WHO or a programmed plot: no key arms a timer, except EXIT in SHOW, which arms the SNAP then NOP ladder
-      return;
-    }
 
 
     int16_t           tmpp_ = getSystemFlag(FLAG_USER) ? kbd_usr[key_no].primary  : kbd_std[key_no].primary;
     int16_t tmpf = 0, tmpf_ = getSystemFlag(FLAG_USER) ? kbd_usr[key_no].fShifted : kbd_std[key_no].fShifted;
     int16_t tmpg = 0, tmpg_ = getSystemFlag(FLAG_USER) ? kbd_usr[key_no].gShifted : kbd_std[key_no].gShifted;
-    if((calcMode == CM_NORMAL || calcMode == CM_NIM || (calcMode == CM_PEM && !getSystemFlag(FLAG_ALPHA))) && tam.mode==0) {  //longpress yellow math functions on the first two rows, menus allowed provided it is within keys 00-14
+    if((calcMode == CM_NORMAL || calcMode == CM_NIM) && tam.mode==0) {  //longpress yellow math functions on the first two rows, menus allowed provided it is within keys 00-14
       if(   ((key_no >= 0 && key_no < 15) && (LongPressM == RBX_M1234 || LongPressM == RBX_M124))  //any mathkeys
          || (/*(key_no >= 0 && key_no < 15) && (LongPressM == RBX_M14) && */(tmpp_ == ITM_DRG && tmpf_ == ITM_USERMODE ) ) //DRG anywhere mathkeys
          || (tmpp_ == ITM_XEQ && tmpf_ == ITM_AIM)                                               //anywhere
-         || ((tmpp_ == ITM_ADD || tmpp_ == ITM_SUB || tmpp_ == ITM_MULT || tmpp_ == ITM_DIV) && (LongPressM == RBX_M1234 || LongPressM == RBX_M124))  //the four arithmetic keys, anywhere
         ) {
         if(!shiftF && !shiftG && !(lastIntegerBase >= 2 && getSystemFlag(FLAG_TOPHEX) && key_no >= 0 && key_no <= 5)) { //accept NIM but do not react, stay on default 0 0 0
           longpressDelayedkey1 = tmpf_;
@@ -464,9 +377,6 @@ void resetKeytimers(void) {
     else if((calcMode == CM_AIM || calcMode == CM_EIM || (calcMode == CM_PEM && getSystemFlag(FLAG_ALPHA))) && tam.mode==0) {
       tmpp_ = getSystemFlag(FLAG_USER) ? kbd_usr[key_no].primaryAim  : kbd_std[key_no].primaryAim;
       tmpg_ = getSystemFlag(FLAG_USER) ? kbd_usr[key_no].gShiftedAim : kbd_std[key_no].gShiftedAim;
-      if(calcMode != CM_EIM) {                                          //the function words are for an equation only, so AIM and PEM alpha take the character instead
-        tmpg_ = alphaLongpress(tmpg_);
-      }
       if(((key_no != 32 && tmpp_ != ITM_SHIFTf && tmpp_ != ITM_SHIFTg && tmpp_ != KEY_fg && tmpp_ != ITM_BACKSPACE) && (LongPressM == RBX_M1234 || LongPressM == RBX_M124))) { //any mathkeys
         if(!shiftF && !shiftG) {
           longpressDelayedkey1 = tmpg_;
@@ -474,13 +384,13 @@ void resetKeytimers(void) {
         }
       }
     }                                                                   //yellow and blue function keys ^^
-    //#define TAMALPHA_f //select the yellow or blue text labels
+    #define TAMALPHA_f //select the yellow or blue text labels
     else if(tam.alpha) {
       tmpp_ = getSystemFlag(FLAG_USER) ? kbd_usr[key_no].primaryAim  : kbd_std[key_no].primaryAim;
       #if defined(TAMALPHA_f)
         tmpf_ = getSystemFlag(FLAG_USER) ? kbd_usr[key_no].fShiftedAim : kbd_std[key_no].fShiftedAim;
       #else //TAMALPHA_f
-        tmpg_ = alphaLongpress(getSystemFlag(FLAG_USER) ? kbd_usr[key_no].gShiftedAim : kbd_std[key_no].gShiftedAim);
+        tmpg_ = getSystemFlag(FLAG_USER) ? kbd_usr[key_no].gShiftedAim : kbd_std[key_no].gShiftedAim;
       #endif //TAMALPHA_f
       if(   ((key_no != 32 /*EXIT*/ && tmpp_ != ITM_SHIFTf && tmpp_ != ITM_SHIFTg && tmpp_ != KEY_fg && tmpp_ != ITM_BACKSPACE) &&
             (LongPressM == RBX_M1234 || LongPressM == RBX_M124) &&  //any mathkeys
@@ -509,7 +419,7 @@ void resetKeytimers(void) {
       }
     }
 
-    char *funcParam = (char *)getUserKeyLabelString(key_no); //keyCode * 6 + g ? 2 : f ? 1 : 0);
+    char *funcParam = (char *)getNthString((uint8_t *)userKeyLabel, key_no); //keyCode * 6 + g ? 2 : f ? 1 : 0);
     //printf("\n\n >>>> ## result=%i key_no=%i *funcParam=%s  [0]=%u\n", *result, key_no, (char*)funcParam, ((char*)funcParam)[0]);
 
     if(calcMode == CM_NORMAL && *result == ITM_RS) {
@@ -571,11 +481,6 @@ void resetKeytimers(void) {
       longpressDelayedkey3 = ITM_EDIT;
     }
 
-    else if(SHOWMODE && *result == ITM_EXIT1) {                        //JM EXIT in SHOW: the long press cycles overrides to SNAP then NOP same for both C47 and R47
-      longpressDelayedkey1 = ITM_SNAP;
-      longpressDelayedkey2 = 0;
-      longpressDelayedkey3 = ITM_NOP;
-    }
     else if((calcMode == CM_NORMAL || calcMode == CM_NIM) && *result == ITM_EXIT1) {
       longpressDelayedkey1 = LongpressEXIT1; // LongpressEXIT1 : C47: MyAlpha or MyMenu; R47: SNAP
       longpressDelayedkey2 = 0;     // EXIT longpress DOES CLRMOD
@@ -753,33 +658,7 @@ void resetKeytimers(void) {
   }
 
 
-  //CONCEPT - the diagrams below are the concept. The times they carry are the original ones; the times in force are listed here, all from defines.h.
-  //
-  //  Base:      JM_TO_FN_LONG = 400 * 0.7 = 280 ms, every stage below is a factor of it.  JM_FN_DOUBLE_TIMER = 150 ms.
-  //  Press 1:   TIME_FN_12XX_TO_F       = 476 ms, no shift to f.
-  //  Then:      TIME_FN_1234_F_TO_G     = 560 ms, f to g,      under LongPressF == RBX_F1234.
-  //             TIME_FN_1234_G_TO_NOP   = 504 ms, g to NOP,    under LongPressF == RBX_F1234.
-  //             TIME_FN_124_F_TO_NOP    = 560 ms, f to NOP,    under LongPressF == RBX_F124, which has no g stage.
-  //             LongPressF == RBX_F14 goes from no shift straight to NOP, so there is no ladder at all.
-  //  Double g:  TIME_FN_DOUBLE_G_TO_NOP = 448 ms, the single stage a double press lands in, g to NOP.
-  //  Dead time: TIME_FN_DOUBLE_RELEASE  = 150 ms, not the 75 ms the diagrams show. This is the window the release waits in.
-  //
-  //  The ladder itself is in FN_handler() in screen.c, one step per TO_FN_LONG timeout while the key stays down, each step restarting the timer with the
-  //  next time above. FN_handler_StepToF(), FN_handler_StepToG() and FN_handler_StepToNOP() do the shift, the underline and the preview name.
-  //
-  //  DELAYED EXECUTION ON RELEASE. With FLAG_G_DOUBLETAP set, btnFnReleased_StateMachine() does not execute on the release. It starts TO_FN_EXEC for
-  //  TIME_FN_DOUBLE_RELEASE with the key number plus 0, 6 or 12 for no shift, f or g, and execFnTimeout() runs the item when that expires. The item is
-  //  therefore chosen by the shift reached on the ladder and executed 150 ms after the finger leaves. BLOCK_DOUBLEPRESS_MENU() turns this off per menu and
-  //  per key, and with the flag clear the release executes at once.
-  //
-  //  DOUBLE PRESS TO g. A second press of the SAME key inside that 150 ms window is the double press: btnFnPressed_StateMachine() sets shiftG, marks
-  //  double_click_detected and restarts TO_FN_LONG at TIME_FN_DOUBLE_G_TO_NOP, so the key is already on g and one more hold takes it to NOP.
-  //
-  //  STATES. ST_0_INIT, ST_1_PRESS1, ST_2_REL1, ST_3_PRESS2, ST_4_REL2 in keyboard.h. A press moves 2 to 3, otherwise to 1; a release moves 3 to 4,
-  //  otherwise to 2. A press arriving in state 3 with TO_FN_EXEC no longer running is too late to be a double press and drops back to state 1.
-  //
-  //  THE SHIFT KEYS ARE A DIFFERENT SYSTEM. The f, g and fg keys have their own timers and their own wraparound, none of it in this state machine. It is
-  //  described in the second block above Setup_MultiPresses() in this file.
+  //CONCEPT - actual timing was changed:
 
   /* Switching profile, to jump to g[FN]:
                     set g
@@ -1520,20 +1399,6 @@ bool_t emptyKeyBuffer(void) {
 
 void clearKeyBuffer(void) {
   buffer.read = buffer.write;
-}
-
-// EXIT = 33 or R/S = 36 sitting in the C47 ring buffer? 
-// A refresh's keyBuffer_pop can move a key out of the DMCP SDK buffer into here, where C47PopKeyNoBuffer (which only reads the SDK buffer) would miss it
-// EXIT and RUN map to themselves through convertKeyCode, so the raw codes are correct on both C47 and R47
-bool_t interruptKeyInBuffer(void) {
-  uint8_t i = buffer.read;
-  while(i != buffer.write) {
-    if(buffer.data[i] == 33 || buffer.data[i] == 36) {
-      return true;
-    }
-    i = (i + 1) & BUFFER_MASK;
-  }
-  return false;
 }
 #endif // DMCP_BUILD                                                    //^^
 

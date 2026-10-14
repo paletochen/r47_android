@@ -40,25 +40,13 @@ static void getIterParam(uint16_t regist, real34_t *fp, real34_t *target, real34
 static void incDecAndCompare(uint16_t regist, uint16_t mode) {
   real34_t fp, step;
   int8_t compared;
-  const uint32_t dataType = getRegisterDataType(regist);
 
-  // The decoded ccccccc.fffii parameters and the TEMP_REGISTER_1 comparand are
-  // not needed on every path, and this runs once per loop iteration of every
-  // counted program loop. A long-integer counter always compares against 0
-  // with step 1 (getIterParam's non-real34 branch returns exactly that), and
-  // ISZ and DSZ on a real34 or time counter set their own step and compare
-  // against a constant below. Skip the reallocation and the decode for those.
-  if(dataType != dtLongInteger && !(((mode & 2) == 2) && (dataType == dtReal34 || dataType == dtTime))) {
-    reallocateRegister(TEMP_REGISTER_1, dtReal34, 0, amNone);
-    getIterParam(regist, &fp, REGISTER_REAL34_DATA(TEMP_REGISTER_1), &step);
-  }
-  switch(dataType) {
+  reallocateRegister(TEMP_REGISTER_1, dtReal34, 0, amNone);
+  getIterParam(regist, &fp, REGISTER_REAL34_DATA(TEMP_REGISTER_1), &step);
+  switch(getRegisterDataType(regist)) {
     case dtLongInteger: {
-      // registerCmp against a real34 zero reduces to the sign of the counter,
-      // which the long-integer register tag already holds.
       incDecLonI(regist, mode >> 2);
-      const uint32_t sign = getRegisterLongIntegerSign(regist);
-      compared = (sign == LI_ZERO) ? 0 : ((sign == LI_POSITIVE) ? 1 : -1);
+      registerCmp(regist, TEMP_REGISTER_1, &compared);
       break;
     }
     case dtShortInteger: {
@@ -86,18 +74,7 @@ static void incDecAndCompare(uint16_t regist, uint16_t mode) {
         real34Add(REGISTER_REAL34_DATA(regist), &fp, REGISTER_REAL34_DATA(regist));
         break;
       }
-      __attribute__((fallthrough));
-    }
-    case dtTime: {
-      if((mode & 2) == 2) {  // DSZ / ISZ : count by whole hours (similar /3600 used by MAX/MIN and compares =?)
-        real_t v;
-        real34ToReal(REGISTER_REAL34_DATA(regist), &v);                                                                     // seconds
-        (mode >> 2) == DEC_FLAG ? realSubtract(&v, const_3600, &v, &ctxtReal39) : realAdd(&v, const_3600, &v, &ctxtReal39); // step = 1 hour = 3600 s
-        realToReal34(&v, REGISTER_REAL34_DATA(regist));
-        compared = realCompareAbsLessThan(&v, const_3600) ? 0 : 1;                                                          // |time| < 1h -> treat as zero
-        break;
-      }
-      goto invalidType;      // ISG/DSE/ISE/DSL ccccccc.fffii counter format has no meaning for Time
+    /* fallthrough */
     }
     default: {
       goto invalidType;
@@ -115,7 +92,7 @@ static void incDecAndCompare(uint16_t regist, uint16_t mode) {
   return;
 
 invalidType:
-  displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+  displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, regist);
   #if (EXTRA_INFO_ON_CALC_ERROR == 1)
     sprintf(errorMessage, "incompatible type for iterator.");
     moreInfoOnError("In function incDecAndCompare:", errorMessage, NULL, NULL);

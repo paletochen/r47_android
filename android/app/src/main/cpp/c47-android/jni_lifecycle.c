@@ -10,7 +10,6 @@ extern void execFnTimeout(uint16_t timerType);
 extern void shiftCutoff(uint16_t timerType);
 extern void fnTimerDummy1(uint16_t timerType);
 extern void execTimerApp(uint16_t timerType);
-extern const char *errorMessageOf(uint8_t errorCode);
 
 JNIEXPORT void JNICALL
 Java_org_rpncalculators_r47_MainActivity_updateNativeActivityRef(JNIEnv *env,
@@ -151,7 +150,7 @@ Java_org_rpncalculators_r47_MainActivity_saveStateNative(JNIEnv *env,
     memcpy(pixelBackup, lcd_buffer, bufferSize);
   }
 
-  printStatus(0, errorMessageOf(101), 1);
+  printStatus(0, errorMessages[101], 1);
   lcd_refresh();
 
   if (pixelBackup) {

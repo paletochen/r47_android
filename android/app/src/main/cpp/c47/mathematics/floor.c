@@ -6,6 +6,7 @@
  ***********************************************/
 
 #include "c47.h"
+#include "integerPart.h"
 
 static void floorReal(void) {
   integerPartReal(DEC_ROUND_FLOOR);

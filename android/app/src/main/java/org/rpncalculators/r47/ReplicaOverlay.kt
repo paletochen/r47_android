@@ -151,7 +151,7 @@ class ReplicaOverlay @JvmOverloads constructor(
 
         if (!changed) return
 
-        lcdBitmap.setPixels(pixels, 0, pixelWidth, 0, 0, pixelWidth, pixelHeight)
+    lcdBitmap.setPixels(pixels, 0, pixelWidth, 0, 0, pixelWidth, pixelHeight)
 
         // Calculate screen-space dirty rect
         val spec = currentChromeSpec()
@@ -166,7 +166,6 @@ class ReplicaOverlay @JvmOverloads constructor(
         dirtyRect.set(left.toInt(), top.toInt(), right.toInt(), bottom.toInt())
         postInvalidateOnAnimation(dirtyRect.left, dirtyRect.top, dirtyRect.right, dirtyRect.bottom)
     }
-
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
         if (isPiPMode) return false
@@ -253,9 +252,6 @@ class ReplicaOverlay @JvmOverloads constructor(
     }
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-        val w = (r - l).toFloat()
-        val h = (b - t).toFloat()
-
         if (isPiPMode) {
             for (i in 0 until childCount) {
                 getChildAt(i).layout(0, 0, 0, 0)
@@ -263,6 +259,8 @@ class ReplicaOverlay @JvmOverloads constructor(
             return
         }
 
+        val w = (r - l).toFloat()
+        val h = (b - t).toFloat()
         val projection = chromeLayout.computeProjection(w, h)
 
         for (i in 0 until childCount) {
@@ -273,7 +271,6 @@ class ReplicaOverlay @JvmOverloads constructor(
             child.layout(left, top, left + child.measuredWidth, top + child.measuredHeight)
         }
     }
-
 
     override fun dispatchDraw(canvas: Canvas) {
         val w = width.toFloat()
@@ -310,7 +307,6 @@ class ReplicaOverlay @JvmOverloads constructor(
             projection.offsetY + (layoutSpec.lcdWindowTop + layoutSpec.lcdWindowHeight) * projection.scale
         )
         canvas.drawBitmap(lcdBitmap, lcdRect, lcdDestRect, paint)
-
 
         if (showTouchZones) {
             for (i in 0 until childCount) {

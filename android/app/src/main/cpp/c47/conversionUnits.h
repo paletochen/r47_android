@@ -7,15 +7,6 @@
 #if !defined(CONVERSIONUNITS_H)
   #define CONVERSIONUNITS_H
 
-//==============================================================================
-         // CONV step 2/6 of ADDING to CONV    [grep for "add conversion items to CONV menu"]
-         // =================================================================================
-         // Append the new constFactor<Xxx> directly BEFORE constFactorEND. NEVER reorder or insert mid-list !!
-         // This enum is positional (the slot index is the fnUnitConvert parameter).
-         // Also increase NUM_CONVERT_PAIRS below by 2 (one per direction, i.e. 2 per conversion pair).
-         // Next Step: CONV step 3/6 in src/c47/conversionUnits.c.
-//==============================================================================
-
   enum {
     constFactorFt2Hectare,      /*   0 */
     constFactorFt2M2,
@@ -182,21 +173,13 @@
     constFactorKgmNpm,
     constFactorInchM,           /* 163 */
     constFactorLbfKgf,
-    constFactorMphKnot,
-    constFactorMphFps,          /* 166 */
-    constFactorMgeusK100K,
-    constFactorMgeukK100K,
-    constFactorMikK100K,        /* 169 */
-    constFactorDegMil,
-    constFactorDegArcsec,
-    constFactorDegMrad,         /* 172 */
-
+    
     constFactorEND              /* MUST be last */
   };
 
 
 
-  #define NUM_CONVERT_PAIRS  336
+  #define NUM_CONVERT_PAIRS  314
   extern const fInMim_t MimFunctionsType3Conv[NUM_CONVERT_PAIRS];
 
   bool_t  isStandardPair             (int16_t item1Nr, int16_t item2Nr);

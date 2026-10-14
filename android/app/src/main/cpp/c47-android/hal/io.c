@@ -5,7 +5,7 @@
 #if !defined(TI_DISK_INFO)
 #define TI_DISK_INFO 145
 #endif
-extern char diskInfoStr[256];
+char diskInfoStr[256];
 
 #include <stdio.h>
 #include <stdlib.h>

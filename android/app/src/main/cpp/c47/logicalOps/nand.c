@@ -6,6 +6,7 @@
  ***********************************************/
 
 #include "c47.h"
+#include "and.h"
 
 static void nandCplx(void) {
   static TO_QSPI const unsigned char nandTable[4] = { 1, 1, 1, 0 };

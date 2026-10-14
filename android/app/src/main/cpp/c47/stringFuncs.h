@@ -18,14 +18,6 @@
   void fnXToAlpha      (uint16_t regist);
   void fnClearAlpha    (uint16_t regist);
   void fnAlphaIP       (uint16_t regist);
-  void fnAlphaLower    (uint16_t regist);
-  void fnAlphaUpper    (uint16_t regist);
-  void fnAlphaLeft     (uint16_t regist);
-  void fnAlphaMid      (uint16_t regist);
-  void fnAlphaRight    (uint16_t regist);
-  void fnAlphaRev      (uint16_t regist);
-  void fnAlphaTrim     (uint16_t regist);
-
   void fn42AlphaRotate (uint16_t unusedButMandatoryParameter);
   void fn42AlphaShift  (uint16_t unusedButMandatoryParameter);
   void fn42Alpha       (uint16_t unusedButMandatoryParameter);
@@ -41,10 +33,6 @@
   void fn42Posa        (uint16_t unusedButMandatoryParameter);
   void fn42Pra         (uint16_t unusedButMandatoryParameter);
   void fn42Prompt      (uint16_t unusedButMandatoryParameter);
-
-  void fnSet42Alpha    (uint16_t regist);
-  void fnSet42AlphaX   (uint16_t regist);
-  void fnGet42Alpha    (uint16_t unusedButMandatoryParameter);
 
   void trimLeadingSpace(char     *stringToTrim);
   void truncateAlphaRegisterTo44Char();

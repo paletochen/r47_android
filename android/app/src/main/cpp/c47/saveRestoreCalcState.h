@@ -15,8 +15,6 @@
   #define manualSave 4
   #define stateSave  5
 
-  void     convertOldMenuNumbers(void);
-
   void     fnSave        (uint16_t unusedButMandatoryParameter);
   void     fnLoad        (uint16_t loadMode);
   void     fnSaveAuto    (uint16_t unusedButMandatoryParameter);
@@ -30,11 +28,12 @@
   int16_t  stringToInt16 (const char *str);
   int32_t  stringToInt32 (const char *str);
   int64_t  stringToInt64 (const char *str);
+  float    stringToFloat (const char *str);
 
   int32_t  toInt32 (const char *str);
 
-  void     readLine      (char *line, size_t maxLen);
-  void     read2Lines    (char *line1, size_t maxLen1, char *line2, size_t maxLen2);
+  void     readLine      (char *line);
+  void     read2Lines    (char *line1, char *line2);
 
   void     doLoad        (uint16_t loadMode, uint16_t s, uint16_t n, uint16_t d, uint16_t loadType);
 
@@ -50,9 +49,6 @@
   void     fnSaveLetteredRegisters(uint16_t unusedButMandatoryParameter);
   void     fnSaveNRegisters    (uint16_t N);
   void     fnSaveRegister      (uint16_t unusedButMandatoryParameter);
-  void     fnSaveGlobalFlags   (uint16_t N);
-  void     fnSaveLocalFlags    (uint16_t N);
-  void     fnSaveSystemFlags   (uint16_t unusedButMandatoryParameter);
   void     fnLoadRegisters     (uint16_t unusedButMandatoryParameter);
 
 

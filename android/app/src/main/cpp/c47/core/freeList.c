@@ -3,6 +3,10 @@
 
 #include "c47.h"
 
+  #if !defined(DMCP_BUILD) && !defined(WIN32)
+    #include <execinfo.h>
+  #endif // !DMCP_BUILD
+
 void *freeListAlloc(size_t sizeInBlocks) {
   uint16_t minSizeInBlocks = 65535u, minBlock = C47_NULL;
   int i;
@@ -21,19 +25,16 @@ void *freeListAlloc(size_t sizeInBlocks) {
       numberOfFreeMemoryRegions--;
       //debugMemory("freeListAlloc: found a memory region with the exact requested size!");
       #if !defined(DMCP_BUILD)
-        // The check has to come before the write: past MAX_ALLOCATED_REGIONS the store is itself the out-of-bounds access, and
-        // errorf() after it reports a bound already passed. A state file claiming 32767 equations reaches this, one per setEquation().
+        allocatedMemoryRegions[numberOfAllocatedMemoryRegions].blockAddress = TO_C47MEMPTR(pcMemPtr);
+        allocatedMemoryRegions[numberOfAllocatedMemoryRegions].sizeInBlocks = sizeInBlocks;
+        //printf("Memory allocation: %5zd blocks at address %5u     (number of allocated regions = %4d)\n", sizeInBlocks, TO_C47MEMPTR(pcMemPtr), numberOfAllocatedMemoryRegions + 1);
+        //fflush(stderr);
+        numberOfAllocatedMemoryRegions++;
         if(numberOfAllocatedMemoryRegions >= MAX_ALLOCATED_REGIONS) {
           errorf("numberOfAllocatedMemoryRegions is >= MAX_ALLOCATED_REGIONS, increase MAX_ALLOCATED_REGIONS in defines.h (this affects only the PC simulator not the HW firmware)");
         }
-        else {
-          allocatedMemoryRegions[numberOfAllocatedMemoryRegions].blockAddress = TO_C47MEMPTR(pcMemPtr);
-          allocatedMemoryRegions[numberOfAllocatedMemoryRegions].sizeInBlocks = sizeInBlocks;
-          numberOfAllocatedMemoryRegions++;
-        }
-        //printf("Memory allocation: %5zd blocks at address %5u     (number of allocated regions = %4d)\n", sizeInBlocks, TO_C47MEMPTR(pcMemPtr), numberOfAllocatedMemoryRegions + 1);
-        //fflush(stderr);
       #endif // !DMCP_BUILD
+      memset(pcMemPtr, 0, TO_BYTES(sizeInBlocks));
       return pcMemPtr;
     }
     else if(freeMemoryRegions[i].sizeInBlocks > sizeInBlocks && freeMemoryRegions[i].sizeInBlocks < minSizeInBlocks) {
@@ -62,18 +63,16 @@ void *freeListAlloc(size_t sizeInBlocks) {
 
   //debugMemory("freeListAlloc: allocated within the smalest memory region found that is large enough.");
   #if !defined(DMCP_BUILD)
-    // The check has to come before the write, as above.
+    allocatedMemoryRegions[numberOfAllocatedMemoryRegions].blockAddress = TO_C47MEMPTR(pcMemPtr);
+    allocatedMemoryRegions[numberOfAllocatedMemoryRegions].sizeInBlocks = sizeInBlocks;
+    //printf("Memory allocation: %5zd blocks at address %5u     (number of allocated regions = %4d)\n", sizeInBlocks, TO_C47MEMPTR(pcMemPtr), numberOfAllocatedMemoryRegions + 1);
+    //fflush(stderr);
+    numberOfAllocatedMemoryRegions++;
     if(numberOfAllocatedMemoryRegions >= MAX_ALLOCATED_REGIONS) {
       errorf("numberOfAllocatedMemoryRegions is >= MAX_ALLOCATED_REGIONS, increase MAX_ALLOCATED_REGIONS in defines.h (this affects only the PC simulator not the HW firmware)");
     }
-    else {
-      allocatedMemoryRegions[numberOfAllocatedMemoryRegions].blockAddress = TO_C47MEMPTR(pcMemPtr);
-      allocatedMemoryRegions[numberOfAllocatedMemoryRegions].sizeInBlocks = sizeInBlocks;
-      numberOfAllocatedMemoryRegions++;
-    }
-    //printf("Memory allocation: %5zd blocks at address %5u     (number of allocated regions = %4d)\n", sizeInBlocks, TO_C47MEMPTR(pcMemPtr), numberOfAllocatedMemoryRegions + 1);
-    //fflush(stderr);
   #endif // !DMCP_BUILD
+  memset(pcMemPtr, 0, TO_BYTES(sizeInBlocks));
   return pcMemPtr;
 }
 
@@ -228,7 +227,7 @@ void freeListFree(void *pcMemPtr, size_t sizeInBlocks) {
                                               printf("%30s%42d: %s\n", "", i, strs[i]);
                                           }
                                           free(strs);
-                                        #endif // !WIN32
+                                        #endif
           fflush(stderr);
         }
         if(numberOfAllocatedMemoryRegions - region - 1) {
@@ -252,7 +251,7 @@ void freeListFree(void *pcMemPtr, size_t sizeInBlocks) {
                                               printf("%30s%42d: %s\n", "", i, strs[i]);
                                           }
                                           free(strs);
-                                        #endif // !WIN32
+                                        #endif
       fflush(stderr);
     }
   #endif // !DMCP_BUILD

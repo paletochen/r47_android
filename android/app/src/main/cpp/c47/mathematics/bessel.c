@@ -8,7 +8,7 @@
 #include "c47.h"
 
 void fnBesselJ(uint16_t unusedButMandatoryParameter) {
-#if defined(OPTION_BESSEL)
+#if !defined(SAVE_SPACE_DM42_12BESSEL)
   real_t x, n, r, a;
 
   if(!saveLastX()) {
@@ -31,7 +31,7 @@ void fnBesselJ(uint16_t unusedButMandatoryParameter) {
       convertComplexToResultRegister(&r, &a, REGISTER_X);
     }
     else {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function fnBesselJ:", "negative argument for Bessel function of non-integer degree", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -39,11 +39,11 @@ void fnBesselJ(uint16_t unusedButMandatoryParameter) {
   }
 
   adjustResult(REGISTER_X, true, true, REGISTER_X, REGISTER_Y, -1);
-#endif // OPTION_BESSEL
+#endif // !SAVE_SPACE_DM42_12BESSEL
 }
 
 void fnBesselY(uint16_t unusedButMandatoryParameter) {
-#if defined(OPTION_BESSEL)
+#if !defined(SAVE_SPACE_DM42_12BESSEL)
   real_t x, n, r, a, b, c;
 
   if(!saveLastX()) {
@@ -74,7 +74,7 @@ void fnBesselY(uint16_t unusedButMandatoryParameter) {
       convertComplexToResultRegister(&r, &a, REGISTER_X);
     }
     else {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function fnBesselY:", "negative argument for Bessel function", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -82,13 +82,13 @@ void fnBesselY(uint16_t unusedButMandatoryParameter) {
   }
 
   adjustResult(REGISTER_X, true, true, REGISTER_X, REGISTER_Y, -1);
-#endif // OPTION_BESSEL
+#endif // !SAVE_SPACE_DM42_12BESSEL
 }
 
 
 
 // Hankel's asymptotic expansion (based on Abramowitz and Stegun, p.364)
-#if defined(OPTION_BESSEL)
+#if !defined(SAVE_SPACE_DM42_12BESSEL)
 static void bessel_asymptotic_large_x(const real_t *alpha, const real_t *x, bool_t is_y, real_t *res, realContext_t *realContext) {
   real_t p, q, pp, qq, chi, sChi, cChi, mu, z8, k21, k21sq, nm, tmp;
   int32_t k;
@@ -237,8 +237,7 @@ static void Sigma_u_k(const real_t *nu, const real_t *t_r, const real_t *t_i, in
            if(WP34S_RelativeError(res_r, &prev_r, &tmp, realContext) && WP34S_RelativeError(res_i, &prev_i, &tmp, realContext)) {
              break;
            }
-           realCopy(res_r, &prev_r);
-           realCopy(res_i, &prev_i);
+           realCopy(res_r, &prev_r), realCopy(res_i, &prev_i);
          }
 
          // for the next iteration
@@ -305,17 +304,17 @@ static void Sigma_u_k(const real_t *nu, const real_t *t_r, const real_t *t_i, in
         freeC47Blocks(coeff_next, COEFF_BUFFER_SIZE_IN_BLOCKS);
       }
       else {
-        displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
+        displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
       }
       freeC47Blocks(coeff_deriv, COEFF_BUFFER_SIZE_IN_BLOCKS);
     }
     else {
-      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
     }
     freeC47Blocks(coeff_current, COEFF_BUFFER_SIZE_IN_BLOCKS);
   }
   else {
-    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
   }
   return;
 }
@@ -439,7 +438,7 @@ static void bessel_recur(const real_t *nu, const real_t *x, bool_t is_y, bool_t 
     realCopy(res, &jnx);
 
     if(monitorExit(&loop, "Iter: ")) {
-      displayCalcErrorMessage(ERROR_SOLVER_ABORT, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_SOLVER_ABORT, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
       return;
     }
   }
@@ -506,10 +505,10 @@ static void bessel(const real_t *alpha, const real_t *x, bool_t neg, real_t *res
   realSetNaN(res);
   return;
 }
-#endif // OPTION_BESSEL
+#endif // !SAVE_SPACE_DM42_12BESSEL
 
-#if defined(OPTION_BESSEL)
 void WP34S_BesselJ(const real_t *alpha, const real_t *x, real_t *res, realContext_t *realContext) {
+#if !defined(SAVE_SPACE_DM42_12BESSEL)
   real_t a, beta, gamma;
 
   if(realIsNaN(alpha) || realIsSpecial(x)) {
@@ -549,11 +548,11 @@ void WP34S_BesselJ(const real_t *alpha, const real_t *x, real_t *res, realContex
   else {
     bessel(&a, x, true, res, realContext);
   }
+#endif // !SAVE_SPACE_DM42_12BESSEL
 }
-#endif // OPTION_BESSEL
 
 // See A&S page 360 section 9.1.11
-#if defined(OPTION_BESSEL)
+#if !defined(SAVE_SPACE_DM42_12BESSEL)
 static void bessel2_int_series(const real_t *n, const real_t *x, real_t *res, realContext_t *realContext) {
   real_t factor;
   real_t xon2, xon2n, x2on4;
@@ -636,7 +635,7 @@ static void bessel2_int_series(const real_t *n, const real_t *x, real_t *res, re
     realCopy(&u, &s);
 
     if(monitorExit(&loop, "Iter: ")) {
-      displayCalcErrorMessage(ERROR_SOLVER_ABORT, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_SOLVER_ABORT, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
       return;
     }
   }
@@ -649,10 +648,10 @@ static void bessel2_int_series(const real_t *n, const real_t *x, real_t *res, re
     realChangeSign(res);
   }
 }
-#endif // OPTION_BESSEL
+#endif // !SAVE_SPACE_DM42_12BESSEL
 
-#if defined(OPTION_BESSEL)
 void WP34S_BesselY(const real_t *alpha, const real_t *x, real_t *res, realContext_t *realContext) {
+#if !defined(SAVE_SPACE_DM42_12BESSEL)
   real_t a, t, u, s, c, beta, gamma;
 
   if(realIsNaN(alpha) || realIsSpecial(x)) {
@@ -703,5 +702,5 @@ void WP34S_BesselY(const real_t *alpha, const real_t *x, real_t *res, realContex
   else {
     bessel2_int_series(alpha, x, res, realContext);
   }
+#endif // !SAVE_SPACE_DM42_12BESSEL
 }
-#endif // OPTION_BESSEL

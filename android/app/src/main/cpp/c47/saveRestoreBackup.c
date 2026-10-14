@@ -11,7 +11,7 @@
 
 // This is used for the backup.cfg simulator backup file
 // The variable backupVersion is used in the connection
-#define BACKUP_VERSION                     1023     // retainedPageFirstItem[], the page each retained-page softmenu reopens on; lastCatalogPosition[] written as hexDump, every catalog; 1021 and 1022 are taken on FIN-12C, 1021 also on units/algebra
+#define BACKUP_VERSION                     1015     // FLAG_SIGZEROS
 /*
 1004     // Replace Norm_Key_00_VAR by the structure Norm_Key_00;
 1005     // 2024-09-06 Remove superfluous reporting when old cfg file items are not found in new files
@@ -21,11 +21,6 @@
 1009     // Change matrix headers, add tag
 1010     // Change constant format in equation, adding a # prefix
 1011     // Added reserve variables UY, LY, UEST, LEST.
-1016     // Graph defaults changing from float to real
-1017     // FLAG_SBadm
-1018     // FLAG_M_ALL; Added AUTOVALID flag
-1019     // 2026-08-16 Menu items renumbered into one block; 1017 and 1018 are taken on release branch 4.00a2
-1023     // 2026-09-11 retainedPageFirstItem[] added, the page each retained-page softmenu reopens on; lastCatalogPosition[] written as hexDump, every catalog; 1021 and 1022 are taken on FIN-12C, 1021 also on units/algebra
 */
 
 #define backupFileName (CALCMODEL == USER_C47 ? "backup.cfg" : "backupR47.cfg")
@@ -293,18 +288,12 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     saveStateValue(oldTime,                         sizeof(oldTime),                                             "oldTime",                        "hexDump");
     saveStateValue(dateTimeString,                  sizeof(dateTimeString),                                      "dateTimeString",                 "hexDump");
     saveStateValue(softmenuStack,                   sizeof(softmenuStack),                                       "softmenuStack",                  "hexDump");
-    #if defined(OPTION_STRUCTURED_PGM)
-    saveStateValue(forLoopTable,                    sizeof(forLoopTable),                                        "forLoopTable",                   "hexDump");
-    #endif // OPTION_STRUCTURED_PGM
     saveStateValue(globalRegister,                  sizeof(registerHeader_t) * NUMBER_OF_GLOBAL_REGISTERS,       "globalRegister",                 "hexDump");
     saveStateValue(kbd_usr,                         sizeof(kbd_usr),                                             "kbd_usr",                        "hexDump");
     saveStateValue(userMenuItems,                   sizeof(userMenuItems),                                       "userMenuItems",                  "hexDump");
     saveStateValue(userAlphaItems,                  sizeof(userAlphaItems),                                      "userAlphaItems",                 "hexDump");
     saveStateValue(lastTemp,                        sizeof(lastTemp),                                            "lastTemp",                       "hexDump");
     saveStateValue(lastStateFileOpened,             sizeof(lastStateFileOpened),                                 "lastStateFileOpened",            "hexDump");
-    saveStateValue(lastFolderData,                  sizeof(lastFolderData),                                      "lastFolderData",                 "hexDump");
-    saveStateValue(lastFolderState,                 sizeof(lastFolderState),                                     "lastFolderState",                "hexDump");
-    saveStateValue(lastFolderPrograms,              sizeof(lastFolderPrograms),                                  "lastFolderPrograms",             "hexDump");
 
     saveStateValue(&lastI,                          sizeof(lastI),                                               "lastI",                          "int16");
     saveStateValue(&lastJ,                          sizeof(lastJ),                                               "lastJ",                          "int16");
@@ -339,7 +328,6 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     saveStateValue(&shortIntegerMode,               sizeof(shortIntegerMode),                                    "shortIntegerMode",               "uint8");
     saveStateValue(&currentAngularMode,             sizeof(currentAngularMode),                                  "currentAngularMode",             "uint32");
     saveStateValue(&scrLock,                        sizeof(scrLock),                                             "scrLock",                        "uint8");
-    saveStateValue(&displayRoundingMode,            sizeof(displayRoundingMode),                                 "displayRoundingMode",            "uint8");
     saveStateValue(&roundingMode,                   sizeof(roundingMode),                                        "roundingMode",                   "uint8");
     saveStateValue(&calcMode,                       sizeof(calcMode),                                            "calcMode",                       "uint8");
     saveStateValue(&nextChar,                       sizeof(nextChar),                                            "nextChar",                       "uint8");
@@ -373,14 +361,16 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     saveStateValue(&numScreensTinyFont,             sizeof(numScreensTinyFont),                                  "numScreensTinyFont",             "uint8");
     saveStateValue(&numLinesTinyFont,               sizeof(numLinesTinyFont),                                    "numLinesTinyFont",               "uint8");
     saveStateValue(&previousCalcMode,               sizeof(previousCalcMode),                                    "previousCalcMode",               "uint8");
-    saveStateValue(&graphToRemainOnScreen,          sizeof(graphToRemainOnScreen),                               "graphToRemainOnScreen",          "bool");
     saveStateValue(&lastErrorCode,                  sizeof(lastErrorCode),                                       "lastErrorCode",                  "uint8");
     saveStateValue(&previousErrorCode,              sizeof(previousErrorCode),                                   "previousErrorCode",              "uint8");
     saveStateValue(&nimNumberPart,                  sizeof(nimNumberPart),                                       "nimNumberPart",                  "uint8");
     saveStateValue(&displayStack,                   sizeof(displayStack),                                        "displayStack",                   "uint8");
     saveStateValue(&hexDigits,                      sizeof(hexDigits),                                           "hexDigits",                      "uint8");
     saveStateValue(&errorMessageRegisterLine,       sizeof(errorMessageRegisterLine),                            "errorMessageRegisterLine",       "int16");
+    saveStateValue(&shortIntegerMask,               sizeof(shortIntegerMask),                                    "shortIntegerMask",               "uint64");
+    saveStateValue(&shortIntegerSignBit,            sizeof(shortIntegerSignBit),                                 "shortIntegerSignBit",            "uint64");
     saveStateValue(&temporaryInformation,           sizeof(temporaryInformation),                                "temporaryInformation",           "uint8");
+    saveStateValue(&glyphNotFound,                  sizeof(glyphNotFound),                                       "glyphNotFound",                  "hexDump");
     saveStateValue(&funcOK,                         sizeof(funcOK),                                              "funcOK",                         "bool");
     saveStateValue(&screenChange,                   sizeof(screenChange),                                        "screenChange",                   "bool");
     saveStateValue(&exponentSignLocation,           sizeof(exponentSignLocation),                                "exponentSignLocation",           "int16");
@@ -392,8 +382,7 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     saveStateValue(&c47MemInBlocks,                 sizeof(c47MemInBlocks),                                      "c47MemInBlocks",                 "uint64");
     saveStateValue(&gmpMemInBytes,                  sizeof(gmpMemInBytes),                                       "gmpMemInBytes",                  "uint64");
     saveStateValue(&catalog,                        sizeof(catalog),                                             "catalog",                        "int16");
-    saveStateValue(&lastCatalogPosition,            sizeof(lastCatalogPosition),                                 "lastCatalogPosition",            "hexDump");
-    saveStateValue(retainedPageFirstItem,           sizeof(retainedPageFirstItem),                               "retainedPageFirstItem",          "hexDump");
+    saveStateValue(&lastCatalogPosition,            sizeof(lastCatalogPosition),                                 "lastCatalogPosition",            "int16");
     saveStateValue(displayValueX,                   sizeof(displayValueX),                                       "displayValueX",                  "hexDump");
     saveStateValue(&pcg32_global,                   sizeof(pcg32_global),                                        "pcg32_global",                   "hexDump");
     saveStateValue(&exponentLimit,                  sizeof(exponentLimit),                                       "exponentLimit",                  "int16");
@@ -407,7 +396,6 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     saveStateValue(&freeProgramBytes,               sizeof(freeProgramBytes),                                    "freeProgramBytes",               "uint16");
     saveStateValue(&firstDisplayedLocalStepNumber,  sizeof(firstDisplayedLocalStepNumber),                       "firstDisplayedLocalStepNumber",  "uint16");
     saveStateValue(&numberOfLabels,                 sizeof(numberOfLabels),                                      "numberOfLabels",                 "uint16");
-    saveStateValue(&numberOfStructureLabels,        sizeof(numberOfStructureLabels),                             "numberOfStructureLabels",        "uint16");
     saveStateValue(&numberOfPrograms,               sizeof(numberOfPrograms),                                    "numberOfPrograms",               "uint16");
     saveStateValue(&currentLocalStepNumber,         sizeof(currentLocalStepNumber),                              "currentLocalStepNumber",         "uint16");
     saveStateValue(&currentProgramNumber,           sizeof(currentProgramNumber),                                "currentProgramNumber",           "uint16");
@@ -426,29 +414,30 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     saveStateValue(&lrChosenUndo,                   sizeof(lrChosenUndo),                                        "lrChosenUndo",                   "uint16");
     saveStateValue(&lastPlotMode,                   sizeof(lastPlotMode),                                        "lastPlotMode",                   "uint16");
     saveStateValue(&plotSelection,                  sizeof(plotSelection),                                       "plotSelection",                  "uint16");
-    saveStateValue(&graph_dx,                       sizeof(graph_dx),                                            "graph_dx",                       "double");
-    saveStateValue(&graph_dy,                       sizeof(graph_dy),                                            "graph_dy",                       "double");
+    saveStateValue(&graph_dx,                       sizeof(graph_dx),                                            "graph_dx",                       "float");
+    saveStateValue(&graph_dy,                       sizeof(graph_dy),                                            "graph_dy",                       "float");
     saveStateValue(&roundedTicks,                   sizeof(roundedTicks),                                        "roundedTicks",                   "bool");
+    saveStateValue(&PLOT_INTG,                      sizeof(PLOT_INTG),                                           "PLOT_INTG",                      "bool");
+    saveStateValue(&PLOT_DIFF,                      sizeof(PLOT_DIFF),                                           "PLOT_DIFF",                      "bool");
+    saveStateValue(&PLOT_RMS,                       sizeof(PLOT_RMS),                                            "PLOT_RMS",                       "bool");
+    saveStateValue(&PLOT_SHADE,                     sizeof(PLOT_SHADE),                                          "PLOT_SHADE",                     "bool");
     saveStateValue(&PLOT_AXIS,                      sizeof(PLOT_AXIS),                                           "PLOT_AXIS",                      "bool");
     saveStateValue(&PLOT_ZMY,                       sizeof(PLOT_ZMY),                                            "PLOT_ZMY",                       "int8");
     saveStateValue(&PLOT_ZOOM,                      sizeof(PLOT_ZOOM),                                           "PLOT_ZOOM",                      "uint8");
     saveStateValue(&plotmode,                       sizeof(plotmode),                                            "plotmode",                       "int8");
-    saveStateValue(&tick_int_x,                     sizeof(tick_int_x),                                          "tick_int_x",                     "double");
-    saveStateValue(&tick_int_y,                     sizeof(tick_int_y),                                          "tick_int_y",                     "double");
-    saveStateValue(x_min,                           REAL_SIZE_IN_BYTES(34),                                      "x_min",                          "real");
-    saveStateValue(x_max,                           REAL_SIZE_IN_BYTES(34),                                      "x_max",                          "real");
-    saveStateValue(y_min,                           REAL_SIZE_IN_BYTES(34),                                      "y_min",                          "real");
-    saveStateValue(y_max,                           REAL_SIZE_IN_BYTES(34),                                      "y_max",                          "real");
+    saveStateValue(&tick_int_x,                     sizeof(tick_int_x),                                          "tick_int_x",                     "float");
+    saveStateValue(&tick_int_y,                     sizeof(tick_int_y),                                          "tick_int_y",                     "float");
+    saveStateValue(&x_min,                          sizeof(x_min),                                               "x_min",                          "float");
+    saveStateValue(&x_max,                          sizeof(x_max),                                               "x_max",                          "float");
+    saveStateValue(&y_min,                          sizeof(y_min),                                               "y_min",                          "float");
+    saveStateValue(&y_max,                          sizeof(y_max),                                               "y_max",                          "float");
     saveStateValue(&xzero,                          sizeof(xzero),                                               "xzero",                          "uint32");
     saveStateValue(&yzero,                          sizeof(yzero),                                               "yzero",                          "uint32");
     saveStateValue(&regStatsXY,                     sizeof(regStatsXY),                                          "regStatsXY",                     "int16");
     saveStateValue(&matrixIndex,                    sizeof(matrixIndex),                                         "matrixIndex",                    "uint16");
-    saveStateValue(&shadowI,                        sizeof(shadowI),                                             "shadowI",                        "int16");
-    saveStateValue(&shadowJ,                        sizeof(shadowJ),                                             "shadowJ",                        "int16");
     saveStateValue(&currentViewRegister,            sizeof(currentViewRegister),                                 "currentViewRegister",            "uint16");
     saveStateValue(&currentSolverStatus,            sizeof(currentSolverStatus),                                 "currentSolverStatus",            "uint16");
     saveStateValue(&currentSolverProgram,           sizeof(currentSolverProgram),                                "currentSolverProgram",           "uint16");
-    saveStateValue(&currentDerivProgram,            sizeof(currentDerivProgram),                                 "currentDerivProgram",            "uint16");
     saveStateValue(&currentSolverVariable,          sizeof(currentSolverVariable),                               "currentSolverVariable",          "uint16");
     saveStateValue(&numberOfFormulae,               sizeof(numberOfFormulae),                                    "numberOfFormulae",               "uint16");
     saveStateValue(&currentFormula,                 sizeof(currentFormula),                                      "currentFormula",                 "uint16");
@@ -467,7 +456,6 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     saveStateValue(&graphVariabl1,                  sizeof(graphVariabl1),                                       "graphVariabl1",                  "int16");
     saveStateValue(&plotStatMx,                     sizeof(plotStatMx),                                          "plotStatMx",                     "hexDump");
     saveStateValue(&drawHistogram,                  sizeof(drawHistogram),                                       "drawHistogram",                  "uint8");
-    saveStateValue(&plotStatScale,                  sizeof(plotStatScale),                                       "plotStatScale",                  "uint8");
     saveStateValue(&statMx,                         sizeof(statMx),                                              "statMx",                         "hexDump");
     saveStateValue(&lrSelectionHistobackup,         sizeof(lrSelectionHistobackup),                              "lrSelectionHistobackup",         "uint16");
     saveStateValue(&lrChosenHistobackup,            sizeof(lrChosenHistobackup),                                 "lrChosenHistobackup",            "uint16");
@@ -508,8 +496,6 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     saveStateValue(&grpGroupingGr1LeftOverflow,     sizeof(grpGroupingGr1LeftOverflow),                          "grpGroupingGr1LeftOverflow",     "uint8");   //JM
     saveStateValue(&grpGroupingGr1Left,             sizeof(grpGroupingGr1Left),                                  "grpGroupingGr1Left",             "uint8");   //JM
     saveStateValue(&grpGroupingRight,               sizeof(grpGroupingRight),                                    "grpGroupingRight",               "uint8");   //JM
-    saveStateValue(&grpGroupingHex,                 sizeof(grpGroupingHex),                                      "grpGroupingHex",                 "uint8");
-    saveStateValue(&grpGroupingBin,                 sizeof(grpGroupingBin),                                      "grpGroupingBin",                 "uint8");
     saveStateValue(&firstDayOfWeek,                 sizeof(firstDayOfWeek),                                      "firstDayOfWeek",                 "uint8");
     saveStateValue(&firstWeekOfYearDay,             sizeof(firstWeekOfYearDay),                                  "firstWeekOfYearDay",             "uint8");
     saveStateValue(&dispBase,                       sizeof(dispBase),                                            "dispBase",                       "uint8");   //JM
@@ -578,42 +564,11 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
 
     saveStateValue(ram,                             TO_BYTES(RAM_SIZE_IN_BLOCKS),                                "ram",                            "hexDump");
 
-    saveStateValue(&graMod,                         sizeof(graMod),                                              "graMod",                         "uint8");
-    saveStateValue(&longPressFactor,                sizeof(longPressFactor),                                     "longPressFactor",                "int16");
-    saveStateValue(&doublePressFactor,              sizeof(doublePressFactor),                                   "doublePressFactor",              "int16");
-
-    saveStateValue(&alphaRegister,                  sizeof(alphaRegister),                                       "alphaRegister",                  "uint16");
-
     // If you create a new parameter, proceed as following:
     //saveStateValue(&newParam,                       sizeof(newParam),                                            "newParam",                       "parameterType");
 
     ioFileClose();
     printf("End of calc's backup\n");
-  }
-
-
-  // A memory region count read from backup.cfg is how many entries of freeMemoryRegions or allocatedMemoryRegions freeList.c reads, so a count outside
-  // 0..ceiling cannot describe the file's own tables. Report it and let the caller refuse the file, as it already does for a wrong RAM size. This is a
-  // coherence check, not the bound on the restore: those writes are bounded by the destination.
-  static bool_t restoredRegionCountIsUsable(int32_t count, int32_t ceiling, const char *valueName) {
-    if(count < 0 || count > ceiling) {
-      printf("Cannot restore calc's memory from file %s! %s is %" PRId32 ", outside 0 to %" PRId32 "\n", backupFileName, valueName, count, ceiling);
-      return false;
-    }
-    return true;
-  }
-
-
-
-  // Release the parameter list read out of the file. Every path that gives up on a file after building the list has to come through here.
-  static void freeConfigFileParams(void) {
-    paramCurrent = paramHead;
-    while(paramHead) {
-      paramHead = paramHead->next;
-      free(paramCurrent->param);
-      free(paramCurrent);
-      paramCurrent = paramHead;
-    }
   }
 
 
@@ -631,7 +586,8 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     }
 
     if(paramCurrent == NULL) {
-      printf("Parameter %s of type %s not found in file %s, using default\n", valueName, valueType, backupFileName);
+      printf("Parameter %s of type %s not found in file %s\n", valueName, valueType, backupFileName);
+      printf("Using default value for %s\n", valueName);
       return;
     }
 
@@ -694,11 +650,11 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     }
 
     else if(!strcmp(valueType, "float")) {
-      *(float *)buffer = (float)stringToDouble(valuePtr);
+      *(float *)buffer = atof(valuePtr);
     }
 
     else if(!strcmp(valueType, "double")) {
-      *(double *)buffer = stringToDouble(valuePtr);
+      *(double *)buffer = atof(valuePtr);
     }
 
     else if(!strcmp(valueType, "real")) {
@@ -722,31 +678,18 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
 
     else if(!strcmp(valueType, "hexDump")) {
       uint32_t numberOfBytes = stringToUint32(valuePtr);
-      if(numberOfBytes > size) {
-        numberOfBytes = size;
-      }
       uint8_t hi, lo, *buf = (uint8_t *)buffer;
-      const uint8_t *dumpLine = NULL;
-      size_t dumpLineLength = 0, digit = 0;
+      uint8_t *v;
       for(uint32_t count=0; count < numberOfBytes; count++, buf++) {
         if(count % 32 == 0) {
           paramCurrent = paramCurrent->next;
-          if(paramCurrent == NULL) {
-            break;
-          }
-          // The two hex digits of byte b sit at offset 7 + 3*b of a dump line saveStateValue() wrote. A line in the file need not be that long, so index it
-          // against its own length. Offsets rather than pointers: a line shorter than 7 has no such position to point at, one-past-the-end or otherwise.
-          dumpLine       = (const uint8_t *)paramCurrent->param;
-          dumpLineLength = strlen(paramCurrent->param);
-          digit          = 7;
+          v = (uint8_t *)paramCurrent->param + 7;
         }
 
-        if(digit + 1 >= dumpLineLength) {   // the line ends before the digit pair this byte needs: stop, as for a parameter list that runs out above
-          break;
-        }
-        hi = dumpLine[digit]     - (dumpLine[digit]     <= '9' ? '0' : 'a' - 10);
-        lo = dumpLine[digit + 1] - (dumpLine[digit + 1] <= '9' ? '0' : 'a' - 10);
-        digit += 3;
+        hi = *v - (*v <= '9' ? '0' : 'a' - 10);
+        v++;
+        lo = *v - (*v <= '9' ? '0' : 'a' - 10);
+        v += 2;
         *buf = (hi << 4) | lo;
       }
     }
@@ -773,77 +716,9 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     }
   }
 
-
-  // Restore one c47Ptr - a block index into ram - together with the byte offset saveCalc() stored beside it where the field has one, and build the pointer from
-  // the two integers. TO_PCMEMPTR() is ram + p and has no range of its own, so the range test here is what stops a p the file chose forming a pointer outside
-  // the pool, before scanLabelsAndPrograms() or the register restore is handed it.
-  //
-  // `current` seeds both numbers, so a field whose parameter the file omits keeps its own value. restoreStateValue() writes nothing when it finds no match, so
-  // one scratch variable shared across the fields would hand an omitted field whichever pointer was restored before it.
-  //
-  // Out of range clears *inThePool, which makes the caller refuse the file, and returns NULL rather than a pointer the caller might still use. C47_NULL is the
-  // file's own null and stays legal.
-  static void *restoredPoolPointer(void *current, const char *valueName, const char *offsetValueName, bool_t *inThePool) {
-    uint32_t blockAddress = TO_C47MEMPTR(current);
-    uint32_t byteOffset   = (current == NULL) ? 0 : (uint32_t)((uint8_t *)current - (uint8_t *)TO_PCMEMPTR(blockAddress));
-
-    restoreStateValue(&blockAddress, sizeof(blockAddress), valueName, "c47Ptr");
-    if(offsetValueName != NULL) {
-      restoreStateValue(&byteOffset, sizeof(byteOffset), offsetValueName, "uint32");
-    }
-
-    if(blockAddress == C47_NULL && byteOffset == 0) {
-      return NULL;
-    }
-    // Bound each number against what the format lets the writer produce, not against the pool as a whole. saveCalc() splits a pointer with TO_C47MEMPTR(),
-    // which divides by the block size, and stores the remainder as the offset, so an offset is never TO_BYTES(1) or more. Both tests are against a constant,
-    // so the sum below cannot overflow. The result is required to be strictly inside the pool: a block index of RAM_SIZE_IN_BLOCKS is the one-past-the-end
-    // position, and every consumer here dereferences what it is given.
-    if(blockAddress >= RAM_SIZE_IN_BLOCKS || byteOffset >= TO_BYTES(1)) {
-      printf("Cannot restore calc's memory from file %s! %s is block %" PRIu32 " + %" PRIu32 " bytes, outside the %" PRIu32 "-byte pool\n",
-             backupFileName, valueName, blockAddress, byteOffset, TO_BYTES(RAM_SIZE_IN_BLOCKS));
-      *inThePool = false;
-      return NULL;
-    }
-    return (uint8_t *)ram + TO_BYTES(blockAddress) + byteOffset;   // strictly inside: block <= RAM_SIZE_IN_BLOCKS-1 and offset <= TO_BYTES(1)-1
-  }
-
-
-  //One-time migration of a pre-1016 float parameter into its new real or double variable.
-  //Not an error: the old value is converted and reported, and the next save writes the new type.
-  static void migrateFloatValue(void *buffer, const char *valueName, const char *newType) {
-    char search[60];
-    strcpy(search, valueName);
-    strcat(search, ":float:");
-    paramCurrent = paramHead;
-    while(paramCurrent) {
-      if(!strncmp(paramCurrent->param, search, strlen(search))) {
-        break;
-      }
-      paramCurrent = paramCurrent->next;
-    }
-    if(paramCurrent == NULL) {
-      printf("Parameter %s of type float not found in file %s, using default\n", valueName, backupFileName);
-      return;
-    }
-    double d = stringToDouble(paramCurrent->param + strlen(search));
-    if(!isfinite(d)) {
-      d = 0;                                           //unusable old value: report and store the default 0
-    }
-    if(!strcmp(newType, "real")) {
-      convertDoubleToReal(d, (real_t *)buffer, &ctxtReal39);
-    }
-    else {
-      *(double *)buffer = d;
-    }
-    printf("%s: one-time conversion from float to %s, value %g; loads as %s in future\n", valueName, newType, d, newType);
-  }
-
-
   void restoreCalc(void) {
     printf("RestoreCalc\n");
-    uint32_t ramSizeInBlocks = 0, backupVersion = 0;
-    bool_t   poolPointersInRange = true;
+    uint32_t ramSizeInBlocks = 0, ramPtr = 0, backupVersion = 0;
     int ret;
     //save and restore screenData is not mandatory
     //uint8_t *loadedScreen = malloc(SCREEN_WIDTH * SCREEN_HEIGHT / 8);
@@ -870,20 +745,20 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     }
 
     // Reading all the configuration parameters
-    readLine(oneParam, sizeof(oneParam));
+    readLine(oneParam);
     paramHead = malloc(sizeof(cfgFileParam_t));
     paramCurrent = paramHead;
     paramCurrent->param = malloc(strlen(oneParam) + 1);
     strcpy(paramCurrent->param, oneParam);
     paramCurrent->next = NULL;
-    readLine(oneParam, sizeof(oneParam));
+    readLine(oneParam);
     while(!ioEof()) {
       paramCurrent->next = malloc(sizeof(cfgFileParam_t));
       paramCurrent = paramCurrent->next;
       paramCurrent->param = malloc(strlen(oneParam) + 1);
       strcpy(paramCurrent->param, oneParam);
       paramCurrent->next = NULL;
-      readLine(oneParam, sizeof(oneParam));
+      readLine(oneParam);
     }
     ioFileClose();
 
@@ -897,7 +772,6 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
       printf("       Backup file      Program\n");
       printf("ramSize blocks %6u           %6d\n", ramSizeInBlocks, RAM_SIZE_IN_BLOCKS);
       printf("ramSize bytes  %6u           %6d\n", TO_BYTES(ramSizeInBlocks), TO_BYTES(RAM_SIZE_IN_BLOCKS));
-      freeConfigFileParams();
       return;
     }
     else if(backupVersion == 0 || backupVersion < 1011) {
@@ -905,9 +779,8 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
       printf("\n");
       char ss[150];
       sprintf(ss, "Cannot restore calc's memory from file %s! File %s has a too low version number.", backupFileName, backupFileName);
-      userAbortf(ss);
-      userAbortf("It is proposed that you save a state file from a prior simulator version and import said state file into this version.\n");
-      freeConfigFileParams();
+      userAbort(ss);
+      userAbort("It is proposed that you save a state file from a prior simulator version and import said state file into this version.\n");
       return;
     }
 
@@ -915,75 +788,68 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
 
     // The order in which parameters are restored doesn't matter
     // When a parameter is removed, simply remove the corresponding saveStateValue(...) and restoreStateValue(...) lines.
-    // Both region counts are read into locals and checked before anything is committed, and ahead of the ram restore, so a file refused here leaves the
-    // calculator doFnReset() built at entry rather than one with half a pool in it. A parameter the file omits leaves its local at the live value, as for any
-    // other field.
-    int32_t restoredFreeRegions      = numberOfFreeMemoryRegions;
-    int32_t restoredAllocatedRegions = numberOfAllocatedMemoryRegions;
-    restoreStateValue(&restoredFreeRegions,            sizeof(restoredFreeRegions),                                 "numberOfFreeMemoryRegions",      "int32");
-    restoreStateValue(&restoredAllocatedRegions,       sizeof(restoredAllocatedRegions),                            "numberOfAllocatedMemoryRegions", "int32");
-    if(!restoredRegionCountIsUsable(restoredFreeRegions,      MAX_FREE_REGIONS,      "numberOfFreeMemoryRegions"     ) ||
-       !restoredRegionCountIsUsable(restoredAllocatedRegions, MAX_ALLOCATED_REGIONS, "numberOfAllocatedMemoryRegions")) {
-      refreshScreen(92);
-      printf("Performing RESET\n");
-      freeConfigFileParams();
-      return;
-    }
-    numberOfFreeMemoryRegions      = restoredFreeRegions;
-    numberOfAllocatedMemoryRegions = restoredAllocatedRegions;
-
     restoreStateValue(ram,                             TO_BYTES(RAM_SIZE_IN_BLOCKS),                                "ram",                            "hexDump");
+    restoreStateValue(&numberOfFreeMemoryRegions,      sizeof(numberOfFreeMemoryRegions),                           "numberOfFreeMemoryRegions",      "int32");
+    restoreStateValue(freeMemoryRegions,               sizeof(freeMemoryRegion_t) * numberOfFreeMemoryRegions,      "freeMemoryRegions",              "hexDump");
+    restoreStateValue(&numberOfAllocatedMemoryRegions, sizeof(numberOfAllocatedMemoryRegions),                      "numberOfAllocatedMemoryRegions", "int32");
+    restoreStateValue(allocatedMemoryRegions,          sizeof(freeMemoryRegion_t) * numberOfAllocatedMemoryRegions, "allocatedMemoryRegions",         "hexDump");
 
-    graMod = 0;
-    if(backupVersion >= 1020) {
-      restoreStateValue(&graMod,                         sizeof(graMod),                                              "graMod",                         "uint8");
-    }
-    else { // pre-1020 backups: GRAMOD as a long integer reserved variable in the ram image, take its value over, convert, then clear
-      strLgIntHeader_t *ptr = TO_PCMEMPTR(36);
-      uint32_t oldGramod = *(uint32_t *)(ptr + 1);
-      graMod = (oldGramod <= 3) ? oldGramod : 0;
-      memset(TO_PCMEMPTR(36), 0, REAL34_SIZE_IN_BYTES);
-      real34SetZero(REGISTER_REAL34_DATA(RESERVED_VARIABLE_IP));     // Old GRAMOD slot now is i%: give it a real zero, then derive it from the restored I%/a
-      tvmSyncIp(RESERVED_VARIABLE_IPONA);
-    }
-    restoreStateValue(&longPressFactor,                sizeof(longPressFactor),                                     "longPressFactor",                "int16"); // a file without the key leaves 0, factor 1
-    restoreStateValue(&doublePressFactor,              sizeof(doublePressFactor),                                   "doublePressFactor",              "int16");
-    // The size argument is what stops the reader writing off the end, so it is the room the destination has, the way every other call here passes a sizeof().
-    // These writes cannot leave their table whatever count the file carries.
-    restoreStateValue(freeMemoryRegions,               sizeof(*freeMemoryRegions) * MAX_FREE_REGIONS,               "freeMemoryRegions",              "hexDump"); // as config.c allocates it
-    restoreStateValue(allocatedMemoryRegions,          sizeof(allocatedMemoryRegions),                              "allocatedMemoryRegions",         "hexDump");
+    restoreStateValue(&ramPtr,                         sizeof(ramPtr),                                              "allNamedVariables",              "c47Ptr");
+    allNamedVariables = TO_PCMEMPTR(ramPtr);
 
-    allNamedVariables           = restoredPoolPointer(allNamedVariables,           "allNamedVariables",           NULL,                         &poolPointersInRange);
-    invalidateNamedVariableCache();             // the whole table arrives from the backup image: nothing findNamedVariable() remembers describes it any more
-    allFormulae                 = restoredPoolPointer(allFormulae,                 "allFormulae",                 NULL,                         &poolPointersInRange);
-    userMenus                   = restoredPoolPointer(userMenus,                   "userMenus",                   NULL,                         &poolPointersInRange);
-    userKeyLabel                = restoredPoolPointer(userKeyLabel,                "userKeyLabel",                NULL,                         &poolPointersInRange);
-    statisticalSumsPointer      = restoredPoolPointer(statisticalSumsPointer,      "statisticalSumsPointer",      NULL,                         &poolPointersInRange);
-    savedStatisticalSumsPointer = restoredPoolPointer(savedStatisticalSumsPointer, "savedStatisticalSumsPointer", NULL,                         &poolPointersInRange);
-    labelList                   = restoredPoolPointer(labelList,                   "labelList",                   NULL,                         &poolPointersInRange);
-    programList                 = restoredPoolPointer(programList,                 "programList",                 NULL,                         &poolPointersInRange);
-    currentSubroutineLevelData  = restoredPoolPointer(currentSubroutineLevelData,  "currentSubroutineLevelData",  NULL,                         &poolPointersInRange);
-    currentLocalFlags           = restoredPoolPointer(currentLocalFlags,           "currentLocalFlags",           NULL,                         &poolPointersInRange);
-    currentLocalRegisters       = restoredPoolPointer(currentLocalRegisters,       "currentLocalRegisters",       NULL,                         &poolPointersInRange);
+    restoreStateValue(&ramPtr,                         sizeof(ramPtr),                                              "allFormulae",                    "c47Ptr");
+    allFormulae = TO_PCMEMPTR(ramPtr);
 
-    beginOfProgramMemory        = restoredPoolPointer(beginOfProgramMemory,        "beginOfProgramMemory",        "beginOfProgramMemoryOffset", &poolPointersInRange);
-    firstFreeProgramByte        = restoredPoolPointer(firstFreeProgramByte,        "firstFreeProgramByte",        "firstFreeProgramByteOffset", &poolPointersInRange);
-    firstDisplayedStep          = restoredPoolPointer(firstDisplayedStep,          "firstDisplayedStep",          "firstDisplayedStepOffset",   &poolPointersInRange);
-    currentStep                 = restoredPoolPointer(currentStep,                 "currentStep",                 "currentStepOffset",          &poolPointersInRange);
+    restoreStateValue(&ramPtr,                         sizeof(ramPtr),                                              "userMenus",                      "c47Ptr");
+    userMenus = TO_PCMEMPTR(ramPtr);
 
-    // Every field above is restored before this is tested, so one file reports every pointer it got wrong rather than only the first. A file that describes
-    // pointers into some other pool is refused: nothing here can repair it, and the next thing to run is scanLabelsAndPrograms() reading program memory
-    // through exactly these pointers.
-    //
-    // Unlike the region-count check above, this one cannot simply return. By here ram holds the file's bytes, the region counts are the file's, every pointer
-    // that passed has been assigned, and the one that failed holds the NULL restoredPoolPointer() returns. So perform the reset this path prints.
-    if(!poolPointersInRange) {
-      refreshScreen(92);
-      printf("Performing RESET\n");
-      freeConfigFileParams();
-      doFnReset(CONFIRMED, loadAutoSav);
-      return;
-    }
+    restoreStateValue(&ramPtr,                         sizeof(ramPtr),                                              "userKeyLabel",                   "c47Ptr");
+    userKeyLabel = TO_PCMEMPTR(ramPtr);
+
+    restoreStateValue(&ramPtr,                         sizeof(ramPtr),                                              "statisticalSumsPointer",         "c47Ptr");
+    statisticalSumsPointer = TO_PCMEMPTR(ramPtr);
+
+    restoreStateValue(&ramPtr,                         sizeof(ramPtr),                                              "savedStatisticalSumsPointer",    "c47Ptr");
+    savedStatisticalSumsPointer = TO_PCMEMPTR(ramPtr);
+
+    restoreStateValue(&ramPtr,                         sizeof(ramPtr),                                              "labelList",                      "c47Ptr");
+    labelList = TO_PCMEMPTR(ramPtr);
+
+    restoreStateValue(&ramPtr,                         sizeof(ramPtr),                                              "programList",                    "c47Ptr");
+    programList = TO_PCMEMPTR(ramPtr);
+
+    restoreStateValue(&ramPtr,                         sizeof(ramPtr),                                              "currentSubroutineLevelData",     "c47Ptr");
+    currentSubroutineLevelData = TO_PCMEMPTR(ramPtr);
+
+    restoreStateValue(&ramPtr,                         sizeof(ramPtr),                                              "currentLocalFlags",              "c47Ptr");
+    currentLocalFlags = TO_PCMEMPTR(ramPtr);
+
+    restoreStateValue(&ramPtr,                         sizeof(ramPtr),                                              "currentLocalRegisters",          "c47Ptr");
+    currentLocalRegisters = TO_PCMEMPTR(ramPtr);
+
+    restoreStateValue(&ramPtr,                         sizeof(ramPtr),                                              "beginOfProgramMemory",           "c47Ptr"); // beginOfProgramMemory pointer to block
+    beginOfProgramMemory = TO_PCMEMPTR(ramPtr);
+
+    restoreStateValue(&ramPtr,                         sizeof(ramPtr),                                              "beginOfProgramMemoryOffset",     "uint32"); // beginOfProgramMemory offset within block
+    beginOfProgramMemory += ramPtr;
+
+    restoreStateValue(&ramPtr,                         sizeof(ramPtr),                                              "firstFreeProgramByte",           "c47Ptr"); // firstFreeProgramByte pointer to block
+    firstFreeProgramByte = TO_PCMEMPTR(ramPtr);
+
+    restoreStateValue(&ramPtr,                         sizeof(ramPtr),                                              "firstFreeProgramByteOffset",     "uint32"); // firstFreeProgramByte offset within block
+    firstFreeProgramByte += ramPtr;
+
+    restoreStateValue(&ramPtr,                         sizeof(ramPtr),                                              "firstDisplayedStep",             "c47Ptr"); // firstDisplayedStep pointer to block
+    firstDisplayedStep = TO_PCMEMPTR(ramPtr);
+
+    restoreStateValue(&ramPtr,                         sizeof(ramPtr),                                              "firstDisplayedStepOffset",       "uint32"); // firstDisplayedStep offset within block
+    firstDisplayedStep += ramPtr;
+
+    restoreStateValue(&ramPtr,                         sizeof(ramPtr),                                              "currentStep",                    "c47Ptr"); // currentStep pointer to block
+    currentStep = TO_PCMEMPTR(ramPtr);
+
+    restoreStateValue(&ramPtr,                         sizeof(ramPtr),                                              "currentStepOffset",              "uint32"); // currentStep offset within block
+    currentStep += ramPtr;
 
     restoreStateValue(globalFlags,                     sizeof(globalFlags),                                         "globalFlags",                    "hexDump");
     restoreStateValue(errorMessage,                    ERROR_MESSAGE_LENGTH,                                        "errorMessage",                   "hexDump");
@@ -994,19 +860,12 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     restoreStateValue(oldTime,                         sizeof(oldTime),                                             "oldTime",                        "hexDump");
     restoreStateValue(dateTimeString,                  sizeof(dateTimeString),                                      "dateTimeString",                 "hexDump");
     restoreStateValue(softmenuStack,                   sizeof(softmenuStack),                                       "softmenuStack",                  "hexDump");
-    #if defined(OPTION_STRUCTURED_PGM)
-    forClearLoops(); // a file without the keyword below then leaves no loop running
-    restoreStateValue(forLoopTable,                    sizeof(forLoopTable),                                        "forLoopTable",                   "hexDump");
-    #endif // OPTION_STRUCTURED_PGM
     restoreStateValue(globalRegister,                  sizeof(registerHeader_t) * NUMBER_OF_GLOBAL_REGISTERS,       "globalRegister",                 "hexDump");
     restoreStateValue(kbd_usr,                         sizeof(kbd_usr),                                             "kbd_usr",                        "hexDump");
     restoreStateValue(userMenuItems,                   sizeof(userMenuItems),                                       "userMenuItems",                  "hexDump");
     restoreStateValue(userAlphaItems,                  sizeof(userAlphaItems),                                      "userAlphaItems",                 "hexDump");
     restoreStateValue(lastTemp,                        sizeof(lastTemp),                                            "lastTemp",                       "hexDump");
     restoreStateValue(lastStateFileOpened,             sizeof(lastStateFileOpened),                                 "lastStateFileOpened",            "hexDump");
-    restoreStateValue(lastFolderData,                  sizeof(lastFolderData),                                      "lastFolderData",                 "hexDump");
-    restoreStateValue(lastFolderState,                 sizeof(lastFolderState),                                     "lastFolderState",                "hexDump");
-    restoreStateValue(lastFolderPrograms,              sizeof(lastFolderPrograms),                                  "lastFolderPrograms",             "hexDump");
 
     lastI = 0;
     lastJ = 0;
@@ -1038,8 +897,6 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     restoreStateValue(&displayFormatDigits,            sizeof(displayFormatDigits),                                 "displayFormatDigits",            "uint8");
     restoreStateValue(&timeDisplayFormatDigits,        sizeof(timeDisplayFormatDigits),                             "timeDisplayFormatDigits",        "uint8");
     restoreStateValue(&shortIntegerWordSize,           sizeof(shortIntegerWordSize),                                "shortIntegerWordSize",           "uint8");
-    shortIntegerWordSize = boundShortIntegerWordSize(shortIntegerWordSize);
-    updateShortIntegerMasks();  // rederive shortIntegerMask and shortIntegerSignBit from the word size just restored; the file copies (older backups) are ignored
     restoreStateValue(&significantDigits,              sizeof(significantDigits),                                   "significantDigits",              "uint8");
     fractionDigits = 34;
     restoreStateValue(&fractionDigits,                 sizeof(fractionDigits),                                      "fractionDigits",                 "uint8");
@@ -1049,16 +906,7 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     restoreStateValue(&scrLock,                        sizeof(scrLock),                                             "scrLock",                        "uint8");
     scrLock &= 0x03;
 
-    displayRoundingMode = DRM_DFLT;
-    restoreStateValue(&displayRoundingMode,            sizeof(displayRoundingMode),                                 "displayRoundingMode",            "uint8");
-    if(displayRoundingMode > RM_FLOOR) {
-      displayRoundingMode = DRM_DFLT;
-    }
     restoreStateValue(&roundingMode,                   sizeof(roundingMode),                                        "roundingMode",                   "uint8");
-    if(roundingMode > RM_FLOOR) {
-      roundingMode = RM_HALF_EVEN;
-    }
-    setRoundingMode(roundingMode);
     restoreStateValue(&calcMode,                       sizeof(calcMode),                                            "calcMode",                       "uint8");
     restoreStateValue(&nextChar,                       sizeof(nextChar),                                            "nextChar",                       "uint8");
     restoreStateValue(&alphaCase,                      sizeof(alphaCase),                                           "alphaCase",                      "uint8");
@@ -1091,14 +939,20 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     restoreStateValue(&numScreensTinyFont,             sizeof(numScreensTinyFont),                                  "numScreensTinyFont",             "uint8");
     restoreStateValue(&numLinesTinyFont,               sizeof(numLinesTinyFont),                                    "numLinesTinyFont",               "uint8");
     restoreStateValue(&previousCalcMode,               sizeof(previousCalcMode),                                    "previousCalcMode",               "uint8");
-    restoreStateValue(&graphToRemainOnScreen,          sizeof(graphToRemainOnScreen),                               "graphToRemainOnScreen",          "bool");
     restoreStateValue(&lastErrorCode,                  sizeof(lastErrorCode),                                       "lastErrorCode",                  "uint8");
     restoreStateValue(&previousErrorCode,              sizeof(previousErrorCode),                                   "previousErrorCode",              "uint8");
     restoreStateValue(&nimNumberPart,                  sizeof(nimNumberPart),                                       "nimNumberPart",                  "uint8");
     restoreStateValue(&displayStack,                   sizeof(displayStack),                                        "displayStack",                   "uint8");
     restoreStateValue(&hexDigits,                      sizeof(hexDigits),                                           "hexDigits",                      "uint8");
     restoreStateValue(&errorMessageRegisterLine,       sizeof(errorMessageRegisterLine),                            "errorMessageRegisterLine",       "int16");
+    restoreStateValue(&shortIntegerMask,               sizeof(shortIntegerMask),                                    "shortIntegerMask",               "uint64");
+    restoreStateValue(&shortIntegerSignBit,            sizeof(shortIntegerSignBit),                                 "shortIntegerSignBit",            "uint64");
     restoreStateValue(&temporaryInformation,           sizeof(temporaryInformation),                                "temporaryInformation",           "uint8");
+
+    restoreStateValue(&glyphNotFound,                  sizeof(glyphNotFound),                                       "glyphNotFound",                  "hexDump");
+    glyphNotFound.data   = malloc(38);
+    xcopy(glyphNotFound.data, "\xff\xf8\x80\x08\x80\x08\x80\x08\x80\x08\x80\x08\x80\x08\x80\x08\x80\x08\x80\x08\x80\x08\x80\x08\x80\x08\x80\x08\x80\x08\x80\x08\x80\x08\x80\x08\xff\xf8", 38);
+
     restoreStateValue(&funcOK,                         sizeof(funcOK),                                              "funcOK",                         "bool");
     restoreStateValue(&screenChange,                   sizeof(screenChange),                                        "screenChange",                   "bool");
     restoreStateValue(&exponentSignLocation,           sizeof(exponentSignLocation),                                "exponentSignLocation",           "int16");
@@ -1114,13 +968,9 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
       restoreStateValue(&lastCatalogPosition,            sizeof(lastCatalogPosition) - 4,                             "lastCatalogPosition",            "int16");
       lastCatalogPosition[22 /* MNU_FNCS_EIM */]  = 0;
     }
-    else if(backupVersion < 1023) {                                               // int16 wrote element 0 only
+    else {
       restoreStateValue(&lastCatalogPosition,            sizeof(lastCatalogPosition),                                 "lastCatalogPosition",            "int16");
     }
-    else {
-      restoreStateValue(&lastCatalogPosition,            sizeof(lastCatalogPosition),                                 "lastCatalogPosition",            "hexDump");
-    }
-    restoreStateValue(retainedPageFirstItem,           sizeof(retainedPageFirstItem),                               "retainedPageFirstItem",          "hexDump");
     restoreStateValue(displayValueX,                   sizeof(displayValueX),                                       "displayValueX",                  "hexDump");
     restoreStateValue(&pcg32_global,                   sizeof(pcg32_global),                                        "pcg32_global",                   "hexDump");
     restoreStateValue(&exponentLimit,                  sizeof(exponentLimit),                                       "exponentLimit",                  "int16");
@@ -1136,7 +986,6 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     restoreStateValue(&freeProgramBytes,               sizeof(freeProgramBytes),                                    "freeProgramBytes",               "uint16");
     restoreStateValue(&firstDisplayedLocalStepNumber,  sizeof(firstDisplayedLocalStepNumber),                       "firstDisplayedLocalStepNumber",  "uint16");
     restoreStateValue(&numberOfLabels,                 sizeof(numberOfLabels),                                      "numberOfLabels",                 "uint16");
-    restoreStateValue(&numberOfStructureLabels,        sizeof(numberOfStructureLabels),                             "numberOfStructureLabels",        "uint16");
     restoreStateValue(&numberOfPrograms,               sizeof(numberOfPrograms),                                    "numberOfPrograms",               "uint16");
     restoreStateValue(&currentLocalStepNumber,         sizeof(currentLocalStepNumber),                              "currentLocalStepNumber",         "uint16");
     restoreStateValue(&currentProgramNumber,           sizeof(currentProgramNumber),                                "currentProgramNumber",           "uint16");
@@ -1155,41 +1004,30 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     restoreStateValue(&lrChosenUndo,                   sizeof(lrChosenUndo),                                        "lrChosenUndo",                   "uint16");
     restoreStateValue(&lastPlotMode,                   sizeof(lastPlotMode),                                        "lastPlotMode",                   "uint16");
     restoreStateValue(&plotSelection,                  sizeof(plotSelection),                                       "plotSelection",                  "uint16");
+    restoreStateValue(&graph_dx,                       sizeof(graph_dx),                                            "graph_dx",                       "float");
+    restoreStateValue(&graph_dy,                       sizeof(graph_dy),                                            "graph_dy",                       "float");
     restoreStateValue(&roundedTicks,                   sizeof(roundedTicks),                                        "roundedTicks",                   "bool");
+    restoreStateValue(&PLOT_INTG,                      sizeof(PLOT_INTG),                                           "PLOT_INTG",                      "bool");
+    restoreStateValue(&PLOT_DIFF,                      sizeof(PLOT_DIFF),                                           "PLOT_DIFF",                      "bool");
+    restoreStateValue(&PLOT_RMS,                       sizeof(PLOT_RMS),                                            "PLOT_RMS",                       "bool");
+    restoreStateValue(&PLOT_SHADE,                     sizeof(PLOT_SHADE),                                          "PLOT_SHADE",                     "bool");
     restoreStateValue(&PLOT_AXIS,                      sizeof(PLOT_AXIS),                                           "PLOT_AXIS",                      "bool");
     restoreStateValue(&PLOT_ZMY,                       sizeof(PLOT_ZMY),                                            "PLOT_ZMY",                       "int8");
     restoreStateValue(&PLOT_ZOOM,                      sizeof(PLOT_ZOOM),                                           "PLOT_ZOOM",                      "uint8");
     restoreStateValue(&plotmode,                       sizeof(plotmode),                                            "plotmode",                       "int8");
-    if(backupVersion >= 1016) {
-      restoreStateValue(&graph_dx,                     sizeof(graph_dx),                                            "graph_dx",                       "double");
-      restoreStateValue(&graph_dy,                     sizeof(graph_dy),                                            "graph_dy",                       "double");
-      restoreStateValue(&tick_int_x,                   sizeof(tick_int_x),                                          "tick_int_x",                     "double");
-      restoreStateValue(&tick_int_y,                   sizeof(tick_int_y),                                          "tick_int_y",                     "double");
-      restoreStateValue(x_min,                         REAL_SIZE_IN_BYTES(34),                                      "x_min",                          "real");
-      restoreStateValue(x_max,                         REAL_SIZE_IN_BYTES(34),                                      "x_max",                          "real");
-      restoreStateValue(y_min,                         REAL_SIZE_IN_BYTES(34),                                      "y_min",                          "real");
-      restoreStateValue(y_max,                         REAL_SIZE_IN_BYTES(34),                                      "y_max",                          "real");
-    }
-    else { //pre-1016 backups stored the graph settings as float: convert each once; the next save writes the new types
-      migrateFloatValue(&graph_dx,                     "graph_dx",                       "double");
-      migrateFloatValue(&graph_dy,                     "graph_dy",                       "double");
-      migrateFloatValue(&tick_int_x,                   "tick_int_x",                     "double");
-      migrateFloatValue(&tick_int_y,                   "tick_int_y",                     "double");
-      migrateFloatValue(x_min,                         "x_min",                          "real");
-      migrateFloatValue(x_max,                         "x_max",                          "real");
-      migrateFloatValue(y_min,                         "y_min",                          "real");
-      migrateFloatValue(y_max,                         "y_max",                          "real");
-    }
+    restoreStateValue(&tick_int_x,                     sizeof(tick_int_x),                                          "tick_int_x",                     "float");
+    restoreStateValue(&tick_int_y,                     sizeof(tick_int_y),                                          "tick_int_y",                     "float");
+    restoreStateValue(&x_min,                          sizeof(x_min),                                               "x_min",                          "float");
+    restoreStateValue(&x_max,                          sizeof(x_max),                                               "x_max",                          "float");
+    restoreStateValue(&y_min,                          sizeof(y_min),                                               "y_min",                          "float");
+    restoreStateValue(&y_max,                          sizeof(y_max),                                               "y_max",                          "float");
     restoreStateValue(&xzero,                          sizeof(xzero),                                               "xzero",                          "uint32");
     restoreStateValue(&yzero,                          sizeof(yzero),                                               "yzero",                          "uint32");
     restoreStateValue(&regStatsXY,                     sizeof(regStatsXY),                                          "regStatsXY",                     "int16");
     restoreStateValue(&matrixIndex,                    sizeof(matrixIndex),                                         "matrixIndex",                    "uint16");
-    restoreStateValue(&shadowI,                        sizeof(shadowI),                                             "shadowI",                        "int16");
-    restoreStateValue(&shadowJ,                        sizeof(shadowJ),                                             "shadowJ",                        "int16");
     restoreStateValue(&currentViewRegister,            sizeof(currentViewRegister),                                 "currentViewRegister",            "uint16");
     restoreStateValue(&currentSolverStatus,            sizeof(currentSolverStatus),                                 "currentSolverStatus",            "uint16");
     restoreStateValue(&currentSolverProgram,           sizeof(currentSolverProgram),                                "currentSolverProgram",           "uint16");
-    restoreStateValue(&currentDerivProgram,            sizeof(currentDerivProgram),                                 "currentDerivProgram",            "uint16");
     restoreStateValue(&currentSolverVariable,          sizeof(currentSolverVariable),                               "currentSolverVariable",          "uint16");
     restoreStateValue(&numberOfFormulae,               sizeof(numberOfFormulae),                                    "numberOfFormulae",               "uint16");
     restoreStateValue(&currentFormula,                 sizeof(currentFormula),                                      "currentFormula",                 "uint16");
@@ -1226,7 +1064,6 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     }
     restoreStateValue(&plotStatMx,                     sizeof(plotStatMx),                                          "plotStatMx",                     "hexDump");
     restoreStateValue(&drawHistogram,                  sizeof(drawHistogram),                                       "drawHistogram",                  "uint8");
-    restoreStateValue(&plotStatScale,                  sizeof(plotStatScale),                                       "plotStatScale",                  "uint8");
     restoreStateValue(&statMx,                         sizeof(statMx),                                              "statMx",                         "hexDump");
     restoreStateValue(&lrSelectionHistobackup,         sizeof(lrSelectionHistobackup),                              "lrSelectionHistobackup",         "uint16");
     restoreStateValue(&lrChosenHistobackup,            sizeof(lrChosenHistobackup),                                 "lrChosenHistobackup",            "uint16");
@@ -1256,7 +1093,6 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     restoreStateValue(&Norm_Key_00.funcParam,          sizeof(Norm_Key_00.funcParam),                               "Norm_Key_00.funcParam",          "hexDump");
     restoreStateValue(&Norm_Key_00.used,               sizeof(Norm_Key_00.used),                                    "Norm_Key_00.used",               "bool");
     restoreStateValue(&Input_Default,                  sizeof(Input_Default),                                       "Input_Default",                  "uint8");
-    set_def_Input_Default();
     IrFractionsCurrentStatus = CF_NORMAL;
     restoreStateValue(&T_cursorPos,                    sizeof(T_cursorPos),                                         "T_cursorPos",                    "int16");   //JM ^^
     restoreStateValue(&multiEdLines,                   sizeof(multiEdLines),                                        "multiEdLines",                   "uint8");   //JM ^^
@@ -1295,9 +1131,6 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     restoreStateValue(&grpGroupingGr1LeftOverflow,     sizeof(grpGroupingGr1LeftOverflow),                          "grpGroupingGr1LeftOverflow",     "uint8");   //JM
     restoreStateValue(&grpGroupingGr1Left,             sizeof(grpGroupingGr1Left),                                  "grpGroupingGr1Left",             "uint8");   //JM
     restoreStateValue(&grpGroupingRight,               sizeof(grpGroupingRight),                                    "grpGroupingRight",               "uint8");   //JM
-    restoreStateValue(&grpGroupingHex,                 sizeof(grpGroupingHex),                                      "grpGroupingHex",                 "uint8");
-    restoreStateValue(&grpGroupingBin,                 sizeof(grpGroupingBin),                                      "grpGroupingBin",                 "uint8");
-    grpGroupingHexBinDefault();
     restoreStateValue(&firstDayOfWeek,                 sizeof(firstDayOfWeek),                                      "firstDayOfWeek",                 "uint8");
     restoreStateValue(&firstWeekOfYearDay,             sizeof(firstWeekOfYearDay),                                  "firstWeekOfYearDay",             "uint8");
     dispBase = 0;
@@ -1314,25 +1147,12 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     printerState.delay = getLineDelay();
     restoreStateValue(&printerState.delay,             sizeof(printerState.delay),                                  "printerState.delay",             "uint16");  //DL
     restoreStateValue(&programmableMenu,               sizeof(programmableMenu),                                    "programmableMenu",               "hexDump");
-    restoreStateValue(&alphaRegister,                  sizeof(alphaRegister),                                       "alphaRegister",                  "uint16");  //DL
 
     if(backupVersion < 1014) {
       setLongPressFg(calcModel, -MNU_HOME);
     }
     if(backupVersion < 1015) {
       setSystemFlag(FLAG_SIGZEROS); //SIGZEROS is on per default
-    }
-    if(backupVersion < 1017) {
-      setSystemFlag(FLAG_SBadm); //the angular mode annunciator is on per default
-    }
-    if(backupVersion < 1018) {
-      setSystemFlag(FLAG_M_ALL); // inclusive of this version, set the M.ALL
-      setSystemFlag(FLAG_AUTOVALID);
-    }
-    if(backupVersion < 1019) {                                                   // menu items renumbered into one block: move the stored menu links
-      convertOldMenuNumbers();
-      lastFunc = ITM_NOP;                                                        // lastFunc and param cleared when the menu items replaced during upgrade
-      lastParam = NOPARAM;
     }
     // Ensure valid relations between FLAG_FRACT, FLAG_IRFRAC and FLAG_IRFRQ
     if(getSystemFlag(FLAG_FRACT)) {
@@ -1503,6 +1323,7 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     clearScreen(210); // implicit forceSBupdate();
 
 
+
     if(backupVersion < 1009) {                           //register header is already loaded with 32 bits
       printf("Version number of configfile < 1009: chacking all registers for matrix conversion from old 32-bit header to new 32-bit header.");
       int qq = FIRST_GLOBAL_REGISTER;
@@ -1529,26 +1350,19 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
 
 
     // Freeing the space occupied by all the configuration parameters
-    freeConfigFileParams();
-
-    // Sanitise restored short integers: the backup restores raw register bytes, so a file written by an older build can
-    // carry values wider than the word size. The mask and sign bit were restored above; clamp every short-integer
-    // register (all classes, not just the global block) to the word size so stale bits cannot survive.
-    clampShortIntegerRegistersToWordSize();
+    paramCurrent = paramHead;
+    while(paramHead) {
+      paramHead = paramHead->next;
+      free(paramCurrent->param);
+      free(paramCurrent);
+      paramCurrent = paramHead;
+    }
 
     printf("End of calc's restoration\n");
     fflush(stdout);
 
     if(temporaryInformation == TI_SHOW_REGISTER_BIG || temporaryInformation == TI_SHOW_REGISTER_SMALL || temporaryInformation == TI_SHOW_REGISTER_TINY || temporaryInformation==TI_SHOW_REGISTER) {
       temporaryInformation = TI_NO_INFO;
-    }
-
-    // Prior 0's occur in older cfg files. This repairs them to 1, without having a file version check
-    if(currentLocalStepNumber == 0) {
-      currentLocalStepNumber = 1;
-    }
-    if(currentProgramNumber == 0) {
-      currentProgramNumber = 1;
     }
 
     scanLabelsAndPrograms();
@@ -1617,8 +1431,5 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     updateMatrixHeightCache();
     screenUpdatingMode = SCRUPD_AUTO;
     refreshScreen(93);
-    if(temporaryInformation == TI_SHOWNOTHING) {   // a SHOW page is painted once and nothing holds it, so the restore paints it again, on the register it was on
-      fnC47Show(ITM_NOP);
-    }
   }
 #endif // PC_BUILD

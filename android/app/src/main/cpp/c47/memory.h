@@ -50,18 +50,7 @@
   bool_t   isMemoryBlockAvailable(size_t sizeInBlocks, uint16_t numBlocks, float extraFraction);
   void     debugMemory           (const char *message);
 
-  // Stack high-water mark, enabled from STACK_WATERMARK in defines.h. See comments in memory.c
-  #if defined(STACK_WATERMARK)
-    void   stackWatermarkAnchor         (void);
-    void   stackWatermarkBeforeDispatch (void);
-    void   stackWatermarkAfterDispatch  (void);
-  #else // !STACK_WATERMARK
-    #define stackWatermarkAnchor()
-    #define stackWatermarkBeforeDispatch()
-    #define stackWatermarkAfterDispatch()
-  #endif // STACK_WATERMARK
-
   // The following macros are for avoid crash in case that the memory is full. The corresponding label `cleanup_***` is needed AFTER freeing the memory.
-  #define checkedAllocate2(var, size, label) do { var = allocC47Blocks(size); if(!var) {displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE); goto label; } } while(0)
+  #define checkedAllocate2(var, size, label) do { var = allocC47Blocks(size); if(!var) {displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE, NIM_REGISTER_LINE); goto label; } } while(0)
   #define checkedAllocate(var, size) checkedAllocate2(var, size, cleanup_##var)
 #endif // !MEMORY_H

@@ -9,7 +9,7 @@
 
 
 
-#if defined(OPTION_REGBROWSER)
+#if !defined(SAVE_SPACE_DM42_8)
   static void _showRegisterInRbr(calcRegister_t regist, int16_t registerNameWidth) {
     switch(getRegisterDataType(regist)) {
       case dtReal34: {
@@ -58,7 +58,7 @@
 
       case dtShortInteger: {
         if(showContent) {
-          shortIntegerToDisplayString(regist, tmpString, false, noBaseOverride, SCREEN_WIDTH);
+          shortIntegerToDisplayString(regist, tmpString, false, noBaseOverride);
         }
         else {
           strcpy(tmpString, "64 bits " STD_CORRESPONDS_TO " 8 bytes");
@@ -155,10 +155,10 @@
       sprintf(tmpString, "R%02d:", regist);
     }
   }
-  #endif // OPTION_REGBROWSER
+  #endif // !SAVE_SPACE_DM42_8
 
   void registerBrowser(uint16_t unusedButMandatoryParameter) {
-  #if defined(OPTION_REGBROWSER)
+  #if !defined(SAVE_SPACE_DM42_8)
     int16_t registerNameWidth;
 
     hourGlassIconEnabled = false;
@@ -253,7 +253,7 @@
             regist += FIRST_RESERVED_VARIABLE + NUMBER_OF_LETTERED_VARIABLES;
           }
 
-          if(regist <= LAST_RESERVED_VARIABLE && allReservedVariables[regist - FIRST_RESERVED_VARIABLE].reservedVariableName[0] != 0) { // Named variables; a retired slot has no name and no data
+          if(regist <= LAST_RESERVED_VARIABLE) { // Named variables
             sprintf(tmpString, "%s:", (char *)allReservedVariables[regist - FIRST_RESERVED_VARIABLE].reservedVariableName + 1);
 
             // variable name
@@ -270,5 +270,5 @@
         }
       }
     }
-  #endif // OPTION_REGBROWSER
+  #endif // !SAVE_SPACE_DM42_8
 }

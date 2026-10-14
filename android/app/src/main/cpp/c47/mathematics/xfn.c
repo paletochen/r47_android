@@ -231,7 +231,6 @@ void decomposeReal(const real_t *x, longInteger_t integerPart, real_t *fractiona
     mantissa->exponent += scaleAmount;
     realContext_t cc = *c;                                    // convert scaled mantissa to integral part, and condition the string
     cc.round = DEC_ROUND_HALF_UP;
-    cc.status = 0;                                            // decNumberToIntegralExact folds the incoming status into its result, and an error flag turns it into NaN
     decNumberToIntegralExact(mantissa, mantissa, &cc);
     realSetPositiveSign(mantissa);
     realToString(mantissa, tmpString);                    // Convert real to string and load string into integerPart
@@ -357,7 +356,7 @@ typedef struct {
         return true;
       }
     }
-    displayCalcErrorMessage(ERROR_INPUT_DATA_TYPE_NOT_MATCHING, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_INPUT_DATA_TYPE_NOT_MATCHING, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "Invalid input register");
       moreInfoOnError("In function fnXfn:getLongintegerRegisterAsReal1071:", errorMessage, NULL, NULL);
@@ -378,7 +377,7 @@ typedef struct {
       }
     }
     else {
-      displayCalcErrorMessage(ERROR_INPUT_DATA_TYPE_NOT_MATCHING, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_INPUT_DATA_TYPE_NOT_MATCHING, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "Invalid input angle register");
         moreInfoOnError("In function fnXfn:getAngleModeForRegister3r:", errorMessage, NULL, NULL);
@@ -401,7 +400,7 @@ typedef struct {
       }
     }
     else {
-      displayCalcErrorMessage(ERROR_INPUT_DATA_TYPE_NOT_MATCHING, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_INPUT_DATA_TYPE_NOT_MATCHING, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "Invalid input angle register");
         moreInfoOnError("In function fnXfn:getAngleModeForArithmetic3r:", errorMessage, NULL, NULL);
@@ -421,21 +420,18 @@ typedef struct {
 
 
   static bool_t readThreeRegisters(int registerNo, real_t *result, real_t *temporary, realContext_t *c) {
-    REAL_T_PTR(addend, 1071);
-    realContext_t full = *c;
-    full.digits = maxContextDigits;  // the registers are read at the full width, so the fused multiply-add is the one rounding to the digits of c
-    full.emax   = 999999;            // the product is exact whatever its exponent; overflow and underflow happen at the fused multiply-add, in c
-    full.emin   = -999999;
-    if(!getLongintegerRegisterAsReal1071(registerNo+0, temporary, &full)) {                        //ignore anglemode, it is handled elsewhere
+    if(!getLongintegerRegisterAsReal1071(registerNo+0, temporary, c)) {                        //ignore anglemode, it is handled elsewhere
       return false;
     }
-    if(!getLongintegerRegisterAsReal1071(registerNo+1, result, &full)) {    // check for long integer first, to first have that error message if invalid number
+    if(!getLongintegerRegisterAsReal1071(registerNo+1, result, c)) {    // check for long integer first, to first have that error message if invalid number
       return false;
     }
-    if(!getLongintegerRegisterAsReal1071(registerNo+2, addend, &full)) {                        //ignore anglemode, it is handled elsewhere
+    realMultiply(result, temporary, result, c);
+
+    if(!getLongintegerRegisterAsReal1071(registerNo+2, temporary, c)) {                        //ignore anglemode, it is handled elsewhere
       return false;
     }
-    realFMA(temporary, result, addend, result, c);
+    realAdd(result, temporary, result, c);
     realSetZero(temporary);
     return true;
   }
@@ -443,7 +439,7 @@ typedef struct {
 
   static bool getCombinedParameter (int param, int registerNo, real_t *combined, real_t *temporary, angularMode_t *angleMode, realContext_t *c) {
     if(!getAngleModeForRegister3r(registerNo, angleMode) && getRegisterDataType(registerNo) != dtLongInteger) {
-      displayCalcErrorMessage(ERROR_INPUT_DATA_TYPE_NOT_MATCHING, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_INPUT_DATA_TYPE_NOT_MATCHING, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "Invalid input registers: getAngleModeForRegister3r ");
         moreInfoOnError("In function fnXfn:getCombinedParameter:", errorMessage, NULL, NULL);
@@ -451,7 +447,7 @@ typedef struct {
       return false;
     }
     if(!readThreeRegisters(registerNo, combined, temporary, c)) {
-      displayCalcErrorMessage(ERROR_INPUT_DATA_TYPE_NOT_MATCHING, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_INPUT_DATA_TYPE_NOT_MATCHING, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "Invalid input registers: readThreeRegisters");
         moreInfoOnError("In function fnXfn:getCombinedParameter:", errorMessage, NULL, NULL);
@@ -463,7 +459,7 @@ typedef struct {
       printf("VAR%d: x * y + z: %s; anglemode = %d\n", param, tmpString, *angleMode);
     #endif //DEBUG_XFN
     if(!validateExponent(combined)) {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "Total VAR%d = r%d*r%d+r%d exceeds the maximum exponent %d > %d", param, registerNo, registerNo+1, registerNo+2, realGetExponent(combined), maxAllowedDigits);
         moreInfoOnError("In function fnXfn:getCombinedParameter:", errorMessage, NULL, NULL);
@@ -477,7 +473,7 @@ typedef struct {
     *angleMode = registerIsNoAngle(registerNo) ? amNone : getRegisterAngularMode(registerNo);
 
     if(!getLongintegerRegisterAsReal1071(registerNo, combined, c)) {                        //ignore anglemode, it is handled elsewhere
-      displayCalcErrorMessage(ERROR_INPUT_DATA_TYPE_NOT_MATCHING, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_INPUT_DATA_TYPE_NOT_MATCHING, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "Invalid input registers: getLongintegerRegisterAsReal1071");
         moreInfoOnError("In function fnXfn:getSingleParameter:", errorMessage, NULL, NULL);
@@ -489,7 +485,7 @@ typedef struct {
       printf("VAR: x * y + z: %s\n", tmpString);
     #endif //DEBUG_XFN
     if(!validateExponent(combined)) {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "Total VAR = r%d exceeds the maximum exponent %d > %d", registerNo, realGetExponent(combined), maxAllowedDigits);
         moreInfoOnError("In function fnXfn:getSingleParameter:", errorMessage, NULL, NULL);
@@ -528,7 +524,7 @@ static void replaceSeparatorWithFigureSpace(char *displayString) {              
     REAL_T_PTR(tmp2, 1071);
     realContext_t c = ctxtReal75;
     c.digits = 1000;
-    c.round = roundingModeTable[displayRoundingMode];  // the SHOW string is X x Y + Z rounded once to 1000 digits by DRM
+    c.round = DEC_ROUND_HALF_UP;
     if(getCombinedParameter(1, regist, tmp1, tmp2, &angle, &c)) {   //use the angle of the 1st param only, if set
       // realPlus(tmp1, tmp1, &c);
       strcpy(displayString, prefix);
@@ -548,7 +544,7 @@ static void replaceSeparatorWithFigureSpace(char *displayString) {              
     REAL_T_PTR(tmp2, 1071);
     realContext_t c = ctxtReal75;
     c.digits = 1034;
-    c.round = roundingModeTable[displayRoundingMode];  // the plain string is X x Y + Z rounded once to 1034 digits by DRM
+    c.round = DEC_ROUND_HALF_UP;
     if(getCombinedParameter(1, regist, tmp1, tmp2, &angle, &c)) {   //use the angle of the 1st param only, if set
       // realPlus(tmp1, tmp1, &c);
       strcpy(displayString, prefix);
@@ -562,17 +558,6 @@ static void replaceSeparatorWithFigureSpace(char *displayString) {              
         realToString(tmp1, displayString + stringByteLength(displayString));             //   mantissa only: "1", "1.2345", "1.0001"
         sprintf(displayString + stringByteLength(displayString), "E%+ld", (long)sciExp); //   exponent emulating decNumber standard style: E, explicit sign, no leading zeros
       }
-      return true;
-    }
-    return false;
-  }
-
-
-  bool_t registerMultiplyAddToReal34(calcRegister_t regist, real34_t *result, realContext_t *c) {
-    REAL_T_PTR(tmp1, 1071);
-    REAL_T_PTR(tmp2, 1071);
-    if(readThreeRegisters(regist, tmp1, tmp2, c)) {                     // X x Y + Z rounded once to the digits of c
-      realToReal34(tmp1, result);
       return true;
     }
     return false;
@@ -624,7 +609,7 @@ static void replaceSeparatorWithFigureSpace(char *displayString) {              
       doXfn(registerNo, function, functionType, functionAngle, functionParam, ErrorLocation);
       return;
     }
-    displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "Specified register numbers out of range: %d", registerNo);
       moreInfoOnError("In function fnXfnIndirect:", errorMessage, NULL, NULL);
@@ -997,17 +982,17 @@ static void replaceSeparatorWithFigureSpace(char *displayString) {              
         }
 
         case ITM_LN_XFN: {
-          realLn(paramX, paramX, &c);
+          decNumberLn(paramX, paramX, &c);
           break;
         }
         case ITM_LOG_XFN: {
-          realLn(paramX, paramX, &c);
-          realLn(const_10, paramTemp, &c);
+          decNumberLn(paramX, paramX, &c);
+          decNumberLn(paramTemp, const_10, &c);
           realDivide(paramX, paramTemp, paramX, &c);
           break;
         }
         case ITM_EXP_XFN: {
-          realExp(paramX, paramX, &c);
+          decNumberExp(paramX, paramX, &c);
           break;
         }
         case ITM_10X_XFN: {
@@ -1150,7 +1135,7 @@ static void replaceSeparatorWithFigureSpace(char *displayString) {              
 
 
 noFunction:
-    displayCalcErrorMessage(ERROR_UNDEFINED_OPCODE, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_UNDEFINED_OPCODE, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "Incorrect function code %d (location %d)", function, location);
       moreInfoOnError("In function doXfn:", errorMessage, NULL, NULL);

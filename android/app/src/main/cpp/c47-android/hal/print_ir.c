@@ -27,9 +27,6 @@ void setLineDelay(uint16_t delay) {
 static char print_line_buf[2048];
 static size_t print_line_len = 0;
 
-static char pretty_line_buf[4096];
-static size_t pretty_line_len = 0;
-
 static void flushPrinterBuffer(void) {
   if(print_line_len == 0) {
     return;
@@ -63,55 +60,6 @@ static void flushPrinterBuffer(void) {
   fflush(f);
   fclose(f);
   print_line_len = 0;
-}
-
-static void flushPrettyBuffer(void) {
-  if(pretty_line_len == 0) {
-    return;
-  }
-
-  FILE *f = NULL;
-  int directFd = openDirectDocumentFd(5 /* PRINT */, "prettyprinter_output.txt", "wa");
-  if(directFd >= 0) {
-    f = fdopen(directFd, "a");
-  }
-
-  if(!f) {
-    const char *base_path = get_android_base_path();
-    if(base_path && base_path[0]) {
-      char dir[1024];
-      snprintf(dir, sizeof(dir), "%s/PRINT", base_path);
-      mkdir(dir, 0777);
-      char path[1024];
-      snprintf(path, sizeof(path), "%s/PRINT/prettyprinter_output.txt", base_path);
-      f = fopen(path, "a");
-    }
-  }
-
-  if(!f) {
-    LOGE("flushPrettyBuffer: Unable to open prettyprinter_output.txt");
-    pretty_line_len = 0;
-    return;
-  }
-
-  fwrite(pretty_line_buf, 1, pretty_line_len, f);
-  fflush(f);
-  fclose(f);
-  pretty_line_len = 0;
-}
-
-void printPrettyLine(const char *str) {
-  if(!str) {
-    return;
-  }
-  size_t len = strlen(str);
-  if(pretty_line_len + len + 2 >= sizeof(pretty_line_buf)) {
-    flushPrettyBuffer();
-  }
-  memcpy(pretty_line_buf + pretty_line_len, str, len);
-  pretty_line_len += len;
-  pretty_line_buf[pretty_line_len++] = '\n';
-  flushPrettyBuffer();
 }
 
 void sendByteIR(uint8_t byte) {

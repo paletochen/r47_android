@@ -41,9 +41,6 @@ realContext_t *realContextForecast;
 
 
 void fnCurveFitting(uint16_t curveFitting) {
-  if(statMx[0] != 'S') {
-    restoreStats();                            //any stats operation restores a pending HNORM takeover; must precede the selection writes below
-  }
   curveFitting = curveFitting & 0x01FF;
   temporaryInformation = TI_STATISTIC_LR;
 
@@ -54,7 +51,7 @@ void fnCurveFitting(uint16_t curveFitting) {
   lrSelection = curveFitting;                 // lrSelection is used to store the BestF method, in inverse, i.e. 1 indicating allowed method
   lrChosen = 0;                               // lrChosen    is used to indicate if there was a L.R. selection. Can be only one bit.
 
-  #if (EXTRA_INFO_ON_CALC_ERROR == 1) && defined(PC_BUILD)
+  #if (EXTRA_INFO_ON_CALC_ERROR == 1)
     uint16_t numberOfOnes;
     numberOfOnes = lrCountOnes(curveFitting);
 
@@ -72,15 +69,12 @@ void fnCurveFitting(uint16_t curveFitting) {
     else {
       printf("\nfitting models.\n");
     }
-  #endif // (EXTRA_INFO_ON_CALC_ERROR == 1) && PC_BUILD
+  #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
 }
 
 
 
 void fnCurveFittingReset(uint16_t control) {     // JM vv
-  if(statMx[0] != 'S') {
-    restoreStats();                            //any stats operation restores a pending HNORM takeover; must precede the selection writes below
-  }
   temporaryInformation = TI_STATISTIC_LR;
   if(control == 0) {
     lrSelection = CF_LINEAR_FITTING;
@@ -102,9 +96,6 @@ void fnCurveFittingReset(uint16_t control) {     // JM vv
 
 
 void fnCurveFitting_T(uint16_t curveFitting) { // Toggle
-  if(statMx[0] != 'S') {
-    restoreStats();                            //any stats operation restores a pending HNORM takeover; must precede the selection writes below
-  }
   temporaryInformation = TI_STATISTIC_LR;
   curveFitting &= 0x01FF;                      // clear ORTHO
 
@@ -127,7 +118,7 @@ void fnCurveFitting_T(uint16_t curveFitting) { // Toggle
 
   lrChosen = 0;                                // lrChosen    is used to indicate if there was a L.R. selection. Can be only one bit.
 
-  #if (EXTRA_INFO_ON_CALC_ERROR == 1) && defined(PC_BUILD)
+  #if (EXTRA_INFO_ON_CALC_ERROR == 1)
     uint16_t numberOfOnes;
     numberOfOnes = lrCountOnes(curveFitting);
 
@@ -145,7 +136,7 @@ void fnCurveFitting_T(uint16_t curveFitting) { // Toggle
     else {
       printf("\nfitting models.\n");
     }
-  #endif // (EXTRA_INFO_ON_CALC_ERROR == 1) && PC_BUILD
+  #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
 }
 
 
@@ -176,7 +167,7 @@ uint16_t lrCountOnes(uint16_t curveFitting) { // count the number of allowed met
   return numberOfOnes;
 #else
     return __builtin_popcount(curveFitting);
-#endif // 0
+#endif
 }
 
 
@@ -228,9 +219,9 @@ static void fnProcessLRfind(uint16_t curveFitting, uint16_t resultType){
   realSetZero(&aa0);
   realSetZero(&aa1);
   realSetZero(&aa2);
-  #if (EXTRA_INFO_ON_CALC_ERROR == 1) && defined(PC_BUILD)
+  #if (EXTRA_INFO_ON_CALC_ERROR == 1)
     printf("Processing for best fit: %s\n", getCurveFitModeNames(curveFitting));
-  #endif // (EXTRA_INFO_ON_CALC_ERROR == 1) && PC_BUILD
+  #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
   realCopy(const__4, &RRMAX);
   uint16_t s = 0;       // default
   uint16_t ix, jx;      // only a single graph can be evaluated at once, so retain the single lowest bit, and clear the higher order bits.
@@ -238,9 +229,9 @@ static void fnProcessLRfind(uint16_t curveFitting, uint16_t resultType){
   for(ix=0; ix<10; ix++) { // up to 2^9 inclusive of 512 which is ORTHOF. The ReM is respectedby usage of 0 only, not by manual selection.
     jx = curveFitting & ((1 << ix));
     if(jx) {
-      #if (EXTRA_INFO_ON_CALC_ERROR == 1) && defined(PC_BUILD)
+      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         printf("processCurvefitSelection curveFitting:%u sweep:%u %s\n", curveFitting, jx, getCurveFitModeNames(jx));
-      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1) && PC_BUILD
+      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
 
       if(nn >= (int32_t)minLRDataPoints(jx)) {
         processCurvefitSelection(jx, &RR, &SMI, &aa0, &aa1, &aa2);
@@ -257,14 +248,14 @@ static void fnProcessLRfind(uint16_t curveFitting, uint16_t resultType){
     s = 0; // error condition, cannot have >1 solutions, do not do L.R.
   }
 
-  #if (EXTRA_INFO_ON_CALC_ERROR == 1) && defined(PC_BUILD)
+  #if (EXTRA_INFO_ON_CALC_ERROR == 1)
     if(s != 0) {
       printf("Found best fit: %u %s\n", s, getCurveFitModeNames(s));
     }
     else {
       printf("Found no fit: %u\n", s);
     }
-  #endif // (EXTRA_INFO_ON_CALC_ERROR == 1) && PC_BUILD
+  #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
 
   if(nn >= (int32_t)minLRDataPoints(s)) {
     processCurvefitSelection(s, &RR, &SMI, &aa0, &aa1, &aa2);
@@ -309,7 +300,7 @@ static void fnProcessLRfind(uint16_t curveFitting, uint16_t resultType){
   }
   else {
     if(minLRDataPoints(s) == 65535) {
-      displayCalcErrorMessage(ERROR_TOO_FEW_DATA, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_TOO_FEW_DATA, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function fnProcessLRfind:", "There is insufficient statistical data to do L.R., possibly due to data manipulation!", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -1030,31 +1021,24 @@ void processCurvefitSelectionAll(uint16_t selection, real_t *RR_, real_t *MX, re
 }
 
 
-// b^e through expf/logf. The fast forecast path below narrows its result to float either way, so float
-// transcendentals suffice, and the double pow/exp/log trio (7.3 kB of libm) leaves the link. b <= 0
-// yields NaN or the 0/inf limits exactly as pow does for a fractional exponent.
-static double fastPowF(double b, double e) {
-  return (double)expf((float)e * logf((float)b));
-}
-
-void yIsFnx(uint8_t useFloating, uint16_t selection, double x, double *y, double a0, double a1, double a2, real_t *XX, real_t *YY, real_t *RR, real_t *SMI, real_t *aa0, real_t *aa1, real_t *aa2){
+void yIsFnx(uint8_t USEFLOAT, uint16_t selection, double x, double *y, double a0, double a1, double a2, real_t *XX, real_t *YY, real_t *RR, real_t *SMI, real_t *aa0, real_t *aa1, real_t *aa2){
   *y = 0;
   float yf;
   real_t SS, TT, UU;
 
   realSetZero(YY);
-  if(useFloating == useREAL4) {
+  if(USEFLOAT == useREAL4) {
     realContextForecast = &ctxtReal4;
   }
   else {
-    if(useFloating == useREAL39) {
+    if(USEFLOAT == useREAL39) {
       realContextForecast = &ctxtReal39;
     }
   }
   switch(orOrtho(selection)) {
     case CF_LINEAR_FITTING:
     case CF_ORTHOGONAL_FITTING: {
-      if(useFloating == 0) {
+      if(USEFLOAT == 0) {
         *y = a1 * x + a0;
       }
       else {
@@ -1066,8 +1050,8 @@ void yIsFnx(uint8_t useFloating, uint16_t selection, double x, double *y, double
       break;
     }
     case CF_EXPONENTIAL_FITTING: {
-      if(useFloating == 0) {
-        *y = a0 * (double)expf((float)(a1 * x));
+      if(USEFLOAT == 0) {
+        *y = a0 * exp(a1 * x);
       }
       else {
         realMultiply(XX,  aa1, &UU, realContextForecast);
@@ -1079,8 +1063,8 @@ void yIsFnx(uint8_t useFloating, uint16_t selection, double x, double *y, double
       break;
     }
     case CF_LOGARITHMIC_FITTING: {
-      if(useFloating == 0) {
-        *y = a0 + a1*(double)logf((float)x);
+      if(USEFLOAT == 0) {
+        *y = a0 + a1*log(x);
       }
       else {
         WP34S_Ln    (XX,  &SS,       realContextForecast);
@@ -1092,8 +1076,8 @@ void yIsFnx(uint8_t useFloating, uint16_t selection, double x, double *y, double
       break;
     }
     case CF_POWER_FITTING: {
-      if(useFloating == 0) {
-        *y = a0 * fastPowF(x, a1);
+      if(USEFLOAT == 0) {
+        *y = a0 * pow(x, a1);
       }
       else {
         realPower   (XX,  aa1, &SS, realContextForecast);
@@ -1104,8 +1088,8 @@ void yIsFnx(uint8_t useFloating, uint16_t selection, double x, double *y, double
       break;
     }
     case CF_ROOT_FITTING: {
-      if(useFloating == 0) {
-        *y = a0 * fastPowF(a1, 1/x);
+      if(USEFLOAT == 0) {
+        *y = a0 * pow(a1, 1/x);
       }
       else {
         realDivide  (const_1, XX,  &SS, realContextForecast);
@@ -1117,7 +1101,7 @@ void yIsFnx(uint8_t useFloating, uint16_t selection, double x, double *y, double
       break;
     }
     case CF_HYPERBOLIC_FITTING: {
-      if(useFloating == 0) {
+      if(USEFLOAT == 0) {
         *y = 1 / (a1 * x + a0);
       }
       else {
@@ -1130,7 +1114,7 @@ void yIsFnx(uint8_t useFloating, uint16_t selection, double x, double *y, double
       break;
     }
     case CF_PARABOLIC_FITTING: {
-      if(useFloating == 0) {
+      if(USEFLOAT == 0) {
         *y = a2 * x * x + a1 * x + a0;
       }
       else {
@@ -1145,8 +1129,8 @@ void yIsFnx(uint8_t useFloating, uint16_t selection, double x, double *y, double
       break;
     }
     case CF_GAUSS_FITTING: {
-      if(useFloating == 0) {
-        *y = a0 * (double)expf((float)((x-a1)*(x-a1)/a2));
+      if(USEFLOAT == 0) {
+        *y = a0 * exp( (x-a1)*(x-a1)/a2 );
       }
       else {
         realSubtract(XX,  aa1, &TT, realContextForecast);
@@ -1160,7 +1144,7 @@ void yIsFnx(uint8_t useFloating, uint16_t selection, double x, double *y, double
       break;
     }
     case CF_CAUCHY_FITTING: {
-      if(useFloating == 0) {
+      if(USEFLOAT == 0) {
         *y = 1/(a0*(x+a1)*(x+a1)+a2);
       }
       else {
@@ -1172,7 +1156,6 @@ void yIsFnx(uint8_t useFloating, uint16_t selection, double x, double *y, double
         realToFloat/*Double*/(YY, &yf);
         *y = (double)yf;
       }
-      break;
     }
     default: {
       break;

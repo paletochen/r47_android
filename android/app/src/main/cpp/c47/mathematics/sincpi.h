@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WP43 and C47 Authors
 
 /********************************************//**
- * \file sincpi.h
+ * \file sinc.h
  ***********************************************/
 #if !defined(SINCPI_H)
   #define SINCPI_H

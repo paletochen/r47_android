@@ -17,9 +17,6 @@ void     configCommon                 (uint16_t idx);
 void     showSoftmenu                 (int16_t  id);
 void     fnShowVersion                (uint16_t option);
 extern const enum rounding roundingModeTable[7];
-extern const uint8_t angularModeToAdm[5];
-// currentAngularMode in the external ADM encoding (legacy RCL ADM): 0=DEG, 1=D.MS, 2=RAD, 3=MULT<pi>, 4=GRAD
-#define admValue() (currentAngularMode < nbrOfElements(angularModeToAdm) ? angularModeToAdm[currentAngularMode] : 0)
 
 void     fnSetHP35                    (uint16_t unusedButMandatoryParameter);
 void     fnSetJM                      (uint16_t unusedButMandatoryParameter);
@@ -31,17 +28,10 @@ void     fnSettingsDispFormatGrpL     (uint16_t param);
 void     fnSettingsDispFormatGrp1Lo   (uint16_t param);
 void     fnSettingsDispFormatGrp1L    (uint16_t param);
 void     fnSettingsDispFormatGrpR     (uint16_t param);
-void     fnSettingsDispFormatGrpHex   (uint16_t param);
-void     fnSettingsDispFormatGrpBin   (uint16_t param);
-void     grpGroupingHexBinDefault     (void);
 void     fnMenuGapL                   (uint16_t unusedButMandatoryParameter);
 void     fnMenuGapRX                  (uint16_t unusedButMandatoryParameter);
 void     fnMenuGapR                   (uint16_t unusedButMandatoryParameter);
-void     fnClearAllFin                (uint16_t unusedButMandatoryParameter);
-
-#define abbreviation true
-const char *getRoundModeName              (uint16_t RM, bool_t abbreviated);
-
+void     fnResetTVM                   (uint16_t unusedButMandatoryParameter);
 
 /********************************************//**
  * \brief Sets the integer mode
@@ -79,14 +69,6 @@ void     fnFreeMemory                 (uint16_t unusedButMandatoryParameter);
  ***********************************************/
 
 /********************************************//**
- * \brief Display rounding mode DRM: the RM keys set it while DRMODE is the current menu
- ***********************************************/
-bool_t   displayRoundActive           (void);
-void     fnGetDisplayRoundingMode     (uint16_t unusedButMandatoryParameter);
-void     fnSetDisplayRoundingModeM    (uint16_t unusedButMandatoryParameter);
-void     fnSetDisplayRoundingModeRegist(uint16_t regist);
-
-/********************************************//**
  * \brief Sets X to the value of the rounding mode
  *
  * \param[in] unusedButMandatoryParameter uint16_t
@@ -98,10 +80,7 @@ void     fnGetRoundingMode            (uint16_t unusedButMandatoryParameter);
  *
  * \param[in] RM uint16_t
  ***********************************************/
-void     setRoundingMode              (uint16_t RM);
 void     fnSetRoundingMode            (uint16_t RM);
-void     fnSetRoundingModeM           (uint16_t unusedButMandatoryParameter);
-void     fnSetRoundingModeRegist      (uint16_t regist);
 
 /********************************************//**
  * \brief Sets X to the value of the integer mode
@@ -121,8 +100,6 @@ void     fnGetWordSize                (uint16_t unusedButMandatoryParameter);
  * \param[in] unusedButMandatoryParameter uint16_t
  ***********************************************/
 void     fnSetWordSize                (uint16_t WS);
-void     updateShortIntegerMasks      (void);
-uint8_t  boundShortIntegerWordSize    (uint8_t wordSize);
 
 /********************************************//**
  * \brief Sets X to the amount of free flash memory
@@ -202,7 +179,6 @@ void     fnConfirmationNo             (uint16_t unusedButMandatoryParameter);
 uint16_t getConfirmationTiId          (void);
 void     dmcpResetAutoOff             (void);
 int      updateVbatIntegrated         (bool_t minutePulse);
-void     resetVbatSampleSchedule      (void);
 void     checkBattery                 (void);
 void     fnClAll                      (uint16_t confirmation);
 void     backToSystem                 (uint16_t confirmation);
@@ -218,14 +194,6 @@ void     initSimEqMatABX              (void);
 
 void     fnGetADM                     (uint16_t unusedButMandatoryParameter);
 void     fnSetADM                     (uint16_t unusedButMandatoryParameter);
-void     fnGetGRAMOD                  (uint16_t unusedButMandatoryParameter);
-void     fnSetGRAMOD                  (uint16_t unusedButMandatoryParameter);
-void     fnGetGRFNT                   (uint16_t unusedButMandatoryParameter);
-void     fnSetGRFNT                   (uint16_t unusedButMandatoryParameter);
-void     fnGetLPFCT                   (uint16_t unusedButMandatoryParameter);
-void     fnSetLPFCT                   (uint16_t unusedButMandatoryParameter);
-void     fnGetDPFCT                   (uint16_t unusedButMandatoryParameter);
-void     fnSetDPFCT                   (uint16_t unusedButMandatoryParameter);
 void     fnSetISM                     (uint16_t unusedButMandatoryParameter);
 void     fnGetREALDF                  (uint16_t unusedButMandatoryParameter);
 void     fnSetREALDF                  (uint16_t unusedButMandatoryParameter);

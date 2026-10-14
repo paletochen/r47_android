@@ -14,5 +14,4 @@
   #include "manage.h"
   #include "nextStep.h"
   #include "programmableMenu.h"
-  #include "structured.h"
 #endif // !PROGRAMMING_H

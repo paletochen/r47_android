@@ -56,7 +56,7 @@ bool_t regInRange(uint16_t regist) {
       regType = "generic";
       offset = 0;
     }
-    displayCalcErrorMessage(errorType, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(errorType, ERR_REGISTER_LINE, REGISTER_X);
     if(strcmp(regType, "generic") == 0) {
       sprintf(errorMessage, "generic");
     }
@@ -65,15 +65,15 @@ bool_t regInRange(uint16_t regist) {
     }
     moreInfoOnError("In function regInRange:", errorMessage, " is not defined!", NULL);
   #else
-    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
-  #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+  #endif
   return false;
 }
 
 
 static bool_t _checkReadOnlyVariable(uint16_t regist) {
   if(FIRST_RESERVED_VARIABLE <= regist && regist <= LAST_RESERVED_VARIABLE && allReservedVariables[regist - FIRST_RESERVED_VARIABLE].header.readOnly == 1) {
-    displayCalcErrorMessage(ERROR_WRITE_PROTECTED_VAR, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_WRITE_PROTECTED_VAR, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "reserved variable %s", allReservedVariables[regist - FIRST_RESERVED_VARIABLE].reservedVariableName + 1);
       moreInfoOnError("In function _checkReadOnlyVariable:", errorMessage, " is write-protected!", NULL);
@@ -98,7 +98,7 @@ static bool_t _checkReadOnlyVariable(uint16_t regist) {
       real34Copy(REGISTER_REAL34_DATA(REGISTER_X), &matrix->matrixElements[i * matrix->header.matrixColumns + j]);
     }
     else {
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "Cannot store %s in a matrix", getRegisterDataTypeName(REGISTER_X, true, false));
         moreInfoOnError("In function storeElementReal:", errorMessage, NULL, NULL);
@@ -125,7 +125,7 @@ static bool_t _checkReadOnlyVariable(uint16_t regist) {
       real34Copy(REGISTER_IMAG34_DATA(REGISTER_X), VARIABLE_IMAG34_DATA(&matrix->matrixElements[i * matrix->header.matrixColumns + j]));
     }
     else {
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "Cannot store %s in a matrix", getRegisterDataTypeName(REGISTER_X, true, false));
         moreInfoOnError("In function storeElementReal:", errorMessage, NULL, NULL);
@@ -146,7 +146,7 @@ static bool_t _checkReadOnlyVariable(uint16_t regist) {
         return true;
       }
       else {
-        displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+        displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           sprintf(errorMessage, "(%" PRIu16 ", %" PRIu16 ") out of range", rows, cols);
           moreInfoOnError("In function storeIjReal:", errorMessage, NULL, NULL);
@@ -154,7 +154,7 @@ static bool_t _checkReadOnlyVariable(uint16_t regist) {
       }
     }
     else if(lastErrorCode == ERROR_NONE){
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "Cannot store %s as matrix index", getRegisterDataTypeName(REGISTER_X, true, false));
         moreInfoOnError("In function storeIjReal:", errorMessage, NULL, NULL);
@@ -170,26 +170,34 @@ static bool_t _checkReadOnlyVariable(uint16_t regist) {
 
 
 static void _storeValue(uint16_t regist) {
-  if(FIRST_RESERVED_VARIABLE <= regist && regist <= LAST_RESERVED_VARIABLE && allReservedVariables[regist - FIRST_RESERVED_VARIABLE].header.dataType == dtReal34) {
+  if(regist == RESERVED_VARIABLE_UY || regist == RESERVED_VARIABLE_LY) {
+    PLOT_ZMY = zoomOverride;  //PLOT EQN
+  }
+  if(regist == RESERVED_VARIABLE_GRAMOD) {
+    copySourceRegisterToDestRegister(REGISTER_X, TEMP_REGISTER_1);
+    fnLint(NOPARAM);
+    if(lastErrorCode == ERROR_NONE) {
+      longInteger_t x;
+      convertLongIntegerRegisterToLongInteger(REGISTER_X, x);
+      if(longIntegerCompareInt(x, 0) >= 0 && longIntegerCompareInt(x, 3) <= 0) {
+        copySourceRegisterToDestRegister(REGISTER_X, regist);
+        copySourceRegisterToDestRegister(TEMP_REGISTER_1, REGISTER_X);
+      }
+      else {
+        displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
+        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+          moreInfoOnError("In function _storeValue:", "Invalid value for GRAMOD", NULL, NULL);
+        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+      }
+      longIntegerFree(x);
+    }
+  }
+  else if(FIRST_RESERVED_VARIABLE <= regist && regist <= LAST_RESERVED_VARIABLE && allReservedVariables[regist - FIRST_RESERVED_VARIABLE].header.dataType == dtReal34) {
     copySourceRegisterToDestRegister(REGISTER_X, TEMP_REGISTER_1);
     fnToReal(NOPARAM);
     if(lastErrorCode == ERROR_NONE) {
-      if((regist == RESERVED_VARIABLE_UX || regist == RESERVED_VARIABLE_LX || regist == RESERVED_VARIABLE_UY || regist == RESERVED_VARIABLE_LY)
-          && real34IsSpecial(REGISTER_REAL34_DATA(REGISTER_X))) { //screen the plot range at the door: NaN/infinite rejected, old value kept
-        copySourceRegisterToDestRegister(TEMP_REGISTER_1, REGISTER_X);
-        calcMode = CM_NORMAL;                          //the range STO items live in the plot menu; leave the graph screen so the error line renders
-        displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
-        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-          moreInfoOnError("In function _storeValue:", "plot range limits must be finite", NULL, NULL);
-        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      }
-      else {
-        copySourceRegisterToDestRegister(REGISTER_X, regist);
-        copySourceRegisterToDestRegister(TEMP_REGISTER_1, REGISTER_X);
-        if(regist == RESERVED_VARIABLE_UY || regist == RESERVED_VARIABLE_LY) {
-          PLOT_ZMY = zoomOverride;  //PLOT EQN; only on a successful store, a rejected store must leave no side effects
-        }
-      }
+      copySourceRegisterToDestRegister(REGISTER_X, regist);
+      copySourceRegisterToDestRegister(TEMP_REGISTER_1, REGISTER_X);
     }
   }
   else {
@@ -201,7 +209,7 @@ void fnStore(uint16_t regist) {
   if(_checkReadOnlyVariable(regist) && regInRange(regist)) {
     _storeValue(regist);
     uint16_t rows = 1;
-    if(namedVariableIsStats(regist)) {
+    if(regist >= FIRST_NAMED_VARIABLE && regist == findNamedVariable("STATS")) {
       if(isStatsMatrixN(&rows, regist)) {
         calcSigma(0);
       }
@@ -220,7 +228,7 @@ void fn2Sto(uint16_t regist) {
     copySourceRegisterToDestRegister(REGISTER_Y, regist + 1);
   }
   else {
-    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "%04d", regist);
       moreInfoOnError("In function fn2Sto:", errorMessage, " is not defined!", NULL);
@@ -237,7 +245,7 @@ void fn3Sto(uint16_t regist) {
     copySourceRegisterToDestRegister(REGISTER_Z, regist + 2);
   }
   else {
-    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "%04d", regist);
       moreInfoOnError("In function fn3Sto:", errorMessage, " is not defined!", NULL);
@@ -246,9 +254,7 @@ void fn3Sto(uint16_t regist) {
 }
 
 
-// The four arithmetic store variants differ only by the operation dispatch table,
-// which the compiler cannot fold on its own (each body references a different symbol).
-static void _storeOp(uint16_t regist, void (* const op[NUMBER_OF_DATA_TYPES_FOR_CALCULATIONS][NUMBER_OF_DATA_TYPES_FOR_CALCULATIONS])(void)) {
+void fnStoreAdd(uint16_t regist) {
   if(_checkReadOnlyVariable(regist) && regInRange(regist)) {
     if(programRunStop == PGM_RUNNING) {
       copySourceRegisterToDestRegister(REGISTER_Y, SAVED_REGISTER_Y);
@@ -260,7 +266,7 @@ static void _storeOp(uint16_t regist, void (* const op[NUMBER_OF_DATA_TYPES_FOR_
       *(REGISTER_SHORT_INTEGER_DATA(REGISTER_Y)) &= shortIntegerMask;
     }
 
-    op[getRegisterDataType(REGISTER_X)][getRegisterDataType(REGISTER_Y)]();
+    addition[getRegisterDataType(REGISTER_X)][getRegisterDataType(REGISTER_Y)]();
 
     copySourceRegisterToDestRegister(SAVED_REGISTER_Y, REGISTER_Y);
     _storeValue(regist);
@@ -270,7 +276,7 @@ static void _storeOp(uint16_t regist, void (* const op[NUMBER_OF_DATA_TYPES_FOR_
 
     adjustResult(REGISTER_X, false, true, REGISTER_X, regist, -1);
     uint16_t rows = 1;
-    if(regist >= FIRST_NAMED_VARIABLE && isStatsMatrixN(&rows, regist) && namedVariableIsStats(regist)) {
+    if(regist >= FIRST_NAMED_VARIABLE && isStatsMatrixN(&rows, regist) && regist == findNamedVariable("STATS")) {
       calcSigma(0);
     }
   }
@@ -278,26 +284,92 @@ static void _storeOp(uint16_t regist, void (* const op[NUMBER_OF_DATA_TYPES_FOR_
 
 
 
-void fnStoreAdd(uint16_t regist) {
-  _storeOp(regist, addition);
-}
-
-
-
 void fnStoreSub(uint16_t regist) {
-  _storeOp(regist, subtraction);
+  if(_checkReadOnlyVariable(regist) && regInRange(regist)) {
+    if(programRunStop == PGM_RUNNING) {
+      copySourceRegisterToDestRegister(REGISTER_Y, SAVED_REGISTER_Y);
+      copySourceRegisterToDestRegister(REGISTER_X, SAVED_REGISTER_X);
+    }
+
+    copySourceRegisterToDestRegister(regist, REGISTER_Y);
+    if(getRegisterDataType(REGISTER_Y) == dtShortInteger) {
+      *(REGISTER_SHORT_INTEGER_DATA(REGISTER_Y)) &= shortIntegerMask;
+    }
+
+    subtraction[getRegisterDataType(REGISTER_X)][getRegisterDataType(REGISTER_Y)]();
+
+    copySourceRegisterToDestRegister(SAVED_REGISTER_Y, REGISTER_Y);
+    _storeValue(regist);
+    if(regist != REGISTER_X) {
+      copySourceRegisterToDestRegister(SAVED_REGISTER_X, REGISTER_X);
+    }
+
+    adjustResult(REGISTER_X, false, true, REGISTER_X, regist, -1);
+    uint16_t rows = 1;
+    if(regist >= FIRST_NAMED_VARIABLE && isStatsMatrixN(&rows, regist) && regist == findNamedVariable("STATS")) {
+      calcSigma(0);
+    }
+  }
 }
 
 
 
 void fnStoreMult(uint16_t regist) {
-  _storeOp(regist, multiplication);
+  if(_checkReadOnlyVariable(regist) && regInRange(regist)) {
+    if(programRunStop == PGM_RUNNING) {
+      copySourceRegisterToDestRegister(REGISTER_Y, SAVED_REGISTER_Y);
+      copySourceRegisterToDestRegister(REGISTER_X, SAVED_REGISTER_X);
+    }
+
+    copySourceRegisterToDestRegister(regist, REGISTER_Y);
+    if(getRegisterDataType(REGISTER_Y) == dtShortInteger) {
+      *(REGISTER_SHORT_INTEGER_DATA(REGISTER_Y)) &= shortIntegerMask;
+    }
+
+    multiplication[getRegisterDataType(REGISTER_X)][getRegisterDataType(REGISTER_Y)]();
+
+    copySourceRegisterToDestRegister(SAVED_REGISTER_Y, REGISTER_Y);
+    _storeValue(regist);
+    if(regist != REGISTER_X) {
+      copySourceRegisterToDestRegister(SAVED_REGISTER_X, REGISTER_X);
+    }
+
+    adjustResult(REGISTER_X, false, true, REGISTER_X, regist, -1);
+    uint16_t rows = 1;
+    if(regist >= FIRST_NAMED_VARIABLE && isStatsMatrixN(&rows, regist) && regist == findNamedVariable("STATS")) {
+      calcSigma(0);
+    }
+  }
 }
 
 
 
 void fnStoreDiv(uint16_t regist) {
-  _storeOp(regist, division);
+  if(_checkReadOnlyVariable(regist) && regInRange(regist)) {
+    if(programRunStop == PGM_RUNNING) {
+      copySourceRegisterToDestRegister(REGISTER_Y, SAVED_REGISTER_Y);
+      copySourceRegisterToDestRegister(REGISTER_X, SAVED_REGISTER_X);
+    }
+
+    copySourceRegisterToDestRegister(regist, REGISTER_Y);
+    if(getRegisterDataType(REGISTER_Y) == dtShortInteger) {
+      *(REGISTER_SHORT_INTEGER_DATA(REGISTER_Y)) &= shortIntegerMask;
+    }
+
+    division[getRegisterDataType(REGISTER_X)][getRegisterDataType(REGISTER_Y)]();
+
+    copySourceRegisterToDestRegister(SAVED_REGISTER_Y, REGISTER_Y);
+    _storeValue(regist);
+    if(regist != REGISTER_X) {
+      copySourceRegisterToDestRegister(SAVED_REGISTER_X, REGISTER_X);
+    }
+
+    adjustResult(REGISTER_X, false, true, REGISTER_X, regist, -1);
+    uint16_t rows = 1;
+    if(regist >= FIRST_NAMED_VARIABLE && isStatsMatrixN(&rows, regist) && regist == findNamedVariable("STATS")) {
+      calcSigma(0);
+    }
+  }
 }
 
 
@@ -349,6 +421,10 @@ void fnStoreConfig(uint16_t regist) {
   int16_t compatibility_int1  = 0;               //defaults to use when settings are removed
   bool_t compatibility_byte00 = false;           //defaults to use when settings are removed
   uint8_t compatibility_byte1 = 0;               //defaults to use when settings are removed
+  bool_t compatibility_byte2  = false;           //defaults to use when settings are removed
+  bool_t compatibility_byte3  = false;           //defaults to use when settings are removed
+  bool_t compatibility_byte4  = false;           //defaults to use when settings are removed
+  bool_t compatibility_byte5  = false;           //defaults to use when settings are removed
   bool_t compatibility_byte6  = false;           //defaults to use when settings are removed
   bool_t compatibility_byte7  = false;           //defaults to use when settings are removed
   bool_t compatibility_byte8  = false;           //defaults to use when settings are removed
@@ -357,6 +433,7 @@ void fnStoreConfig(uint16_t regist) {
   bool_t compatibility_byte11 = false;           //defaults to use when settings are removed
   bool_t compatibility_byte12 = false;           //defaults to use when settings are removed
   bool_t compatibility_byte13 = false;           //defaults to use when settings are removed
+  bool_t compatibility_byte14 = false;           //defaults to use when settings are removed
   bool_t compatibility_byte15 = false;           //defaults to use when settings are removed
   bool_t compatibility_byte16 = false;           //defaults to use when settings are removed
   bool_t compatibility_byte17 = false;           //defaults to use when settings are removed
@@ -377,10 +454,6 @@ void fnStoreConfig(uint16_t regist) {
   float  compatibility_float1 = 0.1;             //defaults to use when settings are removed
   float  compatibility_float2 = 0.2;             //defaults to use when settings are removed
   reallocateRegister(regist, dtConfig, 0, amNone);
-  if(getRegisterDataType(regist) != dtConfig) {
-    // Store only into a register that holds a configuration, the test fnRecallConfig() already makes (recall.c:243).
-    return;
-  }
   dtConfigDescriptor_t *configToStore = REGISTER_CONFIG_DATA(regist);
 
   storeToDtConfigDescriptor(shortIntegerMode);
@@ -421,10 +494,10 @@ void fnStoreConfig(uint16_t regist) {
   storeToDtConfigDescriptor(Norm_Key_00.func);
   xcopy(configToStore->Norm_Key_00.funcParam, Norm_Key_00.funcParam, sizeof(Norm_Key_00.funcParam));
   storeToDtConfigDescriptor(Norm_Key_00.used);
-  storeToDtConfigDescriptor(grpGroupingHex);
-  storeToDtConfigDescriptor(grpGroupingBin);
-  storeToDtConfigDescriptor(graMod);
-  storeToDtConfigDescriptor(graFont);
+  storeToDtConfigDescriptor(    compatibility_byte2);
+  storeToDtConfigDescriptor(    compatibility_byte3);
+  storeToDtConfigDescriptor(    compatibility_byte4);
+  storeToDtConfigDescriptor(    compatibility_byte5);
   storeToDtConfigDescriptor(    compatibility_byte6);
   storeToDtConfigDescriptor(    compatibility_byte7);
   storeToDtConfigDescriptor(    compatibility_byte8);
@@ -433,7 +506,7 @@ void fnStoreConfig(uint16_t regist) {
   storeToDtConfigDescriptor(    compatibility_byte11);
   storeToDtConfigDescriptor(    compatibility_byte12);
   storeToDtConfigDescriptor(    compatibility_byte13);
-  configToStore->displayRoundingMode = displayRoundingMode ^ DRM_DFLT;  // the reserved byte14 slot, exclusive or with the default so an old file's zero restores as half-up
+  storeToDtConfigDescriptor(    compatibility_byte14);
   storeToDtConfigDescriptor(    compatibility_byte15);
   storeToDtConfigDescriptor(fractionDigits);
   storeToDtConfigDescriptor(    compatibility_byte23);
@@ -467,14 +540,14 @@ void fnStoreStack(uint16_t regist) {
   uint16_t size = getSystemFlag(FLAG_SSIZE8) ? 8 : 4;
 
   if(regist + size >= REGISTER_X && regist < REGISTER_X) {
-    displayCalcErrorMessage(ERROR_STACK_CLASH, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_STACK_CLASH, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "Cannot execute STOS, destination register would overlap the stack: %d", regist);
       moreInfoOnError("In function fnStoreStack:", errorMessage, NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
   }
   else if((regist >= REGISTER_X && regist < FIRST_LOCAL_REGISTER) || regist + size > FIRST_LOCAL_REGISTER + currentNumberOfLocalRegisters) {
-    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "Cannot execute STOS, destination register is out of range: %d", regist);
       moreInfoOnError("In function fnStoreStack:", errorMessage, NULL, NULL);
@@ -491,109 +564,64 @@ void fnStoreStack(uint16_t regist) {
 static void _fnStoreElement(bool_t stepForward);
 
 void fnStoreVElement(uint16_t ix) {
+  uint16_t matrixIndexBak = matrixIndex;
+  const int16_t iBak = getIRegisterAsInt(true);
+  const int16_t jBak = getJRegisterAsInt(true);
   real_t rx;
   uint16_t rows, cols;
   if(!getMatrixDims(REGISTER_Y, "In function fnStoreVElement:", &rows, &cols)) {
     return;
   }
   if(!getRegisterAsComplex(REGISTER_X, &rx, &rx) && !getRegisterAsReal(REGISTER_X, &rx)) {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "DataType %" PRIu32, getRegisterDataType(REGISTER_X));
       moreInfoOnError("In function fnStoreVElement:", errorMessage, "is not a Real/Integer/Complex.", "");
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
     return;
   }
-  matrixIndexState_t bak;
-  saveMatrixIndexState(&bak);
   setIRegisterAsInt(false, (ix-1) / cols+1);
   setJRegisterAsInt(false, (ix-1) % cols+1);
   matrixIndex = REGISTER_Y;
   _fnStoreElement(false);
-  restoreMatrixIndexState(&bak);
-}
-
-bool_t vectorSpanOk(uint16_t regist, uint16_t n, const char *funcName) {   // a span stays in its block: R00..R99, the stack X..D, or L..W; a local span is checked per register
-  uint16_t last = regist < FIRST_LETTERED_REGISTER ? 99 : regist <= REGISTER_D ? REGISTER_D : regist <= LAST_SPARE_REGISTER ? LAST_SPARE_REGISTER : 0;
-  if(last != 0 && regist + n - 1 > last) {
-    displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
-    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      if(regist < FIRST_LETTERED_REGISTER) {
-        sprintf(errorMessage, "a span of %" PRIu16 " registers from R%02" PRIu16 " runs past R99", n, regist);
-      }
-      else {
-        sprintf(errorMessage, "a span of %" PRIu16 " registers from %c runs past %c", n, "XYZTABCDLIJKMNPQRSEFGHOUVW"[regist - FIRST_LETTERED_REGISTER], last == REGISTER_D ? 'D' : 'W');
-      }
-      moreInfoOnError(funcName, errorMessage, NULL, NULL);
-    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-    return false;
-  }
-  return true;
-}
-
-static bool_t _registerToElement(calcRegister_t r, uint16_t ix) {               // register r into element ix of the vector in X; a complex register turns the vector complex
-  real_t re, im;
-  if(!regInRange(r)) {
-    return false;
-  }
-  if(!getRegisterAsComplex(r, &re, &im)) {
-    if(!getRegisterAsReal(r, &re)) {
-      displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
-      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-        sprintf(errorMessage, "register %" PRIu16 " holds %s", r, getRegisterDataTypeName(r, true, false));
-        moreInfoOnError("In function fnStoreVector:", errorMessage, "not a real, integer or complex", NULL);
-      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      return false;
-    }
-    realSetZero(&im);
-  }
-  else if(getRegisterDataType(r) == dtComplex34 && getRegisterDataType(REGISTER_X) == dtReal34Matrix) {
-    convertReal34MatrixRegisterToComplex34MatrixRegister(REGISTER_X, REGISTER_X);
-  }
-  if(getRegisterDataType(REGISTER_X) == dtComplex34Matrix) {
-    realToReal34(&re, VARIABLE_REAL34_DATA(REGISTER_COMPLEX34_MATRIX_ELEMENTS(REGISTER_X) + ix - 1));
-    realToReal34(&im, VARIABLE_IMAG34_DATA(REGISTER_COMPLEX34_MATRIX_ELEMENTS(REGISTER_X) + ix - 1));
-  }
-  else {
-    realToReal34(&re, REGISTER_REAL34_MATRIX_ELEMENTS(REGISTER_X) + ix - 1);
-  }
-  return true;
+  setIRegisterAsInt(false, iBak);
+  setJRegisterAsInt(false, jBak);
+  matrixIndex = matrixIndexBak;
 }
 
 void fnStoreVector(uint16_t regist) {
+  uint16_t matrixIndexBak = matrixIndex;
+  const int16_t iBak = getIRegisterAsInt(true);
+  const int16_t jBak = getJRegisterAsInt(true);
   uint16_t rows, cols;
   if(!getMatrixDims(REGISTER_X, "In function fnStoreVector:", &rows, &cols)) {
     return;
   }
-  bool_t stack = (regist >= REGISTER_X && regist <= REGISTER_D);             // a stack source is read top down, the order the stack is shown in
-  if(!vectorSpanOk(regist, rows * cols, "In function fnStoreVector:")) {
-    return;
-  }
-  for(uint16_t ix = 1; ix <= rows * cols; ix++) {  //for 5x5, from 1 to 25
-    if(!_registerToElement(stack ? regist + rows * cols - ix : regist + ix - 1, ix)) {
+  copySourceRegisterToDestRegister(getStackTop(), TEMP_REGISTER_1);
+  setSystemFlag(FLAG_ASLIFT);
+  liftStack();
+  matrixIndex = REGISTER_Y;
+  for(uint16_t ix = 1; ix <= rows * cols && lastErrorCode == 0; ix++) {  //for 5x5, from 1 to 25
+    setIRegisterAsInt(false, (ix-1) / cols + 1);
+    setJRegisterAsInt(false, (ix-1) % cols + 1);
+    fnDrop(NOPARAM);
+    fnRecall(regist++);
+    if(getRegisterDataType(REGISTER_X) != dtComplex34) {
+      fnToReal(NOPARAM);
+    }
+    if(lastErrorCode != 0) {
+      return;
+    }
+    _fnStoreElement(false);
+    if(lastErrorCode != 0) {
       return;
     }
   }
-  setSystemFlag(FLAG_ASLIFT);
-}
-
-void fnStoreVectorX(uint16_t regist) {
-  uint32_t cols;
-  if(!getSingleDimension(REGISTER_X, &cols)) {                            // the count in X sizes the vector: 1 to 4096
-    return;
-  }
-  if(!saveLastX()) {
-    return;
-  }
-  if(!initMatrixRegister(REGISTER_X, 1, cols, false)) {                   // X becomes the 1 x cols real vector that Rnn->V fills
-    displayCalcErrorMessage(ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX, ERR_REGISTER_LINE);
-    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      sprintf(errorMessage, "Not enough memory for a 1" STD_CROSS "%" PRIu32 " vector", cols);
-      moreInfoOnError("In function fnStoreVectorX:", errorMessage, NULL, NULL);
-    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-    return;
-  }
-  fnStoreVector(regist);
+  setIRegisterAsInt(false, iBak);
+  setJRegisterAsInt(false, jBak);
+  matrixIndex = matrixIndexBak;
+  fnDrop(NOPARAM);
+  copySourceRegisterToDestRegister(TEMP_REGISTER_1, getStackTop());
 }
 
 void fnStoreElementPlus(uint16_t unusedButMandatoryParameter) {
@@ -606,7 +634,7 @@ void fnStoreElement(uint16_t unusedButMandatoryParameter) {
 
 void _fnStoreElement(bool_t stepForward) {
     if(matrixIndex == INVALID_VARIABLE) {
-      displayCalcErrorMessage(ERROR_NO_MATRIX_INDEXED, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_NO_MATRIX_INDEXED, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "Cannot execute STOEL without a matrix indexed");
         moreInfoOnError("In function _fnStoreElement:", errorMessage, NULL, NULL);
@@ -622,7 +650,7 @@ void _fnStoreElement(bool_t stepForward) {
         fnIncDecJ(INC_FLAG);
       }
       uint16_t rows = 1;
-      if(matrixIndex >= FIRST_NAMED_VARIABLE && isStatsMatrixN(&rows, matrixIndex) && namedVariableIsStats(matrixIndex)) {
+      if(matrixIndex >= FIRST_NAMED_VARIABLE && isStatsMatrixN(&rows, matrixIndex) && matrixIndex == findNamedVariable("STATS")) {
         calcSigma(0);
       }
     }
@@ -632,7 +660,7 @@ void _fnStoreElement(bool_t stepForward) {
 
 void fnStoreIJ(uint16_t unusedButMandatoryParameter) {
     if(matrixIndex == INVALID_VARIABLE) {
-      displayCalcErrorMessage(ERROR_NO_MATRIX_INDEXED, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_NO_MATRIX_INDEXED, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "Cannot execute STOIJ without a matrix indexed");
         moreInfoOnError("In function fnStoreIJ:", errorMessage, NULL, NULL);
@@ -641,7 +669,7 @@ void fnStoreIJ(uint16_t unusedButMandatoryParameter) {
     else {
       callByIndexedMatrix(storeIjReal, storeIjComplex);
       uint16_t rows = 1;
-      if(matrixIndex >= FIRST_NAMED_VARIABLE && isStatsMatrixN(&rows, matrixIndex) && namedVariableIsStats(matrixIndex)) {
+      if(matrixIndex >= FIRST_NAMED_VARIABLE && isStatsMatrixN(&rows, matrixIndex) && matrixIndex == findNamedVariable("STATS")) {
         calcSigma(0);
       }
     }
@@ -663,7 +691,7 @@ void fn42AlphaStore(uint16_t regist) {
       *dest = 0;
     }
     else {
-      displayCalcErrorMessage(ERROR_NO_STRING_IN_ALPHA_REGISTER, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_NO_STRING_IN_ALPHA_REGISTER, ERR_REGISTER_LINE, REGISTER_T);
     }
   }
 }

@@ -70,10 +70,6 @@ void copyRegisterToClipboardString2(calcRegister_t regist, char *clipboardString
 //USING tmpString !!
 void stackregister_csv_out(int16_t reg_b, int16_t reg_e, bool_t oneLine) {
     char tmp_b[100], tmp_e[100];
-    char *tmpString2 = malloc(TMP_STR_LENGTH);                // off the stack: this calls copyRegisterToClipboardString, and the pair overran the DM42 stack grant
-    if(tmpString2 == NULL) {
-      return;
-    }
 
     int16_t ix = reg_b;
     while(ix <= reg_e) {
@@ -90,19 +86,17 @@ void stackregister_csv_out(int16_t reg_b, int16_t reg_e, bool_t oneLine) {
         sprintf(tmp_b, "%sR%02d%s%s", CSV_STR, ix, CSV_STR, CSV_TAB);
       }
       else if(FIRST_LOCAL_REGISTER <= ix && ix <= LAST_LOCAL_REGISTER) {
-        sprintf(tmp_b, "%sR.%02d%s%s", CSV_STR, ix - FIRST_LOCAL_REGISTER, CSV_STR, CSV_TAB);
+        sprintf(tmp_b, "%sR.%03d%s%s", CSV_STR, ix-100, CSV_STR, CSV_TAB);
       }
       else if(FIRST_NAMED_VARIABLE <= ix && ix <= LAST_NAMED_VARIABLE) {
-        sprintf(tmp_b, "%s%s%s%s", CSV_STR, (char *)allNamedVariables[ix - FIRST_NAMED_VARIABLE].variableName + 1, CSV_STR, CSV_TAB);
-      }
-      else if(FIRST_RESERVED_VARIABLE <= ix && ix <= LAST_RESERVED_VARIABLE) {
-        sprintf(tmp_b, "%s%s%s%s", CSV_STR, (char *)allReservedVariables[ix - FIRST_RESERVED_VARIABLE].reservedVariableName + 1, CSV_STR, CSV_TAB);
+        sprintf(tmp_b, "%sN%03d%s%s%s%s%s%s", CSV_STR, ix-100, CSV_STR, CSV_TAB, CSV_STR, (char *)allNamedVariables[ix - FIRST_NAMED_VARIABLE].variableName + 1, CSV_STR, CSV_TAB);
       }
 
       #if (VERBOSE_LEVEL >= 1)
         print_linestr("-2b", false);
       #endif // VERBOSE_LEVEL >= 1
 
+      char tmpString2[TMP_STR_LENGTH];
       copyRegisterToClipboardString2((calcRegister_t)ix, tmpString);
       utf8ToString((uint8_t *)tmpString, tmpString2);
       stringToASCII(tmpString2, tmpString);
@@ -138,7 +132,6 @@ void stackregister_csv_out(int16_t reg_b, int16_t reg_e, bool_t oneLine) {
 
       ++ix;
     }
-    free(tmpString2);
 }
 
 void tmpString_csv_out(uint8_t nn) {

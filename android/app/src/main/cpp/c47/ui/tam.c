@@ -39,8 +39,8 @@
     };
 
     TO_QSPI const int16_t DelitmOperations[][2] = {
-      {MNU_PROGS,      ITM_DELITM_PROG},
-      {MNU_USRMENUS,   ITM_DELITM_MENU}
+      {MNU_PROGS,    ITM_DELITM_PROG},
+      {MNU_MENUS,    ITM_DELITM_MENU}
     };
 
   int16_t tamOperation(void) {
@@ -158,11 +158,8 @@
       if(tam.dot) {
         tbPtr = stringCopy(tbPtr, ".");
       }
-      if(tam.colon) {
-        tbPtr = stringCopy(tbPtr, ":");
-      }
       if(tam.alpha) {
-        tbPtr = stringCopy(tbPtr, (tam.colon ? "" : STD_LEFT_SINGLE_QUOTE));
+        tbPtr = stringCopy(tbPtr, STD_LEFT_SINGLE_QUOTE);
         if(aimBuffer[0] == 0) {
           *(tbPtr++) = STD_CURSOR[0];
           *(tbPtr++) = STD_CURSOR[1];
@@ -171,7 +168,7 @@
         else {
           insertAlphaCursor(0);
           tbPtr = stringCopy(tbPtr, tmpString);
-          tbPtr = stringCopy(tbPtr, (tam.colon ? ":" : STD_RIGHT_SINGLE_QUOTE));
+          tbPtr = stringCopy(tbPtr, STD_RIGHT_SINGLE_QUOTE);
         }
       }
       else {
@@ -252,7 +249,6 @@
 
     //printf("**[DL]** _tamProcessInput item %d tam.mode %d\n", item, tam.mode);
     //fflush(stdout);
-    lastErrorCode = 0;
     // Shuffle is handled completely differently to everything else
     if(tam.mode == TM_SHUFFLE) {
       _tamHandleShuffle(item);
@@ -344,13 +340,6 @@
       else if(tam.dot) {
         tam.dot = false;
       }
-      else if(tam.colon) {
-        if(!catalog) {
-          tam.colon = false;
-        }
-        popSoftmenu();
-        --numberOfTamMenusToPop;
-      }
       else if(tam.indirect) {
         tam.indirect = false;
         popSoftmenu();
@@ -380,11 +369,11 @@
         else if(tam.mode == TM_LABEL || (tam.mode == TM_KEY && tam.keyInputFinished)) {
           showSoftmenu(-MNU_TAMLABEL);
         }
-        else if(tam.mode == TM_LBLONLY) {
+        else if(tam.mode == TM_LBLONLY || (tam.mode == TM_KEY && tam.keyInputFinished)) {
           showSoftmenu(-MNU_TAMLBLONLY);
         }
         else if(tam.mode == TM_SOLVE) {
-          if((tam.function == ITM_SOLVE || tam.function == ITM_PLTf || tam.function == ITM_F1DRV || tam.function == ITM_F2DRV) && calcMode == CM_PEM) {
+          if(tam.function == ITM_SOLVE && calcMode == CM_PEM) {
             showSoftmenu(-MNU_TAMVARONLY);
           }
           else {
@@ -471,7 +460,6 @@
           case -MNU_TAMCMP      :
           case -MNU_TAMLABEL    :
           case -MNU_TAMLBLONLY  :
-          case -MNU_TAMLOCALLABEL:
           case -MNU_TAM         :
           case -MNU_TAMVARONLY  :
           case -MNU_TAMSTO      :
@@ -691,13 +679,12 @@
 
           int param = indexOfItems[item].param;
           if(registerLookup[param - FIRST_LETTERED_REGISTER][1] == ALPHA_LABEL) {
-            tam.colon = true;  // Local named label
             tam.alpha = true;
             aimBuffer[0] = registerLookup[param - FIRST_LETTERED_REGISTER][0];
             aimBuffer[1] = 0;
             forceTry = true;
           }
-          else {               // Local lettered label
+          else {
             tam.value = FIRST_UC_LOCAL_LABEL - 'A' + registerLookup[param - FIRST_LETTERED_REGISTER][0];
             forceTry = true;
             tryOoR = true;
@@ -755,17 +742,8 @@ printf("tam.value: %d\n", tam.value);
         maxDigits = _tamMaxDigits(max2);
       }
     }
-    else if(item == ITM_COLON) {
-      if((tam.mode == TM_LABEL) || (tam.mode == TM_LBLONLY) || (tam.mode == TM_KEY) || ((tam.mode == TM_SOLVE) && ((tam.function != ITM_SOLVE && tam.function != ITM_F1DRV && tam.function != ITM_F2DRV) || calcMode != CM_PEM))) {
-        if(!tam.colon) {
-          showSoftmenu(-MNU_TAMLOCALLABEL);
-        }
-        tam.colon = true;
-        return;
-      }
-    }
     else if(item == ITM_PERIOD) {
-      if((tam.function == ITM_LBL) || (tam.function == ITM_SET_42ALPHA)) {
+      if(tam.function == ITM_LBL) {
         return;
       }
       else if(tam.function == ITM_GTOP) {
@@ -773,21 +751,10 @@ printf("tam.value: %d\n", tam.value);
         tam.value = programList[numberOfPrograms - 1].step;
         pemCursorIsZerothStep = true;
         reallyRunFunction(ITM_GTOP, tam.value);
-        uint16_t currentOp = *currentStep;
-        if(currentOp & 0x80) {
-          currentOp &= 0x7f;
-          currentOp <<= 8;
-          currentOp |= *(currentStep + 1);
-        }
-        if((currentOp != 0x7fff) && (currentOp != ITM_END)) {    // Not .END. and not END
-          uint16_t initialNumberOfProgram = numberOfPrograms;
-          do {
-            tam.value = programList[numberOfPrograms - 1].step;
-            reallyRunFunction(ITM_GTOP, tam.value);
-            currentStep = firstFreeProgramByte;
-            insertStepInProgram(ITM_END);
-            scanLabelsAndPrograms();
-          } while(numberOfPrograms == initialNumberOfProgram);  // do until inserting ITM_END has added a new program
+        if((*currentStep != 0xff) || (*(currentStep + 1) != 0xff)) {
+          currentStep = firstFreeProgramByte;
+          insertStepInProgram(ITM_END);
+          scanLabelsAndPrograms();
           tam.value = programList[numberOfPrograms - 1].step;
           reallyRunFunction(ITM_GTOP, tam.value);
         }
@@ -829,7 +796,7 @@ printf("tam.value: %d\n", tam.value);
       tryOoR = true;
       forceTry = true;
     }
-    else if(tam.mode == TM_MENU && (softmenu[softmenuStack[0].softmenuId].menuItem == -MNU_MENU || softmenu[softmenuStack[0].softmenuId].menuItem == -MNU_USRMENU)) {
+    else if(tam.mode == TM_MENU && softmenu[softmenuStack[0].softmenuId].menuItem == -MNU_MENU) {
         tam.value = item;
     }
     else {
@@ -924,7 +891,7 @@ printf("tam.value: %d\n", tam.value);
           leaveTamModeIfEnabled();
         }
       }
-      else if(tam.mode == TM_MENU && (softmenu[softmenuStack[0].softmenuId].menuItem == -MNU_MENU || softmenu[softmenuStack[0].softmenuId].menuItem == -MNU_USRMENU)) {
+      else if(tam.mode == TM_MENU && softmenu[softmenuStack[0].softmenuId].menuItem == -MNU_MENU) {
         int16_t value = tam.value;
         if(calcMode == CM_PEM) {
           addStepInProgram(tamOperation());
@@ -946,7 +913,7 @@ printf("tam.value: %d\n", tam.value);
       }
       else if(tam.mode == TM_LABEL || tam.mode == TM_LBLONLY || tam.mode == TM_SOLVE || (tam.mode == TM_KEY && tam.keyInputFinished) || (tam.mode == TM_DELITM && softmenu[softmenuStack[0].softmenuId].menuItem == -MNU_PROGS)) {
         if(!tam.indirect) {
-          value = findNamedLabelWithDuplicate(buffer, dupNum, (tam.colon ? LOCAL_LABELS : GLOBAL_LABELS));
+          value = findNamedLabelWithDuplicate(buffer, dupNum);
         }
         else {
           value = findNamedVariable(buffer);
@@ -959,12 +926,12 @@ printf("tam.value: %d\n", tam.value);
               value = (value2 != FAILED_INDIRECTION ? value2 : INVALID_VARIABLE);
             }
             else {
-              #if defined(OPTION_IR_PRINTING)
+              #if defined(IR_PRINTING)
                 sprintf(errorMessage, "'%s'", buffer);
                 printTraceErrorFunction(tam.function, errorMessage);
-              #endif //OPTION_IR_PRINTING
+              #endif //IR_PRINTING
 
-              displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE);
+              displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE, REGISTER_X);
               #if (EXTRA_INFO_ON_CALC_ERROR == 1)
                 sprintf(errorMessage, "string '%s' is not a named variable", buffer);
                 moreInfoOnError("In function _tamProcessInput:", errorMessage, NULL, NULL);
@@ -973,10 +940,9 @@ printf("tam.value: %d\n", tam.value);
           }
         }
         if(value == INVALID_VARIABLE && ((tam.function == ITM_XEQ) || (tam.function == ITM_XEQP1))) {  // If no label found then look for XEQ 'function'
-          if(!tam.indirect && !tam.colon) {                                                                          //  indirection (XEQ -> 'function') not supported
+          if(!tam.indirect) {                                                                          //  indirection (XEQ -> 'function') not supported
             for(int i = 0; i < LAST_ITEM; ++i) {
-              // Match strictness: CMP_NAME strict (exact spelling & space), CMP_COMMAND relax (exact spelling, any space), CMP_CLEANED_STRING_ONLY loose (rank1 equiv., beware not tested)
-              if((indexOfItems[i].status & CAT_STATUS) == CAT_FNCT && compareString(buffer, indexOfItems[i].itemCatalogName, CMP_COMMAND) == 0) {
+              if((indexOfItems[i].status & CAT_STATUS) == CAT_FNCT && compareString(buffer, indexOfItems[i].itemCatalogName, CMP_NAME) == 0) { //change here to slacken the character check for commands: CMP_CLEANED_STRING_ONLY
                 leaveTamModeIfEnabled();
                 if(calcMode == CM_PEM) {
                   aimBuffer[0] = 0;
@@ -992,12 +958,12 @@ printf("tam.value: %d\n", tam.value);
           if(calcMode != CM_PEM) {
             leaveTamModeIfEnabled();
             if(!tam.indirect) {
-              #if defined(OPTION_IR_PRINTING)
+              #if defined(IR_PRINTING)
                 sprintf(errorMessage, "'%s'", buffer);
                 printTraceErrorFunction(tam.function, errorMessage);
-              #endif //OPTION_IR_PRINTING
+              #endif //IR_PRINTING
 
-              displayCalcErrorMessage(ERROR_FUNCTION_NOT_FOUND, ERR_REGISTER_LINE);
+              displayCalcErrorMessage(ERROR_FUNCTION_NOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
               #if (EXTRA_INFO_ON_CALC_ERROR == 1)
                 sprintf(errorMessage, "string '%s' is neither a named label nor a function name", buffer);
                 moreInfoOnError("In function _tamProcessInput:", errorMessage, NULL, NULL);
@@ -1014,12 +980,12 @@ printf("tam.value: %d\n", tam.value);
               moreInfoOnError("In function _tamProcessInput:", errorMessage, "ignored since IGN1ER was set", NULL);
             #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
           }
-          else if(calcMode != CM_PEM || (tam.function != ITM_GTO && tam.mode != TM_KEY)) {
-            #if defined(OPTION_IR_PRINTING)
+          else if((calcMode != CM_PEM || tam.function != ITM_GTO)){
+            #if defined(IR_PRINTING)
               sprintf(errorMessage, "'%s'", buffer);
               printTraceErrorFunction(tam.function, errorMessage);
-            #endif //OPTION_IR_PRINTING
-            displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE);
+            #endif //IR_PRINTING
+            displayCalcErrorMessage(ERROR_LABEL_NOT_FOUND, ERR_REGISTER_LINE, REGISTER_X);
             #if (EXTRA_INFO_ON_CALC_ERROR == 1)
               sprintf(errorMessage, "string '%s' is not a named label", buffer);
               moreInfoOnError("In function _tamProcessInput:", errorMessage, NULL, NULL);
@@ -1032,7 +998,7 @@ printf("tam.value: %d\n", tam.value);
           return;
         }
       }
-      else if(tam.mode == TM_DELITM && softmenu[softmenuStack[0].softmenuId].menuItem == -MNU_USRMENUS) {
+      else if(tam.mode == TM_DELITM && softmenu[softmenuStack[0].softmenuId].menuItem == -MNU_MENUS) {
         value = tam.value;
       }
       else if(tryAllocate && !tam.indirect) {
@@ -1051,12 +1017,12 @@ printf("tam.value: %d\n", tam.value);
             #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
           }
           else {
-            #if defined(OPTION_IR_PRINTING)
+            #if defined(IR_PRINTING)
               sprintf(errorMessage, "'%s'", buffer);
               printTraceErrorFunction(tam.function, errorMessage);
-            #endif //OPTION_IR_PRINTING
+            #endif //IR_PRINTING
 
-            displayCalcErrorMessage(ERROR_UNDEF_MENU, ERR_REGISTER_LINE);
+            displayCalcErrorMessage(ERROR_UNDEF_MENU, ERR_REGISTER_LINE, REGISTER_X);
             #if (EXTRA_INFO_ON_CALC_ERROR == 1)
               sprintf(errorMessage, "string '%s' is not a menu name", buffer);
               moreInfoOnError("In function _tamProcessInput:", errorMessage, NULL, NULL);
@@ -1076,12 +1042,12 @@ printf("tam.value: %d\n", tam.value);
             #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
           }
           else {
-            #if defined(OPTION_IR_PRINTING)
+            #if defined(IR_PRINTING)
               sprintf(errorMessage, "'%s'", buffer);
               printTraceErrorFunction(tam.function, errorMessage);
-            #endif //OPTION_IR_PRINTING
+            #endif //IR_PRINTING
 
-            displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE);
+            displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE, REGISTER_X);
             #if (EXTRA_INFO_ON_CALC_ERROR == 1)
               sprintf(errorMessage, "string '%s' is not a named variable", buffer);
               moreInfoOnError("In function _tamProcessInput:", errorMessage, NULL, NULL);
@@ -1090,17 +1056,7 @@ printf("tam.value: %d\n", tam.value);
         }
       }
       if(calcMode == CM_PEM && tam.function != ITM_DELP && lastErrorCode == 0) { //do not add a step of any kind if an error occurred in the processing prior to adding the step. This solves the MVAR and STO of an identified variable name problem.
-        if((tam.function == ITM_SET_42ALPHA) && (FIRST_RESERVED_VARIABLE <= value && value <= LAST_RESERVED_VARIABLE)) {
-          displayCalcErrorMessage(ERROR_RESERVED_VARIABLE_NAME, ERR_REGISTER_LINE);
-          sprintf(errorMessage, "%s", allReservedVariables[value - FIRST_RESERVED_VARIABLE].reservedVariableName + 1);
-          #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-            moreInfoOnError("In function _tamProcessInput:", errorMessage, " is a reserved variable.", NULL);
-          #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-          return;
-        }
-        else {
-          addStepInProgram(tamOperation());
-        }
+        addStepInProgram(tamOperation());
       }
       if((tam.mode != TM_NEWMENU) && (tam.mode != TM_STRING)) {
         aimBuffer[0] = 0;
@@ -1117,7 +1073,7 @@ printf("tam.value: %d\n", tam.value);
           mimRunFunction(tamOperation(), value);
         }
         else if(tam.function == ITM_GTOP) {
-          goToGlobalStep(abs(labelList[value - FIRST_LABEL].step));
+          goToGlobalStep(labelList[value - FIRST_LABEL].step);
         }
         else if(tam.function == ITM_DELP) {
           reallyRunFunction(ITM_DELP, value);
@@ -1201,7 +1157,6 @@ printf("tam.value: %d\n", tam.value);
     tam.currentOperation = tam.function;
     tam.digitsSoFar = 0;
     tam.dot = false;
-    tam.colon = false;
     tam.indirect = false;
     tam.value = 0;
 
@@ -1293,7 +1248,7 @@ printf("tam.value: %d\n", tam.value);
       }
 
       case TM_SOLVE: {
-        if((func == ITM_SOLVE || func == ITM_PLTf || func == ITM_F1DRV || func == ITM_F2DRV) && calcMode == CM_PEM) {
+        if(func == ITM_SOLVE && calcMode == CM_PEM) {
           showSoftmenu(-MNU_TAMVARONLY);
         }
         else {

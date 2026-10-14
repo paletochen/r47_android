@@ -7,11 +7,15 @@
 
 #include "c47.h"
 
-#if !defined(OPTION_DIST_B)
+#if defined(SAVE_SPACE_DM42_17B)
   void fnWeibullP     (uint16_t unusedButMandatoryParameter){}
   void fnWeibullL     (uint16_t unusedButMandatoryParameter){}
   void fnWeibullR     (uint16_t unusedButMandatoryParameter){}
   void fnWeibullI     (uint16_t unusedButMandatoryParameter){}
+  void WP34S_Pdf_Weib (const real_t *x, const real_t *b, const real_t *t, real_t *res, realContext_t *realContext){}
+  void WP34S_Cdfu_Weib(const real_t *x, const real_t *b, const real_t *t, real_t *res, realContext_t *realContext){}
+  void WP34S_Cdf_Weib (const real_t *x, const real_t *b, const real_t *t, real_t *res, realContext_t *realContext){}
+  void WP34S_Qf_Weib  (const real_t *x, const real_t *b, const real_t *t, real_t *res, realContext_t *realContext){}
 
 #else
   static bool_t checkParamWeibull(real_t *x, real_t *shape, real_t *scale) {
@@ -24,14 +28,14 @@
     }
 
     if(realIsNegative(x)) {
-      displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+      displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function checkParamWeibull:", "cannot calculate for x < 0", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
       goto err;
     }
     else if(realIsZero(shape) || realIsNegative(shape) || realIsZero(scale) || realIsNegative(scale)) {
-      displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE);
+      displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function checkParamWeibull:", "cannot calculate for b " STD_LESS_EQUAL " 0 or t " STD_LESS_EQUAL " 0", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -82,7 +86,7 @@
 
     if(checkParamWeibull(&val, &shape, &lifetime)) {
       if(realCompareLessEqual(&val, const_0) || realCompareGreaterEqual(&val, const_1)) {
-        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE, REGISTER_X);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function fnWeibullI:", "the argument must be 0 < x < 1", NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -167,4 +171,4 @@
     realMultiply(&p, b, res, realContext);
   }
 
-#endif // !OPTION_DIST_B
+#endif //SAVE_SPACE_DM42_17B

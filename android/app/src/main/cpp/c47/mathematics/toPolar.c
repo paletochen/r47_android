@@ -5,14 +5,7 @@
  * \file toPolar.c
  ***********************************************/
 
-
 #include "c47.h"
-
-#if !defined PC_BUILD
-  #undef CACHE_DEBUG
-#endif //!PC_BUILD
-
-
 static void fnToPolar(uint16_t unusedButMandatoryParameter);
 
 
@@ -57,13 +50,11 @@ void fnToPolar2(uint16_t unusedButMandatoryParameter) {
       setVectorRegisterPolarMode(REGISTER_X,
         ((getVectorRegisterPolarMode(REGISTER_X) == 0) ? amPolarSPH : (getVectorRegisterPolarMode(REGISTER_X) == amPolarSPH) ? amPolarCYL : (getVectorRegisterPolarMode(REGISTER_X) == amPolarCYL) ? amPolarSPH : 0 ));
       setVectorRegisterAngularMode(REGISTER_X, currentAngularMode);
-      temporaryInformation = TI_VECTOR;
       return;
     }
     else if(isRegisterMatrix2dVector(REGISTER_X)) {
       setVectorRegisterPolarMode(REGISTER_X, amPolar);
       setVectorRegisterAngularMode(REGISTER_X, currentAngularMode);
-      temporaryInformation = TI_VECTOR;
       return;
     }
   }
@@ -84,7 +75,7 @@ void fnToPolar2(uint16_t unusedButMandatoryParameter) {
     fnToPolar(0);
   }
   else {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE); // Invalid input data type for this operation
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X); // Invalid input data type for this operation
   #if (EXTRA_INFO_ON_CALC_ERROR == 1)
     sprintf(errorMessage, "You cannot use >R or >P with %s in X and %s in Y!", getDataTypeName(getRegisterDataType(REGISTER_X), true, false), getDataTypeName(getRegisterDataType(REGISTER_Y), true, false));
     moreInfoOnError("In function fnToPolar2:", errorMessage, NULL, NULL);
@@ -161,7 +152,7 @@ static void fnToPolar(uint16_t unusedButMandatoryParameter) {
     }
   }
   else {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REG_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "cannot convert (%s, %s) to polar coordinates!", getDataTypeName(getRegisterDataType(REG_X), false, false), getDataTypeName(getRegisterDataType(REG_Y), false, false));
       moreInfoOnError("In function fnToPolar:", errorMessage, NULL, NULL);
@@ -184,49 +175,6 @@ void real34RectangularToPolar(const real34_t *real34, const real34_t *imag34, re
   realToReal34(&theta, theta34);
 }
 
-
-
-// zero sign is part of the key
-static bool_t rectKeyEqual(const real_t *a, const real_t *b) {
-  return realCompareIdentical(a, b);
-}
-
-// Cached wrapper for realRectangularToPolar. Cache is caller-owned (rectToPolarCache_t) and must be passed by pointer. The caller creates it as { .valid = false },
-// in a scope that covers all the calls that share it. Inputs are copied before the call to prevent aliasing if the underlying function overwrites its input pointers.
-void realRectangularToPolarCached(const real_t *real, const real_t *imag, real_t *magnitude, real_t *theta, realContext_t *realContext, rectToPolarCache_t *cache) {
-  #if defined(CACHE_DEBUG)
-    print_caller("realRectangularToPolarCached");
-    printf("   Context:%d\n",realContext->digits);
-  #endif // CACHE_DEBUG
-  real_t localReal, localImag;
-  realCopy(real, &localReal);
-  realCopy(imag, &localImag);
-
-  if(cache->valid && realContext->digits == cache->digits && (int32_t)realContext->round == cache->round && rectKeyEqual(&cache->real, &localReal) && rectKeyEqual(&cache->imag, &localImag)) {
-    realCopy(&cache->mag,   magnitude);
-    realCopy(&cache->theta, theta);
-    #if defined(CACHE_DEBUG)
-      printf("realRectangularToPolar: quick return for repeated value\n");
-    #endif // CACHE_DEBUG
-    return;
-  }
-
-  realCopy(&localReal, &cache->real);
-  realCopy(&localImag, &cache->imag);
-  cache->digits = realContext->digits;
-  cache->round  = (int32_t)realContext->round;
-  cache->valid  = false;
-
-  realRectangularToPolar(&localReal, &localImag, magnitude, theta, realContext);
-
-  if(!realIsSpecial(magnitude) && !realIsSpecial(theta)) {
-    realCopy(magnitude, &cache->mag);
-    realCopy(theta,     &cache->theta);
-    cache->valid = true;
-  } else {
-    cache->valid = false;
-  }
-}
 
 
 void realRectangularToPolar(const real_t *real, const real_t *imag, real_t *magnitude, real_t *theta, realContext_t *realContext) { // theta is in ]-pi, pi]

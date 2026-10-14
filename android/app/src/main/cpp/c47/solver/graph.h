@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WP43 and C47 Authors
 
 /********************************************//** //JM
- * \file graph.h Graphing module
+ * \file jmgraph.c Graphing module
  ***********************************************/
 
 
@@ -23,7 +23,6 @@ extern char plotStatMx[8];
 #define noInitDrwMx 0
 #define initDrwMx   1
 
-void    graphRangeGuard(real_t *lo, real_t *hi);
 void    fnEqSolvGraph (uint16_t func);
 void    graph_stat(uint16_t unusedButMandatoryParameter);
 int32_t drawMxN(void);

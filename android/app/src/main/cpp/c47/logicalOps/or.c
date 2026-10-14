@@ -6,6 +6,7 @@
  ***********************************************/
 
 #include "c47.h"
+#include "and.h"
 
 static void orCplx(void) {
   static TO_QSPI const unsigned char orTable[4] = { 0, 1, 1, 1 };

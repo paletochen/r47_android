@@ -38,7 +38,7 @@ TO_QSPI const calcKey_t kbd_std_C47[37] = { //C47 Layout, in the default positio
   {72,                  ITM_1,                ITM_ASSIGN,           -MNU_KEYS,            ITM_1,                ITM_X,                ITM_x,                ITM_1,                ITM_1               },
   {73,                  ITM_2,                ITM_USERMODE,         -MNU_ALPHAFN,         ITM_2,                ITM_Y,                ITM_y,                ITM_2,                ITM_2               },
   {74,                  ITM_3,                -MNU_PFN,             -MNU_LOOP,            ITM_3,                ITM_Z,                ITM_z,                ITM_3,                ITM_3               },
-  {75,                  ITM_SUB,              -MNU_PRINT,           -MNU_IO,              ITM_MINUS,            ITM_UNDERSCORE,       ITM_AT,               ITM_MINUS,            ITM_SUB             },
+  {75,                  ITM_SUB,              -MNU_PRINT,           -MNU_IO,              ITM_MINUS,            ITM_UNDERSCORE,       ITM_EulerE,           ITM_MINUS,            ITM_SUB             },
   {81,                  ITM_EXIT1,            ITM_OFF,              ITM_SNAP,             ITM_EXIT1,            ITM_EXIT1,            ITM_OFF,              ITM_SNAP,             ITM_EXIT1           },
   {82,                  ITM_0,                ITM_VIEW,             ITM_TIMER,            ITM_0,                ITM_COLON,            ITM_SEMICOLON,        ITM_0,                ITM_0               },
   {83,                  ITM_PERIOD,           ITM_SHOW,             -MNU_INFO,            ITM_PERIOD,           ITM_COMMA,            ITM_NUMBER_SIGN,      ITM_PERIOD,           ITM_PERIOD          },
@@ -308,7 +308,7 @@ TO_QSPI const calcKey_t kbd_std_DM42[37] = {
   {72,                  ITM_1,                ITM_ASSIGN,           -MNU_KEYS,            ITM_1,                ITM_X,                ITM_x,                ITM_1,                ITM_1               },
   {73,                  ITM_2,                ITM_USERMODE,         -MNU_ALPHAFN,         ITM_2,                ITM_Y,                ITM_y,                ITM_2,                ITM_2               },
   {74,                  ITM_3,                -MNU_PFN,             -MNU_LOOP,            ITM_3,                ITM_Z,                ITM_z,                ITM_3,                ITM_3               },
-  {75,                  ITM_SUB,              -MNU_PRINT,           -MNU_IO,              ITM_MINUS,            ITM_UNDERSCORE,       ITM_AT,               ITM_MINUS,            ITM_SUB             },
+  {75,                  ITM_SUB,              -MNU_PRINT,           -MNU_IO,              ITM_MINUS,            ITM_UNDERSCORE,       ITM_MINUS,            ITM_MINUS,            ITM_SUB             },
   {81,                  ITM_EXIT1,            ITM_OFF,              ITM_SNAP,             ITM_EXIT1,            ITM_EXIT1,            ITM_OFF,              ITM_SNAP,             ITM_EXIT1           },
   {82,                  ITM_0,                -MNU_BLUE_C47,        ITM_TIMER,            ITM_0,                ITM_COLON,            ITM_SEMICOLON,        ITM_0,                ITM_0               },
   {83,                  ITM_PERIOD,           ITM_SHOW,             -MNU_INFO,            ITM_PERIOD,           ITM_COMMA,            ITM_NUMBER_SIGN,      ITM_PERIOD,           ITM_PERIOD          },
@@ -605,7 +605,7 @@ void removeUserItemAssignments(int16_t userItem, char *userItemName) {
     kc[1] = (i % 10) + '0';
     kc[2] = 0;
     if(key->primary == userItem) {
-      stringToUtf8((char *)getUserKeyLabelString(i*6), (uint8_t *)lbl);
+      stringToUtf8((char *)getNthString((uint8_t *)userKeyLabel, i*6), (uint8_t *)lbl);
       if((lbl[0] != 0) && (deleteAllItems || (compareString(lbl, userItemName, CMP_NAME) == 0))) {
         shiftF = false;
         shiftG = false;
@@ -616,7 +616,7 @@ void removeUserItemAssignments(int16_t userItem, char *userItemName) {
       }
     }
     if(key->fShifted == userItem) {
-      stringToUtf8((char *)getUserKeyLabelString(i*6+1), (uint8_t *)lbl);
+      stringToUtf8((char *)getNthString((uint8_t *)userKeyLabel, i*6+1), (uint8_t *)lbl);
       if((lbl[0] != 0) && (deleteAllItems || (compareString(lbl, userItemName, CMP_NAME) == 0))) {
         shiftF = true;
         shiftG = false;
@@ -624,7 +624,7 @@ void removeUserItemAssignments(int16_t userItem, char *userItemName) {
       }
     }
     if(key->gShifted == userItem) {
-      stringToUtf8((char *)getUserKeyLabelString(i*6+2), (uint8_t *)lbl);
+      stringToUtf8((char *)getNthString((uint8_t *)userKeyLabel, i*6+2), (uint8_t *)lbl);
       if((lbl[0] != 0) && (deleteAllItems || (compareString(lbl, userItemName, CMP_NAME) == 0))) {
         shiftF = false;
         shiftG = true;
@@ -640,7 +640,7 @@ void removeUserItemAssignments(int16_t userItem, char *userItemName) {
 
 void fnDeleteMenu(uint16_t id) {
   if(id >= numberOfUserMenus) {
-    displayCalcErrorMessage(ERROR_CANNOT_DELETE_PREDEF_ITEM, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_CANNOT_DELETE_PREDEF_ITEM, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
     return;
   }
   else {
@@ -859,9 +859,7 @@ void assignToUserMenu(uint16_t position) {
     _assignItem(&userMenus[currentUserMenu].menuItem[position]);
   }
   cachedDynamicMenu = 0;
-  if(!bulkAssign) {                //a whole menu being filled repaints once at the end, from the caller that filled it, instead of once for every position written
-    refreshScreen(22);
-  }
+  refreshScreen(22);
 }
 
 
@@ -1049,45 +1047,17 @@ void assignToKey(const char *data) {
 void initUserKeyArgument(void) {
   userKeyLabelSize = 37/*keys*/ * 6/*states*/ * 1/*byte terminator*/ + 1/*byte sentinel*/;
   userKeyLabel = allocC47Blocks(TO_BLOCKS(userKeyLabelSize));
-  if(userKeyLabel == NULL) {                                                    // the memset below writes through this pointer
-    userKeyLabelSize = 0;
-    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
-    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      moreInfoOnError("In function initUserKeyArgument:", "there is no memory for the key argument table", NULL, NULL);
-    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-    return;
-  }
   memset(userKeyLabel,   0, TO_BYTES(TO_BLOCKS(userKeyLabelSize)));
 }
 
 
-uint8_t *getUserKeyLabelString(int16_t n) {
-  static const uint8_t emptyString[1] = {0};
-  if(userKeyLabel == NULL) {                                                    // initUserKeyArgument()/setUserKeyArgument() refused to allocate; every slot
-    return (uint8_t *)emptyString;                                              //   reads back as if it were an unassigned key, same as an empty label always did
-  }
-  return getNthString((uint8_t *)userKeyLabel, n);
-}
-
-
 void setUserKeyArgument(uint16_t position, const char *name) {
-  if(userKeyLabel == NULL) {                                                    // an earlier allocation was refused, so there is no table to walk or to rewrite
-    return;
-  }
   char *userKeyLabelPtr1 = (char *)getNthString((uint8_t *)userKeyLabel, position);
   char *userKeyLabelPtr2 = (char *)getNthString((uint8_t *)userKeyLabel, position + 1);
   char *userKeyLabelPtr3 = (char *)getNthString((uint8_t *)userKeyLabel, 37 * 6);
   uint16_t newUserKeyLabelSize = userKeyLabelSize - stringByteLength(userKeyLabelPtr1) + stringByteLength(name);
   char *newUserKeyLabel = allocC47Blocks(TO_BLOCKS(newUserKeyLabelSize));
   char *newUserKeyLabelPtr = newUserKeyLabel;
-
-  if(newUserKeyLabel == NULL) {                                                 // the pool can be empty when a state file restores a key argument, and the copies
-    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);     //   below write through this pointer. Nothing is freed yet, so the labels already
-    #if (EXTRA_INFO_ON_CALC_ERROR == 1)                                         //   held stay as they are and only this one name is lost.
-      moreInfoOnError("In function setUserKeyArgument:", "there is no memory for the key argument", name, NULL);
-    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-    return;
-  }
 
   xcopy(newUserKeyLabelPtr, userKeyLabel, (int)(userKeyLabelPtr1 - userKeyLabel));
   newUserKeyLabelPtr += (int)(userKeyLabelPtr1 - userKeyLabel);
@@ -1106,22 +1076,12 @@ void setUserKeyArgument(uint16_t position, const char *name) {
 
 void createMenu(const char *name) {
   if(validateName(name)) {
-    if(isUniqueMenuName(name)) {                                                // This portion protects the loss of existing menus, including the standard P.FN and
-                                                                                //   HOME. MyMenu and MyAlpha are separate arrays and are not touched here.
-      userMenu_t *oldUserMenus = userMenus;                                     //.  reallocC47Blocks() leaves the old block alone when it refuses, but the assignment
-      if(numberOfUserMenus == 0) {                                              //   below throws the pointer away, so keep a copy to put back
+    if(isUniqueMenuName(name)) {
+      if(numberOfUserMenus == 0) {
         userMenus = allocC47Blocks(TO_BLOCKS(sizeof(userMenu_t)));
       }
       else {
         userMenus = reallocC47Blocks(userMenus, TO_BLOCKS(sizeof(userMenu_t)) * numberOfUserMenus, TO_BLOCKS(sizeof(userMenu_t)) * (numberOfUserMenus + 1));
-      }
-      if(userMenus == NULL) {                                                   // the memset below writes through this pointer
-        userMenus = oldUserMenus;                                               // the menus already held survive, and the old block is not orphaned
-        displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
-        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-          moreInfoOnError("In function createMenu:", "there is no memory for the menu", name, NULL);
-        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-        return;
       }
       memset(userMenus + numberOfUserMenus, 0, sizeof(userMenu_t));
       #if defined(PC_BUILD)
@@ -1134,12 +1094,12 @@ void createMenu(const char *name) {
                                            name,              stringByteLength(name),                                                    (int32_t)sizeof(userMenus[0].menuName));
         abortf(tmp);
       }
-      #endif // PC_BUILD
+      #endif // PC_PUILD
       xcopy(userMenus[numberOfUserMenus].menuName, name, stringByteLength(name) + 1);
       ++numberOfUserMenus;
     }
     else {
-      displayCalcErrorMessage(ERROR_ENTER_NEW_NAME, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_ENTER_NEW_NAME, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "the name %s", name);
         moreInfoOnError("In function createMenu:", errorMessage, "is already in use!", NULL);
@@ -1147,7 +1107,7 @@ void createMenu(const char *name) {
     }
   }
   else {
-    displayCalcErrorMessage(ERROR_INVALID_NAME, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_INVALID_NAME, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function createMenu:", "the menu", name, "does not follow the naming convention");
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -1227,7 +1187,7 @@ void assignGetName1(void) {
 
     // programs
     if(itemToBeAssigned == ASSIGN_CLEAR) {
-      itemToBeAssigned = findNamedLabel(aimBuffer, GLOBAL_LABELS);
+      itemToBeAssigned = findNamedLabel(aimBuffer);
       if(itemToBeAssigned == INVALID_VARIABLE) {
         itemToBeAssigned = ASSIGN_CLEAR;
       }
@@ -1264,7 +1224,7 @@ static bool_t _assignToKey(int16_t keyFunc) {
         case 1: kf = key->fShifted;    break;
         case 0: kf = key->primary;     break;
       }
-      if(keyFunc == kf && (!getSystemFlag(FLAG_USER) || *getUserKeyLabelString(j * 6 + keyStateCode + i) == 0)) {
+      if(keyFunc == kf && (!getSystemFlag(FLAG_USER) || *getNthString((uint8_t *)userKeyLabel, j * 6 + keyStateCode + i) == 0)) {
         char kc[4] = {};
         kc[0] = (j / 10) + '0';
         kc[1] = (j % 10) + '0';
@@ -1314,7 +1274,7 @@ void assignGetName2(void) {
   refreshScreen(23);
 
   if(!result) {
-    displayCalcErrorMessage(ERROR_CANNOT_ASSIGN_HERE, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_CANNOT_ASSIGN_HERE, ERR_REGISTER_LINE, NIM_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function assignGetName2:", aimBuffer, "is invalid name.", NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)

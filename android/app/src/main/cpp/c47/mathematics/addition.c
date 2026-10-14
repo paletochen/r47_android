@@ -32,7 +32,7 @@ TO_QSPI void (* const addition[NUMBER_OF_DATA_TYPES_FOR_CALCULATIONS][NUMBER_OF_
  ***********************************************/
 #if (EXTRA_INFO_ON_CALC_ERROR == 1)
   void addError(void) {
-    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE, REGISTER_X);
     sprintf(errorMessage, "cannot add %s", getRegisterDataTypeName(REGISTER_X, true, false));
     sprintf(errorMessage + ERROR_MESSAGE_LENGTH/2, "to %s", getRegisterDataTypeName(REGISTER_Y, true, false));
     moreInfoOnError("In function fnAdd:", errorMessage, errorMessage + ERROR_MESSAGE_LENGTH/2, NULL);
@@ -429,13 +429,14 @@ void addRealDate(void) {
 
 static void _addString(const char *stringToAppend) {
   int16_t len1, len2;
-  int16_t yStrLen = stringByteLength(REGISTER_STRING_DATA(REGISTER_Y));  // captured before displayCalcErrorMessage overwrites tmpString, which stringToAppend points into
-  int16_t xStrLen = stringByteLength(stringToAppend);
 
-  if(yStrLen + xStrLen >= MAX_STRING_BYTE_LENGTH) {
-    displayCalcErrorMessage(ERROR_STRING_WOULD_BE_TOO_LONG, ERR_REGISTER_LINE);
+  if(stringGlyphLength(REGISTER_STRING_DATA(REGISTER_Y)) + stringGlyphLength(stringToAppend) > MAX_NUMBER_OF_GLYPHS_IN_STRING) {
+    displayCalcErrorMessage(ERROR_STRING_WOULD_BE_TOO_LONG, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      sprintf(errorMessage, "the resulting string would be %d (Y %d + X %d) bytes long. Maximum is %d", yStrLen + xStrLen, yStrLen, xStrLen, MAX_STRING_BYTE_LENGTH - 1);
+      sprintf(errorMessage, "the resulting string would be %d (Y %d + X %d) characters long. Maximum is %d",
+                                                           stringGlyphLength(REGISTER_STRING_DATA(REGISTER_Y)) + stringGlyphLength(stringToAppend),
+                                                                 stringGlyphLength(REGISTER_STRING_DATA(REGISTER_Y)),
+                                                                        stringGlyphLength(stringToAppend),  MAX_NUMBER_OF_GLYPHS_IN_STRING);
       moreInfoOnError("In function _addString:", errorMessage, NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
   }
@@ -537,7 +538,7 @@ void addStriCxma(void) {
  * \return void
  ***********************************************/
 void addStriShoI(void) {
-  shortIntegerToDisplayString(REGISTER_X, tmpString, false, noBaseOverride, SCREEN_WIDTH);
+  shortIntegerToDisplayString(REGISTER_X, tmpString, false, noBaseOverride);
   _addString(tmpString);
 }
 
@@ -646,16 +647,13 @@ void addRemaRema(void) {
 
   linkToRealMatrixRegister(REGISTER_Y, &y);
   convertReal34MatrixRegisterToReal34Matrix(REGISTER_X, &x);
-  if(lastErrorCode != 0) {
-    return;
-  }
 
   addRealMatrices(&y, &x, &x);
   if(x.matrixElements) {
     convertReal34MatrixToReal34MatrixRegister(&x, REGISTER_X);
   }
   else {
-    displayCalcErrorMessage(ERROR_MATRIX_MISMATCH, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_MATRIX_MISMATCH, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "cannot add %d" STD_CROSS "%d-matrix to %d" STD_CROSS "%d-matrix",
               x.header.matrixRows, x.header.matrixColumns,
@@ -677,9 +675,6 @@ void addRemaRema(void) {
  ***********************************************/
 void addRemaCxma(void) {
   convertReal34MatrixRegisterToComplex34MatrixRegister(REGISTER_Y, REGISTER_Y);
-  if(lastErrorCode != 0) {
-    return;
-  }
   addCxmaCxma();
 }
 
@@ -693,9 +688,6 @@ void addRemaCxma(void) {
  ***********************************************/
 void addCxmaRema(void) {
   convertReal34MatrixRegisterToComplex34MatrixRegister(REGISTER_X, REGISTER_X);
-  if(lastErrorCode != 0) {
-    return;
-  }
   addCxmaCxma();
 }
 
@@ -823,9 +815,6 @@ void addRealRema(void) {
  ***********************************************/
 void addRemaCplx(void) {
   convertReal34MatrixRegisterToComplex34MatrixRegister(REGISTER_Y, REGISTER_Y);
-  if(lastErrorCode != 0) {
-    return;
-  }
   addCxmaCplx();
 }
 
@@ -839,9 +828,6 @@ void addRemaCplx(void) {
  ***********************************************/
 void addCplxRema(void) {
   convertReal34MatrixRegisterToComplex34MatrixRegister(REGISTER_X, REGISTER_X);
-  if(lastErrorCode != 0) {
-    return;
-  }
   addCplxCxma();
 }
 
@@ -917,16 +903,13 @@ void addCxmaCxma(void) {
 
   linkToComplexMatrixRegister(REGISTER_Y, &y);
   convertComplex34MatrixRegisterToComplex34Matrix(REGISTER_X, &x);
-  if(lastErrorCode != 0) {
-    return;
-  }
 
   addComplexMatrices(&y, &x, &x);
   if(x.matrixElements) {
     convertComplex34MatrixToComplex34MatrixRegister(&x, REGISTER_X);
   }
   else {
-    displayCalcErrorMessage(ERROR_MATRIX_MISMATCH, ERR_REGISTER_LINE);
+    displayCalcErrorMessage(ERROR_MATRIX_MISMATCH, ERR_REGISTER_LINE, REGISTER_X);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "cannot add %d" STD_CROSS "%d-matrix to %d" STD_CROSS "%d-matrix",
               x.header.matrixRows, x.header.matrixColumns,

@@ -59,18 +59,17 @@ TO_QSPI const uint16_t refreshStateFlags[] = {       //these flags need to updat
   FLAG_YMD, FLAG_DMY, FLAG_MDY, FLAG_TDM24, FLAG_CPXRES, FLAG_SPCRES,
   FLAG_CPXj, FLAG_POLAR, FLAG_LEAD0, FLAG_DENANY, FLAG_DENFIX, FLAG_SSIZE8,
   FLAG_MULTx, FLAG_ENGOVR, FLAG_ENDPMT, FLAG_HPRP, FLAG_MNUp1, FLAG_HPBASE,
-  FLAG_NUMLOCK, FLAG_CPXMULT, FLAG_ERPN, FLAG_CARRY, FLAG_OVERFLOW, FLAG_FRCYC, FLAG_M_ALL,
-  FLAG_LARGELI, FLAG_alphaCAP, FLAG_2TO10, FLAG_AMORT_HP12C, FLAG_CPXPLOT, FLAG_IMPLOT, FLAG_SHOWX, FLAG_SHOWY,
+  FLAG_NUMLOCK, FLAG_CPXMULT, FLAG_ERPN, FLAG_CARRY, FLAG_OVERFLOW, FLAG_FRCYC,
+  FLAG_LARGELI, FLAG_alphaCAP, FLAG_2TO10, FLAG_AMORT_HP12C, FLAG_CPXPLOT, FLAG_SHOWX, FLAG_SHOWY,
   FLAG_PBOX, FLAG_PCURVE, FLAG_PCROS, FLAG_PPLUS, FLAG_PLINE, FLAG_SCALE,
-  FLAG_VECT, FLAG_NVECT, FLAG_TOPHEX, FLAG_FGGR, FLAG_BOLD, FLAG_SIGZEROS,
-  FLAG_PRMS, FLAG_PINTG, FLAG_PDIFF, FLAG_PSHADE, FLAG_PL_2L, FLAG_AUTOVALID
+  FLAG_VECT, FLAG_NVECT, FLAG_TOPHEX, FLAG_FGGR, FLAG_BOLD, FLAG_SIGZEROS
 };
 
 TO_QSPI const uint16_t clearStatusBarFlags[] = {       //these flags need to clear the statusbar and start SB again
   FLAG_SBdate, FLAG_SBcr, FLAG_SBcpx, FLAG_SBang, FLAG_SBint, FLAG_SBmx,
   FLAG_SBtvm, FLAG_SBoc, FLAG_SBss, FLAG_SBstpw, FLAG_SBser, FLAG_SBprn,
   FLAG_SBbatV, FLAG_SBshfR, FLAG_SBfrac, FLAG_SBwoy, FLAG_SBtime, FLAG_FRACT,
-  FLAG_IRFRAC, FLAG_IRFRQ, FLAG_SBadm
+  FLAG_IRFRAC, FLAG_IRFRQ
 };
 
 static void systemFlagAction(uint16_t systemFlag, flagAction_t action) {
@@ -106,28 +105,12 @@ doInteractionFlags:
               lastIntegerBase = 0; //needed to reset the annunciator
               break;
 
-    case FLAG_SBadm:
-    case FLAG_SBang:
-              if(systemFlag == FLAG_SBadm && !getSystemFlag(FLAG_SBadm)) {  //the basic angular mode annunciator cannot remain without the angular mode display
-                _clearSystemFlag(FLAG_SBang);
-              }
-              else if(systemFlag == FLAG_SBang && getSystemFlag(FLAG_SBang)) { //and the basic annunciator requires the angular mode display
-                _setSystemFlag(FLAG_SBadm);
-              }
-              break;
-
-    case FLAG_SBdate:
-              if(getSystemFlag(FLAG_SBdate) && getSystemFlag(FLAG_SBtime) && getSystemFlag(FLAG_SBwoy)) {
-                _clearSystemFlag(FLAG_SBtime);  // date, time and WoY do not fit together; the default clears the time
-              }
-              break;
-
     case FLAG_SBwoy :
     case FLAG_SBtime:
-              if(systemFlag == FLAG_SBtime && getSystemFlag(FLAG_SBtime) && getSystemFlag(FLAG_SBdate)) {    // time and WoY are exclusive only while the date shows;
+              if(systemFlag == FLAG_SBtime && getSystemFlag(FLAG_SBtime)) {
                 _clearSystemFlag(FLAG_SBwoy);
               }
-              else if(systemFlag == FLAG_SBwoy && getSystemFlag(FLAG_SBwoy) && getSystemFlag(FLAG_SBdate)) { // with the date off both fit, the time in the date position.
+              else if(systemFlag == FLAG_SBwoy && getSystemFlag(FLAG_SBwoy)) {
                 _clearSystemFlag(FLAG_SBtime);
               }
               break;
@@ -153,118 +136,8 @@ doInteractionFlags:
               }
               break;
 
-    // Graph plot marker interlocks: at least one of PLINE/PBOX/PCROS/PPLUS stays on;
-    // PBOX/PCROS/PPLUS are mutually exclusive; PCURVE implies PLINE
-    case FLAG_PLINE:
-              if(!getSystemFlag(FLAG_PLINE) && !getSystemFlag(FLAG_PCROS) && !getSystemFlag(FLAG_PBOX) && !getSystemFlag(FLAG_PPLUS)) {
-                _setSystemFlag(FLAG_PBOX);
-              }
-              if(!getSystemFlag(FLAG_PLINE)) {
-                _clearSystemFlag(FLAG_PCURVE);
-              }
-              break;
-
-    case FLAG_PBOX:
-              if(getSystemFlag(FLAG_PBOX)) {
-                _clearSystemFlag(FLAG_PCROS);
-                _clearSystemFlag(FLAG_PPLUS);
-              }
-              if(!getSystemFlag(FLAG_PCROS) && !getSystemFlag(FLAG_PBOX) && !getSystemFlag(FLAG_PPLUS)) {
-                _setSystemFlag(FLAG_PLINE);
-              }
-              break;
-
-    case FLAG_PCROS:
-              if(getSystemFlag(FLAG_PCROS)) {
-                _clearSystemFlag(FLAG_PBOX);
-                _clearSystemFlag(FLAG_PPLUS);
-              }
-              if(!getSystemFlag(FLAG_PCROS) && !getSystemFlag(FLAG_PBOX) && !getSystemFlag(FLAG_PPLUS)) {
-                _setSystemFlag(FLAG_PLINE);
-              }
-              break;
-
-    case FLAG_PPLUS:
-              if(getSystemFlag(FLAG_PPLUS)) {
-                _clearSystemFlag(FLAG_PBOX);
-                _clearSystemFlag(FLAG_PCROS);
-              }
-              if(!getSystemFlag(FLAG_PCROS) && !getSystemFlag(FLAG_PBOX) && !getSystemFlag(FLAG_PPLUS)) {
-                _setSystemFlag(FLAG_PLINE);
-              }
-              break;
-
-    case FLAG_PCURVE:
-              if(getSystemFlag(FLAG_PCURVE)) {
-                _setSystemFlag(FLAG_PLINE);
-              }
-              break;
-
-    // Graph plot overlay interlocks: overlays and vectors are mutually exclusive groups;
-    // PSHADE implies PINTG (nothing to shade without the integral)
-    case FLAG_PINTG:
-              if(getSystemFlag(FLAG_PINTG)) {
-                _clearSystemFlag(FLAG_VECT);
-                _clearSystemFlag(FLAG_NVECT);
-              }
-              else {
-                _clearSystemFlag(FLAG_PSHADE);
-              }
-              break;
-
-    case FLAG_PDIFF:
-    case FLAG_PRMS:
-              if(getSystemFlag(systemFlag)) {
-                _clearSystemFlag(FLAG_VECT);
-                _clearSystemFlag(FLAG_NVECT);
-              }
-              break;
-
-    case FLAG_PSHADE:
-              if(getSystemFlag(FLAG_PSHADE)) {
-                _setSystemFlag(FLAG_PINTG);
-                _clearSystemFlag(FLAG_VECT);
-                _clearSystemFlag(FLAG_NVECT);
-              }
-              break;
-
-    case FLAG_VECT:
-              if(getSystemFlag(FLAG_VECT)) {
-                _clearSystemFlag(FLAG_NVECT);
-                _clearSystemFlag(FLAG_PINTG);
-                _clearSystemFlag(FLAG_PDIFF);
-                _clearSystemFlag(FLAG_PRMS);
-                _clearSystemFlag(FLAG_PSHADE);
-              }
-              break;
-
-    case FLAG_NVECT:
-              if(getSystemFlag(FLAG_NVECT)) {
-                _clearSystemFlag(FLAG_VECT);
-                _clearSystemFlag(FLAG_PINTG);
-                _clearSystemFlag(FLAG_PDIFF);
-                _clearSystemFlag(FLAG_PRMS);
-                _clearSystemFlag(FLAG_PSHADE);
-              }
-              break;
-
-    // Complex plot interlocks: CPXPLOT and IMPLOT are mutually exclusive
-    case FLAG_CPXPLOT:
-              if(getSystemFlag(FLAG_CPXPLOT)) {
-                _clearSystemFlag(FLAG_IMPLOT);
-              }
-              break;
-
-    case FLAG_IMPLOT:
-              if(getSystemFlag(FLAG_IMPLOT)) {
-                _clearSystemFlag(FLAG_CPXPLOT);
-              }
-              break;
-
     default: break;
   }
-
-  updateShiftOnTline();                                // a status bar setting can have taken the room for the shift indicator, or given it back
 }
 
 void setSystemFlag(unsigned int sf) {
@@ -451,7 +324,7 @@ void fnSetFlag(uint16_t flag) {
       if(programRunStop == PGM_WAITING) {
         programRunStop = PGM_STOPPED;
       }
-      displayCalcErrorMessage(ERROR_WRITE_PROTECTED_SYSTEM_FLAG, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_WRITE_PROTECTED_SYSTEM_FLAG, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "protected system flag (%" PRIu16 ")!", (uint16_t)(flag & 0x3fff));
         moreInfoOnError("In function fnSetFlag:", "Tying to set a write", errorMessage, NULL);
@@ -522,7 +395,7 @@ void fnClearFlag(uint16_t flag) {
       if(programRunStop == PGM_WAITING) {
         programRunStop = PGM_STOPPED;
       }
-      displayCalcErrorMessage(ERROR_WRITE_PROTECTED_SYSTEM_FLAG, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_WRITE_PROTECTED_SYSTEM_FLAG, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "protected system flag (%" PRIu16 ")!", (uint16_t)(flag & 0x3fff));
         moreInfoOnError("In function fnClearFlag:", "Tying to clear a write", errorMessage, NULL);
@@ -594,7 +467,7 @@ void fnFlipFlag(uint16_t flag) {
       if(programRunStop == PGM_WAITING) {
         programRunStop = PGM_STOPPED;
       }
-      displayCalcErrorMessage(ERROR_WRITE_PROTECTED_SYSTEM_FLAG, ERR_REGISTER_LINE);
+      displayCalcErrorMessage(ERROR_WRITE_PROTECTED_SYSTEM_FLAG, ERR_REGISTER_LINE, REGISTER_X);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "protected system flag (%" PRIu16 ")!", (uint16_t)(flag & 0x3fff));
         moreInfoOnError("In function fnFlipFlag:", "Tying to flip a write", errorMessage, NULL);
@@ -765,13 +638,11 @@ TO_QSPI const uint16_t flipFlags[] = {                   // Flags that have HP42
   FLAG_CPXRES,
   FLAG_SPCRES,
   FLAG_ERPN,
-  FLAG_M_ALL,
   FLAG_CARRY,
   FLAG_OVERFLOW,
   FLAG_FRCYC,
   FLAG_CPXMULT,
   FLAG_CPXPLOT,
-  FLAG_IMPLOT,
   FLAG_SHOWX,
   FLAG_SHOWY,
   FLAG_PBOX,
@@ -782,11 +653,6 @@ TO_QSPI const uint16_t flipFlags[] = {                   // Flags that have HP42
   FLAG_SCALE,
   FLAG_VECT,
   FLAG_NVECT,
-  FLAG_PRMS,
-  FLAG_PINTG,
-  FLAG_PDIFF,
-  FLAG_PSHADE,
-  FLAG_PL_2L,
   FLAG_TOPHEX,
   FLAG_BCD,
   FLAG_LARGELI,
@@ -796,8 +662,7 @@ TO_QSPI const uint16_t flipFlags[] = {                   // Flags that have HP42
   FLAG_SHFT_4s,
   FLAG_FGGR,
   FLAG_TRACE,
-  FLAG_NORM,
-  FLAG_AUTOVALID
+  FLAG_NORM
 };
 
 
