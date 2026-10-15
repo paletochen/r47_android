@@ -91,14 +91,13 @@ decimal128 *decimal128FromNumber(decimal128 *d128, const decNumber *dn, decConte
     return d128;
 }
 
-void realRectangularToPolar(const real_t *x, const real_t *y, real_t *r, real_t *theta, decContext *set) {
-    (void)set;
-    if (r && x) *r = *x;
-    if (theta && y) *theta = *y;
+void real34RectangularToPolar(const real34_t *real34, const real34_t *imag34, real34_t *magnitude34, real34_t *theta34) {
+    if (magnitude34 && real34) *magnitude34 = *real34;
+    if (theta34 && imag34) *theta34 = *imag34;
 }
 
-void convertAngleFromTo(real_t *angle, angularMode_t from, angularMode_t to, decContext *set) {
-    (void)angle; (void)from; (void)to; (void)set;
+void convertAngle34FromTo(real34_t *angle34, angularMode_t from, angularMode_t to) {
+    (void)angle34; (void)from; (void)to;
 }
 decQuad *decQuadReduce(decQuad *df, const decQuad *dn, decContext *set) {
     (void)set;

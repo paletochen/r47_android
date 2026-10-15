@@ -127,18 +127,12 @@ static void formatRegisterString(calcRegister_t regist, char *result, size_t max
         if(angMode == amNone) {
           angMode = currentAngularMode;
         }
-        real_t real, imagIc;
         real34_t mag34, ang34, reduced;
-        real34ToReal((const real34_t *)getRegisterDataPointer(regist), &real);
-        real34ToReal(((const real34_t *)getRegisterDataPointer(regist)) + 1, &imagIc);
+        const real34_t *real34 = (const real34_t *)getRegisterDataPointer(regist);
+        const real34_t *imag34 = real34 + 1;
 
-        decContext c = ctxtReal39;
-        c.digits = 39;
-        realRectangularToPolar(&real, &imagIc, &real, &imagIc, &c);
-        convertAngleFromTo(&imagIc, amRadian, angMode, &c);
-
-        realToReal34(&real, &mag34);
-        realToReal34(&imagIc, &ang34);
+        real34RectangularToPolar(real34, imag34, &mag34, &ang34);
+        convertAngle34FromTo(&ang34, amRadian, angMode);
 
         char tmpMag[100];
         real34Reduce(&mag34, &reduced);
