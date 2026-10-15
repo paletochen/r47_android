@@ -137,9 +137,10 @@ echo "--- Resolving signature conflicts in implementations ---"
 echo "--- Fixing function call signatures ---"
 # Standardized to refreshLcd(NULL) / refreshTimer(NULL) in source, no sed needed.
 
-# 5. Disable problematic GTK code in softmenus.c
+# 5. Disable problematic GTK code in softmenus.c and expose changeSoftKey
 sed -i 's|gtk_widget_queue_draw(screen);|// stub|g' "$CPP_DIR/c47/softmenus.c"
 sed -i 's|while(gtk_events_pending())|if(0)|g' "$CPP_DIR/c47/softmenus.c"
+sed -i 's/^[[:space:]]*static void changeSoftKey(/void changeSoftKey(/' "$CPP_DIR/c47/softmenus.c"
 
 # 6. Make restoreRegister non-static for JNI pasteTextNative
 sed -i 's/^[[:space:]]*static void restoreRegister(/  void restoreRegister(/' "$CPP_DIR/c47/saveRestoreCalcState.c"
