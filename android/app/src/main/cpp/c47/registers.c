@@ -2119,7 +2119,7 @@ int16_t indirectAddressing(calcRegister_t regist, uint16_t parameterType, int16_
 
 
 
-void reallocateRegister(calcRegister_t regist, uint32_t dataType, uint32_t dataSizeWithoutDataLenBlocks, uint32_t tag) { // dataSize without data length in blocks, this includes the trailing 0 for strings
+void reallocateRegister(calcRegister_t regist, uint32_t dataType, uint16_t dataSizeWithoutDataLenBlocks, uint32_t tag) { // dataSize without data length in blocks, this includes the trailing 0 for strings
   switch(dataType) {
     case dtComplex34:       dataSizeWithoutDataLenBlocks = COMPLEX34_SIZE_IN_BLOCKS;     break;
 
