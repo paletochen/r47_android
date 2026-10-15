@@ -144,6 +144,15 @@ sed -i 's|while(gtk_events_pending())|if(0)|g' "$CPP_DIR/c47/softmenus.c"
 # 6. Make restoreRegister non-static for JNI pasteTextNative
 sed -i 's/^[[:space:]]*static void restoreRegister(/  void restoreRegister(/' "$CPP_DIR/c47/saveRestoreCalcState.c"
 
+# 7. Hook printPrettyLine in Android printLine
+sed -i '/void printLine(const char \*buff, int with_lf) {/a \
+#if defined(ANDROID_BUILD)\
+  if(with_lf && buff && buff[0]) {\
+    extern void printPrettyLine(const char *str);\
+    printPrettyLine(buff);\
+  }\
+#endif' "$CPP_DIR/c47/printing/print.c"
+
 # Copy decNumberICU
 rm -rf "$CPP_DIR/decNumberICU"
 cp -r dep/decNumberICU "$CPP_DIR/"

@@ -3,10 +3,6 @@
 
 #include "c47.h"
 
-#if defined(ANDROID_BUILD)
-  extern void printPrettyLine(const char *str);
-#endif
-
 
 #if defined(OPTION_IR_PRINTING)
 
@@ -696,6 +692,7 @@ static void wrap(int width) {
 void printLine(const char *buff, int with_lf) {
 #if defined(ANDROID_BUILD)
   if(with_lf && buff && buff[0]) {
+    extern void printPrettyLine(const char *str);
     printPrettyLine(buff);
   }
 #endif
