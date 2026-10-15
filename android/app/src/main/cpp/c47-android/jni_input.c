@@ -2,7 +2,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "mathematics/toRect.h"
 
 extern void btnFnPressed(GtkWidget *notUsed, GdkEvent *event, gpointer data);
 extern void btnFnReleased(GtkWidget *notUsed, GdkEvent *event, gpointer data);
@@ -765,10 +764,12 @@ static bool_t tryPasteComplex(const char *rawInput) {
       real34_t mag34, ang34;
       if(parseRealToken(magStr, &mag34) && parseRealToken(angStr, &ang34)) {
         convertAngle34FromTo(&ang34, angMode, amRadian);
-        real_t rMag, rAng, rRe, rIm;
+        real_t rMag, rAng, rSin, rCos, rRe, rIm;
         real34ToReal(&mag34, &rMag);
         real34ToReal(&ang34, &rAng);
-        realPolarToRectangular(&rMag, &rAng, &rRe, &rIm, &ctxtReal39);
+        C47_WP34S_Cvt2RadSinCosTan(&rAng, amRadian, &rSin, &rCos, NULL, &ctxtReal39);
+        realMultiply(&rMag, &rCos, &rRe, &ctxtReal39);
+        realMultiply(&rMag, &rSin, &rIm, &ctxtReal39);
         realToReal34(&rRe, &reVal);
         realToReal34(&rIm, &imVal);
         tag = (angMode & amAngleMask) | amPolar;
