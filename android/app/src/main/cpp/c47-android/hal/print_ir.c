@@ -74,7 +74,6 @@ static void flushPrettyBuffer(void) {
   if(pretty_line_len == 0) {
     return;
   }
-  appendToFile(5 /* PRINT */, "prettyprinter_output.txt", pretty_line_buf, pretty_line_len);
   appendToFile(5 /* PRINT */, "prettyprint_output.txt", pretty_line_buf, pretty_line_len);
   pretty_line_len = 0;
 }

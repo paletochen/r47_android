@@ -784,6 +784,10 @@ void test_printer_ir_virtual_output(void) {
     sendByteIR('o');
     sendByteIR('\n'); // newline triggers line buffer processing
 
+    // Test printPrettyLine emits formatted line to unique prettyprint_output.txt
+    extern void printPrettyLine(const char *str);
+    printPrettyLine("TEST PRETTY LINE");
+
     // Verify PRN_XFN item mapping exists in items table
     #if !defined(PRN_XFN)
     #define PRN_XFN 9
