@@ -8,30 +8,15 @@
 #include "c47.h"
 
 static void arccosCplx(void) {
-  real_t a, b, real, imag;
+  cplx_t x, r;
 
-  if(!getRegisterAsComplex(REGISTER_X, &a, &b)) {
+  if(!getRegisterAsComplex(REGISTER_X, &x)) {
     return;
   }
 
-  // arccos(z) = -i.ln(z + i.sqrt(1 - z²))
-  // calculate i.sqrt(1 - z²)
-  realMinus(&b, &real, &ctxtReal39);
-  sqrt1Px2Complex(&real, &a, &imag, &real, &ctxtReal39);
-  realChangeSign(&real);
+  ArcsinAcosComplex(&x, &r, true, &ctxtReal39);
 
-  // calculate z + i.sqrt(1 - z²)
-  realAdd(&a, &real, &real, &ctxtReal39);
-  realAdd(&b, &imag, &imag, &ctxtReal39);
-
-  // calculate ln(z + i.sqrt(1 - z²))
-  lnComplex(&real, &imag, &real, &imag, &ctxtReal39);
-
-  // calculate = -i.ln(z + i.sqrt(1 - z²))
-  realMinus(&real, &a, &ctxtReal39);
-  realCopy(&imag, &b);
-
-  convertComplexToResultRegister(&b, &a, REGISTER_X);
+  convertComplexToResultRegister(&r, REGISTER_X);
 }
 
 
@@ -46,7 +31,15 @@ static void arccosReal(void) {
 
   if(realCompareAbsGreaterThan(&x, const_1)) {
     if(getFlag(FLAG_CPXRES)) {
-      arccosCplx();
+      cplx_t z;
+
+      realCopy(&x, &z.Real);
+      realSetZero(&z.Imag);
+      if(!realIsNegative(&x)) {
+        realSetNegativeSign(&z.Imag);
+      }
+      ArcsinAcosComplex(&z, &z, true, &ctxtReal39);
+      convertComplexToResultRegister(&z, REGISTER_X);
       return;
     }
     else if(getSystemFlag(FLAG_SPCRES)) {
@@ -61,8 +54,14 @@ static void arccosReal(void) {
     }
   }
   else if(!exactArcSinCosAngle(&x, true, &x)) {
-    C47_WP34S_Acos(&x, &x, &ctxtReal39);
-    convertAngleFromTo(&x, amRadian, currentAngularMode, &ctxtReal39);
+    if(currentAngularMode != amRadian && realCompareAbsLessThan(&x, const_1on2)) {   // 90° less arcsin x: the right angle is exact outside radians
+      C47_WP34S_Asin(&x, &x, &ctxtReal39);
+      rightAngleLessRadians(&x, false);
+    }
+    else {
+      C47_WP34S_Acos(&x, &x, &ctxtReal39);
+      convertAngleFromTo(&x, amRadian, currentAngularMode, &ctxtReal39);
+    }
   }
   convertRealToResultRegister(r, REGISTER_X, currentAngularMode);
 }

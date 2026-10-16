@@ -54,17 +54,17 @@ static void argReal(void) {
 
 
 static void argCplx(void) {
-  real_t real, imag;
+  cplx_t x;
 
-  if(!getRegisterAsComplex(REGISTER_X, &real, &imag)) {
+  if(!getRegisterAsComplex(REGISTER_X, &x)) {
     return;
   }
 
-  realRectangularToPolar(&real, &imag, &real, &imag, &ctxtReal39);
-  convertAngleFromTo(&imag, amRadian, currentAngularMode, &ctxtReal39);
+  C47_WP34S_Atan2(&x.Imag, &x.Real, &x.Arg, &ctxtReal39);
+  convertAngleFromTo(&x.Arg, amRadian, currentAngularMode, &ctxtReal39);
 
   reallocateRegister(REGISTER_X, dtReal34, 0, currentAngularMode);
-  convertRealToReal34ResultRegister(&imag, REGISTER_X);
+  convertRealToReal34ResultRegister(&x.Arg, REGISTER_X);
 }
 
 
@@ -94,13 +94,16 @@ static void argRema(void) {
 static void argCxma(void) {
   complex34Matrix_t cMat;
   real34Matrix_t rMat;
-  real34_t dummy;
 
   linkToComplexMatrixRegister(REGISTER_X, &cMat);
   if(realMatrixInit(&rMat, cMat.header.matrixRows, cMat.header.matrixColumns)) {
     for(uint16_t i = 0; i < cMat.header.matrixRows * cMat.header.matrixColumns; ++i) {
-      real34RectangularToPolar(VARIABLE_REAL34_DATA(&cMat.matrixElements[i]), VARIABLE_IMAG34_DATA(&cMat.matrixElements[i]), &dummy, &rMat.matrixElements[i]);
-      convertAngle34FromTo(&rMat.matrixElements[i], amRadian, currentAngularMode);
+      cplx_t z;
+      real34ToReal(VARIABLE_REAL34_DATA(&cMat.matrixElements[i]), &z.Real);
+      real34ToReal(VARIABLE_IMAG34_DATA(&cMat.matrixElements[i]), &z.Imag);
+      C47_WP34S_Atan2(&z.Imag, &z.Real, &z.Arg, &ctxtReal39);
+      convertAngleFromTo(&z.Arg, amRadian, currentAngularMode, &ctxtReal39);
+      realToReal34(&z.Arg, &rMat.matrixElements[i]);
     }
 
     convertReal34MatrixToReal34MatrixRegister(&rMat, REGISTER_X);

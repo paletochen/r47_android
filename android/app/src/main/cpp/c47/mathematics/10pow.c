@@ -11,6 +11,28 @@ static void tenPowReal(void);
 
 
 void realPower10(const real_t *x, real_t *res, realContext_t *realContext) {
+  bool_t error;
+  int32_t exponent;
+
+  if(!realIsSpecial(x)) {
+    exponent = realToInt32C47(x, &error);
+    if(!error && exponent <= DECQUAD_Emax && exponent >= DECQUAD_Emin - DECQUAD_Pmax + 1 && exponent < realContext->emax && exponent > realContext->emin) {
+      REAL_T_PTR(integerPart, 39);
+
+      int32ToReal(exponent, integerPart);
+      realSubtract(x, integerPart, res, realContext);
+      if(realIsZero(res)) {
+        realSetOne(res);
+      }
+      else {
+        realMultiply(res, const39_ln10, res, realContext);
+        realExp(res, res, realContext);
+      }
+      res->exponent += exponent;
+      return;
+    }
+  }
+
   realMultiply(x, const39_ln10, res, realContext);
   realExp(res, res, realContext);
 }
@@ -89,14 +111,7 @@ void intPowReal(void (*powf)(const real_t *x, real_t *res, realContext_t *realCo
     return;
   }
 
-  real_t p;
-
-  if(realIntegerPowerExact(powf == &realPower2 ? const_2 : const_10, &x, &p)) {   // an integer exponent gives the exact power
-    realCopy(&p, &x);
-  }
-  else {
-    (*powf)(&x, &x, &ctxtReal39);
-  }
+  (*powf)(&x, &x, &ctxtReal39);
   convertRealToResultRegister(&x, REGISTER_X, amNone);
 }
 
@@ -105,28 +120,52 @@ static void tenPowReal(void) {
 }
 
 
-void intPowCplx(const real_t *lnBase) {
-  real_t a, b, factor;
+void intPowCplx(void (*powf)(const real_t *x, real_t *res, realContext_t *realContext), const real_t *lnBase) {
+  cplx_t x;
+  REAL_T_PTR(factor, 39);
 
-  if(!getRegisterAsComplex(REGISTER_X, &a, &b)) {
+  if(!getRegisterAsComplex(REGISTER_X, &x)) {
     return;
   }
 
-  // ln(10) * (a + bi) --> (a + bi)
-  realMultiply(lnBase, &a, &a, &ctxtReal39);
-  realMultiply(lnBase, &b, &b, &ctxtReal39);
+  if(realIsZero(&x.Imag)) {
+    (*powf)(&x.Real, &x.Real, &ctxtReal39);
+    realSetZero(&x.Imag);
+    convertComplexToResultRegister(&x, REGISTER_X);
+    return;
+  }
 
-  // exp(ln(10) * (a + bi)) --> (a + bi)
-  realExp(&a, &factor, &ctxtReal39);
-  realPolarToRectangular(const_1, &b, &a, &b, &ctxtReal39);
-  realMultiply(&factor, &a, &a, &ctxtReal39);
-  realMultiply(&factor, &b, &b, &ctxtReal39);
+  (*powf)(&x.Real, factor, &ctxtReal39);
+  realMultiply(lnBase, &x.Imag, &x.Imag, &ctxtReal75);
+  realPolarToRectangular(const_1, &x.Imag, &x, &ctxtReal75);
+  realMultiply(factor, &x.Real, &x.Real, &ctxtReal39);
+  realMultiply(factor, &x.Imag, &x.Imag, &ctxtReal39);
 
-  convertComplexToResultRegister(&a, &b, REGISTER_X);
+  convertComplexToResultRegister(&x, REGISTER_X);
 }
 
 static void tenPowCplx(void) {
-  intPowCplx(const39_ln10);
+  cplx_t x;
+  REAL_T_PTR(factor, 39);
+
+  if(!getRegisterAsComplex(REGISTER_X, &x)) {
+    return;
+  }
+
+  if(realIsZero(&x.Imag)) {
+    realPower10(&x.Real, &x.Real, &ctxtReal39);
+    realSetZero(&x.Imag);
+    convertComplexToResultRegister(&x, REGISTER_X);
+    return;
+  }
+
+  realPower10(&x.Real, factor, &ctxtReal39);
+  realMultiply(const75_ln10, &x.Imag, &x.Imag, &ctxtReal75);
+  realPolarToRectangular(const_1, &x.Imag, &x, &ctxtReal75);
+  realMultiply(factor, &x.Real, &x.Real, &ctxtReal39);
+  realMultiply(factor, &x.Imag, &x.Imag, &ctxtReal39);
+
+  convertComplexToResultRegister(&x, REGISTER_X);
 }
 
 

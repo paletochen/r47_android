@@ -112,6 +112,11 @@ static inline void print_caller(const char *format, ...) {}
   * \param[in] x x coordinate from 0 (left) to 399 (right)
   * \param[in] y y coordinate from 0 (top) to 239 (bottom)
   */
+#if defined(DMCP_BUILD)
+  void setBlackPixel(uint32_t x, uint32_t y);
+  void setWhitePixel(uint32_t x, uint32_t y);
+  void flipPixel    (uint32_t x, uint32_t y);
+#else // !DMCP_BUILD
   static inline void setBlackPixel(uint32_t x, uint32_t y) {
     bitblt24(x, 1, y, 1, BLT_OR,   BLT_NONE);
   }
@@ -135,4 +140,5 @@ static inline void print_caller(const char *format, ...) {}
   static inline void flipPixel(uint32_t x, uint32_t y) {
     bitblt24(x, 1, y, 1, BLT_XOR,  BLT_NONE);
   }
+#endif // DMCP_BUILD
 #endif // !LCD_H

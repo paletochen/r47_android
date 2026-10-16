@@ -51,18 +51,19 @@ void fnUnitVector(uint16_t unusedButMandatoryParameter) {
 
 
 void unitVectorCplx(void) {
-  real_t a, b, norm;
+  real_t norm;
+  cplx_t x;
 
-  real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &a);
-  real34ToReal(REGISTER_IMAG34_DATA(REGISTER_X), &b);
+  real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &x.Real);
+  real34ToReal(REGISTER_IMAG34_DATA(REGISTER_X), &x.Imag);
 
-  realMultiply(&a, &a, &norm, &ctxtReal39);
-  realFMA(&b, &b, &norm, &norm, &ctxtReal39);
+  realMultiply(&x.Real, &x.Real, &norm, &ctxtReal39);
+  realFMA(&x.Imag, &x.Imag, &norm, &norm, &ctxtReal39);
   realSquareRoot(&norm, &norm, &ctxtReal39);
-  realDivide(&a, &norm, &a, &ctxtReal39);
-  realDivide(&b, &norm, &b, &ctxtReal39);
+  realDivide(&x.Real, &norm, &x.Real, &ctxtReal39);
+  realDivide(&x.Imag, &norm, &x.Imag, &ctxtReal39);
 
-  convertComplexToResultRegister(&a, &b, REGISTER_X);
+  convertComplexToResultRegister(&x, REGISTER_X);
 }
 
 
@@ -91,25 +92,32 @@ void unitVectorRema(void) {
 
 void unitVectorCxma(void) {
   complex34Matrix_t matrix;
-  real_t real, imag, sum;
+  cplx_t elem, sum;
 
   linkToComplexMatrixRegister(REGISTER_X, &matrix);
 
-  realSetZero(&sum);
+  realSetZero(&sum.Real);
   for(int i = 0; i < matrix.header.matrixRows * matrix.header.matrixColumns; ++i) {
-    real34ToReal(VARIABLE_REAL34_DATA(&matrix.matrixElements[i]), &real);
-    realMultiply(&real, &real, &real, &ctxtReal39);
-    realAdd(&sum, &real, &sum, &ctxtReal39);
-    real34ToReal(VARIABLE_IMAG34_DATA(&matrix.matrixElements[i]), &imag);
-    realMultiply(&imag, &imag, &imag, &ctxtReal39);
-    realAdd(&sum, &imag, &sum, &ctxtReal39);
+    real34ToReal(VARIABLE_REAL34_DATA(&matrix.matrixElements[i]), &elem.Real);
+    realMultiply(&elem.Real, &elem.Real, &elem.Real, &ctxtReal39);
+    realAdd(&sum.Real, &elem.Real, &sum.Real, &ctxtReal39);
+    real34ToReal(VARIABLE_IMAG34_DATA(&matrix.matrixElements[i]), &elem.Imag);
+    realMultiply(&elem.Imag, &elem.Imag, &elem.Imag, &ctxtReal39);
+    realAdd(&sum.Real, &elem.Imag, &sum.Real, &ctxtReal39);
   }
-  realSquareRoot(&sum, &sum, &ctxtReal39);
+  realSquareRoot(&sum.Real, &sum.Real, &ctxtReal39);
+  realSetZero(&sum.Imag);
   for(int i = 0; i < matrix.header.matrixRows * matrix.header.matrixColumns; ++i) {
-    real34ToReal(VARIABLE_REAL34_DATA(&matrix.matrixElements[i]), &real);
-    real34ToReal(VARIABLE_IMAG34_DATA(&matrix.matrixElements[i]), &imag);
-    divComplexComplex(&real, &imag, &sum, const_0, &real, &imag, &ctxtReal39);
-    realToReal34(&real, VARIABLE_REAL34_DATA(&matrix.matrixElements[i]));
-    realToReal34(&imag, VARIABLE_IMAG34_DATA(&matrix.matrixElements[i]));
+    real34ToReal(VARIABLE_REAL34_DATA(&matrix.matrixElements[i]), &elem.Real);
+    real34ToReal(VARIABLE_IMAG34_DATA(&matrix.matrixElements[i]), &elem.Imag);
+    if(realIsSpecial(&elem.Real) || realIsSpecial(&elem.Imag) || realIsSpecial(&sum.Real)) {
+      divComplexComplex(&elem, &sum, &elem, &ctxtReal39);
+    }
+    else {
+      realDivide(&elem.Real, &sum.Real, &elem.Real, &ctxtReal39);
+      realDivide(&elem.Imag, &sum.Real, &elem.Imag, &ctxtReal39);
+    }
+    realToReal34(&elem.Real, VARIABLE_REAL34_DATA(&matrix.matrixElements[i]));
+    realToReal34(&elem.Imag, VARIABLE_IMAG34_DATA(&matrix.matrixElements[i]));
   }
 }

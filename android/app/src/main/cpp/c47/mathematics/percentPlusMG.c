@@ -49,6 +49,36 @@ static bool_t percentPlusMGReal(const real_t *xReal, const real_t *yReal, real_t
   return true;
 }
 
+
+
+static bool_t percentPlusMGExactRegisters(real34_t *result) {
+  int32_t xExponent, yExponent, denominatorExponent;
+  longInteger_t x, y, oneHundred, denominator;
+
+  if(!convertRegisterToScaledLongInteger(REGISTER_X, x, &xExponent)) {
+    return false;
+  }
+  if(!convertRegisterToScaledLongInteger(REGISTER_Y, y, &yExponent)) {
+    longIntegerFree(x);
+    return false;
+  }
+
+  longIntegerInit(oneHundred);
+  uInt32ToLongInteger(1u, oneHundred);
+  addSubtractScaledLongIntegers(oneHundred, 2, x, xExponent, true, denominator, &denominatorExponent);
+  bool_t negativeZero = false;
+  if(longIntegerIsZero(y)) {
+    const bool_t numeratorNegative = getRegisterDataType(REGISTER_Y) == dtReal34 && real34IsNegative(REGISTER_REAL34_DATA(REGISTER_Y));
+    negativeZero = numeratorNegative != longIntegerIsNegative(denominator);
+  }
+  const bool_t ok = divideScaledLongIntegersToReal34(y, yExponent + 2, negativeZero, denominator, denominatorExponent, result);
+  longIntegerFree(denominator);
+  longIntegerFree(oneHundred);
+  longIntegerFree(y);
+  longIntegerFree(x);
+  return ok;
+}
+
 //=============================================================================
 // Main function
 //-----------------------------------------------------------------------------
@@ -64,8 +94,13 @@ static bool_t percentPlusMGReal(const real_t *xReal, const real_t *yReal, real_t
 void fnPercentPlusMG(uint16_t unusedButMandatoryParameter) {
   real_t xReal, yReal;
   real_t rReal;
+  real34_t exactResult;
+  const uint32_t typeX = getRegisterDataType(REGISTER_X);
+  const uint32_t typeY = getRegisterDataType(REGISTER_Y);
+  const bool_t exactQuotient = (typeX == dtLongInteger || typeY == dtLongInteger)
+                               && percentPlusMGExactRegisters(&exactResult);
 
-  if(!getRegisterAsReal(REGISTER_X, &xReal) || !getRegisterAsReal(REGISTER_Y, &yReal)) {
+  if(!exactQuotient && (!getRegisterAsReal(REGISTER_X, &xReal) || !getRegisterAsReal(REGISTER_Y, &yReal))) {
     return;
   }
 
@@ -73,13 +108,17 @@ void fnPercentPlusMG(uint16_t unusedButMandatoryParameter) {
     return;
   }
 
-  if(!percentPlusMGReal(&xReal, &yReal, &rReal, &ctxtReal34)) {
+  if(!exactQuotient && !percentPlusMGReal(&xReal, &yReal, &rReal, &ctxtReal39)) {
     return;
   }
 
   reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-  convertRealToReal34ResultRegister(&rReal, REGISTER_X);
+  if(exactQuotient) {
+    real34Copy(&exactResult, REGISTER_REAL34_DATA(REGISTER_X));
+  }
+  else {
+    convertRealToReal34ResultRegister(&rReal, REGISTER_X);
+  }
   setRegisterAngularMode(REGISTER_X, amNone);
   adjustResult(REGISTER_X, false, true, REGISTER_X, -1, -1);
 }
-

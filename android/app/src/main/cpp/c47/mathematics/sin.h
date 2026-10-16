@@ -10,5 +10,6 @@
   void sinCosReal(trigType_t trigType);
   void sinCosCplx(trigType_t trigType);
   void fnSin     (uint16_t unusedButMandatoryParameter);
-  void sinComplex(const real_t *real, const real_t *imag, real_t *resReal, real_t *resImag, realContext_t *realContext);
+  void multiplyTrigByHyperbolic(const real_t *trigonometric, const real_t *hyperbolic, real_t *res, realContext_t *realContext);
+  void sinComplex(const cplx_t *z, cplx_t *res, realContext_t *realContext);
 #endif // !SIN_H

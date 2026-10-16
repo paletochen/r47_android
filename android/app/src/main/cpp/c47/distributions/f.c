@@ -7,7 +7,7 @@
 
 #include "c47.h"
 
-#if !defined(OPTION_DIST_C)
+#if !defined(OPTION_DIST_F)
   void fnF_P(uint16_t unusedButMandatoryParameter){}
   void fnF_L(uint16_t unusedButMandatoryParameter){}
   void fnF_R(uint16_t unusedButMandatoryParameter){}
@@ -19,107 +19,53 @@
 //  void WP34S_Qf_Newton(uint32_t r_dist, const real_t *target, const real_t *estimate, const real_t *p1, const real_t *p2, const real_t *p3, real_t *res, realContext_t *realContext){}
 
 #else
-  static bool_t checkParamF(real_t *x, real_t *i, real_t *j) {
-    if(!saveLastX()) {
+  bool_t fCheckDomain(bool_t registersValid, real_t *x, real_t *i, real_t *j, real_t *unusedThird, uint16_t unusedParameter) {
+    if(!registersValid) {
       return false;
     }
 
-    if(!getRegisterAsReal(REGISTER_X, x) || !getRegisterAsReal(REGISTER_M, i) || !getRegisterAsReal(REGISTER_N, j)) {
-      goto err;
-    }
-
-    if(!(checkRegisterNoFP(i) || checkRegisterNoFP(j))) {
+    if(!checkRegisterNoFP(i) || !checkRegisterNoFP(j) || realIsSpecial(i) || realIsSpecial(j)) {
       displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-        moreInfoOnError("In function checkParamF:", "d1 or d2 is not an integer", NULL, NULL);
+        moreInfoOnError("In function fCheckDomain:", "d1 or d2 is not an integer", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      goto err;
+      return false;
     }
-    if(realIsNegative(x)) {
+    if(realIsNaN(x) || realIsNegative(x)) {
       displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-        moreInfoOnError("In function checkParamF:", "cannot calculate for x < 0", NULL, NULL);
+        moreInfoOnError("In function fCheckDomain:", "cannot calculate for x < 0", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      goto err;
+      return false;
     }
     if(realIsZero(i) || realIsNegative(i) || realIsZero(j) || realIsNegative(j)) {
       displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-        moreInfoOnError("In function checkParamF:", "cannot calculate for d1 " STD_LESS_EQUAL " 0 or d2 " STD_LESS_EQUAL " 0", NULL, NULL);
+        moreInfoOnError("In function fCheckDomain:", "cannot calculate for d1 " STD_LESS_EQUAL " 0 or d2 " STD_LESS_EQUAL " 0", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      goto err;
+      return false;
     }
     return true;
-
-  err:
-    if(getSystemFlag(FLAG_SPCRES)) {
-      convertRealToResultRegister(const_NaN, REGISTER_X, amNone);
-    }
-    return false;
   }
 
 
   void fnF_P(uint16_t unusedButMandatoryParameter) {
-    real_t val, ans, d1, d2;
-
-    if(checkParamF(&val, &d1, &d2)) {
-      WP34S_Pdf_F(&val, &d1, &d2, &ans, &ctxtReal39);
-      convertRealToResultRegister(&ans, REGISTER_X, amNone);
-      adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-    }
+    fnDistribution(DIST_F * 4 + DIST_P);
   }
 
 
   void fnF_L(uint16_t unusedButMandatoryParameter) {
-    real_t val, ans, d1, d2;
-
-    if(checkParamF(&val, &d1, &d2)) {
-      WP34S_Cdf_F(&val, &d1, &d2, &ans, &ctxtReal39);
-      convertRealToResultRegister(&ans, REGISTER_X, amNone);
-      adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-    }
+    fnDistribution(DIST_F * 4 + DIST_L);
   }
 
 
   void fnF_R(uint16_t unusedButMandatoryParameter) {
-    real_t val, ans, d1, d2;
-
-    if(checkParamF(&val, &d1, &d2)) {
-      WP34S_Cdfu_F(&val, &d1, &d2, &ans, &ctxtReal39);
-      convertRealToResultRegister(&ans, REGISTER_X, amNone);
-      adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-    }
+    fnDistribution(DIST_F * 4 + DIST_R);
   }
 
 
   void fnF_I(uint16_t unusedButMandatoryParameter) {
-    real_t val, ans, d1, d2;
-
-    if(checkParamF(&val, &d1, &d2)) {
-      if(realCompareLessEqual(&val, const_0) || realCompareGreaterEqual(&val, const_1)) {
-        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
-        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-          moreInfoOnError("In function fnF_I:", "the argument must be 0 < x < 1", NULL, NULL);
-        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-        if(getSystemFlag(FLAG_SPCRES)) {
-          convertRealToResultRegister(const_NaN, REGISTER_X, amNone);
-        }
-        return;
-      }
-      WP34S_Qf_F(&val, &d1, &d2, &ans, &ctxtReal39);
-      if(realIsNaN(&ans)) {
-        displayDomainErrorMessage(ERROR_NO_ROOT_FOUND, ERR_REGISTER_LINE);
-        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-          moreInfoOnError("In function fnF_I:", "WP34S_Qf_F did not converge", NULL, NULL);
-        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-        if(getSystemFlag(FLAG_SPCRES)) {
-          convertRealToResultRegister(const_NaN, REGISTER_X, amNone);
-        }
-        return;
-      }
-      convertRealToResultRegister(&ans, REGISTER_X, amNone);
-      adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-    }
+    fnDistribution(DIST_F * 4 + DIST_I);
   }
 
 
@@ -128,110 +74,526 @@
    * This functions are borrowed from the WP34S project
    ******************************************************/
 
-  void WP34S_Pdf_F(const real_t *x, const real_t *d1, const real_t *d2, real_t *res, realContext_t *realContext) {
-    real_t p, q, r;
-
-    WP34S_Ln(d2, &p, realContext);
-    realMultiply(&p, d2, &p, realContext);
-    realMultiply(d1, x, &q, realContext);
-    WP34S_Ln(&q, &r, realContext);
-    realMultiply(&r, d1, &r, realContext);
-    realAdd(&p, &r, &p, realContext);
-    realAdd(&q, d2, &q, realContext);
-    WP34S_Ln(&q, &q, realContext);
-    realAdd(d1, d2, &r, realContext);
-    realMultiply(&q, &r, &q, realContext);
-    realSubtract(&p, &q, &p, realContext);
-    realMultiply(&p, const_1on2, &p, realContext);
-    realMultiply(d1, const_1on2, &q, realContext);
-    realMultiply(d2, const_1on2, &r, realContext);
-    LnBeta(&r, &q, &q, realContext);
-    realSubtract(&p, &q, &p, realContext);
-    realExp(&p, &p, realContext);
-    realDivide(&p, x, res, realContext);
+  static bool_t fParametersAreValid(const real_t *d1, const real_t *d2) {
+    return !realIsSpecial(d1) && !realIsSpecial(d2) && realCompareGreaterThan(d1, const_0) && realCompareGreaterThan(d2, const_0);
   }
+
+
+  static void fLogitToBetaPair(const real_t *logit, real_t *y, real_t *z, realContext_t *realContext) {
+    real_t exponential, denominator, value;
+
+    realCopy(logit, &value);
+    if(realIsNegative(&value)) {
+      realExp(&value, &exponential, realContext);
+      realAdd(const_1, &exponential, &denominator, realContext);
+      realDivide(const_1, &denominator, z, realContext);
+      realMultiply(&exponential, z, y, realContext);
+    }
+    else {
+      realChangeSign(&value);
+      realExp(&value, &exponential, realContext);
+      realAdd(const_1, &exponential, &denominator, realContext);
+      realDivide(const_1, &denominator, y, realContext);
+      realMultiply(&exponential, y, z, realContext);
+    }
+  }
+
+
+  static void fLogBetaPrefix(const real_t *a, const real_t *b, const real_t *y, const real_t *z, const real_t *logit, real_t *res,
+                             realContext_t *realContext) {
+    real_t x, directThreshold, sumA, sumB, sumAB, rA, rB, rAB, logA, logB, term, u, v;
+
+    realSetOne(&directThreshold);
+    directThreshold.exponent = 5;
+    if(realCompareLessThan(a, &directThreshold) || realCompareLessThan(b, &directThreshold)) {
+      C47_LnBetaPositiveReal(a, b, &term);
+      realCopy(logit, &x);
+      if(realIsNegative(&x)) {
+        realExp(&x, &v, realContext);
+        WP34S_Ln1P(&v, &v, realContext);
+        realSubtract(&x, &v, &u, realContext);
+        realChangeSign(&v);
+      }
+      else {
+        realChangeSign(&x);
+        realExp(&x, &v, realContext);
+        WP34S_Ln1P(&v, &v, realContext);
+        realMinus(&v, &u, realContext);
+        realSubtract(&x, &v, &v, realContext);
+      }
+      realMultiply(a, &u, &u, realContext);
+      realMultiply(b, &v, &v, realContext);
+      realAdd(&u, &v, &u, realContext);
+      realSubtract(&u, &term, res, realContext);
+      return;
+    }
+
+    realSubtract(a, const_1, &x, realContext);
+    WP34S_LanczosSum(&x, const_29, &sumA, realContext);
+    realSubtract(b, const_1, &x, realContext);
+    WP34S_LanczosSum(&x, const_29, &sumB, realContext);
+    realAdd(a, b, &rAB, realContext);
+    realSubtract(&rAB, const_1, &x, realContext);
+    WP34S_LanczosSum(&x, const_29, &sumAB, realContext);
+    WP34S_Ln(&sumA, &sumA, realContext);
+    WP34S_Ln(&sumB, &sumB, realContext);
+    WP34S_Ln(&sumAB, &sumAB, realContext);
+
+    realAdd(a, const_gammaRm1, &rA, realContext);
+    realAdd(b, const_gammaRm1, &rB, realContext);
+    realAdd(&rAB, const_gammaRm1, &rAB, realContext);
+
+    realMultiply(y, b, &u, realContext);
+    realMultiply(z, a, &v, realContext);
+    realSubtract(&u, &v, &u, realContext);
+    realFMA(const__gammaRm1, z, &u, &u, realContext);
+    realDivide(&u, &rA, &u, realContext);
+    WP34S_Ln1P(&u, &logA, realContext);
+
+    realMultiply(z, a, &u, realContext);
+    realMultiply(y, b, &v, realContext);
+    realSubtract(&u, &v, &u, realContext);
+    realFMA(const__gammaRm1, y, &u, &u, realContext);
+    realDivide(&u, &rB, &u, realContext);
+    WP34S_Ln1P(&u, &logB, realContext);
+
+    realMultiply(a, &logA, &u, realContext);
+    realFMA(b, &logB, &u, &u, realContext);
+    realDivide(b, &rA, &v, realContext);
+    WP34S_Ln1P(&v, &v, realContext);
+    realMultiply(&v, const_1on2, &v, realContext);
+    realSubtract(&u, &v, &u, realContext);
+    realDivide(a, &rB, &v, realContext);
+    WP34S_Ln1P(&v, &v, realContext);
+    realMultiply(&v, const_1on2, &v, realContext);
+    realSubtract(&u, &v, &u, realContext);
+    WP34S_Ln(&rAB, &v, realContext);
+    realMultiply(&v, const_1on2, &v, realContext);
+    realAdd(&u, &v, &u, realContext);
+    realAdd(&u, const_gammaRm1, &u, realContext);
+    realAdd(&sumAB, &u, &u, realContext);
+    realSubtract(&u, &sumA, &u, realContext);
+    realSubtract(&u, &sumB, res, realContext);
+  }
+
+
+  static void fLargeBetaDensity(const real_t *scaledValue, const real_t *scale, const real_t *a, const real_t *b, const real_t *modePrefix,
+                                real_t *res, realContext_t *realContext) {
+    real_t value, logit, y, z, sum, termA, termB, ratioA, ratioB, relativeA, relativeB, factor, n, old, divergence, total, small;
+
+    realMultiply(scaledValue, scale, &value, realContext);
+    WP34S_Ln(a, &logit, realContext);
+    realAdd(&value, &logit, &logit, realContext);
+    WP34S_Ln(b, &value, realContext);
+    realSubtract(&logit, &value, &logit, realContext);
+    fLogitToBetaPair(&logit, &y, &z, realContext);
+    realAdd(a, b, &total, realContext);
+    realDivide(a, &total, &ratioA, realContext);
+    realDivide(b, &total, &ratioB, realContext);
+    realSubtract(&y, &ratioA, &factor, realContext);
+    realDivide(&factor, &ratioA, &relativeA, realContext);
+    realDivide(&factor, &ratioB, &relativeB, realContext);
+    realSetOne(&value);
+    value.exponent = 20;
+    int32ToReal(100, &small);
+    realDivide(const_1, &small, &small, realContext);
+    if(realCompareGreaterThan(&total, &value) && realCompareAbsLessThan(&relativeA, &small) && realCompareAbsLessThan(&relativeB, &small)) {
+      realMultiply(&factor, &relativeA, &termA, realContext);
+      realMultiply(&termA, const_1on2, &termA, realContext);
+      realMultiply(&factor, &relativeB, &termB, realContext);
+      realMultiply(&termB, const_1on2, &termB, realContext);
+      realAdd(&termA, &termB, &sum, realContext);
+      int32ToReal(2, &n);
+      do {
+        realCopy(&sum, &old);
+        realAdd(&n, const_1, &n, realContext);
+        realSubtract(&n, const_1, &value, realContext);
+        realDivide(&value, &n, &value, realContext);
+        realMultiply(&termA, &relativeA, &termA, realContext);
+        realChangeSign(&termA);
+        realMultiply(&termA, &value, &termA, realContext);
+        realMultiply(&termB, &relativeB, &termB, realContext);
+        realMultiply(&termB, &value, &termB, realContext);
+        realAdd(&termA, &termB, &value, realContext);
+        realAdd(&sum, &value, &sum, realContext);
+      } while(!realCompareEqual(&sum, &old));
+      realMultiply(&sum, &total, &divergence, realContext);
+    }
+    else {
+      WP34S_Ln1P(&relativeA, &termA, realContext);
+      realMultiply(a, &termA, &termA, realContext);
+      realMinus(&relativeB, &termB, realContext);
+      WP34S_Ln1P(&termB, &termB, realContext);
+      realMultiply(b, &termB, &termB, realContext);
+      realAdd(&termA, &termB, &divergence, realContext);
+      realChangeSign(&divergence);
+    }
+    realSubtract(modePrefix, &divergence, &value, realContext);
+    realExp(&value, res, realContext);
+    realMultiply(res, scale, res, realContext);
+  }
+
+
+  static void fLargeBetaPair(const real_t *a, const real_t *b, const real_t *y, const real_t *logit, real_t *lower, real_t *upper,
+                             realContext_t *realContext) {
+    real_t total, ratioA, ratioB, modeLogit, modePrefix, scale, value, scaledValue, left, right, midpoint, halfWidth;
+    real_t h, u, sinhU, coshU, argument, tanhArgument, coshArgument, node, jacobian, density, term, sum, bound;
+    int32_t k;
+    bool_t calculateLower;
+
+    realAdd(a, b, &total, realContext);
+    realDivide(a, &total, &ratioA, realContext);
+    realDivide(b, &total, &ratioB, realContext);
+    WP34S_Ln(a, &modeLogit, realContext);
+    WP34S_Ln(b, &value, realContext);
+    realSubtract(&modeLogit, &value, &modeLogit, realContext);
+    fLogBetaPrefix(a, b, &ratioA, &ratioB, &modeLogit, &modePrefix, realContext);
+    realMultiply(a, b, &value, realContext);
+    realDivide(&total, &value, &scale, realContext);
+    realSquareRoot(&scale, &scale, realContext);
+    realSubtract(logit, &modeLogit, &value, realContext);
+    realDivide(&value, &scale, &scaledValue, realContext);
+
+    calculateLower = realCompareLessEqual(&scaledValue, const_0);
+    // m, the slope of the log density at v in mode widths, sets the step to the far end: over sqrt(m^2 + 180) - m a Gaussian log density falls by 90, and for shapes
+    // of 1E5 and more the logit density falls by at least 88 there while the tail is above 1E-6176, so the mass left out is below e^-88 of the tail.
+    realMultiply(&total, y, &value, realContext);
+    realSubtract(&value, a, &value, realContext);
+    realMultiply(&value, &scale, &value, realContext);
+    realCopyAbs(&value, &value);
+    realFMA(&value, &value, const_180, &bound, realContext);
+    realSquareRoot(&bound, &bound, realContext);
+    realSubtract(&bound, &value, &bound, realContext);
+    if(calculateLower) {
+      realSubtract(&scaledValue, &bound, &left, realContext);
+      realCopy(&scaledValue, &right);
+    }
+    else {
+      realCopy(&scaledValue, &left);
+      realAdd(&scaledValue, &bound, &right, realContext);
+    }
+    realAdd(&left, &right, &midpoint, realContext);
+    realMultiply(&midpoint, const_1on2, &midpoint, realContext);
+    realSubtract(&right, &left, &halfWidth, realContext);
+    realMultiply(&halfWidth, const_1on2, &halfWidth, realContext);
+    int32ToReal(32, &value);
+    realDivide(const_1, &value, &h, realContext);
+    realSetZero(&sum);
+    for(k=-192; k<=192; k++) {
+      int32ToReal(k, &u);
+      realMultiply(&u, &h, &u, realContext);
+      WP34S_SinhCosh(&u, &sinhU, &coshU, realContext);
+      realMultiply(const75_piOn2, &sinhU, &argument, realContext);
+      WP34S_Tanh(&argument, &tanhArgument, realContext);
+      if(realCompareAbsEqual(&tanhArgument, const_1)) {
+        continue;
+      }
+      realFMA(&halfWidth, &tanhArgument, &midpoint, &node, realContext);
+      WP34S_SinhCosh(&argument, &value, &coshArgument, realContext);
+      realMultiply(&coshArgument, &coshArgument, &value, realContext);
+      realMultiply(&halfWidth, const75_piOn2, &jacobian, realContext);
+      realMultiply(&jacobian, &coshU, &jacobian, realContext);
+      realDivide(&jacobian, &value, &jacobian, realContext);
+      fLargeBetaDensity(&node, &scale, a, b, &modePrefix, &density, realContext);
+      realMultiply(&density, &jacobian, &term, realContext);
+      realAdd(&sum, &term, &sum, realContext);
+    }
+    realMultiply(&sum, &h, &sum, realContext);
+    if(calculateLower) {
+      realCopy(&sum, lower);
+      realSubtract(const_1, lower, upper, realContext);
+    }
+    else {
+      realCopy(&sum, upper);
+      realSubtract(const_1, upper, lower, realContext);
+    }
+  }
+
+
+  static bool_t fBetaPair(const real_t *a, const real_t *b, const real_t *y, const real_t *z, const real_t *logit, real_t *lower, real_t *upper,
+                          realContext_t *realContext) {
+    real_t fraction, largeThreshold, logPrefix, threshold, value, term, wideY, wideZ;
+
+    if(realIsZero(y)) {
+      realSetZero(lower);
+      realSetOne(upper);
+      return true;
+    }
+    if(realIsZero(z)) {
+      realSetOne(lower);
+      realSetZero(upper);
+      return true;
+    }
+    if(realCompareEqual(a, b) && realCompareEqual(y, z)) {
+      realCopy(const_1on2, lower);
+      realCopy(const_1on2, upper);
+      return true;
+    }
+    realSetOne(&largeThreshold);
+    largeThreshold.exponent = 5;
+    if(realCompareGreaterEqual(a, &largeThreshold) && realCompareGreaterEqual(b, &largeThreshold)) {
+      fLargeBetaPair(a, b, y, logit, lower, upper, realContext);
+      return true;
+    }
+
+    fLogBetaPrefix(a, b, y, z, logit, &logPrefix, realContext);
+    realExp(&logPrefix, &value, realContext);
+    realAdd(a, b, &term, realContext);
+    realAdd(&term, const_2, &term, realContext);
+    realAdd(a, const_1, &threshold, realContext);
+    realDivide(&threshold, &term, &threshold, realContext);
+    if(realCompareLessThan(y, &threshold)) {  // next to 1 a step of the fraction cancels as many digits as the larger shape has: past about 5E14 it settles at p75 only
+      if(!WP34S_BetaFraction(a, b, y, -42, 1000, &fraction, realContext)) {
+        // The retry cancels its argument against 1 as well, which leaves the digits below its leading nines, so it takes y from the logit at p75. For a shape of
+        // 5E39 its change stalls between 1E-41 and 1E-39 while the value is good to 1E-35, so it settles at 1E-39.
+        fLogitToBetaPair(logit, &wideY, &wideZ, &ctxtReal75);
+        if(!WP34S_BetaFraction(a, b, &wideY, -39, 1000, &fraction, &ctxtReal75)) {
+          return false;
+        }
+      }
+      realDivide(&fraction, a, &fraction, realContext);
+      realMultiply(&value, &fraction, lower, realContext);
+      realSubtract(const_1, lower, upper, realContext);
+    }
+    else {
+      if(!WP34S_BetaFraction(b, a, z, -42, 1000, &fraction, realContext)) {
+        fLogitToBetaPair(logit, &wideY, &wideZ, &ctxtReal75);  // z to 75 digits and 1E-39, as for the lower tail
+        if(!WP34S_BetaFraction(b, a, &wideZ, -39, 1000, &fraction, &ctxtReal75)) {
+          return false;
+        }
+      }
+      realDivide(&fraction, b, &fraction, realContext);
+      realMultiply(&value, &fraction, upper, realContext);
+      realSubtract(const_1, upper, lower, realContext);
+    }
+    return true;
+  }
+
+
+  /********************************************//**
+   * \brief Computes the logarithm of the regularised-beta prefix.
+   ***********************************************/
+  void distributionLogBetaPrefix(const real_t *a, const real_t *b, const real_t *y, const real_t *z, const real_t *logit,
+                                 real_t *res, realContext_t *realContext) {
+    fLogBetaPrefix(a, b, y, z, logit, res, realContext);
+  }
+
+
+  /********************************************//**
+   * \brief Computes both regularised-beta tails from a probability pair and its logit.
+   ***********************************************/
+  bool_t distributionBetaPair(const real_t *a, const real_t *b, const real_t *y, const real_t *z, const real_t *logit,
+                              real_t *lower, real_t *upper, realContext_t *realContext) {
+    return fBetaPair(a, b, y, z, logit, lower, upper, realContext);
+  }
+
+
+  static bool_t fEvaluate(const real_t *x, const real_t *d1, const real_t *d2, real_t *lower, real_t *upper, real_t *logPrefix) {
+    real_t a, b, logit, term, y, z, largeThreshold;
+    realContext_t *calculationContext = &ctxtReal51;
+
+    int32ToReal(2, &largeThreshold);
+    largeThreshold.exponent = 5;
+    if(realCompareGreaterEqual(d1, &largeThreshold) && realCompareGreaterEqual(d2, &largeThreshold)) {
+      calculationContext = &ctxtReal75;
+    }
+    WP34S_Ln(x, &logit, calculationContext);
+    WP34S_Ln(d1, &term, calculationContext);
+    realAdd(&logit, &term, &logit, calculationContext);
+    WP34S_Ln(d2, &term, calculationContext);
+    realSubtract(&logit, &term, &logit, calculationContext);
+    fLogitToBetaPair(&logit, &y, &z, calculationContext);
+    realMultiply(d1, const_1on2, &a, calculationContext);
+    realMultiply(d2, const_1on2, &b, calculationContext);
+    if(logPrefix != NULL) {
+      fLogBetaPrefix(&a, &b, &y, &z, &logit, logPrefix, calculationContext);
+    }
+    if(lower != NULL && upper != NULL) {
+      return fBetaPair(&a, &b, &y, &z, &logit, lower, upper, calculationContext);
+    }
+    return true;
+  }
+
+
+  void WP34S_Pdf_F(const real_t *x, const real_t *d1, const real_t *d2, real_t *res, realContext_t *realContext) {
+    real_t logDensity, logX;
+
+    if(realIsNaN(x) || !fParametersAreValid(d1, d2) || realIsNegative(x)) {
+      realSetNaN(res);
+      return;
+    }
+    if(realIsZero(x)) {
+      if(realCompareLessThan(d1, const_2)) {
+        realSetPlusInfinity(res);
+      }
+      else if(realCompareEqual(d1, const_2)) {
+        realSetOne(res);
+      }
+      else {
+        realSetZero(res);
+      }
+      return;
+    }
+    if(realIsInfinite(x)) {
+      realSetZero(res);
+      return;
+    }
+
+    fEvaluate(x, d1, d2, NULL, NULL, &logDensity);
+    WP34S_Ln(x, &logX, &ctxtReal75);
+    realSubtract(&logDensity, &logX, &logDensity, &ctxtReal75);
+    realExp(&logDensity, &logDensity, &ctxtReal75);
+    realPlus(&logDensity, res, realContext);
+  }
+
 
   void WP34S_Cdfu_F(const real_t *x, const real_t *d1, const real_t *d2, real_t *res, realContext_t *realContext) {
-    real_t p, q, r;
+    real_t lower, upper;
 
-    if(realCompareLessEqual(x, const_0)) {
+    if(realIsNaN(x) || !fParametersAreValid(d1, d2) || realIsNegative(x)) {
+      realSetNaN(res);
+      return;
+    }
+    if(realIsZero(x)) {
       realSetOne(res);
       return;
     }
-    if(realIsInfinite(x)) { // assume x is positive here...
+    if(realIsInfinite(x)) {
       realSetZero(res);
       return;
     }
-
-    realMultiply(x, d1, &p, realContext);
-    realAdd(&p, d2, &p, realContext);
-    realDivide(d2, &p, &p, realContext);
-    realMultiply(d2, const_1on2, &q, realContext);
-    realMultiply(d1, const_1on2, &r, realContext);
-    WP34S_betai(&r, &q, &p, res, realContext);
+    if(!fEvaluate(x, d1, d2, &lower, &upper, NULL)) {
+      realSetNaN(res);
+      return;
+    }
+    realPlus(&upper, res, realContext);
   }
+
 
   void WP34S_Cdf_F(const real_t *x, const real_t *d1, const real_t *d2, real_t *res, realContext_t *realContext) {
-    real_t p, q, r;
+    real_t lower, upper;
 
-    if(realCompareLessEqual(x, const_0)) {
+    if(realIsNaN(x) || !fParametersAreValid(d1, d2) || realIsNegative(x)) {
+      realSetNaN(res);
+      return;
+    }
+    if(realIsZero(x)) {
       realSetZero(res);
       return;
     }
-    if(realIsInfinite(x)) { // assume x is positive here...
+    if(realIsInfinite(x)) {
       realSetOne(res);
       return;
     }
-
-    realMultiply(x, d1, &p, realContext);
-    realAdd(&p, d2, &q, realContext);
-    realDivide(&p, &q, &p, realContext);
-    realMultiply(d2, const_1on2, &q, realContext);
-    realMultiply(d1, const_1on2, &r, realContext);
-    WP34S_betai(&q, &r, &p, res, realContext);
+    if(!fEvaluate(x, d1, d2, &lower, &upper, NULL)) {
+      realSetNaN(res);
+      return;
+    }
+    realPlus(&lower, res, realContext);
   }
 
-void WP34S_Qf_F(const real_t *x, const real_t *d1, const real_t *d2, real_t *res, realContext_t *realContext) {
-  real_t p, q, r, s, reg0, reg1, reg2;
 
-  // qf_f_est
-  realCopy(x, &reg0);
-  WP34S_qf_q_est(x, &p, NULL, realContext);
-  realCopy(d1, &r);
-  if(realCompareGreaterThan(&r, const_1)) {
-    realSubtract(&r, const_1, &r, realContext);
-  }
-  realDivide(const_1, &r, &r, realContext);
-  realCopy(d2, &s);
-  if(realCompareGreaterThan(&s, const_1)) {
-    realSubtract(&s, const_1, &s, realContext);
-  }
-  realDivide(const_1, &s, &s, realContext);
-  realCopy(&s, &reg1);
-  realCopy(&r, &reg2);
-  realAdd(&r, &s, &r, realContext);
-  realDivide(const_2, &r, &r, realContext);
-  realMultiply(&p, &p, &s, realContext);
-  realSubtract(&s, const_3, &s, realContext);
-  realDivide(&s, const_6, &s, realContext);
-  realAdd(&s, &r, &q, realContext);
-  realSquareRoot(&q, &q, realContext);
-  realMultiply(&q, &p, &q, realContext);
-  realDivide(&q, &r, &q, realContext);
-  realDivide(const_2, &r, &p, realContext);
-  realMultiply(&p, const39_1on3, &p, realContext);
-  realChangeSign(&p);
-  realAdd(&p, &s, &p, realContext);
-  realDivide(const_5, const_60, &r, realContext), r.exponent += 1;
-  realAdd(&p, &r, &p, realContext);
-  realSubtract(&reg2, &reg1, &r, realContext);
-  realMultiply(&p, &r, &p, realContext);
-  realSubtract(&q, &p, &q, realContext);
-  realMultiply(&q, const_2, &q, realContext);
-  realExp(&q, &q, realContext);
+  static bool_t fInverseLower(const real_t *target, const real_t *d1, const real_t *d2, real_t *res) {
+    real_t a, accuracy, b, bound, derivative, estimateTolerance, high, largeThreshold, logD1, logD2, logit, low, lower, upper, midpoint, proposal, residual, step, tolerance, value, width, y, z;
+    realContext_t *calculationContext = &ctxtReal51;
+    int32_t i;
 
-  WP34S_Qf_Newton(QF_NEWTON_F, &reg0, &q, d1, d2, NULL, res, realContext);
-}
+    int32ToReal(2, &largeThreshold);
+    largeThreshold.exponent = 5;
+    if(realCompareGreaterEqual(d1, &largeThreshold) && realCompareGreaterEqual(d2, &largeThreshold)) {
+      calculationContext = &ctxtReal75;
+    }
+    realMultiply(d1, const_1on2, &a, calculationContext);
+    realMultiply(d2, const_1on2, &b, calculationContext);
+    WP34S_Ln(d1, &logD1, calculationContext);
+    WP34S_Ln(d2, &logD2, calculationContext);
+    int32ToReal(16000, &bound);
+    realMinus(&bound, &low, calculationContext);
+    realCopy(&bound, &high);
+    realSetZero(&value);
+    realSetOne(&tolerance);
+    tolerance.exponent = -40;
+    realSetOne(&estimateTolerance);
+    estimateTolerance.exponent = -38;
+
+    for(i=0; i<320; i++) {
+      realAdd(&value, &logD1, &logit, calculationContext);
+      realSubtract(&logit, &logD2, &logit, calculationContext);
+      fLogitToBetaPair(&logit, &y, &z, calculationContext);
+      if(!fBetaPair(&a, &b, &y, &z, &logit, &lower, &upper, calculationContext)) {
+        return false;
+      }
+      realSubtract(&lower, target, &residual, calculationContext);
+      realMultiply(target, &tolerance, &accuracy, calculationContext);
+      if(realIsZero(&residual) || realCompareAbsLessThan(&residual, &accuracy)) {
+        realExp(&value, res, calculationContext);
+        return true;
+      }
+      if(realIsNegative(&residual)) {
+        realCopy(&value, &low);
+      }
+      else {
+        realCopy(&value, &high);
+      }
+      realSubtract(&high, &low, &width, calculationContext);
+      if(realCompareAbsLessThan(&width, &tolerance)) {
+        realAdd(&low, &high, &value, calculationContext);
+        realMultiply(&value, const_1on2, &value, calculationContext);
+        realExp(&value, res, calculationContext);
+        return true;
+      }
+
+      fLogBetaPrefix(&a, &b, &y, &z, &logit, &derivative, calculationContext);
+      realExp(&derivative, &derivative, calculationContext);
+      realAdd(&low, &high, &midpoint, calculationContext);
+      realMultiply(&midpoint, const_1on2, &midpoint, calculationContext);
+      if(i >= 24 || realIsZero(&derivative)) {
+        realCopy(&midpoint, &proposal);
+      }
+      else {
+        realDivide(&residual, &derivative, &step, calculationContext);
+        realSubtract(&value, &step, &proposal, calculationContext);
+        if(realCompareLessEqual(&proposal, &low) || realCompareGreaterEqual(&proposal, &high)) {
+          realCopy(&midpoint, &proposal);
+        }
+      }
+      realSubtract(&proposal, &value, &step, calculationContext);
+      if(realCompareAbsLessThan(&step, &estimateTolerance)) {
+        realExp(&proposal, res, calculationContext);
+        return true;
+      }
+      realCopy(&proposal, &value);
+    }
+    return false;
+  }
+
+
+  void WP34S_Qf_F(const real_t *x, const real_t *d1, const real_t *d2, real_t *res, realContext_t *realContext) {
+    real_t probability, value;
+    bool_t reciprocal;
+
+    if(realIsNaN(x) || !fParametersAreValid(d1, d2) || realCompareLessEqual(x, const_0) || realCompareGreaterEqual(x, const_1)) {
+      realSetNaN(res);
+      return;
+    }
+    reciprocal = realCompareGreaterThan(x, const_1on2);
+    if(reciprocal) {
+      realSubtract(const_1, x, &probability, &ctxtReal75);
+      if(!fInverseLower(&probability, d2, d1, &value)) {
+        realSetNaN(res);
+        return;
+      }
+      realDivide(const_1, &value, &value, &ctxtReal75);
+    }
+    else {
+      realCopy(x, &probability);
+      if(!fInverseLower(&probability, d1, d2, &value)) {
+        realSetNaN(res);
+        return;
+      }
+    }
+    realPlus(&value, res, realContext);
+  }
 
 
   /**************************************************************************/
@@ -278,7 +640,7 @@ void WP34S_Qf_F(const real_t *x, const real_t *d1, const real_t *d2, real_t *res
         else {
   qf_newton_do_bisect:
           realAdd(&r_low, &r_high, &r_r, realContext);
-          realMultiply(&r_r, const_2, &r_r, realContext);
+          realMultiply(&r_r, const_1on2, &r_r, realContext);
           f_nobisect = true;
         }
         //qf_newton_bisect_out
@@ -371,6 +733,9 @@ void WP34S_Qf_F(const real_t *x, const real_t *d1, const real_t *d2, real_t *res
       }
       // qf_newton_again
     } while(--r_iterations > 0);
+    if(f_discrete) {
+      goto qf_newton_done;  // the final search reaches the integer from wherever the iteration stops
+    }
     realSetNaN(res);
     return;
 
@@ -386,4 +751,4 @@ void WP34S_Qf_F(const real_t *x, const real_t *d1, const real_t *d2, real_t *res
     return;
   }
 
-#endif // !OPTION_DIST_C
+#endif // !OPTION_DIST_F

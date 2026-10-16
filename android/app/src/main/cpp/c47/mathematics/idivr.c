@@ -65,34 +65,44 @@ void fnIDivR(uint16_t unusedButMandatoryParameter) {
 /* long integer idivr ...                                                                                                                                                                     */
 /******************************************************************************************************************************************************************************************/
 
-/********************************************//**
- * \brief Y(long integer) idivr X(long integer) ==> X(long integer), Y(long integer)
- *
- * \param void
- * \return void
- ***********************************************/
-void idivrLonILonI(void) {
+// The four integer IDIVR routines differ in the conversion that reads each operand and in how the two answers go back. The remainder takes Y's type, and the
+// quotient is a short integer only when both operands are.
+static void idivrIntInt(registerToLongInteger_t cvtX, registerToLongInteger_t cvtY, bool_t quotientInBaseY, bool_t remainderInBaseY) {
   longInteger_t x;
 
-  convertLongIntegerRegisterToLongInteger(REGISTER_X, x);
+  cvtX(REGISTER_X, x);
 
   if(longIntegerIsZero(x)) {
     displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      moreInfoOnError("In function idivrLonILonI:", "cannot IDIVR a long integer by 0", NULL, NULL);
+      moreInfoOnError("In function idivrIntInt:", "cannot IDIVR an integer by 0", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
   }
   else {
     longInteger_t y, quotient, remainder;
+    uint32_t baseY = 0;
 
-    convertLongIntegerRegisterToLongInteger(REGISTER_Y, y);
+    if(quotientInBaseY || remainderInBaseY) {
+      baseY = getRegisterShortIntegerBase(REGISTER_Y);
+    }
+    cvtY(REGISTER_Y, y);
 
     longIntegerInit(quotient);
     longIntegerInit(remainder);
     longIntegerDivideQuotientRemainder(y, x, quotient, remainder);
 
-    convertLongIntegerToLongIntegerRegister(quotient, REGISTER_X);
-    convertLongIntegerToLongIntegerRegister(remainder, REGISTER_Y);
+    if(quotientInBaseY) {
+      convertLongIntegerToShortIntegerRegister(quotient, baseY, REGISTER_X);
+    }
+    else {
+      convertLongIntegerToLongIntegerRegister(quotient, REGISTER_X);
+    }
+    if(remainderInBaseY) {
+      convertLongIntegerToShortIntegerRegister(remainder, baseY, REGISTER_Y);
+    }
+    else {
+      convertLongIntegerToLongIntegerRegister(remainder, REGISTER_Y);
+    }
 
     longIntegerFree(y);
     longIntegerFree(quotient);
@@ -100,6 +110,18 @@ void idivrLonILonI(void) {
   }
 
   longIntegerFree(x);
+}
+
+
+
+/********************************************//**
+ * \brief Y(long integer) idivr X(long integer) ==> X(long integer), Y(long integer)
+ *
+ * \param void
+ * \return void
+ ***********************************************/
+void idivrLonILonI(void) {
+  idivrIntInt(convertLongIntegerRegisterToLongInteger, convertLongIntegerRegisterToLongInteger, false, false);
 }
 
 
@@ -111,34 +133,7 @@ void idivrLonILonI(void) {
  * \return void
  ***********************************************/
 void idivrLonIShoI(void) {
-  longInteger_t x;
-
-  convertShortIntegerRegisterToLongInteger(REGISTER_X, x);
-
-  if(longIntegerIsZero(x)) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
-    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      moreInfoOnError("In function idivrLonIShoI:", "cannot IDIVR a long integer by 0", NULL, NULL);
-    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-  }
-  else {
-    longInteger_t y, quotient, remainder;
-
-    convertLongIntegerRegisterToLongInteger(REGISTER_Y, y);
-
-    longIntegerInit(quotient);
-    longIntegerInit(remainder);
-    longIntegerDivideQuotientRemainder(y, x, quotient, remainder);
-
-    convertLongIntegerToLongIntegerRegister(quotient, REGISTER_X);
-    convertLongIntegerToLongIntegerRegister(remainder, REGISTER_Y);
-
-    longIntegerFree(y);
-    longIntegerFree(quotient);
-    longIntegerFree(remainder);
-  }
-
-  longIntegerFree(x);
+  idivrIntInt(convertShortIntegerRegisterToLongInteger, convertLongIntegerRegisterToLongInteger, false, false);
 }
 
 
@@ -150,36 +145,7 @@ void idivrLonIShoI(void) {
  * \return void
  ***********************************************/
 void idivrShoILonI(void) {
-  longInteger_t x;
-
-  convertLongIntegerRegisterToLongInteger(REGISTER_X, x);
-
-  if(longIntegerIsZero(x)) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
-    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      moreInfoOnError("In function idivrShoILonI:", "cannot IDIVR a short integer by 0", NULL, NULL);
-    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-  }
-  else {
-    longInteger_t y, quotient, remainder;
-    uint32_t baseY;
-
-    baseY = getRegisterShortIntegerBase(REGISTER_Y);
-    convertShortIntegerRegisterToLongInteger(REGISTER_Y, y);
-
-    longIntegerInit(quotient);
-    longIntegerInit(remainder);
-    longIntegerDivideQuotientRemainder(y, x, quotient, remainder);
-
-    convertLongIntegerToLongIntegerRegister(quotient, REGISTER_X);
-    convertLongIntegerToShortIntegerRegister(remainder, baseY, REGISTER_Y);
-
-    longIntegerFree(y);
-    longIntegerFree(quotient);
-    longIntegerFree(remainder);
-  }
-
-  longIntegerFree(x);
+  idivrIntInt(convertLongIntegerRegisterToLongInteger, convertShortIntegerRegisterToLongInteger, false, true);
 }
 
 
@@ -199,6 +165,10 @@ void idivrLonIReal(void) {
     return;
   }
 
+  if(integerDivideFiniteRegisters(true)) {
+    return;
+  }
+
   real_t y, x, q;
 
   convertLongIntegerRegisterToReal(REGISTER_Y, &y, &ctxtReal39);
@@ -208,8 +178,7 @@ void idivrLonIReal(void) {
   convertRealToLongIntegerRegister(&q, REGISTER_X, DEC_ROUND_DOWN);
 
   WP34S_Mod(&y, &x, &y, &ctxtReal39);
-  reallocateRegister(REGISTER_Y, dtReal34, 0, amNone);
-  convertRealToReal34ResultRegister(&y, REGISTER_Y);
+  convertRealToResultRegister(&y, REGISTER_Y, amNone);
 }
 
 
@@ -229,6 +198,10 @@ void idivrRealLonI(void) {
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function idivrRealLonI:", "cannot IDIVR a real34 by 0", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+    return;
+  }
+
+  if(integerDivideFiniteRegisters(true)) {
     return;
   }
 
@@ -257,37 +230,7 @@ void idivrRealLonI(void) {
  * \return void
  ***********************************************/
 void idivrShoIShoI(void) {
-  longInteger_t x;
-
-  convertShortIntegerRegisterToLongInteger(REGISTER_X, x);
-
-  if(longIntegerIsZero(x)) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
-    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      moreInfoOnError("In function idivrShoIShoI:", "cannot IDIVR a short integer by 0", NULL, NULL);
-    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-  }
-  else {
-    longInteger_t y, quotient, remainder;
-    uint32_t baseY;
-
-    baseY = getRegisterShortIntegerBase(REGISTER_Y);
-    convertShortIntegerRegisterToLongInteger(REGISTER_Y, y);
-
-    longIntegerInit(quotient);
-    longIntegerInit(remainder);
-    longIntegerDivideQuotientRemainder(y, x, quotient, remainder);
-
-    convertLongIntegerToShortIntegerRegister(quotient, baseY, REGISTER_X);
-    convertLongIntegerToShortIntegerRegister(remainder, baseY, REGISTER_Y);
-
-    longIntegerFree(y);
-    longIntegerFree(quotient);
-    longIntegerFree(remainder);
-  }
-
-  longIntegerFree(x);
-
+  idivrIntInt(convertShortIntegerRegisterToLongInteger, convertShortIntegerRegisterToLongInteger, true, true);
 }
 
 
@@ -307,6 +250,10 @@ void idivrShoIReal(void) {
     return;
   }
 
+  if(integerDivideFiniteRegisters(true)) {
+    return;
+  }
+
   real_t y, x, q;
 
   convertShortIntegerRegisterToReal(REGISTER_Y, &y, &ctxtReal39);
@@ -316,8 +263,7 @@ void idivrShoIReal(void) {
   convertRealToLongIntegerRegister(&q, REGISTER_X, DEC_ROUND_DOWN);
 
   WP34S_Mod(&y, &x, &y, &ctxtReal39);
-  reallocateRegister(REGISTER_Y, dtReal34, 0, amNone);
-  convertRealToReal34ResultRegister(&y, REGISTER_Y);
+  convertRealToResultRegister(&y, REGISTER_Y, amNone);
 }
 
 
@@ -337,6 +283,10 @@ void idivrRealShoI(void) {
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function idivrRealShoI:", "cannot IDIVR a real34 by 0", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+    return;
+  }
+
+  if(integerDivideFiniteRegisters(true)) {
     return;
   }
 
@@ -370,6 +320,10 @@ void idivrRealReal(void) {
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function idivrRealReal:", "cannot IDIVR a real34 by 0", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+    return;
+  }
+
+  if(integerDivideFiniteRegisters(true)) {
     return;
   }
 

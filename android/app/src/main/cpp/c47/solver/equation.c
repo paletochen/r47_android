@@ -898,25 +898,19 @@ static void _runDyadicFunction(char *mvarBuffer, uint16_t item) {
   liftStack();
 
   _popNumericStack(mvarBuffer, &re, &im);
-  if(real34IsZero(&im) || real34IsNaN(&im)) {
-    reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-    real34Copy(&re, REGISTER_REAL34_DATA(REGISTER_X));
+  if(real34IsZero(&im)) {
+    convertReal34ToReal34Register(&re, REGISTER_X);
   }
   else {
-    reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
-    real34Copy(&re, REGISTER_REAL34_DATA(REGISTER_X));
-    real34Copy(&im, REGISTER_IMAG34_DATA(REGISTER_X));
+    convertReal34ToComplex34Register(&re, &im, REGISTER_X);
   }
 
   _popNumericStack(mvarBuffer, &re, &im);
-  if(real34IsZero(&im) || real34IsNaN(&im)) {
-    reallocateRegister(REGISTER_Y, dtReal34, 0, amNone);
-    real34Copy(&re, REGISTER_REAL34_DATA(REGISTER_Y));
+  if(real34IsZero(&im)) {
+    convertReal34ToReal34Register(&re, REGISTER_Y);
   }
   else {
-    reallocateRegister(REGISTER_Y, dtComplex34, 0, amNone);
-    real34Copy(&re, REGISTER_REAL34_DATA(REGISTER_Y));
-    real34Copy(&im, REGISTER_IMAG34_DATA(REGISTER_Y));
+    convertReal34ToComplex34Register(&re, &im, REGISTER_Y);
   }
 
   runFunction(item);
@@ -937,14 +931,11 @@ static void _runMonadicFunction(char *mvarBuffer, uint16_t item) {
   clearRegister(REGISTER_X);
 
   _popNumericStack(mvarBuffer, &re, &im);
-  if(real34IsZero(&im) || real34IsNaN(&im)) {
-    reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-    real34Copy(&re, REGISTER_REAL34_DATA(REGISTER_X));
+  if(real34IsZero(&im)) {
+    convertReal34ToReal34Register(&re, REGISTER_X);
   }
   else {
-    reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
-    real34Copy(&re, REGISTER_REAL34_DATA(REGISTER_X));
-    real34Copy(&im, REGISTER_IMAG34_DATA(REGISTER_X));
+    convertReal34ToComplex34Register(&re, &im, REGISTER_X);
   }
 
   runFunction(item);
@@ -1086,25 +1077,29 @@ static void _processOperator(uint16_t func, char *mvarBuffer) {
           break;
         }
         case PARSER_OPERATOR_ITM_EQUAL: {
-          if(getRegisterDataType(REGISTER_X) != dtComplex34) {   //a complex left hand side cannot convert: the complex solver leaves one in X
-            fnToReal(NOPARAM);
-          }
           _popNumericStack(mvarBuffer, PARSER_LEFT_VALUE_REAL, PARSER_LEFT_VALUE_IMAG);
           break;
         }
         default: {
+          if(*PARSER_NUMERIC_STACK_POINTER != 1) {
+            displayCalcErrorMessage(ERROR_SYNTAX_ERROR_IN_EQUATION, ERR_REGISTER_LINE);
+            #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+              moreInfoOnError("In function _processOperator:", "an expression must produce one value", NULL, NULL);
+            #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+            return;
+          }
           setSystemFlag(FLAG_ASLIFT);
           liftStack();
-          if((real34IsZero(PARSER_LEFT_VALUE_IMAG) || real34IsNaN(PARSER_LEFT_VALUE_IMAG)) && (real34IsZero(&PARSER_NUMERIC_STACK[(*PARSER_NUMERIC_STACK_POINTER) * 2 - 1]) || real34IsNaN(&PARSER_NUMERIC_STACK[(*PARSER_NUMERIC_STACK_POINTER) * 2 - 1]))) {
+          if(real34IsZero(PARSER_LEFT_VALUE_IMAG) && real34IsZero(&PARSER_NUMERIC_STACK[1])) {
             reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-            real34Subtract(&PARSER_NUMERIC_STACK[(*PARSER_NUMERIC_STACK_POINTER) * 2 - 2], PARSER_LEFT_VALUE_REAL, REGISTER_REAL34_DATA(REGISTER_X));
+            real34Subtract(&PARSER_NUMERIC_STACK[0], PARSER_LEFT_VALUE_REAL, REGISTER_REAL34_DATA(REGISTER_X));
           }
           else {
             reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
-            real34Subtract(&PARSER_NUMERIC_STACK[(*PARSER_NUMERIC_STACK_POINTER) * 2 - 2], PARSER_LEFT_VALUE_REAL, REGISTER_REAL34_DATA(REGISTER_X));
-            real34Subtract(&PARSER_NUMERIC_STACK[(*PARSER_NUMERIC_STACK_POINTER) * 2 - 1], PARSER_LEFT_VALUE_IMAG, REGISTER_IMAG34_DATA(REGISTER_X));
+            real34Subtract(&PARSER_NUMERIC_STACK[0], PARSER_LEFT_VALUE_REAL, REGISTER_REAL34_DATA(REGISTER_X));
+            real34Subtract(&PARSER_NUMERIC_STACK[1], PARSER_LEFT_VALUE_IMAG, REGISTER_IMAG34_DATA(REGISTER_X));
           }
-          --(*PARSER_NUMERIC_STACK_POINTER);
+          *PARSER_NUMERIC_STACK_POINTER = 0;
         }
       }
       return;

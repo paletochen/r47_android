@@ -9,7 +9,7 @@
 // VARIOUS OPTIONS
 //*********************************
 
-#define VERSION1 "00.109.05.00a0.ALPHA"       // major release . minor release . tracked build . internal OR un/tracked OR subrelease : Alpha / Beta / RC1
+#define VERSION1 "00.109.05.00b2"       // major release . minor release . tracked build . internal OR un/tracked OR subrelease : Alpha / Beta / RC1
 
 // Version 00.109.02.07b11   Public Release C47 & R47
 // Version 00.109.02.07b12   Public Release C47 & R47 launch
@@ -26,6 +26,10 @@
 // Version 00.109.03.03b0    Public C47 & R47
 // Version 00.109.04.00b0    Public C47 & R47
 // Version 00.109.05.00a0    Internal alpha C47 & R47
+// Version 00.109.05.00a1    Collecting bugfixes for roll up into BETA
+// Version 00.109.05.00b0    Public C47 & R47
+// Version 00.109.05.00b1    Public C47 & R47
+// Version 00.109.05.00b2    Public C47 & R47 updated certificates; fix botched merge of #658
 
 #if !defined(CALCMODEL)
   #define CALCMODEL USER_C47               // USER_C47 or USER_R47
@@ -163,40 +167,58 @@
   #endif
 
 
-//    Info 2026-08-03 00.109.04.00b
-//
-//       Pkg │ DIST    │ X.FN     │ FIN    │ EIGEN │ ELEC │ IR │ STRUCT
-//      ─────┼─────────┼──────────┼────────┼───────┼──────┼────┼────────
-//        1  │ all     │ no ellip │ fast   │   ✅  │  ✅  │ ✅ │   ✅
-//        2  │ limit   │ full     │ fast   │   ✅  │  ✅  │ ✅ │   ✅
-//        3  │ all     │ full     │ slow   │   ✅  │  ✅  │ ❌ │   ✅
-//        4  │ none    │ no e-B-O │ slow   │   ❌  │  ❌  │ ✅ │   ✅
-//
-//
-//      DIST   all      every distribution
-//             limit    Normal, StdNormal, LogNormal, t, chi, expo, weibull, cauchy, logis
-//             none     no distributions
-//      X.FN   full     includes elliptic, Bessel, Orthogonal
-//             no ellip without elliptic
-//             no e-B-O none of elliptic, Bessel, Orthogonal
-//      FIN    fast     financial funcs at full precision/speed
-//             slow     financial funcs available, but lower precision and slower
-//      EIGEN  ✅       EIGVAL + EIGVEC (est. > 16 digits) + MSQRT + SLVP
-//             ❌       none of the above
-//      ELEC   ✅       Star/Delta, Impedance, phase-sequence, parallel funcs
-//             ❌       none of the above
-//      IR     ✅       IR printing
-//             ❌       no IR printing
-//      STRUCT ✅       structured programs: 10 nesting levels, 4 FOR loops, 10 IF, 10 DO, 10 REPEAT
-//      All C47 / DM42 packages (common to 1–4): no 2D/3D VECTOR conversions (matrix functions stay), no number editing, no 1000-digit XFN math.
+// jacomostert@Mac c43 % ./distS
+// 📦 Building dist_dmcp...
+// flash    679088    720896     41808
+// 📦 Building dist_dmcp5...
+// flash   1150416   1441792    291376
+// 📦 Building dist_dmcp5r47...
+// flash   1152104   1441792    289688
+// 📦 Building dist_dmcpr47...
+// flash    679448    720896     41448
+// 📦 Building dist_dmcp...package 1
+// flash    718016    720896      2880
+// 📦 Building dist_dmcp...package 2
+// flash    719816    720896      1080
+// 📦 Building dist_dmcp...package 3
+// flash    719952    720896       944
 
-//Flash table
-// Package 1: Free flash: 680   less Elliptical
-// Package 2: Free flash: 168   less 50% if DIST (less F BINOM HYPER POISS GEOM GEV PARETO UNIFORM DISUNIFORM)
-// Package 3: Free flash: 848   less IR printing
-// Package 4: Free flash: 69648 git pipelines mo math 
+// Flash table
+// Package 1: Free flash: 2880
+// Package 2: Free flash: 1080
+// Package 3: Free flash: 944
+// Package 4: Free flash: 41808
 
-  #if defined(DMCP_PACKAGE1)             // PACKAGE 1 (free 680)
+
+//Info 2026-09-21, read from the built objects of each package
+//
+//   Pkg │ DIST    │ X.FN     │ FIN  │ EIGEN │ ELEC │ IR  │ STRUC
+//  ─────┼─────────┼──────────┼──────┼───────┼──────┼────-┼────
+//    1  │ all 20  │ no ellip │ slow │   ❌  │  ❌  │ ❌ │ ✅
+//    2  │ 9, gp1-2│ full     │ slow │   ❌  │  ❌  │ ✅ │ ✅
+//    3  │ 3, gp1  │ no e-B-O │ fast │   ✅  │  ✅  │ ✅ │ ✅
+//    4  │ none    │ no e-B-O │ slow │   ❌  │  ❌  │ ✅ │ ✅
+//
+//
+//  DIST   all 20   every distribution, groups 1 to 4, listed in Table 1
+//         9, gp1-2 the three Normal distributions and the six of group 2
+//         3, gp1   the three Normal distributions
+//         none     no distributions
+//  X.FN   full     includes elliptic, Bessel, Orthogonal
+//         no ellip without elliptic
+//         no e-B-O none of elliptic, Bessel, Orthogonal
+//  FIN    fast     financial funcs at full precision/speed
+//         slow     financial funcs available, but lower precision and slower
+//  EIGEN  ✅       EIGVAL + EIGVEC (est. > 16 digits) + MSQRT
+//         ❌       none of the above
+//  ELEC   ✅       Star/Delta, Impedance, phase-sequence, parallel funcs
+//         ❌       none of the above
+//  IR     ✅       IR printing
+//         ❌       no IR printing
+//  All C47 / DM42 packages (common to 1–4): no 2D/3D VECTOR conversions (matrix functions stay), no ALGDEP X->POLY, no large matrix SHOW, no 1000-digit XFN math, no 159 digit high accuracy EIGEN & POLY, no 159-d cubic solver
+
+
+  #if defined(DMCP_PACKAGE1)             // PACKAGE 1 (free 2880) // ALL DIST, Stripped ELLIPSE X.FN menu; NO EIGEN; ELEC; FAST FIN; NO IR PRINTING
             #undef  OPTION_ELLIPTIC      // ✓ 13112 bytes // Without ELLIPTIC
     #define OPTION_BESSEL                // ☑  5000 bytes // Without X.FN BESSEL
     #define OPTION_ORTHO                 // ☑   504 bytes // Without X.FN ORTHO MENU
@@ -205,17 +227,17 @@
     #define OPTION_DIST_B                // ☑ 16648 bytes // (2) Without Cauch, chi2, Expon, Weibl, Logis, t: 24 items, submenus CAUCH CHI2 EXPON WEIBL LOGIS T; +DIST_C
     #define OPTION_DIST_C                // ☑  9568 bytes // (3) Without F, Binom, NBin, Hyper, Poiss, Geom: 24 items, submenus F BINOM HYPER POISS GEOM
     #define OPTION_DIST_D                // ☑  3256 bytes // (4) Without GEV, Prto, Prto2, Unfm, DisU: 20 items, submenus GEV PARETO UNIFORM DISUNIFORM
-    #define OPTION_TVM_FORMULAS          // ☑  2744 bytes // Use TVM analytical formulas where possible
-    #define OPTION_TVM_NEWTON            // ☑  2128 bytes // Use TVM additional newton raphson in the brent solver for tvm where possible
-    #define OPTION_TVM_AMORT             // ✓  1648 bytes // Use additional AMORT in tvm
-    #define OPTION_ELEC                  // ☑  6856 bytes // ELEC   6240 saving if VECTOR is not in; 2856 saving if VECTOR is in
-    #define OPTION_EIGEN                 // ✓ 17440 bytes // Without EIGVAL, EIGVEC, M.QR, MSQRT
-    #define OPTION_SLVP_POLY             // ✓  2024 bytes // SLVP general polynomial roots (companion matrix through the EIGEN QR solver)
+            #undef  OPTION_TVM_FORMULAS  // ☑  2744 bytes // Use TVM analytical formulas where possible
+            #undef  OPTION_TVM_NEWTON    // ☑  2128 bytes // Use TVM additional newton raphson in the brent solver for tvm where possible
+            #undef  OPTION_TVM_AMORT     // ✓  1648 bytes // Use additional AMORT in tvm
+            #undef  OPTION_ELEC          // ☑  6856 bytes // ELEC   6240 saving if VECTOR is not in; 2856 saving if VECTOR is in
+            #undef  OPTION_EIGEN         // ✓ 17440 bytes // Without EIGVAL, EIGVEC, M.QR, MSQRT
+            #undef  OPTION_SLVP_POLY     // ✓  2024 bytes // SLVP general polynomial roots (companion matrix through the EIGEN QR solver)
     #define OPTION_STRUCTURED_PGM        // ✓  5873 bytes // The DM42 can include STRUCT at 10 nesting levels, 4 FOR loops, and 10 IF, 10 DO and 10 REPEAT numbers
-            #define  OPTION_IR_PRINTING   // ✓ 10040 bytes // Remove IR printing for old hardware
+            #undef  OPTION_IR_PRINTING   // ✓ 10040 bytes // Remove IR printing for old hardware
   #endif // DMCP_PACKAGE1
 
-  #if defined(DMCP_PACKAGE2)             // PACKAGE 2 (free 168 ☑)
+  #if defined(DMCP_PACKAGE2)             // PACKAGE 2 (free 1080 ☑) // Limited2 DIST; Full X.FN menu; NO EIGEN; NO ELEC; SLOW FIN; IR PRINTING
     #define OPTION_ELLIPTIC              // ☑ 13192 bytes // Without ELLIPTIC
     #define OPTION_BESSEL                // ☑  4984 bytes // Without X.FN BESSEL
     #define OPTION_ORTHO                 // ☑   696 bytes // Without X.FN ORTHO MENU
@@ -224,33 +246,33 @@
     #define OPTION_DIST_B                // ☑  7080 bytes // Without (2) Cauch, chi2, Expon, Weibl, Logis, t: 24 items, submenus CAUCH CHI2 EXPON WEIBL LOGIS T; +DIST_C
             #undef  OPTION_DIST_C        // ✓  9624 bytes // Without (3) F, Binom, NBin, Hyper, Poiss, Geom: 24 items, submenus F BINOM HYPER POISS GEOM
             #undef  OPTION_DIST_D        // ✓  3280 bytes // Without (4) GEV, Prto, Prto2, Unfm, DisU: 20 items, submenus GEV PARETO UNIFORM DISUNIFORM
-    #define OPTION_TVM_FORMULAS          // ✓  2744 bytes // Use TVM analytical formulas where possible
-    #define OPTION_TVM_NEWTON            // ✓  2032 bytes // Use TVM additional newton raphson in the brent solver for tvm where possible
-    #define OPTION_TVM_AMORT             // ✓  1648 bytes // Use additional AMORT in tvm
-    #define OPTION_ELEC                  // ✓  6816 bytes // ELEC   see below
-    #define OPTION_EIGEN                 // ✓ 17440 bytes // Without EIGVAL, EIGVEC, M.QR, MSQRT
-    #define OPTION_SLVP_POLY             // ✓  2024 bytes // SLVP general polynomial roots (companion matrix through the EIGEN QR solver)
+            #undef  OPTION_TVM_FORMULAS  // ✓  2744 bytes // Use TVM analytical formulas where possible
+            #undef  OPTION_TVM_NEWTON    // ✓  2032 bytes // Use TVM additional newton raphson in the brent solver for tvm where possible
+            #undef  OPTION_TVM_AMORT     // ✓  1648 bytes // Use additional AMORT in tvm
+            #undef  OPTION_ELEC          // ✓  6816 bytes // ELEC   see below
+            #undef  OPTION_EIGEN         // ✓ 17440 bytes // Without EIGVAL, EIGVEC, M.QR, MSQRT
+            #undef  OPTION_SLVP_POLY     // ✓  2024 bytes // SLVP general polynomial roots (companion matrix through the EIGEN QR solver)
     #define OPTION_STRUCTURED_PGM        // ✓  5873 bytes // The DM42 can include STRUCT at 10 nesting levels, 4 FOR loops, and 10 IF, 10 DO and 10 REPEAT numbers
     #define OPTION_IR_PRINTING           // ✓ 10040 bytes // Remove IR printing for old hardware
   #endif // DMCP_PACKAGE2
 
-  #if defined(DMCP_PACKAGE3)             // PACKAGE 3 (free 848)
-    #define  OPTION_ELLIPTIC             // ✓ 13112 bytes // Without ELLIPTIC
-    #define OPTION_BESSEL                // ☑  5008 bytes // Without X.FN BESSEL
-    #define OPTION_ORTHO                 // ☑   696 bytes // Without X.FN ORTHO MENU
+  #if defined(DMCP_PACKAGE3)             // PACKAGE 3 (free 944) // Limited0 DIST, Full X.FN menu; EIGEN; ELEC; FAST FIN; IR PRINTING
+            #undef  OPTION_ELLIPTIC      // ✓ 13112 bytes // Without ELLIPTIC
+            #undef  OPTION_BESSEL        // ☑  5008 bytes // Without X.FN BESSEL
+            #undef  OPTION_ORTHO         // ☑   696 bytes // Without X.FN ORTHO MENU
     #define OPTION_DISTRIBUTIONS         // ✓     0 bytes // Without the DIST menu top-level link; the subsets below carry the code
     #define OPTION_DIST_NORMAL           // ☑  2200 bytes // Without (1) Norml, LgNrm, StdNorml: 12 items, submenus NORML STDNORML; base set, undefines DIST_B/C/D
-    #define OPTION_DIST_B                // ✓  7136 bytes // Without (2) Cauch, chi2, Expon, Weibl, Logis, t: 24 items, submenus CAUCH CHI2 EXPON WEIBL LOGIS T; +DIST_C
-    #define OPTION_DIST_C                // ✓  9624 bytes // Without (3) F, Binom, NBin, Hyper, Poiss, Geom: 24 items, submenus F BINOM HYPER POISS GEOM
-    #define OPTION_DIST_D                // ✓  3280 bytes // Without (4) GEV, Prto, Prto2, Unfm, DisU: 20 items, submenus GEV PARETO UNIFORM DISUNIFORM
-            #undef  OPTION_TVM_FORMULAS  // ☑  2744 bytes // Use TVM analytical formulas where possible
+            #undef  OPTION_DIST_B        // ✓  7136 bytes // Without (2) Cauch, chi2, Expon, Weibl, Logis, t: 24 items, submenus CAUCH CHI2 EXPON WEIBL LOGIS T; +DIST_C
+            #undef  OPTION_DIST_C        // ✓  9624 bytes // Without (3) F, Binom, NBin, Hyper, Poiss, Geom: 24 items, submenus F BINOM HYPER POISS GEOM
+            #undef  OPTION_DIST_D        // ✓  3280 bytes // Without (4) GEV, Prto, Prto2, Unfm, DisU: 20 items, submenus GEV PARETO UNIFORM DISUNIFORM
+    #define OPTION_TVM_FORMULAS          // ☑  2744 bytes // Use TVM analytical formulas where possible
     #define OPTION_TVM_NEWTON            // ☑  2088 bytes // Use TVM additional newton raphson in the brent solver for tvm where possible
-    #define OPTION_TVM_AMORT      // ✓  1648 bytes // Use additional AMORT in tvm
+            #undef OPTION_TVM_AMORT      // ✓  1648 bytes // Use additional AMORT in tvm
     #define OPTION_ELEC                  // ☑  6824 bytes // ELEC   see below
     #define OPTION_EIGEN                 // ☑ 17464 bytes // Without EIGVAL, EIGVEC, M.QR, MSQRT
     #define OPTION_SLVP_POLY             // ✓  2024 bytes // SLVP general polynomial roots (companion matrix through the EIGEN QR solver)
     #define OPTION_STRUCTURED_PGM        // ✓  5873 bytes // The DM42 can include STRUCT at 10 nesting levels, 4 FOR loops, and 10 IF, 10 DO and 10 REPEAT numbers
-    #undef OPTION_IR_PRINTING           // ✓ 10040 bytes // Remove IR printing for old hardware
+    #define OPTION_IR_PRINTING           // ✓ 10040 bytes // Remove IR printing for old hardware
   #endif // DMCP_PACKAGE3
             // ELEC VECT  FLASH cost   free   (pkg4, 720896 total)
             //  0    0          0     32692
@@ -258,7 +280,7 @@
             //  1    0       6240     26452   ELEC only
             //  1    1      15808     16884   both (ELEC+VECTOR share 3384)
 
-  #if defined(DMCP_PACKAGE4_NOOPT)       // PACKAGE 4 (free 30472) // Minimal, no math options included, IR PRINTING; FOR GITLAB PIPELINE COMPILE
+  #if defined(DMCP_PACKAGE4_NOOPT)       // PACKAGE 4 (free 41808) // Minimal, no math options included, IR PRINTING; FOR GITLAB PIPELINE COMPILE
             #undef  OPTION_ELLIPTIC      // ✓ 13112 bytes // Without ELLIPTIC
             #undef  OPTION_BESSEL        // ✓  4968 bytes // Without X.FN BESSEL
             #undef  OPTION_ORTHO         // ✓   656 bytes // Without X.FN ORTHO MENU
@@ -273,7 +295,7 @@
             #undef  OPTION_ELEC          // ✓  6816 bytes // ELEC   6240 saving if VECTOR is not in; 2856 saving if VECTOR is in
             #undef  OPTION_EIGEN         // ✓ 17440 bytes // Without EIGVAL, EIGVEC, M.QR, MSQRT
             #undef  OPTION_SLVP_POLY     // ✓  2024 bytes // SLVP general polynomial roots (companion matrix through the EIGEN QR solver)
-            #undef  OPTION_STRUCTURED_PGM// ✓  5873 bytes // The DM42 can include STRUCT at 10 nesting levels, 4 FOR loops, and 10 IF, 10 DO and 10 REPEAT numbers
+    #define OPTION_STRUCTURED_PGM// ✓  5873 bytes // The DM42 can include STRUCT at 10 nesting levels, 4 FOR loops, and 10 IF, 10 DO and 10 REPEAT numbers
     #define OPTION_IR_PRINTING           // ✓ 10040 bytes // Remove IR printing for old hardware
   #endif // DMCP_PACKAGE4_NOOPT
 
@@ -345,6 +367,68 @@
   #undef OPTION_DIST_B
   #undef OPTION_DIST_D
 #endif
+
+// THE DISTRIBUTION GATES. One gate per distribution file, so a distribution can be taken out for a size measurement or for a shipped package without moving a
+// whole group. A group defines the gate of each distribution in it. To leave one out, undefine its gate after the group that defined it.
+// The figure against each gate is what leaving that distribution out saves in PACKAGE 1, each one measured by its own build of PACKAGE 1.
+
+#if defined(OPTION_DIST_NORMAL)  // one file, three names
+  #define OPTION_DIST_NORML      //       keeps t, poisson and hyper working
+#endif // OPTION_DIST_NORMAL
+
+#if defined(OPTION_DIST_B)       // separate files, chi2 excepted
+  #define OPTION_DIST_T          //  5712 bytes
+  #define OPTION_DIST_LOGIS      //  1976 bytes
+  #define OPTION_DIST_CAUCH      //  1856 bytes
+  #define OPTION_DIST_WEIBL      //  1080 bytes
+  #define OPTION_DIST_EXPON      //   728 bytes
+  #define OPTION_DIST_CHI2       //       keeps every group 3 distribution working
+#endif // OPTION_DIST_B
+
+#if defined(OPTION_DIST_C)       // one knot, shared discrete solvers
+  #define OPTION_DIST_BINOM      // 17008 bytes for the six of group 3 together. None of them comes out on its own: WP34S_Qf_Newton in f.c and
+  #define OPTION_DIST_F          //       WP34S_qf_discrete_final in geometric.c are shared solvers that call the density and the distribution of
+  #define OPTION_DIST_GEOM       //       each one by name, and f.c and negBinom.c call each other. Splitting group 3 means giving those two
+  #define OPTION_DIST_HYPER      //       solvers the density and the distribution as arguments, which is a code change and not an option change.
+  #define OPTION_DIST_NBIN       //
+  #define OPTION_DIST_POISS      //
+#endif // OPTION_DIST_C
+
+#if defined(OPTION_DIST_D)       // separate files, two take a pair
+  #define OPTION_DIST_PRTO       //  2496 bytes, Prto and Prto2 share a file
+  #define OPTION_DIST_GEV        //  1184 bytes
+  #define OPTION_DIST_UNFM       //  1064 bytes, Unfm and DisU share a file
+#endif // OPTION_DIST_D
+
+// What each distribution calls outside its own file, and therefore what has to stay when it goes.
+#if !defined(OPTION_DIST_NORML)  // WP34S_qf_q_est, WP34S_Cdf_Q and the others are in normal.c
+  #undef OPTION_DIST_T
+  #undef OPTION_DIST_POISS
+  #undef OPTION_DIST_HYPER
+#endif // !OPTION_DIST_NORML
+
+#if !defined(OPTION_DIST_CHI2)   // checkRegisterNoFP is in chi2.c
+  #undef OPTION_DIST_BINOM
+  #undef OPTION_DIST_F
+  #undef OPTION_DIST_HYPER
+  #undef OPTION_DIST_NBIN
+#endif // !OPTION_DIST_CHI2
+
+#if !defined(OPTION_DIST_F) || !defined(OPTION_DIST_NBIN)  // f.c and negBinom.c call each other, and binomial and geometric call into them
+  #undef OPTION_DIST_F
+  #undef OPTION_DIST_NBIN
+  #undef OPTION_DIST_BINOM
+  #undef OPTION_DIST_GEOM
+#endif // !OPTION_DIST_F || !OPTION_DIST_NBIN
+
+#if !defined(OPTION_DIST_HYPER) || !defined(OPTION_DIST_POISS) || !defined(OPTION_DIST_BINOM) || !defined(OPTION_DIST_GEOM)  // the solvers name all six
+  #undef OPTION_DIST_HYPER
+  #undef OPTION_DIST_POISS
+  #undef OPTION_DIST_BINOM
+  #undef OPTION_DIST_NBIN
+  #undef OPTION_DIST_GEOM
+  #undef OPTION_DIST_F
+#endif // the group 3 knot
 
 
 

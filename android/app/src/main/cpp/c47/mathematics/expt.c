@@ -35,15 +35,16 @@ static bool_t getExponent(int32_t *res) {
 }
 
 static void exptLonI(void) {
-  int32_t expt;
   longInteger_t lgInt;
+  size_t digits;
 
-  if(!getExponent(&expt)) {
+  if(!getRegisterAsLongInt(REGISTER_X, lgInt, NULL)) {
     return;
   }
 
-  longIntegerInit(lgInt);
-  int32ToLongInteger(expt, lgInt);
+  longIntegerToAllocatedString(lgInt, tmpString, TMP_STR_LENGTH);
+  digits = strlen(tmpString) - (tmpString[0] == '-');
+  int32ToLongInteger((int32_t)digits - 1, lgInt);
   convertLongIntegerToLongIntegerRegister(lgInt, REGISTER_X);
   longIntegerFree(lgInt);
 }

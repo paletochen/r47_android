@@ -37,29 +37,38 @@ void auto_free(void *p) {
 #endif  // (defined __GNUC__ && __GNUC__ + (__GNUC_MINOR__ >= 3) > 4) || (defined __clang__ && __clang_major__ >= 3)
 
 
-static uint64_t realToInt(const real_t *r, uint64_t magnitudeLimit, enum rounding round, bool_t *error) {
-  real_t integer;
-  int32_t i;
+static uint64_t realToInt(const real_t *r, uint64_t magnitudeLimit, bool_t *error) {
+  TO_QSPI static const uint16_t powersOfTen[DECDPUN] = {1, 10, 100};
+  int32_t magnitudeDigits=1;
+  int64_t integerDigits;
   uint64_t value=0;
 
   if(realIsSpecial(r)) {
     return 0;
   }
 
-  realToIntegralValue(r, &integer, round, &ctxtReal39);
-
-  for(i=(integer.digits-1)/DECDPUN; i>=0; i--) {
-    value = value*1000 + integer.lsu[i]; // 1000 = 10^DECDPUN
-    if(value > magnitudeLimit) {
-      return 0;
+  for(uint64_t limit=magnitudeLimit; limit>=10; limit/=10) {
+    magnitudeDigits++;
+  }
+  integerDigits = (int64_t)r->digits + r->exponent;
+  if(!realIsZero(r) && integerDigits > magnitudeDigits) {
+    return 0;
+  }
+  if(integerDigits <= 0) {
+    if(error != NULL) {
+      *error = false;
     }
+    return 0;
   }
 
-  for(i=integer.exponent; i>0; i--) {
-    value *= 10;
-    if(value > magnitudeLimit) {
+  for(int64_t position=integerDigits-1; position>=0; position--) {
+    const int64_t coefficientPosition = position - r->exponent;
+    const uint16_t digit = coefficientPosition < 0 ? 0
+                                                   : r->lsu[coefficientPosition/DECDPUN] / powersOfTen[coefficientPosition%DECDPUN] % 10;
+    if(value > (magnitudeLimit - digit)/10) {
       return 0;
     }
+    value = value*10 + digit;
   }
 
   if(error != NULL) {
@@ -80,7 +89,7 @@ int32_t realToInt32C47(const real_t *r, bool_t *error) {
   if(error != NULL) {
     *error = true;
   }
-  value = (int64_t)realToInt(r, magnitudeLimit, DEC_ROUND_DOWN, error);
+  value = (int64_t)realToInt(r, magnitudeLimit, error);
   return sign ? (int32_t)(-value) : (int32_t)value;
 }
 
@@ -91,13 +100,13 @@ uint32_t realToUint32C47(const real_t *r, bool_t *error) {
     *error = true;
   }
 
-  if(realIsNegative(r)) {
+  if(realIsNegative(r) && !realIsZero(r)) {
     return 0;
   }
 
   magnitudeLimit = (uint64_t)UINT32_MAX; // 4294967295
 
-  return (uint32_t)realToInt(r, magnitudeLimit, DEC_ROUND_DOWN, error);
+  return (uint32_t)realToInt(r, magnitudeLimit, error);
 }
 
 void realSetZero(real_t *r) {
@@ -140,4 +149,26 @@ void realSetMinusInfinity(real_t *r) {
   r->exponent = 0;
   r->digits   = 1;
   r->lsu[0]   = 0;
+}
+
+
+// A routine that is the same under addition and under subtraction takes one of these. real34Add and real34Subtract are macros and cannot be pointed at.
+void real34AddOp(const real34_t *y, const real34_t *x, real34_t *res) {
+  real34Add(y, x, res);
+}
+
+void real34SubtractOp(const real34_t *y, const real34_t *x, real34_t *res) {
+  real34Subtract(y, x, res);
+}
+
+void realAddOp(const real_t *y, const real_t *x, real_t *res, realContext_t *realContext) {
+  realAdd(y, x, res, realContext);
+}
+
+void realSubtractOp(const real_t *y, const real_t *x, real_t *res, realContext_t *realContext) {
+  realSubtract(y, x, res, realContext);
+}
+
+void realMultiplyOp(const real_t *y, const real_t *x, real_t *res, realContext_t *realContext) {
+  realMultiply(y, x, res, realContext);
 }

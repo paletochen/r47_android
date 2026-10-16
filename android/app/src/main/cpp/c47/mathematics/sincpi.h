@@ -10,5 +10,5 @@
 
   void fnSincpi(uint16_t unusedButMandatoryParameter);
 
-  void sincpiComplex(const real_t *real, const real_t *imag, real_t *resReal, real_t *resImag, realContext_t *realContext);
+  void sincpiComplex(const cplx_t *z, cplx_t *res, realContext_t *realContext);
 #endif // !SINCPI_H

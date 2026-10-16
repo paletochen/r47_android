@@ -112,8 +112,7 @@ uint8_t DXR = 0, DYR = 0, DXI = 0, DYI = 0;
         if(!getRegisterAsReal34Quiet(REGISTER_X, &res34)) {
           realToReal34(const_NaN, &res34);
         }
-        reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-        real34Copy(&res34, REGISTER_REAL34_DATA(REGISTER_X));
+        convertReal34ToReal34Register(&res34, REGISTER_X);
       }
     } else {
       parseEquation(currentFormula, EQUATION_PARSER_XEQ, tmpString, tmpString + AIM_BUFFER_LENGTH);
@@ -2011,22 +2010,22 @@ void graph_stat(uint16_t unusedButMandatoryParameter) {
     return realIsZero(a) || realCompareAbsLessThan(a, tol);
   }
 
-  static inline bool_t check2RealZeroTol(const real_t *a, const real_t *b, const real_t *tol) {
-    return checkRealZeroTol(a, tol) && checkRealZeroTol(b, tol);
+  static inline bool_t checkComplexZeroTol(const cplx_t *z, const real_t *tol) {
+    return checkRealZeroTol(&z->Real, tol) && checkRealZeroTol(&z->Imag, tol);
   }
 
-  static void divFunctionComplex(const real_t *a_re, const real_t *a_im, const real_t *b_re, const real_t *b_im, real_t *res_re, real_t *res_im) {
-    if(  (realIsZero(a_re) && realIsZero(a_im)) || realIsNaN(a_re) || realIsNaN(a_im) || realIsNaN(b_re) || realIsNaN(b_im)) {
-      realSetZero(res_re);
-      realSetZero(res_im);
+  static void divFunctionComplex(const cplx_t *a, const cplx_t *b, cplx_t *res) {
+    if(  (realIsZero(&a->Real) && realIsZero(&a->Imag)) || realIsNaN(&a->Real) || realIsNaN(&a->Imag) || realIsNaN(&b->Real) || realIsNaN(&b->Imag)) {
+      realSetZero(&res->Real);
+      realSetZero(&res->Imag);
       return;
     }
-    if(realIsZero(b_re) && realIsZero(b_im)) {
-      stringToReal("1E30", res_re, ctxtSolver2);
-      realSetZero(res_im);
+    if(realIsZero(&b->Real) && realIsZero(&b->Imag)) {
+      stringToReal("1E30", &res->Real, ctxtSolver2);
+      realSetZero(&res->Imag);
       return;
     }
-    divComplexComplex(a_re, a_im, b_re, b_im, res_re, res_im, ctxtSolver2);
+    divComplexComplex(a, b, res, ctxtSolver2);
   }
 
   bool_t check_osc(real_t *new, real_t *old, uint8_t *ii){
@@ -2086,11 +2085,11 @@ void graph_stat(uint16_t unusedButMandatoryParameter) {
 
 
 #if defined(PC_BUILD) //&& (defined(VERBOSE_SOLVER00) || defined(VERBOSE_SOLVER0) || defined(VERBOSE_SOLVER1) || defined(VERBOSE_SOLVER2))
-  static void printComplexToConsole(const real_t *re, const real_t *im, const char *before, const char *after) {
+  static void printComplexToConsole(const cplx_t *z, const char *before, const char *after) {
     char str[100];
-    realToString(re, str);
+    realToString(&z->Real, str);
     printf("%s%43s + ", before, str);
-    realToString(im, str);
+    realToString(&z->Imag, str);
     printf("%43si %s", str, after);
   }
 #endif //PC_BUILD
@@ -2103,10 +2102,10 @@ static cplx_t cpxSlvBestX;
 static real_t cpxSlvBestMagnitudeY;
 // saves best solution to cpxSlvBestX and returns true if converging
 static bool_t execute_rpn_function_reals(const cplx_t *from, cplx_t *to, real_t *magnitude) {
-  convertComplexToResultRegister(&from->Real, &from->Imag, REGISTER_X);
+  convertComplexToResultRegister(from, REGISTER_X);
   execute_rpn_function();
-  getRegisterAsComplex(REGISTER_Y, &to->Real, &to->Imag);
-  complexMagnitude(&to->Real, &to->Imag, magnitude,  ctxtSolver2);
+  getRegisterAsComplex(REGISTER_Y, to);
+  complexMagnitude(to, magnitude,  ctxtSolver2);
   if(realCompareLessEqual(magnitude, &cpxSlvBestMagnitudeY)) {
     copyComplex(from, &cpxSlvBestX);
     if(realCompareLessThan(magnitude, &cpxSlvBestMagnitudeY)) {
@@ -2121,7 +2120,7 @@ static inline void powCplxNat(const cplx_t *base, const uint8_t *exp, cplx_t *re
   cplx_t tmp;
   copyComplex(base, &tmp);
   for(uint8_t i = 1; i<*exp; i++) {
-     mulComplexComplex(CPLX(tmp), &base->Real,  &base->Imag, CPLX(tmp), ctxtSolver2);
+     mulComplexComplex(&tmp, base, &tmp, ctxtSolver2);
   }
   copyComplex(&tmp, res);
 }
@@ -2197,8 +2196,8 @@ static inline void powCplxNat(const cplx_t *base, const uint8_t *exp, cplx_t *re
 
 
     // Initialize
-    getRegisterAsComplex(REGISTER_X, CPLX(*X1));
-    getRegisterAsComplex(REGISTER_Y, CPLX(*X0));
+    getRegisterAsComplex(REGISTER_X, X1);
+    getRegisterAsComplex(REGISTER_Y, X0);
     copyComplex(X0, &cpxSlvBestX);
 
     realCopy(const_1e32, &cpxSlvBestMagnitudeY);
@@ -2240,17 +2239,19 @@ static inline void powCplxNat(const cplx_t *base, const uint8_t *exp, cplx_t *re
       Y2IsZero = true;
     }
     else {
-      subComplex(CPLX(*Y1), CPLX(*Y0), CPLX(*temp1), ctxtSolver2);  //dy=y1-y0
+      subComplex(Y1, Y0, temp1, ctxtSolver2);                       //dy=y1-y0
       // avoid equal Y as it causes double iterations
-      if(check2RealZeroTol(CPLX(*temp1), tol)) {
-        addComplex(CPLX(*X0), const_1e_6, const_0, CPLX(*X0), ctxtSolver2);
+      if(checkComplexZeroTol(temp1, tol)) {
+        realCopy(const_1e_6, &temp0->Real);
+        realSetZero(&temp0->Imag);
+        addComplex(X0, temp0, X0, ctxtSolver2);
         execute_rpn_function_reals(X0, Y0, magnitudeY);
-        subComplex(CPLX(*Y1), CPLX(*Y0), CPLX(*temp1), ctxtSolver2);  //dy=y1-y0
+        subComplex(Y1, Y0, temp1, ctxtSolver2);                       //dy=y1-y0
       }
-      subComplex(CPLX(*X1), CPLX(*X0), CPLX(*temp0), ctxtSolver2);  //dx=x1-x0
-      divFunctionComplex( CPLX(*temp0), CPLX(*temp1), CPLX(*temp0));  //dx/dy
-      mulComplexComplex( CPLX(*temp0), CPLX(*Y1), CPLX(*temp0), ctxtSolver2);  //deltaX = x1 - x2 = Y1 / (dy/dx) = Y1 x 1/(dy/dx) = Y1 x dx/dy
-      subComplex(CPLX(*X1), CPLX(*temp0), CPLX(*X2), ctxtSolver2);  //x2=x1-deltaX
+      subComplex(X1, X0, temp0, ctxtSolver2);                       //dx=x1-x0
+      divFunctionComplex( temp0, temp1, temp0);                       //dx/dy
+      mulComplexComplex( temp0, Y1, temp0, ctxtSolver2);                       //deltaX = x1 - x2 = Y1 / (dy/dx) = Y1 x 1/(dy/dx) = Y1 x dx/dy
+      subComplex(X1, temp0, X2, ctxtSolver2);                       //x2=x1-deltaX
       if(realIsZero(&X2->Imag)) {
         // realCopy(&temp0->Real, &X2->Imag);
         // X2->Imag.exponent -= 1;
@@ -2261,12 +2262,12 @@ static inline void powCplxNat(const cplx_t *base, const uint8_t *exp, cplx_t *re
                                         #if defined(VERBOSE_SOLVER00) || defined(VERBOSE_SOLVER0) || defined(VERBOSE_SOLVER1) || defined(VERBOSE_SOLVER2)
                                             execute_rpn_function_reals(X2, Y2, magnitudeY);
                                             printf("INIT:   iterationCounter=%d \n", iterationCounter);
-                                            printComplexToConsole(CPLX(*X0), "Init X0=", "\n");
-                                            printComplexToConsole(CPLX(*X1), "Init X1=", "\n");
-                                            printComplexToConsole(CPLX(*X2), "Init X2=", "\n");
-                                            printComplexToConsole(CPLX(*Y0), "Init Y0=", "\n");
-                                            printComplexToConsole(CPLX(*Y1), "Init Y1=", "\n");
-                                            printComplexToConsole(CPLX(*Y2), "Init Y2=", "\n");
+                                            printComplexToConsole(X0, "Init X0=", "\n");
+                                            printComplexToConsole(X1, "Init X1=", "\n");
+                                            printComplexToConsole(X2, "Init X2=", "\n");
+                                            printComplexToConsole(Y0, "Init Y0=", "\n");
+                                            printComplexToConsole(Y1, "Init Y1=", "\n");
+                                            printComplexToConsole(Y2, "Init Y2=", "\n");
                                         #endif // VERBOSE_SOLVER00 || VERBOSE_SOLVER0 || VERBOSE_SOLVER1 || VERBOSE_SOLVER2
 
 
@@ -2352,7 +2353,7 @@ static inline void powCplxNat(const cplx_t *base, const uint8_t *exp, cplx_t *re
           oscillations = 0;
           convergent = 0;
                                           #if defined(VERBOSE_SOLVER2)
-                                                  printComplexToConsole(CPLX(*X2), "\n>>>>>>>>>> from ", "");
+                                                  printComplexToConsole(X2, "\n>>>>>>>>>> from ", "");
                                           #endif // VERBOSE_SOLVER2
           double p2 = 1.0;                       // 2^kicker by exact doubling; kicker is a small integer and this keeps libm's pow out of the link
           for(int16_t k2 = kicker; k2 > 0; k2--) {
@@ -2364,13 +2365,13 @@ static inline void powCplxNat(const cplx_t *base, const uint8_t *exp, cplx_t *re
           double kick = 0.8123 * kicker * kicker * p2;
           convertDoubleToReal(kicker%2 ? -kick : kick, &temp1->Real, ctxtSolver2);
           convertDoubleToReal(kick, &temp1->Imag, ctxtSolver2);
-          addComplex(CPLX(*temp1), CPLX(*X0), CPLX(*X2), ctxtSolver2);
+          addComplex(temp1, X0, X2, ctxtSolver2);
                                           #if defined(PC_BUILD)
                                                   printf("------- Kick #%d, iter:%u ", kicker, iterationCounter);
-                                                  printComplexToConsole(CPLX(*temp1), "added: ", "\n");
+                                                  printComplexToConsole(temp1, "added: ", "\n");
                                           #endif  // PC_BUILD
                                           #if defined(VERBOSE_SOLVER2)
-                                                  printComplexToConsole(CPLX(*X2), " to ", "\n");
+                                                  printComplexToConsole(X2, " to ", "\n");
                                           #endif // VERBOSE_SOLVER2
                                                   kicker++;
 
@@ -2379,8 +2380,8 @@ static inline void powCplxNat(const cplx_t *base, const uint8_t *exp, cplx_t *re
 
       //@@@@@@@@@@@@@@@@@ CALCULATE NEW Y2, AND PLAUSIBILITY @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
       // if same as cpxSlvBestX we probably hit the precision limit for this equation?
-      subComplex(CPLX(cpxSlvBestX), CPLX(*X2), CPLX(*temp1), ctxtSolver2);
-      complexMagnitude(CPLX(*temp1), &temp1->Real,  ctxtSolver2);
+      subComplex(&cpxSlvBestX, X2, temp1, ctxtSolver2);
+      complexMagnitude(temp1, &temp1->Real,  ctxtSolver2);
       Y2IsCloseToZero = Y2IsCloseToZero || (realCompareLessThan(&cpxSlvBestMagnitudeY, const_1e_6) && realIsZero(&temp1->Real) && realIsZero(&temp1->Imag));
 
       iterAfterBest = execute_rpn_function_reals(X2, Y2N, magnitudeY) ? 0 : iterAfterBest + 1;
@@ -2400,8 +2401,8 @@ static inline void powCplxNat(const cplx_t *base, const uint8_t *exp, cplx_t *re
 
                                         #if defined(VERBOSE_SOLVER1)
                                               printf("    :   iterationCounter=%d", iterationCounter);
-                                              printComplexToConsole(CPLX(*X2), " X2=", " ");
-                                              printComplexToConsole(CPLX(*Y2N), " Y2=", "\n");
+                                              printComplexToConsole(X2, " X2=", " ");
+                                              printComplexToConsole(Y2N, " Y2=", "\n");
                                         #endif // VERBOSE_SOLVER1
 
       // check if an acceptable solution is found
@@ -2426,7 +2427,7 @@ static inline void powCplxNat(const cplx_t *base, const uint8_t *exp, cplx_t *re
                                                   iterAfterBest,
                                                   arrows[ang%8],
                                                   magn);
-                                                  printComplexToConsole(CPLX(*X2), "X=", "\n");
+                                                  printComplexToConsole(X2, "X=", "\n");
                                         #endif // VERBOSE_SOLVER_ITERDATA
 
                                         #if defined(VERBOSE_SOLVER00) || defined(VERBOSE_SOLVER0)
@@ -2441,8 +2442,8 @@ static inline void powCplxNat(const cplx_t *base, const uint8_t *exp, cplx_t *re
 
                                         #if defined(VERBOSE_SOLVER2)
                                               printf("   iterationCounter=%d checkend=%d X2=", iterationCounter, checkNaN || iterationCounter==NUMBERITERATIONS-1 || Y2IsZero);
-                                              printComplexToConsole(CPLX(*X2), "", "");
-                                              printComplexToConsole(CPLX(*Y2), "Y2=", "\n");
+                                              printComplexToConsole(X2, "", "");
+                                              printComplexToConsole(Y2, "Y2=", "\n");
                                         #endif // VERBOSE_SOLVER2
 
       //*************** DETERMINE DX and DY, to calculate the slope (or the inverse of the slope in this case) *******************
@@ -2452,92 +2453,94 @@ static inline void powCplxNat(const cplx_t *base, const uint8_t *exp, cplx_t *re
       // ---------- Modified 3 point Secant ------------
                                         #if defined(VERBOSE_SOLVER00) || defined(VERBOSE_SOLVER0) || defined(VERBOSE_SOLVER1) || defined(VERBOSE_SOLVER2)
                                                 printf("%3i ---------- Modified 3 point Secant ------------ osc=%d conv=%d\n", iterationCounter, oscillations, convergent);
-                                                printComplexToConsole(CPLX(*X0), "           X0=", "\n");
-                                                printComplexToConsole(CPLX(*Y0), "           Y0=", "\n");
-                                                printComplexToConsole(CPLX(*X1), "           X1=", "\n");
-                                                printComplexToConsole(CPLX(*Y1), "           Y1=", "\n");
-                                                printComplexToConsole(CPLX(*X2), "           X2=", "\n");
-                                                printComplexToConsole(CPLX(*Y2), "           Y2=", "\n");
+                                                printComplexToConsole(X0, "           X0=", "\n");
+                                                printComplexToConsole(Y0, "           Y0=", "\n");
+                                                printComplexToConsole(X1, "           X1=", "\n");
+                                                printComplexToConsole(Y1, "           Y1=", "\n");
+                                                printComplexToConsole(X2, "           X2=", "\n");
+                                                printComplexToConsole(Y2, "           Y2=", "\n");
 
                                         #endif // VERBOSE_SOLVER00 || VERBOSE_SOLVER0 || VERBOSE_SOLVER1 || VERBOSE_SOLVER2
       if((iterationCounter == 0) || (!Y2IsZero && !dXdYIsZero && !checkNaN)) {
 
-        subComplex(CPLX(*Y2), CPLX(*Y1), CPLX(*dY), ctxtSolver2); // Y2-Y1 = dY
-        subComplex(CPLX(*X2), CPLX(*X1), CPLX(*dX), ctxtSolver2); // X2-X1 = dX
-        divFunctionComplex(CPLX(*dY), CPLX(*dX),  CPLX(*temp0)); // dY/dX = temp0
+        subComplex(Y2, Y1, dY, ctxtSolver2);                      // Y2-Y1 = dY
+        subComplex(X2, X1, dX, ctxtSolver2);                      // X2-X1 = dX
+        divFunctionComplex(dY, dX,  temp0);                      // dY/dX = temp0
 
                                         #if defined(VERBOSE_SOLVER1)
-                                                printComplexToConsole(CPLX(*temp0), " m1=", "\n");
+                                                printComplexToConsole(temp0, " m1=", "\n");
                                         #endif // VERBOSE_SOLVER1
 
-        subComplex(CPLX(*Y2), CPLX(*Y0), CPLX(*temp3), ctxtSolver2);
+        subComplex(Y2, Y0, temp3, ctxtSolver2);
                                         #if defined(VERBOSE_SOLVER1)
-                                                printComplexToConsole(CPLX(*temp3), " Y2-Y0=", "\n");
+                                                printComplexToConsole(temp3, " Y2-Y0=", "\n");
                                         #endif // VERBOSE_SOLVER1
 
-        mulComplexComplex(CPLX(*temp0), CPLX(*temp3), CPLX(*temp3), ctxtSolver2);
+        mulComplexComplex(temp0, temp3, temp3, ctxtSolver2);
                                         #if defined(VERBOSE_SOLVER1)
-                                                printComplexToConsole(CPLX(*temp3), " term1 lower m1*(Y2-Y1)=", "\n");
+                                                printComplexToConsole(temp3, " term1 lower m1*(Y2-Y1)=", "\n");
                                         #endif // VERBOSE_SOLVER1
 
-        subComplex(CPLX(*Y0), CPLX(*Y1), CPLX(*temp1), ctxtSolver2);
+        subComplex(Y0, Y1, temp1, ctxtSolver2);
                                         #if defined(VERBOSE_SOLVER1)
-                                                printComplexToConsole(CPLX(*temp1), " dY2=", "\n");
+                                                printComplexToConsole(temp1, " dY2=", "\n");
                                         #endif // VERBOSE_SOLVER1
-        subComplex(CPLX(*X0), CPLX(*X1), CPLX(*temp2), ctxtSolver2);
-        divFunctionComplex(CPLX(*temp1), CPLX(*temp2), CPLX(*temp1));
+        subComplex(X0, X1, temp2, ctxtSolver2);
+        divFunctionComplex(temp1, temp2, temp1);
 
                                         #if defined(VERBOSE_SOLVER1)
-                                                printComplexToConsole(CPLX(*temp1), " m2=", "\n");
+                                                printComplexToConsole(temp1, " m2=", "\n");
                                         #endif // VERBOSE_SOLVER1
-        subComplex(CPLX(*temp0), CPLX(*temp1), CPLX(*temp1), ctxtSolver2);
+        subComplex(temp0, temp1, temp1, ctxtSolver2);
                                         #if defined(VERBOSE_SOLVER1)
-                                                printComplexToConsole(CPLX(*temp1), " m1-m2 diff=", "\n");
-                                                printComplexToConsole(CPLX(*Y2), " Y2=", "\n");
+                                                printComplexToConsole(temp1, " m1-m2 diff=", "\n");
+                                                printComplexToConsole(Y2, " Y2=", "\n");
                                         #endif // VERBOSE_SOLVER1
-        mulComplexComplex(CPLX(*temp1), CPLX(*Y2), CPLX(*temp1), ctxtSolver2);
+        mulComplexComplex(temp1, Y2, temp1, ctxtSolver2);
                                         #if defined(VERBOSE_SOLVER1)
-                                                printComplexToConsole(CPLX(*temp1), " term2 lower=", "\n");
+                                                printComplexToConsole(temp1, " term2 lower=", "\n");
                                         #endif // VERBOSE_SOLVER1
-        subComplex(CPLX(*temp3), CPLX(*temp1), CPLX(*temp1), ctxtSolver2);
+        subComplex(temp3, temp1, temp1, ctxtSolver2);
 
                                         #if defined(VERBOSE_SOLVER1)
-                                                printComplexToConsole(CPLX(*temp1), " lower diff=", "\n");
+                                                printComplexToConsole(temp1, " lower diff=", "\n");
                                         #endif // VERBOSE_SOLVER1
-        subComplex(CPLX(*Y2), CPLX(*Y0), CPLX(*X2N), ctxtSolver2);
+        subComplex(Y2, Y0, X2N, ctxtSolver2);
         //get the 1/slope
-        divFunctionComplex(CPLX(*X2N), CPLX(*temp1), CPLX(*X2N));
+        divFunctionComplex(X2N, temp1, X2N);
                                         #if defined(VERBOSE_SOLVER1)
-                                                printComplexToConsole(CPLX(*temp0), " 1/slope=", "\n");
+                                                printComplexToConsole(temp0, " 1/slope=", "\n");
                                         #endif // VERBOSE_SOLVER1
-        mulComplexComplex(CPLX(*X2N), CPLX(*Y1), CPLX(*X2N), ctxtSolver2); // increment to x is: y1 . DX/DY
+        mulComplexComplex(X2N, Y1, X2N, ctxtSolver2);                      // increment to x is: y1 . DX/DY
         // if converges slow without oscillating then accelerate.
         if(convergent > 10) {
           convertDoubleToReal(1.0 + convergent * 0.1, f, ctxtSolver2); // factor ()
-          mulComplexComplex(CPLX(*X2N), f, const_0, CPLX(*X2N), ctxtSolver2); // increment to x is: y1 . DX/DY
+          realCopy(f, &temp3->Real);
+          realSetZero(&temp3->Imag);
+          mulComplexComplex(X2N, temp3, X2N, ctxtSolver2);                   // increment to x is: y1 . DX/DY
         }
 
                                         #if defined(VERBOSE_SOLVER1)
                                                 printRealToConsole(f, "    Factor=        ", "\n");
-                                                printComplexToConsole(CPLX(*X0), "    New X =        ", " - (");
-                                                printComplexToConsole(CPLX(*temp1), "", ")\n");
+                                                printComplexToConsole(X0, "    New X =        ", " - (");
+                                                printComplexToConsole(temp1, "", ")\n");
                                         #endif // VERBOSE_SOLVER1
-        subComplex(CPLX(*X1), CPLX(*X2N), CPLX(*X2N), ctxtSolver2); // subtract as per Newton, x1 - f/f' store temporarily to new x2n
+        subComplex(X1, X2N, X2N, ctxtSolver2);                      // subtract as per Newton, x1 - f/f' store temporarily to new x2n
       }
 
       //#############################################
 
 
                                         #if defined(VERBOSE_SOLVER1)
-                                              printComplexToConsole(&dX->Real,   &dX->Imag, "               DX=", "");
-                                              printComplexToConsole(CPLX(*dY), "DY=", "\n");
-                                              printComplexToConsole(&X0->Real,   &X0->Imag, "               X0=", "");
-                                              printComplexToConsole(CPLX(*Y0), "Y0=", "\n");
-                                              printComplexToConsole(CPLX(*X2N), "   -------> newX2: ", "\n");
-                                              printComplexToConsole(&X1->Real,   &X1->Imag, "               X1=", "");
-                                              printComplexToConsole(CPLX(*Y1), "Y1=", "\n");
-                                              printComplexToConsole(&X2->Real,   &X2->Imag, "               X2=", "");
-                                              printComplexToConsole(CPLX(*Y2), "Y2=", "\n");
+                                              printComplexToConsole(dX, "               DX=", "");
+                                              printComplexToConsole(dY, "DY=", "\n");
+                                              printComplexToConsole(X0, "               X0=", "");
+                                              printComplexToConsole(Y0, "Y0=", "\n");
+                                              printComplexToConsole(X2N, "   -------> newX2: ", "\n");
+                                              printComplexToConsole(X1, "               X1=", "");
+                                              printComplexToConsole(Y1, "Y1=", "\n");
+                                              printComplexToConsole(X2, "               X2=", "");
+                                              printComplexToConsole(Y2, "Y2=", "\n");
                                         #endif // VERBOSE_SOLVER1
 
       copyComplex(Y1, Y0); //old y1 copied to y0
@@ -2546,7 +2549,7 @@ static inline void powCplxNat(const cplx_t *base, const uint8_t *exp, cplx_t *re
       copyComplex(X2, X1); //old x2 copied to x1
       copyComplex(X2N, X2); //new x2
 
-      // complexMagnitude(CPLX(*dX), &temp0->Real,  ctxtSolver2);
+      // complexMagnitude(dX, &temp0->Real,  ctxtSolver2);
       // checkNaN   |=  realIsNaN(&temp0->Real);
 
                                         #if defined(VERBOSE_SOLVER00) || defined(VERBOSE_SOLVER0) || defined(VERBOSE_SOLVER1)
@@ -2573,23 +2576,23 @@ static inline void powCplxNat(const cplx_t *base, const uint8_t *exp, cplx_t *re
                                         #if defined(VERBOSE_SOLVER2)
                                               if(!checkNaN && !(iterationCounter==NUMBERITERATIONS) && !Y2IsZero) {
                                                 printf("END     iterationCounter=%d |DX|<TOL:%d ", iterationCounter, realCompareAbsLessThan(&dX->Real, tol));
-                                                printComplexToConsole(CPLX(*dX), "", "\n");
+                                                printComplexToConsole(dX, "", "\n");
                                                 printf("END     iterationCounter=%d |DY|<TOL:%d ", iterationCounter, realCompareAbsLessThan(&dY->Real, tol));
-                                                printComplexToConsole(CPLX(*dY), "", "\n");
-                                                printComplexToConsole(CPLX(*temp1), "END     DY=", "\n");
+                                                printComplexToConsole(dY, "", "\n");
+                                                printComplexToConsole(temp1, "END     DY=", "\n");
                                               }
                                         #endif // VERBOSE_SOLVER2
 
                                         #if defined(VERBOSE_SOLVER1)
-                                              printComplexToConsole(CPLX(*dX), ">>> DX=", "");
-                                              printComplexToConsole(CPLX(*dY), " DY=", "");
-                                              printComplexToConsole(CPLX(*temp0), " 1/SLOPE=", "\n");
+                                              printComplexToConsole(dX, ">>> DX=", "");
+                                              printComplexToConsole(dY, " DY=", "");
+                                              printComplexToConsole(temp0, " 1/SLOPE=", "\n");
                                         #endif // VERBOSE_SOLVER1
 
 
       if(checkHalfSec()) {
         if(progressHalfSecUpdate_Integer(timed, "Iter: ", iterationCounter, halfSec_clearZ, halfSec_clearT, halfSec_disp)) { //timed
-          showProgressReal(CPLX(*X1), !realIsZero(&X1->Imag));
+          showProgressReal(X1, !realIsZero(&X1->Imag));
         }
       }
 
@@ -2605,13 +2608,13 @@ static inline void powCplxNat(const cplx_t *base, const uint8_t *exp, cplx_t *re
       }
                                         #if defined(VERBOSE_SOLVER0)
                                               printf("iterationCounter = %i ", iterationCounter);
-                                              printComplexToConsole(CPLX(*X1), "X = ", " ");
-                                              printComplexToConsole(CPLX(*Y1), "Y = ", "\n");
+                                              printComplexToConsole(X1, "X = ", " ");
+                                              printComplexToConsole(Y1, "Y = ", "\n");
                                         #endif // VERBOSE_SOLVER0
 
       if(ENABLE_COMPLEXSOLVER_FILE_OUTPUT == 1) {
-        convertComplexToResultRegister(CPLX(*X1), REGISTER_X);
-        convertComplexToResultRegister(CPLX(*Y1), REGISTER_Y);
+        convertComplexToResultRegister(X1, REGISTER_X);
+        convertComplexToResultRegister(Y1, REGISTER_Y);
         fnP_All_Regs(PRN_XYr);
       }
 
@@ -2670,10 +2673,10 @@ static inline void powCplxNat(const cplx_t *base, const uint8_t *exp, cplx_t *re
 
     setRoundingMode(cpxSlvUserRoundingMode);                           // the results are rounded once, by RM
     convertRealToResultRegister(&cpxSlvBestMagnitudeY, REGISTER_Z, amNone);
-    convertComplexToResultRegister(CPLX(*X1), REGISTER_Y);
+    convertComplexToResultRegister(X1, REGISTER_Y);
     convertComplexRegisterToRealIfZeroImag(REGISTER_Y);
     // convertDoubleToReal34Register(iterationCounter, REGISTER_Y);
-    convertComplexToResultRegister(CPLX(cpxSlvBestX), REGISTER_X);
+    convertComplexToResultRegister(&cpxSlvBestX, REGISTER_X);
     convertComplexRegisterToRealIfZeroImag(REGISTER_X);
     copySourceRegisterToDestRegister(REGISTER_X, graphVariabl1);
 

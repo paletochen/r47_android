@@ -70,6 +70,17 @@ static void neighbReal(void) {
     xAngularMode = getRegisterAngularMode(REGISTER_X);
   }
 
+  int32_t comparison;
+  if(compareFiniteReal34LongIntegerRegisters(REGISTER_X, REGISTER_Y, &comparison)) {
+
+    if(comparison < 0) {
+      realCopy(const_plusInfinity, &y);
+    }
+    else if(comparison > 0) {
+      realCopy(const_minusInfinity, &y);
+    }
+  }
+
   realNextToward(&x, &y, &x, &ctxtReal34);
   convertRealToResultRegister(&x, REGISTER_X, xAngularMode);
 }

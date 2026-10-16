@@ -19,8 +19,11 @@ static void tanReal(void) {
   if(realIsSpecial(&tan)) {
     r = const_NaN;
   }
+  else if(xAngularMode == amRadian && !realIsZero(&tan) && realGetExponent(&tan) < -18) {   // tan x = x + x³/3 to 72 digits, above |x| by less than half a unit at 34 digits
+    WP34S_TinyOddSeries(&tan, const_3, true, &tan, &ctxtReal75);
+  }
   else {
-    C47_WP34S_Cvt2RadSinCosTan(&tan, xAngularMode, &sin, &cos, &tan, &ctxtReal75);
+    C47_WP34S_Cvt2RadSinCosTan(&tan, xAngularMode, &sin, &cos, &tan, &ctxtReal34);
     if(realIsZero(&sin)) {
        realSetPositiveSign(&tan);
     }
@@ -48,33 +51,54 @@ static void tanCplx(void) {
   // tan(a + ib) = -----------------------------------
   //                cos(a)*cosh(b) - i*sin(a)*sinh(b)
 
-  real_t xReal, xImag;
+  cplx_t x;
 
-  if(!getRegisterAsComplex(REGISTER_X, &xReal, &xImag)) {
+  if(!getRegisterAsComplex(REGISTER_X, &x)) {
     return;
   }
 
-  TanComplex(&xReal, &xImag, &xReal, &xImag, &ctxtReal51);
+  TanComplex(&x, &x, &ctxtReal39);
 
-  convertComplexToResultRegister(&xReal, &xImag, REGISTER_X);
+  convertComplexToResultRegister(&x, REGISTER_X);
 }
 
-uint8_t TanComplex(const real_t *xReal, const real_t *xImag, real_t *rReal, real_t *rImag, realContext_t *realContext) {
-  real_t sina, cosa, sinhb, coshb;
-  real_t numerReal, denomReal;
-  real_t numerImag, denomImag;
+uint8_t TanComplex(const cplx_t *x, cplx_t *r, realContext_t *realContext) {
+  real_t sina, cosa, expTerm, oneMinusExp, onePlusExp;
+  real_t twiceImag, denominator, temporary;
+  cplx_t numer;
 
-  C47_WP34S_Cvt2RadSinCosTan(xReal, amRadian, &sina, &cosa, NULL, realContext);
-  WP34S_SinhCosh(xImag, &sinhb, &coshb, realContext);
+  C47_WP34S_Cvt2RadSinCosTan(&x->Real, amRadian, &sina, &cosa, NULL, realContext);
+  if(realIsZero(&x->Imag)) {
+    realDivide(&sina, &cosa, &r->Real, realContext);
+    realCopy(&x->Imag, &r->Imag);
+    return ERROR_NONE;
+  }
 
-  realMultiply(&sina, &coshb, &numerReal, realContext);
-  realMultiply(&cosa, &sinhb, &numerImag, realContext);
+  realCopyAbs(&x->Imag, &twiceImag);
+  realAdd(&twiceImag, &twiceImag, &twiceImag, realContext);
+  realSetNegativeSign(&twiceImag);
 
-  realMultiply(&cosa, &coshb, &denomReal, realContext);
-  realMultiply(&sina, &sinhb, &denomImag, realContext);
-  realChangeSign(&denomImag);
+  realExp(&twiceImag, &expTerm, realContext);
+  WP34S_ExpM1(&twiceImag, &oneMinusExp, realContext);
+  realChangeSign(&oneMinusExp);
+  realAdd(&expTerm, const_1, &onePlusExp, realContext);
 
-  divComplexComplex(&numerReal, &numerImag, &denomReal, &denomImag, rReal, rImag, realContext);
+  realMultiply(&cosa, &cosa, &denominator, realContext);
+  realMultiply(&denominator, const_4, &denominator, realContext);
+  realMultiply(&denominator, &expTerm, &denominator, realContext);
+  realMultiply(&oneMinusExp, &oneMinusExp, &temporary, realContext);
+  realAdd(&denominator, &temporary, &denominator, realContext);
+
+  realMultiply(&sina, &cosa, &numer.Real, realContext);
+  realMultiply(&numer.Real, const_4, &numer.Real, realContext);
+  realMultiply(&numer.Real, &expTerm, &numer.Real, realContext);
+  realMultiply(&oneMinusExp, &onePlusExp, &numer.Imag, realContext);
+  if(realIsNegative(&x->Imag)) {
+    realSetNegativeSign(&numer.Imag);
+  }
+
+  realDivide(&numer.Real, &denominator, &r->Real, realContext);
+  realDivide(&numer.Imag, &denominator, &r->Imag, realContext);
 
   return ERROR_NONE;
 }

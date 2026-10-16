@@ -15,6 +15,7 @@
  ***********************************************/
 static void invertReal(void) {
   real_t x, *res = &x;
+  const uint32_t type = getRegisterDataType(REGISTER_X);
 
   if(!getRegisterAsReal(REGISTER_X, &x)) {
     return;
@@ -45,8 +46,16 @@ static void invertReal(void) {
   else if(realCompareAbsEqual(&x, const_1)) {
     return;
   }
+  else if(type == dtLongInteger) {
+    real34_t reciprocal;
+
+    if(reciprocalLongIntegerRegisterToReal34(REGISTER_X, &reciprocal)) {
+      convertReal34ToReal34Register(&reciprocal, REGISTER_X);
+    }
+    return;
+  }
   else {
-    realDivide(const_1, &x, &x, &ctxtReal39);
+    realDivide(const_1, &x, &x, &ctxtReal34);
   }
   convertRealToResultRegister(res, REGISTER_X, amNone);
 }
@@ -60,11 +69,11 @@ static void invertReal(void) {
  * \return void
  ***********************************************/
 static void invertCplx(void) {
-  real_t a, b;
+  cplx_t a;
 
-  if(getRegisterAsComplex(REGISTER_X, &a, &b)) {
-    divRealComplex(const_1, &a, &b, &a, &b, &ctxtReal39);
-    convertComplexToResultRegister(&a, &b, REGISTER_X);
+  if(getRegisterAsComplex(REGISTER_X, &a)) {
+    divRealComplex(const_1, &a, &a, &ctxtReal39);
+    convertComplexToResultRegister(&a, REGISTER_X);
   }
 }
 

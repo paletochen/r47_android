@@ -15,12 +15,15 @@
     #define mulError typeError
   #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
 
-  void mulComplexi(const real_t *inReal, const real_t *inImag, real_t *productReal, real_t *productImag);
-  void mulComplexComplex(const real_t *factor1Real, const real_t *factor1Imag, const real_t *factor2Real, const real_t *factor2Imag, real_t *productReal, real_t *productImag, realContext_t *realContext);
-  void mulComplexReal(const real_t *factor1Real, const real_t *factor1Imag, const real_t *factor2, real_t *productReal, real_t *productImag, realContext_t *realContext);
+  void mulComplexi(const cplx_t *in, cplx_t *product);
+  void mulComplexComplex(const cplx_t *factor1, const cplx_t *factor2, cplx_t *product, realContext_t *realContext);
+  void mulComplexReal(const cplx_t *factor1, const real_t *factor2, cplx_t *product, realContext_t *realContext);
 
   // This re-write is needed as the mixing of decNumber types cannot deal with the real_t temporary variable withinn mulComplexComplex(). The 159 series is needed for 39 digit precision in cuberoots and the cubic formula solver
-//  void mulComplexComplex159(const real_t *factor1Real, const real_t *factor1Imag, const real_t *factor2Real, const real_t *factor2Imag, real_t *productReal, real_t *productImag, realContext_t *realContext);
+  #if defined(OPTION_CUBIC_159) || defined(OPTION_SQUARE_159) || defined(OPTION_EIGEN_159)
+    void mulComplexComplex159(const cplx159_t *factor1, const cplx159_t *factor2, cplx159_t *product, realContext_t *realContext);
+    void mulComplexReal159(const cplx159_t *factor1, const real_t *factor2, cplx159_t *product, realContext_t *realContext);
+  #endif // OPTION_CUBIC_159 || OPTION_SQUARE_159 || OPTION_EIGEN_159
 
   //      RegYRegX
   void mulLonILonI(void);

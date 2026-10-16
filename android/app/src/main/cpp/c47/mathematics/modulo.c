@@ -12,14 +12,11 @@
 /* long integer mod ...                                                                                                                                                                     */
 /******************************************************************************************************************************************************************************************/
 
-/********************************************//**
- * \brief Y(long integer) mod X(long integer) ==> X(long integer)
- *
- * \param void
- * \return void
- ***********************************************/
-static void modLonI(void) {
+// MOD and RMD over two integers are one routine. floorMod brings the remainder to the sign of the divisor, which is what makes MOD a floored remainder and RMD a
+// truncated one. shortResult sends the answer back as a short integer in Y's base instead of a long integer.
+void integerRemainder(bool_t floorMod, bool_t shortResult) {
   longInteger_t x, y, remainder;
+  uint32_t baseY = 0;
 
   if(!getRegisterAsLongInt(REGISTER_X, x, NULL)) {
     goto err1;
@@ -28,7 +25,7 @@ static void modLonI(void) {
   if(longIntegerIsZero(x)) {
     displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      moreInfoOnError("In function modLonI:", "cannot IDIVR a long integer by 0", NULL, NULL);
+      moreInfoOnError("In function integerRemainder:", "cannot IDIVR an integer by 0", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
     goto err1;
   }
@@ -36,13 +33,22 @@ static void modLonI(void) {
     if(!getRegisterAsLongInt(REGISTER_Y, y, NULL)) {
       goto err2;
     }
+    if(shortResult) {
+      baseY = getRegisterShortIntegerBase(REGISTER_Y);
+    }
 
     longIntegerInit(remainder);
     longIntegerDivideRemainder(y, x, remainder);
-    longIntegerAdd(remainder, x, remainder);
-    longIntegerDivideRemainder(remainder, x, remainder);
+    if(floorMod && !longIntegerIsZero(remainder) && longIntegerSign(y) != longIntegerSign(x)) {
+      longIntegerAdd(remainder, x, remainder);
+    }
 
-    convertLongIntegerToLongIntegerRegister(remainder, REGISTER_X);
+    if(shortResult) {
+      convertLongIntegerToShortIntegerRegister(remainder, baseY, REGISTER_X);
+    }
+    else {
+      convertLongIntegerToLongIntegerRegister(remainder, REGISTER_X);
+    }
 
     longIntegerFree(remainder);
   }
@@ -50,6 +56,17 @@ err2:
   longIntegerFree(y);
 err1:
   longIntegerFree(x);
+}
+
+
+/********************************************//**
+ * \brief Y(long integer) mod X(long integer) ==> X(long integer)
+ *
+ * \param void
+ * \return void
+ ***********************************************/
+static void modLonI(void) {
+  integerRemainder(true, false);
 }
 
 
@@ -64,39 +81,7 @@ err1:
  * \return void
  ***********************************************/
 static void modShoI(void) {
-  longInteger_t x, y, remainder;
-  uint32_t baseY;
-
-  if(!getRegisterAsLongInt(REGISTER_X, x, NULL)) {
-    goto err1;
-  }
-
-  if(longIntegerIsZero(x)) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
-    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      moreInfoOnError("In function modShoI:", "cannot IDIVR a short integer by 0", NULL, NULL);
-    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-    goto err1;
-  }
-  else {
-    if(!getRegisterAsLongInt(REGISTER_Y, y, NULL)) {
-      goto err2;
-    }
-    baseY = getRegisterShortIntegerBase(REGISTER_Y);
-
-    longIntegerInit(remainder);
-    longIntegerDivideRemainder(y, x, remainder);
-    longIntegerAdd(remainder, x, remainder);
-    longIntegerDivideRemainder(remainder, x, remainder);
-
-    convertLongIntegerToShortIntegerRegister(remainder, baseY, REGISTER_X);
-
-    longIntegerFree(remainder);
-  }
-err2:
-  longIntegerFree(y);
-err1:
-  longIntegerFree(x);
+  integerRemainder(true, true);
 }
 
 
@@ -112,7 +97,11 @@ err1:
  ***********************************************/
 void modReal(void) {
   real_t x, y, r;
+  bool_t real34Operands = getRegisterDataType(REGISTER_X) == dtReal34 && getRegisterDataType(REGISTER_Y) == dtReal34;
 
+  if(mixedIntegerRealRemainder(true)) {
+    return;
+  }
   if(!getRegisterAsReal(REGISTER_X, &x) || !getRegisterAsReal(REGISTER_Y, &y)) {
     return;
   }
@@ -125,9 +114,17 @@ void modReal(void) {
     return;
   }
 
-  WP34S_BigMod(&y, &x, &r, &ctxtReal39);
-  if(!realIsZero(&r) && realGetSign(&y) != realGetSign(&x)) {
-    realAdd(&r, &x, &r, &ctxtReal39);
+  if(real34Operands) {
+    WP34S_Real34Remainder(&y, &x, &r);
+  }
+  else {
+    WP34S_BigMod(&y, &x, &r, &ctxtReal39);
+  }
+  if(realIsZero(&r)) {
+    realSetPositiveSign(&r);
+  }
+  else if(realGetSign(&y) != realGetSign(&x)) {
+    realAdd(&r, &x, &r, real34Operands ? &ctxtReal34 : &ctxtReal39);
   }
 
   convertRealToResultRegister(&r, REGISTER_X, amNone);
@@ -143,4 +140,3 @@ void modReal(void) {
 void fnMod(uint16_t unusedButMandatoryParameter) {
   processIntRealComplexDyadicFunction(&modReal, NULL, &modShoI, &modLonI);
 }
-

@@ -10,5 +10,5 @@
 
   void fnSinc  (uint16_t unusedButMandatoryParameter);
 
-  void sincComplex(const real_t *real, const real_t *imag, real_t *resReal, real_t *resImag, realContext_t *realContext);
+  void sincComplex(const cplx_t *z, cplx_t *res, realContext_t *realContext);
 #endif // !SINC_H

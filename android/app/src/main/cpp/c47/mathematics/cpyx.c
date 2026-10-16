@@ -26,10 +26,46 @@ void logCyxReal(real_t *y, real_t *x, real_t *result, realContext_t *realContext
   realSubtract(result, x, result, realContext);     // r = ln(y!) - ln((y-x)!) - ln(x!)
 }
 
+/********************************************//**
+ * \brief Evaluates log(C(y,x)) for finite 0 <= x <= y.
+ *
+ * The beta form avoids subtraction between log-Gamma values of size
+ * proportional to y.
+ ***********************************************/
+static void logCyxPositiveReal(const real_t *y, const real_t *x, real_t *result, realContext_t *realContext) {
+  REAL_T_PTR(a, 75);
+  REAL_T_PTR(b, 75);
+  REAL_T_PTR(logBeta, 75);
+  REAL_T_PTR(t, 75);
+
+  realAdd(x, const_1, a, realContext);
+  realSubtract(y, x, b, realContext);
+  realAdd(b, const_1, b, realContext);
+  C47_LnBetaPositiveReal(a, b, logBeta);
+
+  realAdd(y, const_1, t, realContext);
+  WP34S_Ln(t, t, &ctxtReal75);
+  realAdd(t, logBeta, result, realContext);
+  realChangeSign(result);
+}
+
+/********************************************//**
+ * \brief Evaluates log(P(y,x)) for finite 0 <= x <= y.
+ ***********************************************/
+static void logPyxPositiveReal(const real_t *y, const real_t *x, real_t *result, realContext_t *realContext) {
+  REAL_T_PTR(xPlusOne, 75);
+  REAL_T_PTR(logGamma, 75);
+
+  logCyxPositiveReal(y, x, result, realContext);
+  realAdd(x, const_1, xPlusOne, realContext);
+  WP34S_LnGamma(xPlusOne, logGamma, &ctxtReal75);
+  realAdd(result, logGamma, result, realContext);
+}
+
 static void cyxReal(real_t *y, real_t *x, real_t *result, realContext_t *realContext) {
   bool_t inputAreIntegers = (realIsAnInteger(x) && realIsAnInteger(y));
 
-  logCyxReal(y, x, result, realContext);
+  logCyxPositiveReal(y, x, result, realContext);
 
   realExp(result, result, realContext);             // r = y! / ((y-x)! × x!)
 
@@ -81,41 +117,71 @@ static void cyxLong(longInteger_t y, longInteger_t x, longInteger_t result) {
   }
 }
 
-static void cyxCplx(real_t *yReal, real_t *yImag, real_t *xReal, real_t *xImag, real_t *rReal, real_t *rImag, realContext_t *realContext) {
-  realSubtract(yReal, xReal, rReal, realContext);                // r = y - x
-  realSubtract(yImag, xImag, rImag, realContext);
+/********************************************//**
+ * \brief Evaluates log(C(y,x)) through log-Beta in its stable half-plane.
+ *
+ * \return true when the transformed arguments have positive real parts.
+ ***********************************************/
+static bool_t logCyxPositiveComplex(const cplx_t *y, const cplx_t *x,
+                                    cplx_t *r, realContext_t *realContext) {
+  cplx_t a;
+  cplx_t b;
+  cplx_t logBeta;
+  cplx_t t;
 
-  realAdd(rReal, const_1, rReal, realContext);                   // r = t + 1
-  WP34S_ComplexLnGamma(rReal, rImag, rReal, rImag, realContext); // r = lnGamma(t + 1) = ln((y - x)!)
+  realAdd(&x->Real, const_1, &a.Real, realContext);
+  realCopy(&x->Imag, &a.Imag);
+  realSubtract(&y->Real, &x->Real, &b.Real, realContext);
+  realAdd(&b.Real, const_1, &b.Real, realContext);
+  realSubtract(&y->Imag, &x->Imag, &b.Imag, realContext);
+  if(realIsSpecial(&a.Real) || realIsSpecial(&a.Imag) || realIsSpecial(&b.Real) || realIsSpecial(&b.Imag) ||
+     !realCompareGreaterThan(&a.Real, const_0) || !realCompareGreaterThan(&b.Real, const_0)) {
+    return false;
+  }
 
-  realAdd(xReal, const_1, xReal, realContext);                   // x = x + 1
-  WP34S_ComplexLnGamma(xReal, xImag, xReal, xImag, realContext); // x = lnGamma(x + 1) = ln(x!)
+  C47_LnBetaPositiveComplex(&a, &b, &logBeta);
+  realAdd(&y->Real, const_1, &t.Real, realContext);
+  realCopy(&y->Imag, &t.Imag);
+  lnComplex(&t, &t, realContext);
+  realAdd(&t.Real, &logBeta.Real, &r->Real, realContext);
+  realAdd(&t.Imag, &logBeta.Imag, &r->Imag, realContext);
+  realChangeSign(&r->Real);
+  realChangeSign(&r->Imag);
+  return true;
+}
 
-  realAdd(yReal, const_1, yReal, realContext);                   // y = y + 1
-  WP34S_ComplexLnGamma(yReal, yImag, yReal, yImag, realContext); // y = lnGamma(y + 1) = ln(y!)
+static void cyxCplx(cplx_t *y, cplx_t *x, cplx_t *r, realContext_t *realContext) {
+  if(logCyxPositiveComplex(y, x, r, realContext)) {
+    expComplex(r, r, realContext);
+    return;
+  }
 
-  realSubtract(yReal, rReal, rReal, realContext);                // r = ln(y!) - ln((y - x)!)
-  realSubtract(yImag, rImag, rImag, realContext);
+  realSubtract(&y->Real, &x->Real, &r->Real, realContext);       // r = y - x
+  realSubtract(&y->Imag, &x->Imag, &r->Imag, realContext);
 
-  realSubtract(rReal, xReal, rReal, realContext);                // r = ln(y!) - ln((y - x)!) - ln(x!)
-  realSubtract(rImag, xImag, rImag, realContext);
+  realAdd(&r->Real, const_1, &r->Real, realContext);             // r = t + 1
+  WP34S_ComplexLnGamma(r, r, realContext);                       // r = lnGamma(t + 1) = ln((y - x)!)
 
-  expComplex(rReal, rImag, rReal, rImag, realContext);           // r = y! / ((y-x)! × x!)
+  realAdd(&x->Real, const_1, &x->Real, realContext);             // x = x + 1
+  WP34S_ComplexLnGamma(x, x, realContext);                       // x = lnGamma(x + 1) = ln(x!)
+
+  realAdd(&y->Real, const_1, &y->Real, realContext);             // y = y + 1
+  WP34S_ComplexLnGamma(y, y, realContext);                       // y = lnGamma(y + 1) = ln(y!)
+
+  realSubtract(&y->Real, &r->Real, &r->Real, realContext);       // r = ln(y!) - ln((y - x)!)
+  realSubtract(&y->Imag, &r->Imag, &r->Imag, realContext);
+
+  realSubtract(&r->Real, &x->Real, &r->Real, realContext);       // r = ln(y!) - ln((y - x)!) - ln(x!)
+  realSubtract(&r->Imag, &x->Imag, &r->Imag, realContext);
+
+  expComplex(r, r, realContext);                                 // r = y! / ((y-x)! × x!)
 }
 
 static void pyxReal(real_t *y, real_t *x, real_t *result, realContext_t *realContext) {
   bool_t inputAreIntegers = (realIsAnInteger(x) && realIsAnInteger(y));
 
-  realSubtract(y, x, result, realContext);
-  realAdd(result, const_1, result, realContext);
-  WP34S_LnGamma(result, result, realContext);     // r = ln((y-x)!)
-
-  realAdd(y, const_1, y, realContext);
-  WP34S_LnGamma(y, y, realContext);               // y = ln(y!)
-
-  realSubtract(y, result, result, realContext);   // r = ln(y!) - ln((y-x)!)
-
-  realExp(result, result, realContext);           // r = y! / (y-x)!
+  logPyxPositiveReal(y, x, result, realContext);
+  realExp(result, result, realContext);
 
   if(inputAreIntegers && !realIsAnInteger(result)) {
     realToIntegralValue(result, result, DEC_ROUND_HALF_UP, realContext);
@@ -158,20 +224,33 @@ static void pyxLong(longInteger_t y, longInteger_t x, longInteger_t result) {
   }
 }
 
-static void pyxCplx(real_t *yReal, real_t *yImag, real_t *xReal, real_t *xImag, real_t *rReal, real_t *rImag, realContext_t *realContext) {
-  realSubtract(yReal, xReal, rReal, realContext);                // r = y - x
-  realSubtract(yImag, xImag, rImag, realContext);
+static void pyxCplx(cplx_t *y, cplx_t *x, cplx_t *r, realContext_t *realContext) {
+  if(logCyxPositiveComplex(y, x, r, realContext)) {
+    cplx_t xPlusOne;
+    cplx_t logGamma;
 
-  realAdd(rReal, const_1, rReal, realContext);                   // r = t + 1
-  WP34S_ComplexLnGamma(rReal, rImag, rReal, rImag, realContext); // r = lnGamma(t + 1) = ln((y - x)!)
+    realAdd(&x->Real, const_1, &xPlusOne.Real, realContext);
+    realCopy(&x->Imag, &xPlusOne.Imag);
+    WP34S_ComplexLnGamma(&xPlusOne, &logGamma, realContext);
+    realAdd(&r->Real, &logGamma.Real, &r->Real, realContext);
+    realAdd(&r->Imag, &logGamma.Imag, &r->Imag, realContext);
+    expComplex(r, r, realContext);
+    return;
+  }
 
-  realAdd(yReal, const_1, yReal, realContext);                   // y = y + 1
-  WP34S_ComplexLnGamma(yReal, yImag, yReal, yImag, realContext); // y = lnGamma(y + 1) = ln(y!)
+  realSubtract(&y->Real, &x->Real, &r->Real, realContext);       // r = y - x
+  realSubtract(&y->Imag, &x->Imag, &r->Imag, realContext);
 
-  realSubtract(yReal, rReal, rReal, realContext);                // r = ln(y!) - ln((y - x)!)
-  realSubtract(yImag, rImag, rImag, realContext);
+  realAdd(&r->Real, const_1, &r->Real, realContext);             // r = t + 1
+  WP34S_ComplexLnGamma(r, r, realContext);                       // r = lnGamma(t + 1) = ln((y - x)!)
 
-  expComplex(rReal, rImag, rReal, rImag, realContext);           // r = y! / (y-x)!
+  realAdd(&y->Real, const_1, &y->Real, realContext);             // y = y + 1
+  WP34S_ComplexLnGamma(y, y, realContext);                       // y = lnGamma(y + 1) = ln(y!)
+
+  realSubtract(&y->Real, &r->Real, &r->Real, realContext);       // r = ln(y!) - ln((y - x)!)
+  realSubtract(&y->Imag, &r->Imag, &r->Imag, realContext);
+
+  expComplex(r, r, realContext);                                 // r = y! / (y-x)!
 }
 
 //=============================================================================
@@ -233,9 +312,30 @@ end1:
 static void cpyxReal(uint16_t combOrPerm) {
   real_t x, y;
 
-    if(!getRegisterAsReal(REGISTER_X, &x) || !getRegisterAsReal(REGISTER_Y, &y)) {
+  if(!getRegisterAsReal(REGISTER_X, &x) || !getRegisterAsReal(REGISTER_Y, &y)) {
+    return;
+  }
+
+  if(realIsSpecial(&x) || realIsSpecial(&y)) {
+    if(!getSystemFlag(FLAG_SPCRES)) {
+      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
       return;
     }
+    REAL_T_PTR(t, 39);
+    if(realIsInfinite(&y) && realIsPositive(&y) && !realIsSpecial(&x) && !realIsNegative(&x)) {
+      if(realIsZero(&x)) {
+        realSetOne(t);
+      }
+      else {
+        realSetPlusInfinity(t);
+      }
+    }
+    else {
+      realSetNaN(t);
+    }
+    convertRealToResultRegister(t, REGISTER_X, amNone);
+    return;
+  }
 
   if(realIsNegative(&x) || realIsNegative(&y) || realCompareGreaterThan(&x, &y)) {
     displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
@@ -262,17 +362,17 @@ static void cpyxReal(uint16_t combOrPerm) {
  * \return void
  ***********************************************/
 static void cpyxCplx(uint16_t combOrPerm) {
-  real_t xReal, xImag, yReal, yImag;
-  real_t tReal, tImag;
+  cplx_t x, y;
+  cplx_t t;
 
-  if(!getRegisterAsComplex(REGISTER_X, &xReal, &xImag) || !getRegisterAsComplex(REGISTER_Y, &yReal, &yImag)) {
+  if(!getRegisterAsComplex(REGISTER_X, &x) || !getRegisterAsComplex(REGISTER_Y, &y)) {
     return;
   }
 
-  (combOrPerm == CP_COMBINATION) ? cyxCplx(&yReal, &yImag, &xReal, &xImag, &tReal, &tImag, &ctxtReal39)
-                                 : pyxCplx(&yReal, &yImag, &xReal, &xImag, &tReal, &tImag, &ctxtReal39);
+  (combOrPerm == CP_COMBINATION) ? cyxCplx(&y, &x, &t, &ctxtReal75)
+                                 : pyxCplx(&y, &x, &t, &ctxtReal75);
 
-  convertComplexToResultRegister(&tReal, &tImag, REGISTER_X);
+  convertComplexToResultRegister(&t, REGISTER_X);
 }
 
 //=============================================================================

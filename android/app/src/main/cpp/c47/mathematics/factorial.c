@@ -119,10 +119,16 @@ static void factShoI(void) {
 
 
 static void factReal(void) {
-  real_t x;
+  real_t x, firstInexact;
+  realContext_t *realContext = &ctxtReal39;
 
   if(getRegisterAsReal(REGISTER_X, &x)) {
-    WP34S_Factorial(&x, &x, &ctxtReal39);
+    uInt32ToReal(37u, &firstInexact);
+    if(!realIsSpecial(&x) && realIsAnInteger(&x) &&
+       realCompareGreaterEqual(&x, const_0) && realCompareLessThan(&x, &firstInexact)) {
+      realContext = &ctxtReal34;
+    }
+    WP34S_Factorial(&x, &x, realContext);
     convertRealToResultRegister(&x, REGISTER_X, amNone);
   }
 }
@@ -130,12 +136,12 @@ static void factReal(void) {
 
 
 static void factCplx(void) {
-  real_t zReal, zImag;
+  cplx_t z;
 
-  if(getRegisterAsComplex(REGISTER_X, &zReal, &zImag)) {
-    realAdd(&zReal, const_1, &zReal, &ctxtReal39);
-    WP34S_ComplexGamma(&zReal, &zImag, &zReal, &zImag, &ctxtReal39);
-    convertComplexToResultRegister(&zReal, &zImag, REGISTER_X);
+  if(getRegisterAsComplex(REGISTER_X, &z)) {
+    realAdd(&z.Real, const_1, &z.Real, &ctxtReal39);
+    WP34S_ComplexGamma(&z, &z, &ctxtReal39);
+    convertComplexToResultRegister(&z, REGISTER_X);
   }
 }
 

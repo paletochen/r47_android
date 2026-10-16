@@ -10,6 +10,6 @@
   void fnGamma     (uint16_t unusedButMandatoryParameter);
   void fnLnGamma   (uint16_t unusedButMandatoryParameter);
 
-  void complexLnGamma(const real_t *xReal, const real_t *xImag, real_t *rReal, real_t *rImag, realContext_t *realContext);
+  void complexLnGamma(const cplx_t *x, cplx_t *r, realContext_t *realContext);
 
 #endif // !GAMMA_H

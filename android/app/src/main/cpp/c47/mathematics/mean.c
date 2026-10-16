@@ -20,7 +20,7 @@
  * \param[in] transform void (*)(const real_t *operand, real_t *result)
  * \return void
  ***********************************************/
-static void calculateMean(int displayInfo, real_t *sumX, real_t *numberX, real_t *sumY, real_t *numberY, void (*transform)(const real_t *operand, real_t *result)) {
+static void calculateMean(int displayInfo, real_t *sumX, real_t *numberX, real_t *sumY, real_t *numberY, void (*transform)(const real_t *operand, real_t *result), realContext_t *realContext) {
   if(checkMinimumDataPoints(const_1)) {
     real_t tempReal1, tempReal2;
 
@@ -31,7 +31,7 @@ static void calculateMean(int displayInfo, real_t *sumX, real_t *numberX, real_t
       liftStack();
     }
 
-    realDivide(sumX, numberX, &tempReal1, &ctxtReal39);
+    realDivide(sumX, numberX, &tempReal1, realContext);
     if(transform != NULL) {
       (*transform)(&tempReal1, &tempReal2);
     }
@@ -39,7 +39,7 @@ static void calculateMean(int displayInfo, real_t *sumX, real_t *numberX, real_t
     convertRealToReal34ResultRegister(mean, REGISTER_X);
 
     if(sumY != NULL) {
-      realDivide(sumY, numberY, &tempReal1, &ctxtReal39);
+      realDivide(sumY, numberY, &tempReal1, realContext);
       if(transform != NULL) {
         (*transform)(&tempReal1, &tempReal2);
       }
@@ -59,11 +59,11 @@ static void calculateMean(int displayInfo, real_t *sumX, real_t *numberX, real_t
  * \return void
  ***********************************************/
 void fnMeanXY(uint16_t unusedButMandatoryParameter) {
-  calculateMean(TI_MEANX_MEANY, SIGMA_X, SIGMA_N, SIGMA_Y, SIGMA_N, NULL);
+  calculateMean(TI_MEANX_MEANY, SIGMA_X, SIGMA_N, SIGMA_Y, SIGMA_N, NULL, &ctxtReal34);
 }
 
 void fnMeanX(uint16_t unusedButMandatoryParameter) {
-  calculateMean(TI_MEANX, SIGMA_X, SIGMA_N, NULL, NULL, NULL);
+  calculateMean(TI_MEANX, SIGMA_X, SIGMA_N, NULL, NULL, NULL, &ctxtReal34);
 }
 
 
@@ -80,7 +80,7 @@ static void geometricMeanTransform(const real_t *operand, real_t *result) {
  * \return void
  ***********************************************/
 void fnGeometricMeanXY(uint16_t unusedButMandatoryParameter) {
-  calculateMean(TI_GEOMMEANX_GEOMMEANY, SIGMA_lnX, SIGMA_N, SIGMA_lnY, SIGMA_N, &geometricMeanTransform);
+  calculateMean(TI_GEOMMEANX_GEOMMEANY, SIGMA_lnX, SIGMA_N, SIGMA_lnY, SIGMA_N, &geometricMeanTransform, &ctxtReal39);
 }
 
 /********************************************//**
@@ -92,7 +92,7 @@ void fnGeometricMeanXY(uint16_t unusedButMandatoryParameter) {
  * \return void
  ***********************************************/
 void fnHarmonicMeanXY(uint16_t unusedButMandatoryParameter) {
-  calculateMean(TI_HARMMEANX_HARMMEANY, SIGMA_N, SIGMA_1onX, SIGMA_N, SIGMA_1onY, NULL);
+  calculateMean(TI_HARMMEANX_HARMMEANY, SIGMA_N, SIGMA_1onX, SIGMA_N, SIGMA_1onY, NULL, &ctxtReal34);
 }
 
 static void RMSMeanTransform(const real_t *operand, real_t *result) {
@@ -108,7 +108,7 @@ static void RMSMeanTransform(const real_t *operand, real_t *result) {
  * \return void
  ***********************************************/
 void fnRMSMeanXY(uint16_t unusedButMandatoryParameter) {
-  calculateMean(TI_RMSMEANX_RMSMEANY, SIGMA_X2, SIGMA_N, SIGMA_Y2, SIGMA_N, &RMSMeanTransform);
+  calculateMean(TI_RMSMEANX_RMSMEANY, SIGMA_X2, SIGMA_N, SIGMA_Y2, SIGMA_N, &RMSMeanTransform, &ctxtReal39);
 }
 
 /********************************************//**
@@ -129,7 +129,7 @@ void fnWeightedMeanX(uint16_t unusedButMandatoryParameter) {
       moreInfoOnError("In function fnWeightedMeanX:", errorMessage, NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
   }
-  else if(realCompareLessThan(SIGMA_Y, const_1)) {
+  else if(realIsZero(SIGMA_Y) || realIsNegative(SIGMA_Y)) {
     displayCalcErrorMessage(ERROR_TOO_FEW_DATA, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "There is insufficient statistical data available!");
@@ -140,7 +140,7 @@ void fnWeightedMeanX(uint16_t unusedButMandatoryParameter) {
     liftStack();
     setSystemFlag(FLAG_ASLIFT);
 
-    realDivide(SIGMA_XY, SIGMA_Y, &mean, &ctxtReal39);
+    realDivide(SIGMA_XY, SIGMA_Y, &mean, &ctxtReal34);
     convertRealToReal34ResultRegister(&mean, REGISTER_X);
 
     temporaryInformation = TI_WEIGHTEDMEANX;

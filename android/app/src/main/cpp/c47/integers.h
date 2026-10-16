@@ -12,6 +12,7 @@
   void     longIntegerSquare           (longInteger_t op,  longInteger_t result);
   void     longIntegerAdd              (longInteger_t opY, longInteger_t opX, longInteger_t result);
   void     longIntegerSubtract         (longInteger_t opY, longInteger_t opX, longInteger_t result);
+  void     longIntegerScaledDivide     (longInteger_t opY, int32_t yExp, longInteger_t opX, int32_t xExp, longInteger_t quotient, longInteger_t remainder, int32_t *remainderExp);
 
   /*
    * The functions below are borrowed

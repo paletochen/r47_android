@@ -143,7 +143,7 @@ internal class DisplayActionController(
     private fun showDisplayActionsDialog() {
         MaterialAlertDialogBuilder(context)
             .setTitle("Display & Clipboard")
-            .setItems(arrayOf("Copy X Register", "Copy All Registers", "Paste Number", "Enter PiP Mode")) { _, which ->
+            .setItems(arrayOf("Copy X Register", "Copy All Registers", "Paste to X Register", "Enter PiP Mode")) { _, which ->
                 when (which) {
                     0 -> copyXToClipboard()
                     1 -> copyAllRegistersToClipboard()

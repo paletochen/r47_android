@@ -9,5 +9,5 @@
 
   void fnArctan   (uint16_t unusedButMandatoryParameter);
 
-  uint8_t ArctanComplex(real_t *xReal, real_t *xImag, real_t *rReal, real_t *rImag, realContext_t *realContext);
+  uint8_t ArctanComplex(cplx_t *x, cplx_t *r, realContext_t *realContext);
 #endif // !ARCTAN_H

@@ -14,7 +14,7 @@ static void doIP(real_t *x, enum rounding mode) {
     }
   }
   else {
-    realToIntegralValue(x, x, mode, &ctxtReal39);
+    realToIntegralValue(x, x, mode, &ctxtReal34);
   }
 }
 
@@ -32,12 +32,12 @@ void integerPartReal(enum rounding mode) {
 }
 
 void integerPartCplx(enum rounding mode) {
-  real_t a, b;
+  cplx_t x;
 
-  if(getRegisterAsComplex(REGISTER_X, &a, &b)) {
-    doIP(&a, mode);
-    doIP(&b, mode);
-    convertComplexToResultRegister(&a, &b, REGISTER_X);
+  if(getRegisterAsComplex(REGISTER_X, &x)) {
+    doIP(&x.Real, mode);
+    doIP(&x.Imag, mode);
+    convertComplexToResultRegister(&x, REGISTER_X);
   }
 }
 

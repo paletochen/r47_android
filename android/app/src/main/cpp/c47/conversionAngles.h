@@ -21,9 +21,12 @@ void     fnCvtMultPiToRad            (uint16_t unusedButMandatoryParameter);
 */
 void     convertAngle34FromTo        (real34_t *angle34, angularMode_t fromAngularMode, angularMode_t toAngularMode);
 void     convertAngleFromTo          (real_t *angle, angularMode_t fromAngularMode, angularMode_t toAngularMode, realContext_t *realContext);
+void     rightAngleLessRadians       (real_t *angle, bool_t negative);
 void     checkDms34                  (real34_t *angle34Dms);
-uint32_t getInfiniteComplexAngle     (real_t *x, real_t *y);
-void     setInfiniteComplexAngle     (uint32_t angle, real_t *x, real_t *y);
+uint32_t getInfiniteComplexAngle     (const cplx_t *z);
+void     setInfiniteComplexAngle     (uint32_t angle, cplx_t *z);
+void     realFromDmsToDeg            (const real_t *angleDms, real_t *angleDec, realContext_t *realContext);
+void     realFromDegToDms            (const real_t *angleDec, real_t *angleDms, realContext_t *realContext);
 void     real34FromDmsToDeg          (const real34_t *angleDms, real34_t *angleDec);
 void     real34FromDegToDms          (const real34_t *angleDec, real34_t *angleDms);
 #endif // !CONVERSIONANGLES_H

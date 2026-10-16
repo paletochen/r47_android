@@ -57,4 +57,9 @@ void printInputPrompt         (uint16_t func, uint16_t regist);
 void printViewAview           (uint16_t func, uint16_t regist);
 void nameAlias                (uint16_t op, char *nameOp);
 
+#if defined(TESTSUITE_BUILD)
+void printerReal34ToStringForTest(const real34_t *real34, char *realString);
+void printerComplex34ToStringForTest(const real34_t *real34, const real34_t *imag34, uint16_t tagAngle, uint16_t tagPolar, char *realString);
+#endif // TESTSUITE_BUILD
+
 #endif // !PRINT_H

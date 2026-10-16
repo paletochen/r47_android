@@ -7,7 +7,7 @@
 
 #include "c47.h"
 
-#if !defined(OPTION_DIST_B)
+#if !defined(OPTION_DIST_CHI2)
   void fnChi2P(uint16_t unusedButMandatoryParameter){}
   void fnChi2L(uint16_t unusedButMandatoryParameter){}
   void fnChi2R(uint16_t unusedButMandatoryParameter){}
@@ -21,107 +21,53 @@
     return realCompareEqual(reg, &flooredI);
   }
 
-  static bool_t checkParamChi2(real_t *x, real_t *i) {
-    if(!saveLastX()) {
+  bool_t chi2CheckDomain(bool_t registersValid, real_t *x, real_t *i, real_t *unusedSecond, real_t *unusedThird, uint16_t unusedParameter) {
+    if(!registersValid) {
       return false;
     }
 
-    if(!getRegisterAsReal(REGISTER_X, x) || !getRegisterAsReal(REGISTER_M, i)) {
-      goto err;
-    }
-
-    if(!checkRegisterNoFP(i)) {
+    if(!checkRegisterNoFP(i) || realIsSpecial(i)) {
       displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-        moreInfoOnError("In function checkParamChi2:", "k is not an integer", NULL, NULL);
+        moreInfoOnError("In function chi2CheckDomain:", "k is not an integer", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      goto err;
+      return false;
     }
-    if(realIsNegative(x)) {
+    if(realIsNaN(x) || (realIsNegative(x) && !realIsZero(x))) {
       displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-        moreInfoOnError("In function checkParamChi2:", "cannot calculate for x < 0", NULL, NULL);
+        moreInfoOnError("In function chi2CheckDomain:", "cannot calculate for x < 0", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      goto err;
+      return false;
     }
     if(realIsZero(i) || realIsNegative(i)) {
       displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-        moreInfoOnError("In function checkParamChi2:", "cannot calculate for k " STD_LESS_EQUAL " 0", NULL, NULL);
+        moreInfoOnError("In function chi2CheckDomain:", "cannot calculate for k " STD_LESS_EQUAL " 0", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      goto err;
+      return false;
     }
     return true;
-
-  err:
-    if(getSystemFlag(FLAG_SPCRES)) {
-      convertRealToResultRegister(const_NaN, REGISTER_X, amNone);
-    }
-    return false;
   }
 
 
   void fnChi2P(uint16_t unusedButMandatoryParameter) {
-    real_t val, ans, dof;
-
-    if(checkParamChi2(&val, &dof)) {
-      WP34S_Pdf_Chi2(&val, &dof, &ans, &ctxtReal39);
-      convertRealToResultRegister(&ans, REGISTER_X, amNone);
-      adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-    }
+    fnDistribution(DIST_CHI2 * 4 + DIST_P);
   }
 
 
   void fnChi2L(uint16_t unusedButMandatoryParameter) {
-    real_t val, ans, dof;
-
-    if(checkParamChi2(&val, &dof)) {
-      WP34S_Cdf_Chi2(&val, &dof, &ans, &ctxtReal39);
-      convertRealToResultRegister(&ans, REGISTER_X, amNone);
-      adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-    }
+    fnDistribution(DIST_CHI2 * 4 + DIST_L);
   }
 
 
   void fnChi2R(uint16_t unusedButMandatoryParameter) {
-    real_t val, ans, dof;
-
-    if(checkParamChi2(&val, &dof)) {
-      WP34S_Cdfu_Chi2(&val, &dof, &ans, &ctxtReal39);
-      convertRealToResultRegister(&ans, REGISTER_X, amNone);
-      adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-    }
+    fnDistribution(DIST_CHI2 * 4 + DIST_R);
   }
 
 
   void fnChi2I(uint16_t unusedButMandatoryParameter) {
-    real_t val, ans, dof;
-
-    if(checkParamChi2(&val, &dof)) {
-      if(realCompareLessEqual(&val, const_0) || realCompareGreaterEqual(&val, const_1)) {
-        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
-        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-          moreInfoOnError("In function fnChi2I:", "the argument must be 0 < x < 1", NULL, NULL);
-        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-        if(getSystemFlag(FLAG_SPCRES)) {
-          convertRealToResultRegister(const_NaN, REGISTER_X, amNone);
-        }
-        return;
-      }
-      WP34S_Qf_Chi2(&val, &dof, &ans, &ctxtReal39);
-      if(realIsNaN(&ans)) {
-        displayDomainErrorMessage(ERROR_NO_ROOT_FOUND, ERR_REGISTER_LINE);
-        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-          moreInfoOnError("In function fnChi2I:", "WP34S_Qf_Chi2 did not converge", NULL, NULL);
-        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-        if(getSystemFlag(FLAG_SPCRES)) {
-          convertRealToResultRegister(const_NaN, REGISTER_X, amNone);
-        }
-        return;
-      }
-      convertRealToResultRegister(&ans, REGISTER_X, amNone);
-      adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-    }
+    fnDistribution(DIST_CHI2 * 4 + DIST_I);
   }
 
 
@@ -130,163 +76,292 @@
    * This functions are borrowed from the WP34S project
    ******************************************************/
 
-  void WP34S_Pdf_Chi2(const real_t *x, const real_t *k, real_t *res, realContext_t *realContext) {
-    real_t p, q, r, s;
+  static void chi2LogDensity(const real_t *x, const real_t *k, real_t *res, realContext_t *realContext) {
+    real_t a, y, argument, sum, r, delta, logarithm, term, coefficient;
 
-    if(realCompareLessEqual(x, const_0)) {
+    realMultiply(k, const_1on2, &a, realContext);
+    realMultiply(x, const_1on2, &y, realContext);
+    realSubtract(&a, const_1, &argument, realContext);
+    WP34S_LanczosSum(&argument, const_29, &sum, realContext);
+    WP34S_Ln(&sum, &sum, realContext);
+    realAdd(&a, const_gammaRm1, &r, realContext);
+    realSubtract(&y, &r, &delta, realContext);
+    realDivide(&delta, &r, &delta, realContext);
+
+    if(realCompareAbsLessThan(&delta, const_1e_6)) {
+      WP34S_Ln1P(&delta, &logarithm, realContext);
+      WP34S_Log1pMinus(&delta, &term, realContext);
+      realMultiply(&a, &term, res, realContext);
+      realSubtract(res, &logarithm, res, realContext);
+      realMultiply(const_gammaRm1, &delta, &term, realContext);
+      realSubtract(res, &term, res, realContext);
+    }
+    else {
+      realDivide(&y, &r, &logarithm, realContext);
+      WP34S_Ln(&logarithm, &logarithm, realContext);
+      realSubtract(&a, const_1, &coefficient, realContext);
+      realMultiply(&coefficient, &logarithm, res, realContext);
+      realSubtract(&r, &y, &term, realContext);
+      realAdd(res, &term, res, realContext);
+    }
+    WP34S_Ln(&r, &term, realContext);
+    realMultiply(&term, const_1on2, &term, realContext);
+    realSubtract(res, &term, res, realContext);
+    realSubtract(res, &sum, res, realContext);
+    realSubtract(res, const75_ln2, res, realContext);
+  }
+
+
+  static void chi2ProbabilityWide(const real_t *x, const real_t *k, real_t *res, bool_t upper, realContext_t *realContext) {
+    real_t argument, shape;
+
+    realMultiply(x, const_1on2, &argument, realContext);
+    realMultiply(k, const_1on2, &shape, realContext);
+    WP34S_GammaP(&argument, &shape, res, realContext, upper, true);
+  }
+
+
+  static void chi2MarkInterior(real_t *value, realContext_t *realContext) {
+    WP34S_AdjustPositiveUnderflow(value);
+    if(realCompareEqual(value, const_1)) {
+      realNextToward(value, const_0, value, realContext);
+    }
+  }
+
+
+  void WP34S_Pdf_Chi2(const real_t *x, const real_t *k, real_t *res, realContext_t *realContext) {
+    real_t logarithm, value;
+    realContext_t *calculationContext = WP34S_AtLeastContext(realContext, &ctxtReal51);
+
+    if(!WP34S_IsPositiveFinite(k) || realIsNaN(x) || (realIsNegative(x) && !realIsZero(x))) {
+      realSetNaN(res);
+      return;
+    }
+    if(realIsZero(x)) {
+      if(realCompareLessThan(k, const_2)) {
+        realSetPlusInfinity(res);
+      }
+      else if(realCompareEqual(k, const_2)) {
+        realCopy(const_1on2, res);
+      }
+      else {
+        realSetZero(res);
+      }
+      return;
+    }
+    if(realIsInfinite(x)) {
       realSetZero(res);
       return;
     }
 
-    realMultiply(k, const_1on2, &p, realContext);
-    WP34S_Ln(x, &q, realContext);
-    realMultiply(x, const_1on2, &r, realContext);
-    realChangeSign(&r);
-    realSubtract(&p, const_1, &s, realContext);
-    realMultiply(&q, &s, &q, realContext);
-    realAdd(&r, &q, &q, realContext);
-    WP34S_LnGamma(&p, &r, realContext);
-    realSubtract(&q, &r, &q, realContext);
-    realMultiply(&p, const39_ln2, &r, realContext);
-    realSubtract(&q, &r, &q, realContext);
-    realExp(&q, res, realContext);
+    chi2LogDensity(x, k, &logarithm, calculationContext);
+    realExp(&logarithm, &value, calculationContext);
+    WP34S_AdjustPositiveUnderflow(&value);
+    realPlus(&value, res, realContext);
   }
+
+
+  static void chi2Probability(const real_t *x, const real_t *k, real_t *res, bool_t upper, realContext_t *realContext) {
+    real_t value;
+    realContext_t *calculationContext = WP34S_AtLeastContext(realContext, &ctxtReal39);
+
+    if(!WP34S_IsPositiveFinite(k) || realIsNaN(x) || (realIsNegative(x) && !realIsZero(x))) {
+      realSetNaN(res);
+      return;
+    }
+    if(realIsZero(x)) {
+      if(upper) {
+        realSetOne(res);
+      }
+      else {
+        realSetZero(res);
+      }
+      return;
+    }
+    if(realIsInfinite(x)) {
+      if(upper) {
+        realSetZero(res);
+      }
+      else {
+        realSetOne(res);
+      }
+      return;
+    }
+
+    chi2ProbabilityWide(x, k, &value, upper, calculationContext);
+    if(!realIsNaN(&value)) {
+      chi2MarkInterior(&value, calculationContext);
+    }
+    realPlus(&value, res, realContext);
+  }
+
 
   void WP34S_Cdfu_Chi2(const real_t *x, const real_t *k, real_t *res, realContext_t *realContext) {
-    real_t p, q;
-
-    if(realCompareLessEqual(x, const_0)) {
-      realSetOne(res);
-      return;
-    }
-    if(realIsInfinite(x)) {
-      realSetZero(res);
-      return;
-    }
-
-    realMultiply(x, const_1on2, &p, realContext);
-    realMultiply(k, const_1on2, &q, realContext);
-    WP34S_GammaP(&p, &q, res, realContext, true, true);
+    chi2Probability(x, k, res, true, realContext);
   }
+
 
   void WP34S_Cdf_Chi2(const real_t *x, const real_t *k, real_t *res, realContext_t *realContext) {
-    real_t p, q;
-
-    if(realCompareLessEqual(x, const_0)) {
-      realSetZero(res);
-      return;
-    }
-    if(realIsInfinite(x)) {
-      realSetOne(res);
-      return;
-    }
-
-    realMultiply(x, const_1on2, &p, realContext);
-    realMultiply(k, const_1on2, &q, realContext);
-    WP34S_GammaP(&p, &q, res, realContext, false, true);
+    chi2Probability(x, k, res, false, realContext);
   }
+
+
+  static bool_t chi2InverseResidual(const real_t *logValue, const real_t *k, const real_t *target, bool_t upper, real_t *value, real_t *residual,
+                                    real_t *derivative) {
+    real_t probability, logDensity;
+
+    realExp(logValue, value, &ctxtReal51);
+    chi2ProbabilityWide(value, k, &probability, upper, &ctxtReal51);
+    if(realIsNaN(&probability)) {
+      return false;
+    }
+    if(upper) {
+      realSubtract(target, &probability, residual, &ctxtReal51);
+    }
+    else {
+      realSubtract(&probability, target, residual, &ctxtReal51);
+    }
+    chi2LogDensity(value, k, &logDensity, &ctxtReal51);
+    realExp(&logDensity, derivative, &ctxtReal51);
+    realMultiply(value, derivative, derivative, &ctxtReal51);
+    return true;
+  }
+
+
+  static bool_t chi2InverseBracket(const real_t *initial, const real_t *k, const real_t *target, bool_t upper, real_t *low, real_t *high) {
+    real_t value, residual, derivative, distance, proposal, lowBound, highBound;
+
+    int32ToReal(-30000, &lowBound);
+    int32ToReal(16000, &highBound);
+    if(!chi2InverseResidual(initial, k, target, upper, &value, &residual, &derivative)) {
+      return false;
+    }
+    if(realIsNegative(&residual)) {
+      realCopy(initial, low);
+      realDivide(const_2, k, &distance, &ctxtReal51);
+      realSquareRoot(&distance, &distance, &ctxtReal51);
+      for(int32_t iteration=0; iteration<20; iteration++) {
+        realAdd(initial, &distance, &proposal, &ctxtReal51);
+        if(realCompareGreaterThan(&proposal, &highBound)) {
+          realCopy(&highBound, &proposal);
+        }
+        if(!chi2InverseResidual(&proposal, k, target, upper, &value, &residual, &derivative)) {
+          return false;
+        }
+        if(!realIsNegative(&residual)) {
+          realCopy(&proposal, high);
+          return true;
+        }
+        realCopy(&proposal, low);
+        if(realCompareEqual(&proposal, &highBound)) {
+          return false;
+        }
+        realMultiply(&distance, const_2, &distance, &ctxtReal51);
+      }
+    }
+    else {
+      realCopy(initial, high);
+      realDivide(const_2, k, &distance, &ctxtReal51);
+      realSquareRoot(&distance, &distance, &ctxtReal51);
+      for(int32_t iteration=0; iteration<20; iteration++) {
+        realSubtract(initial, &distance, &proposal, &ctxtReal51);
+        if(realCompareLessThan(&proposal, &lowBound)) {
+          realCopy(&lowBound, &proposal);
+        }
+        if(!chi2InverseResidual(&proposal, k, target, upper, &value, &residual, &derivative)) {
+          return false;
+        }
+        if(!realIsPositive(&residual) || realIsZero(&residual)) {
+          realCopy(&proposal, low);
+          return true;
+        }
+        realCopy(&proposal, high);
+        if(realCompareEqual(&proposal, &lowBound)) {
+          return false;
+        }
+        realMultiply(&distance, const_2, &distance, &ctxtReal51);
+      }
+    }
+    return false;
+  }
+
 
   void WP34S_Qf_Chi2(const real_t *x, const real_t *k, real_t *res, realContext_t *realContext) {
-    real_t p, q, r, s, t, reg0;
-    int32_t loops;
+    real_t target, initial, low, high, logValue, value, residual, derivative, width, tolerance, step, proposal, midpoint, largeK;
+    bool_t upper;
 
-    if(realCompareEqual(x, const_0)) {
+    if(realIsNaN(x) || !WP34S_IsPositiveFinite(k) || realCompareLessThan(x, const_0) || realCompareGreaterThan(x, const_1)) {
+      realSetNaN(res);
+      return;
+    }
+    if(realIsZero(x)) {
       realSetZero(res);
+      return;
+    }
+    if(realCompareEqual(x, const_1)) {
+      realSetPlusInfinity(res);
+      return;
+    }
+    WP34S_SetPowerOfTen(80, &largeK);
+    if(realCompareGreaterEqual(k, &largeK)) {
+      realNextToward(k, realCompareGreaterThan(x, const_1on2) ? const_plusInfinity : const_0, &value, &ctxtReal39);
+      realPlus(&value, res, realContext);
+      return;
     }
 
-    realCopy(x, &reg0);
-    loops = 6;
-    int32ToReal(19, &p);
-    p.exponent -= 1;
-    realCopy(realCompareEqual(k, const_1) ? const_0 : k, &q);
-    realChangeSign(&q);
-    realPower(&p, &q, &p, realContext);
-    realDivide(&p, const39_pi, &p, realContext);
-    if(realCompareGreaterEqual(&reg0, &p)) {
-      WP34S_qf_q_est(&reg0, &q, NULL, realContext);
-      int32ToReal(222, &s);
-      s.exponent -= 3;
-      realDivide(&s, k, &s, realContext);
-      realSquareRoot(&s, &r, realContext);
-      realMultiply(&q, &r, &q, realContext);
-      realAdd(&q, const_1, &q, realContext);
-      realSubtract(&q, &s, &q, realContext);
-      realMultiply(&q, &q, &r, realContext);
-      realMultiply(&r, &q, &q, realContext);
-      realMultiply(&q, k, &q, realContext);
-      realMultiply(const39_eE, k, &r, realContext);
-      realAdd(&r, const_8, &r, realContext);
-      if(realCompareGreaterEqual(&q, &r)) {
-        realMultiply(&q, const_1on2, &q, realContext);
-        WP34S_Ln(&q, &q, realContext);
-        realMultiply(k, const_1on2, &t, realContext);
-        realSubtract(&t, const_1, &t, realContext);
-        realMultiply(&q, &t, &q, realContext);
-        realChangeSign(&q);
-        realMinus(&reg0, &t, realContext);
-        WP34S_Ln1P(&t, &t, realContext);
-        realAdd(&q, &t, &q, realContext);
-        realMultiply(k, const_1on2, &t, realContext);
-        WP34S_LnGamma(&t, &t, realContext);
-        realAdd(&q, &t, &q, realContext);
-        realMultiply(&q, const_2, &q, realContext);
-        realChangeSign(&q);
-      }
+    upper = realCompareGreaterThan(x, const_1on2);
+    if(upper) {
+      realSubtract(const_1, x, &target, &ctxtReal51);
     }
-    else { // chi2_q_low
-      realDivide(&reg0, k, &q, realContext);
-      realMultiply(&q, const_1on2, &q, realContext);
-      WP34S_Ln(&q, &q, realContext);
-      realMultiply(k, const_1on2, &r, realContext);
-      WP34S_LnGamma(&r, &r, realContext);
-      realAdd(&q, &r, &q, realContext);
-      realMultiply(&q, const_2, &q, realContext);
-      realDivide(&q, k, &q, realContext);
-      realExp(&q, &q, realContext);
-      realMultiply(&q, const_2, &q, realContext);
+    else {
+      realCopy(x, &target);
+    }
+    WP34S_Ln(k, &initial, &ctxtReal51);
+    if(!chi2InverseBracket(&initial, k, &target, upper, &low, &high)) {
+      realSetNaN(res);
+      return;
     }
 
-    do { // chi2_q_refine
-      if(realCompareLessThan(&q, k)) {
-        WP34S_Cdf_Chi2(&q, k, &p, realContext);
-        realDivide(&p, &reg0, &r, realContext);
-        WP34S_Ln(&r, &r, realContext);
-      }
-      else { // chi2_q_big
-        realSubtract(const_1, &reg0, &r, realContext);
-        WP34S_Cdfu_Chi2(&q, k, &s, realContext);
-        realSubtract(const_1, &s, &p, realContext);
-        realSubtract(&r, &s, &r, realContext);
-        realDivide(&r, &reg0, &r, realContext);
-        WP34S_Ln1P(&r, &r, realContext);
-      }
-      // chi2_q_common
-      WP34S_Pdf_Chi2(&q, k, &s, realContext);
-      realDivide(&s, &p, &p, realContext);
-      realDivide(&r, &p, &r, realContext);
-      realSubtract(k, const_2, &s, realContext);
-      realSubtract(&s, &q, &s, realContext);
-      realDivide(&s, &q, &s, realContext);
-      realMultiply(&p, const_2, &p, realContext);
-      realSubtract(&s, &p, &p, realContext);
-      realMultiply(&p, const_1on4, &p, realContext);
-      realMultiply(&p, &r, &p, realContext);
-      realChangeSign(&p);
-      realAdd(&p, const_1, &p, realContext);
-      realDivide(&r, &p, &r, realContext);
-      realChangeSign(&r);
-      realAdd(&q, &r, &p, realContext);
-      // SHOW_CONVERGENCE
-      realSetOne(&r);
-      r.exponent -= 32 /*14*/;
-      if(WP34S_RelativeError(&p, &q, &r, realContext)) {
-        realCopy(&p, res);
+    realSetOne(&tolerance);
+    tolerance.exponent = -40;
+    realAdd(&low, &high, &logValue, &ctxtReal51);
+    realMultiply(&logValue, const_1on2, &logValue, &ctxtReal51);
+    for(int32_t iteration=0; iteration<240; iteration++) {
+      if(!chi2InverseResidual(&logValue, k, &target, upper, &value, &residual, &derivative)) {
+        realSetNaN(res);
         return;
       }
-      realCopy(&p, &q);
-    } while(--loops > 0);
+      if(realIsNegative(&residual)) {
+        realCopy(&logValue, &low);
+      }
+      else {
+        realCopy(&logValue, &high);
+      }
+      realSubtract(&high, &low, &width, &ctxtReal51);
+      if(realCompareAbsLessThan(&width, &tolerance)) {
+        realAdd(&low, &high, &logValue, &ctxtReal51);
+        realMultiply(&logValue, const_1on2, &logValue, &ctxtReal51);
+        realExp(&logValue, &value, &ctxtReal51);
+        WP34S_AdjustPositiveUnderflow(&value);
+        realPlus(&value, res, realContext);
+        return;
+      }
 
-    realSetNaN(res); // ERR 20
+      realAdd(&low, &high, &midpoint, &ctxtReal51);
+      realMultiply(&midpoint, const_1on2, &midpoint, &ctxtReal51);
+      if(iteration >= 24 || realIsZero(&derivative) || realIsSpecial(&derivative)) {
+        realCopy(&midpoint, &proposal);
+      }
+      else {
+        realDivide(&residual, &derivative, &step, &ctxtReal51);
+        realSubtract(&logValue, &step, &proposal, &ctxtReal51);
+        if(realCompareLessEqual(&proposal, &low) || realCompareGreaterEqual(&proposal, &high)) {
+          realCopy(&midpoint, &proposal);
+        }
+      }
+      realCopy(&proposal, &logValue);
+    }
+    realSetNaN(res);
   }
 
-#endif // !OPTION_DIST_B
+#endif // !OPTION_DIST_CHI2

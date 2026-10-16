@@ -44,6 +44,7 @@ void doNothing(void) {
 #define PRN_XFN 9
 #endif
 
+
 bool_t isFunctionOldParam16(uint16_t func) {
     return (func == ITM_BESTF_OLD ||
             func == ITM_RNG_OLD ||
@@ -73,11 +74,11 @@ bool_t isFunctionOldParam16(uint16_t func) {
         case ITM_DISK:
         case ITM_BUZZ:
         case ITM_PLAY:
-        case ITM_BATT:
         case ITM_VOL:
         case ITM_VOLMINUS:
         case ITM_VOLPLUS:
         case ITM_VOLQ:
+        case ITM_BATT:
         #endif // !ANDROID_BUILD
                           return  _TO_ITM_TI;
       #endif //PC_BUILD
@@ -4681,7 +4682,7 @@ TO_QSPI const item_t indexOfItems[] = {
 /* 2691 */  { fnP_PrinterMode,                 TRACE,                       "TRACE",                                       "TRACE",                                       (0 << TAM_MAX_BITS) |     0, CAT_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_NONE         | HG_ENABLED         },
 /* 2692 */  { fnP_PrinterMode,                 STRACE,                      "STRACE",                                      "STRACE",                                      (0 << TAM_MAX_BITS) |     0, CAT_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_NONE         | HG_ENABLED         },
 /* 2693 */  { fnP_PrinterList,                 TM_VALUE,                    STD_PRINTER "LIST",                            STD_PRINTER "LIST",                            (0 << TAM_MAX_BITS) |  9999, CAT_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
-/* 2694 */  { fnP_All_Regs,                    PRN_XFN,                     STD_PRINTER "XFN",                             STD_PRINTER "XFN",                             (0 << TAM_MAX_BITS) |     0, CAT_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_NONE         | HG_ENABLED         },
+/* 2694 */  { S18_fnP_All_Regs,                PRN_XFN,                     STD_PRINTER "XFN",                             STD_PRINTER "XFN",                             (0 << TAM_MAX_BITS) |     0, CAT_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_NONE         | HG_ENABLED         },
 /* 2695 */  { fnP_Char,                        TM_REGISTER,                 STD_PRINTER "CHAR",                            STD_PRINTER "CHAR",                            (0 << TAM_MAX_BITS) |    99, CAT_FNCT | SLS_ENABLED   | US_ENABLED   | EIM_DISABLED | PTP_REGISTER     | HG_ENABLED         },
 /* 2696 */  { fnP_Tab,                         TM_VALUE,                    STD_PRINTER "TAB",                             STD_PRINTER "TAB",                             (0 << TAM_MAX_BITS) |   166, CAT_FNCT | SLS_ENABLED   | US_ENABLED   | EIM_DISABLED | PTP_NUMBER_16    | HG_ENABLED         },
 /* 2697 */  { fnP_Byte,                        TM_VALUE,                    STD_PRINTER "#",                               STD_PRINTER "#",                               (0 << TAM_MAX_BITS) |   255, CAT_FNCT | SLS_ENABLED   | US_ENABLED   | EIM_DISABLED | PTP_NUMBER_16    | HG_ENABLED         },

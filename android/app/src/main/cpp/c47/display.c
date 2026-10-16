@@ -1585,14 +1585,14 @@ void strPrepend(char*dest, char*prefix) {
 static void complex34ToDisplayString2(const complex34_t *complex34, char *displayString, int16_t displayHasNDigits, bool_t limitExponent, bool_t frontSpace, const uint16_t tagAngle, const bool_t tagPolar, irfracOption_t limitIrfrac, rectToPolarCache_t *cache) {
   int16_t imagOffset = 100;
   real34_t real34, imag34, absimag34;
-  real_t real, imagIc;
+  cplx_t z;
   bool_t polarAt39 = false;
   size_t valueXLength = strlen(displayValueX);
 
 polarFormat:
   if(tagPolar) { // polar mode
-    real34ToReal(VARIABLE_REAL34_DATA(complex34), &real);
-    real34ToReal(VARIABLE_IMAG34_DATA(complex34), &imagIc);
+    real34ToReal(VARIABLE_REAL34_DATA(complex34), &z.Real);
+    real34ToReal(VARIABLE_IMAG34_DATA(complex34), &z.Imag);
 
     decContext c = ctxtReal39;
     // Compute the polar form at a fixed display precision (POLAR_DISPLAY_COMPUTE_DIGITS),
@@ -1606,13 +1606,13 @@ polarFormat:
     }
     polarTieWatch = (c.digits < 39);  // a value within one unit of its last computed digit from a rounding boundary is computed again at 39 digits
     polarNearTie = false;
-    realRectangularToPolarCached(&real, &imagIc, &real, &imagIc, &c, cache); // imagIc in radian
+    realRectangularToPolarCached(&z, &z.Mag, &z.Arg, &c, cache);             // imagIc in radian
     // convertAngleFromTo runs at the same c.digits; radian->grad (x 200/pi) is
     // the worst case for the conversion and stays inside that precision.
-    convertAngleFromTo(&imagIc, amRadian, tagAngle == amNone ? currentAngularMode : tagAngle, &c);
+    convertAngleFromTo(&z.Arg, amRadian, tagAngle == amNone ? currentAngularMode : tagAngle, &c);
 
-    realToReal34(&real, &real34);
-    realToReal34(&imagIc, &imag34);
+    realToReal34(&z.Mag, &real34);
+    realToReal34(&z.Arg, &imag34);
   }
   else { // rectangular mode
     real34Copy(VARIABLE_REAL34_DATA(complex34), &real34);

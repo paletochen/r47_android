@@ -18,10 +18,22 @@ void fnReToCx(uint16_t unusedButMandatoryParameter) {
   angularMode_t tempAngle = currentAngularMode;
   uint32_t dataTypeX = getRegisterDataType(REGISTER_X);
   uint32_t dataTypeY = getRegisterDataType(REGISTER_Y);
-  bool_t xIsAReal;
+  real_t reducedLongAngle;
+  bool_t longAngleWasReduced = false;
 
   if(    (dataTypeX == dtReal34 || dataTypeX == dtLongInteger)
       && (dataTypeY == dtReal34 || dataTypeY == dtLongInteger)) {
+    if(getSystemFlag(FLAG_POLAR)) { // polar mode
+      if(dataTypeX == dtReal34 && getRegisterAngularMode(REGISTER_X) != amNone) {
+        tempAngle = getRegisterAngularMode(REGISTER_X);
+      }
+      else if(dataTypeX == dtLongInteger) {
+        if(!getRegisterAsRealAngle(REGISTER_X, &reducedLongAngle, &tempAngle, true) || lastErrorCode != ERROR_NONE) {
+          return;
+        }
+        longAngleWasReduced = true;
+      }
+    }
 
     if(!saveLastX()) {
       return;
@@ -29,16 +41,6 @@ void fnReToCx(uint16_t unusedButMandatoryParameter) {
 
     fnSetFlag(FLAG_CPXRES);
     fnRefreshState();                                 //drJM
-
-    xIsAReal = true;
-    if(getSystemFlag(FLAG_POLAR)) { // polar mode
-      if(dataTypeX == dtReal34 && getRegisterAngularMode(REGISTER_X) != amNone) {
-        tempAngle = getRegisterAngularMode(REGISTER_X);
-        convertAngle34FromTo(REGISTER_REAL34_DATA(REGISTER_X), getRegisterAngularMode(REGISTER_X), amRadian);
-        setRegisterAngularMode(REGISTER_X, amNone);
-        xIsAReal = false;
-      }
-    }
 
     if(dataTypeX == dtLongInteger) {
       convertLongIntegerRegisterToReal34Register(REGISTER_X, REGISTER_X);
@@ -60,21 +62,18 @@ void fnReToCx(uint16_t unusedButMandatoryParameter) {
         real34SetZero(REGISTER_IMAG34_DATA(REGISTER_X));
       }
       else {
-        real_t magnitude, theta;
+        cplx_t z;
 
-        real34ToReal(VARIABLE_REAL34_DATA(&temp), &magnitude);
-        real34ToReal(VARIABLE_IMAG34_DATA(&temp), &theta);
-        if(xIsAReal) {
-          convertAngleFromTo(&theta, currentAngularMode, amRadian, &ctxtReal39);
+        real34ToReal(VARIABLE_REAL34_DATA(&temp), &z.Mag);
+        if(longAngleWasReduced) {
+          realCopy(&reducedLongAngle, &z.Arg);
         }
-        if(realCompareLessThan(&magnitude, const_0)) {
-          realSetPositiveSign(&magnitude);
-          realAdd(&theta, const39_pi, &theta, &ctxtReal39);
-          mod2Pi(&theta, &theta, &ctxtReal39);
+        else {
+          real34ToReal(VARIABLE_IMAG34_DATA(&temp), &z.Arg);
         }
-        realPolarToRectangular(&magnitude, &theta, &magnitude, &theta, &ctxtReal39); // theta in radian
-        convertRealToReal34ResultRegister(&magnitude, REGISTER_X);
-        realToReal34(&theta,     REGISTER_IMAG34_DATA(REGISTER_X));
+        realPolarToRectangularInUnit(&z.Mag, &z.Arg, tempAngle, &z, &ctxtReal39);
+        convertRealToReal34ResultRegister(&z.Real, REGISTER_X);
+        convertRealToImag34ResultRegister(&z.Imag, REGISTER_X);
         setComplexRegisterAngularMode(REGISTER_X, tempAngle);
       }
     }
@@ -110,22 +109,17 @@ void fnReToCx(uint16_t unusedButMandatoryParameter) {
 
           if(getSystemFlag(FLAG_POLAR)) { // polar mode
             if(real34CompareEqual(VARIABLE_REAL34_DATA(&cMat.matrixElements[i]), const34_0)) {
+              real34SetZero(VARIABLE_REAL34_DATA(&cMat.matrixElements[i]));
               real34SetZero(VARIABLE_IMAG34_DATA(&cMat.matrixElements[i]));
             }
             else {
-              real_t magnitude, theta;
+              cplx_t z;
 
-              real34ToReal(VARIABLE_REAL34_DATA(&cMat.matrixElements[i]), &magnitude);
-              real34ToReal(VARIABLE_IMAG34_DATA(&cMat.matrixElements[i]), &theta);
-              convertAngleFromTo(&theta, currentAngularMode, amRadian, &ctxtReal39);
-              if(realCompareLessThan(&magnitude, const_0)) {
-                realSetPositiveSign(&magnitude);
-                realAdd(&theta, const39_pi, &theta, &ctxtReal39);
-                mod2Pi(&theta, &theta, &ctxtReal39);
-              }
-              realPolarToRectangular(&magnitude, &theta, &magnitude, &theta, &ctxtReal39); // theta in radian
-              realToReal34(&magnitude, VARIABLE_REAL34_DATA(&cMat.matrixElements[i]));
-              realToReal34(&theta,     VARIABLE_IMAG34_DATA(&cMat.matrixElements[i]));
+              real34ToReal(VARIABLE_REAL34_DATA(&cMat.matrixElements[i]), &z.Mag);
+              real34ToReal(VARIABLE_IMAG34_DATA(&cMat.matrixElements[i]), &z.Arg);
+              realPolarToRectangularInUnit(&z.Mag, &z.Arg, currentAngularMode, &z, &ctxtReal39);
+              realToReal34(&z.Real, VARIABLE_REAL34_DATA(&cMat.matrixElements[i]));
+              realToReal34(&z.Imag, VARIABLE_IMAG34_DATA(&cMat.matrixElements[i]));
             }
           }
         }

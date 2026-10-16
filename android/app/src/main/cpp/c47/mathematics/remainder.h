@@ -7,6 +7,7 @@
 #if !defined(REMAINDER_H)
   #define REMAINDER_H
 
+  bool_t mixedIntegerRealRemainder(bool_t modulo);
   void fnRmd(uint16_t unusedButMandatoryParameter);
 
 #endif // !REMAINDER_H

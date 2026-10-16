@@ -7,166 +7,313 @@
 
 #include "c47.h"
 
-#if !defined(OPTION_DIST_B)
+#if !defined(OPTION_DIST_LOGIS)
   void fnLogisticP     (uint16_t unusedButMandatoryParameter){}
   void fnLogisticL     (uint16_t unusedButMandatoryParameter){}
   void fnLogisticR     (uint16_t unusedButMandatoryParameter){}
   void fnLogisticI     (uint16_t unusedButMandatoryParameter){}
 
 #else
-  static bool_t checkParamLogistic(real_t *x, real_t *i, real_t *j) {
-    if(!saveLastX()) {
+  bool_t logisticCheckDomain(bool_t registersValid, real_t *x, real_t *i, real_t *j, real_t *unusedThird, uint16_t unusedParameter) {
+    if(!registersValid) {
       return false;
     }
 
-    if(!getRegisterAsReal(REGISTER_X, x) || !getRegisterAsReal(REGISTER_M, i) || !getRegisterAsReal(REGISTER_S, j)) {
-      goto err;
-    }
-
-    if(realIsZero(j) || realIsNegative(j)) {
+    if(realIsSpecial(i) || realIsSpecial(j) || realIsZero(j) || realIsNegative(j)) {
       displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-        moreInfoOnError("In function checkParamLogistic:", "cannot calculate for " STD_sigma " " STD_LESS_EQUAL " 0", NULL, NULL);
+        moreInfoOnError("In function logisticCheckDomain:", "parameters must be finite and " STD_sigma " > 0", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      goto err;
+      return false;
     }
     return true;
-
-  err:
-    if(getSystemFlag(FLAG_SPCRES)) {
-      convertRealToResultRegister(const_NaN, REGISTER_X, amNone);
-    }
-    return false;
   }
 
 
   void fnLogisticP(uint16_t unusedButMandatoryParameter) {
-    real_t val, mu, s, ans;
-
-    if(checkParamLogistic(&val, &mu, &s)) {
-      WP34S_Pdf_Logit(&val, &mu, &s, &ans, &ctxtReal39);
-      convertRealToResultRegister(&ans, REGISTER_X, amNone);
-      adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-    }
+    fnDistribution(DIST_LOGIT * 4 + DIST_P);
   }
 
   void fnLogisticL(uint16_t unusedButMandatoryParameter) {
-    real_t val, mu, s, ans;
-
-    if(checkParamLogistic(&val, &mu, &s)) {
-      WP34S_Cdf_Logit(&val, &mu, &s, &ans, &ctxtReal39);
-      convertRealToResultRegister(&ans, REGISTER_X, amNone);
-      adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-    }
+    fnDistribution(DIST_LOGIT * 4 + DIST_L);
   }
 
   void fnLogisticR(uint16_t unusedButMandatoryParameter) {
-    real_t val, mu, s, ans;
-
-    if(checkParamLogistic(&val, &mu, &s)) {
-      WP34S_Cdfu_Logit(&val, &mu, &s, &ans, &ctxtReal39);
-      convertRealToResultRegister(&ans, REGISTER_X, amNone);
-      adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-    }
+    fnDistribution(DIST_LOGIT * 4 + DIST_R);
   }
 
   void fnLogisticI(uint16_t unusedButMandatoryParameter) {
-    real_t val, mu, s, ans;
-
-    if(checkParamLogistic(&val, &mu, &s)) {
-      if(realCompareLessEqual(&val, const_0) || realCompareGreaterEqual(&val, const_1)) {
-        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
-        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-          moreInfoOnError("In function fnLogisticI:", "the argument must be 0 < x < 1", NULL, NULL);
-        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-        if(getSystemFlag(FLAG_SPCRES)) {
-          convertRealToResultRegister(const_NaN, REGISTER_X, amNone);
-        }
-        return;
-      }
-      WP34S_Qf_Logit(&val, &mu, &s, &ans, &ctxtReal39);
-      convertRealToResultRegister(&ans, REGISTER_X, amNone);
-      adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-    }
+    fnDistribution(DIST_LOGIT * 4 + DIST_I);
   }
 
+
+
+  /********************************************//**
+   * \brief Tests whether the location and scale define a logistic distribution.
+   ***********************************************/
+  static bool_t logisticParametersAreValid(const real_t *mu, const real_t *s) {
+    return !realIsSpecial(mu) && !realIsSpecial(s) && !realIsZero(s) && !realIsNegative(s);
+  }
+
+  /********************************************//**
+   * \brief Selects a forward calculation context from the exponential sensitivity.
+   ***********************************************/
+  static realContext_t *logisticForwardContext(const real_t *x, const real_t *mu, const real_t *s, real_t *standard, realContext_t *resultContext) {
+    realContext_t *calculationContext = resultContext;
+
+    realSubtract(x, mu, standard, calculationContext);
+    realDivide(standard, s, standard, calculationContext);
+    if(calculationContext->digits <= 39 && realCompareAbsGreaterThan(standard, const_100)) {
+      calculationContext = &ctxtReal51;
+      realSubtract(x, mu, standard, calculationContext);
+      realDivide(standard, s, standard, calculationContext);
+    }
+    return calculationContext;
+  }
+
+  /********************************************//**
+   * \brief Computes log(p/(1-p)) with a central series at a standard working precision.
+   ***********************************************/
+  static void logisticLogit(const real_t *probability, real_t *res, realContext_t *realContext) {
+    real_t addend, divisor, previous, square, sum, tail, term;
+
+    if(realCompareLessEqual(probability, const_1on4) || realCompareGreaterEqual(probability, const_3on4)) {
+      if(realCompareLessThan(probability, const_1on2)) {
+        realCopy(probability, &tail);
+      }
+      else {
+        realSubtract(const_1, probability, &tail, realContext);
+      }
+      realMinus(&tail, &term, realContext);
+      WP34S_Ln1P(&term, &sum, realContext);
+      WP34S_Ln(&tail, &term, realContext);
+      realSubtract(&sum, &term, res, realContext);
+      if(realCompareLessThan(probability, const_1on2)) {
+        realChangeSign(res);
+      }
+      return;
+    }
+
+    realAdd(probability, probability, &term, realContext);
+    realSubtract(&term, const_1, &term, realContext);
+    realMultiply(&term, &term, &square, realContext);
+    realCopy(&term, &sum);
+    int32ToReal(3, &divisor);
+    for(int32_t n = 0; n < 1000; n++) {
+      realMultiply(&term, &square, &term, realContext);
+      realDivide(&term, &divisor, &addend, realContext);
+      realCopy(&sum, &previous);
+      realAdd(&sum, &addend, &sum, realContext);
+      if(realCompareEqual(&sum, &previous)) {
+        break;
+      }
+      realAdd(&divisor, const_2, &divisor, realContext);
+    }
+    realMultiply(&sum, const_2, res, realContext);
+  }
+
+  /********************************************//**
+   * \brief Computes log(p/(1-p)) at an extended precision.
+   ***********************************************/
+  static void logisticLogitExtended(const real_t *probability, real_t *res, realContext_t *realContext) {
+    REAL_T_PTR(addend, realContext->digits);
+    REAL_T_PTR(divisor, realContext->digits);
+    REAL_T_PTR(logOneMinusTail, realContext->digits);
+    REAL_T_PTR(logTail, realContext->digits);
+    REAL_T_PTR(oneMinusTail, realContext->digits);
+    REAL_T_PTR(previous, realContext->digits);
+    REAL_T_PTR(square, realContext->digits);
+    REAL_T_PTR(sum, realContext->digits);
+    REAL_T_PTR(tail, realContext->digits);
+    REAL_T_PTR(term, realContext->digits);
+    if(realCompareLessEqual(probability, const_1on4) || realCompareGreaterEqual(probability, const_3on4)) {
+      if(realCompareLessThan(probability, const_1on2)) {
+        realCopy(probability, tail);
+      }
+      else {
+        realSubtract(const_1, probability, tail, realContext);
+      }
+      realSubtract(const_1, tail, oneMinusTail, realContext);
+      WP34S_LnExtended(oneMinusTail, logOneMinusTail, realContext);
+      WP34S_LnExtended(tail, logTail, realContext);
+      realSubtract(logOneMinusTail, logTail, res, realContext);
+      if(realCompareLessThan(probability, const_1on2)) {
+        realChangeSign(res);
+      }
+      return;
+    }
+
+    realAdd(probability, probability, term, realContext);
+    realSubtract(term, const_1, term, realContext);
+    realMultiply(term, term, square, realContext);
+    realCopy(term, sum);
+    int32ToReal(3, divisor);
+    for(int32_t n = 0; n < 1000; n++) {
+      realMultiply(term, square, term, realContext);
+      realDivide(term, divisor, addend, realContext);
+      realCopy(sum, previous);
+      realAdd(sum, addend, sum, realContext);
+      if(realCompareEqual(sum, previous)) {
+        break;
+      }
+      realAdd(divisor, const_2, divisor, realContext);
+    }
+    realMultiply(sum, const_2, res, realContext);
+  }
+
+  /********************************************//**
+   * \brief Computes a logistic quantile and the terms of its closing sum.
+   ***********************************************/
+  static void logisticQuantileAtContext(const real_t *probability, const real_t *mu, const real_t *s, real_t *logit, real_t *scaled, real_t *value,
+                                        realContext_t *realContext) {
+    logisticLogit(probability, logit, realContext);
+    realMultiply(logit, s, scaled, realContext);
+    realFMA(logit, s, mu, value, realContext);
+  }
+
+  /********************************************//**
+   * \brief Recomputes a logistic quantile after deep location-scale cancellation.
+   ***********************************************/
+  static void logisticQuantileExtended(const real_t *probability, const real_t *mu, const real_t *s, real_t *res, realContext_t *resultContext) {
+    REAL_T_PTR(logit, 159);
+    REAL_T_PTR(value, 159);
+    realContext_t realContext = ctxtReal75;
+
+    realContext.digits = 159;
+    realContext.status = 0;
+    logisticLogitExtended(probability, logit, &realContext);
+    realFMA(logit, s, mu, value, &realContext);
+    realPlus(value, res, resultContext);
+  }
 
 
   /******************************************************
    * This functions are borrowed from the WP34S project
    ******************************************************/
 
-  static void cdf_logit_common(const real_t *x, real_t *res, realContext_t *realContext) {
-    real_t p;
-
-    WP34S_Tanh(x, &p, realContext);
-    realAdd(&p, const_1, &p, realContext);
-    realMultiply(&p, const_1on2, res, realContext);
-  }
-
-  /* Extra the logistic rescaled parameter (x-J) / 2K */
-  static void logistic_param(const real_t *x, const real_t *mu, const real_t *s, real_t *res, realContext_t *realContext) {
-    real_t p;
-
-    realSubtract(x, mu, res, realContext);
-    realAdd(s, s, &p, realContext);
-    realDivide(res, &p, res, realContext);
-  }
-
   void WP34S_Pdf_Logit(const real_t *x, const real_t *mu, const real_t *s, real_t *res, realContext_t *realContext) {
-    real_t xx, p;
-    logistic_param(x, mu, s, &xx, realContext);
-    if(realIsSpecial(&xx)) {
+    real_t denominator, exponential, onePlusExponential, standard, value;
+    realContext_t *calculationContext;
+
+    if(realIsNaN(x) || !logisticParametersAreValid(mu, s)) {
+      realSetNaN(res);
+      return;
+    }
+    if(realIsInfinite(x)) {
       realSetZero(res);
       return;
     }
-    WP34S_SinhCosh(&xx, NULL, &p, realContext);
-    realMultiply(&p, &p, &p, realContext);
-    realMultiply(&p, s, &p, realContext);
-    realMultiply(&p, const_4, &p, realContext);
-    realDivide(const_1, &p, res, realContext);
+    calculationContext = logisticForwardContext(x, mu, s, &standard, realContext);
+    realSetPositiveSign(&standard);
+    realChangeSign(&standard);
+    realExp(&standard, &exponential, calculationContext);
+    if(realIsZero(&exponential)) {
+      realNextToward(&exponential, const_1, &exponential, calculationContext);
+    }
+    realAdd(const_1, &exponential, &onePlusExponential, calculationContext);
+    realMultiply(&onePlusExponential, &onePlusExponential, &denominator, calculationContext);
+    realMultiply(&denominator, s, &denominator, calculationContext);
+    realDivide(&exponential, &denominator, &value, calculationContext);
+    if(realIsZero(&value)) {
+      realNextToward(&value, const_1, &value, calculationContext);
+    }
+    realPlus(&value, res, realContext);
+    if(realIsZero(res) && !realIsZero(&value)) {
+      realNextToward(res, const_1, res, realContext);
+    }
+  }
+
+  /********************************************//**
+   * \brief Computes either logistic probability from the smaller tail.
+   ***********************************************/
+  static void logisticCdfCommon(const real_t *x, const real_t *mu, const real_t *s, bool_t upper, real_t *res, realContext_t *realContext) {
+    real_t exponential, small, standard, value;
+    realContext_t *calculationContext;
+    bool_t smallResult;
+
+    if(realIsNaN(x) || !logisticParametersAreValid(mu, s)) {
+      realSetNaN(res);
+      return;
+    }
+    if(realIsInfinite(x)) {
+      realCopy(realIsNegative(x) != upper ? const_0 : const_1, res);
+      return;
+    }
+    calculationContext = logisticForwardContext(x, mu, s, &standard, realContext);
+    smallResult = realIsNegative(&standard) != upper;
+    realCopy(&standard, &exponential);
+    realSetPositiveSign(&exponential);
+    realChangeSign(&exponential);
+    realExp(&exponential, &exponential, calculationContext);
+    if(realIsZero(&exponential)) {
+      realNextToward(&exponential, const_1, &exponential, calculationContext);
+    }
+    realAdd(const_1, &exponential, &standard, calculationContext);
+    realDivide(&exponential, &standard, &small, calculationContext);
+    if(smallResult) {
+      realCopy(&small, &value);
+    }
+    else {
+      realSubtract(const_1, &small, &value, calculationContext);
+      if(realCompareEqual(&value, const_1) && !realIsZero(&small)) {
+        realNextToward(&value, const_0, &value, calculationContext);
+      }
+    }
+    realPlus(&value, res, realContext);
+    if(smallResult && realIsZero(res) && !realIsZero(&value)) {
+      realNextToward(res, const_1, res, realContext);
+    }
+    else if(!smallResult && realCompareEqual(res, const_1) && !realCompareEqual(&value, const_1)) {
+      realNextToward(res, const_0, res, realContext);
+    }
   }
 
   void WP34S_Cdfu_Logit(const real_t *x, const real_t *mu, const real_t *s, real_t *res, realContext_t *realContext) {
-    real_t xx;
-    logistic_param(x, mu, s, &xx, realContext);
-    if(realIsSpecial(&xx)) {
-      realCopy(realIsNegative(&xx) ? const_0 : const_1, res);
-      return;
-    }
-    //if(!realIsPositive(&xx)) { // WP34S returns 0 wrongly when X <= 0
-    //  realSetZero(res);
-    //  return;
-    //}
-    realChangeSign(&xx);
-    cdf_logit_common(&xx, res, realContext);
+    logisticCdfCommon(x, mu, s, true, res, realContext);
   }
 
   void WP34S_Cdf_Logit(const real_t *x, const real_t *mu, const real_t *s, real_t *res, realContext_t *realContext) {
-    /* (1 + tanh( (x-J) / 2K)) / 2 */
-    real_t xx;
-    logistic_param(x, mu, s, &xx, realContext);
-    if(realIsSpecial(&xx)) {
-      realCopy(realIsNegative(&xx) ? const_0 : const_1, res);
-      return;
-    }
-    //if(!realIsPositive(&xx)) { // WP34S returns 0 wrongly when X <= 0
-    //  realSetZero(res);
-    //  return;
-    //}
-    cdf_logit_common(&xx, res, realContext);
+    logisticCdfCommon(x, mu, s, false, res, realContext);
   }
 
   void WP34S_Qf_Logit(const real_t *x, const real_t *mu, const real_t *s, real_t *res, realContext_t *realContext) {
-    /* archtanh(2p - 1) * 2K + J */
-    real_t p, q;
+    real_t logit, scaled, value;
 
-    realAdd(x, x, &p, realContext);
-    realSubtract(&p, const_1, &p, realContext);
-    WP34S_ArcTanh(&p, &q, realContext);
-    realAdd(&q, &q, &p, realContext);
-    realMultiply(&p, s, &p, realContext);
-    realAdd(&p, mu, res, realContext);
+    if(realIsNaN(x) || !logisticParametersAreValid(mu, s) || realCompareLessThan(x, const_0) || realCompareGreaterThan(x, const_1)) {
+      realSetNaN(res);
+      return;
+    }
+    if(realIsZero(x) || realCompareEqual(x, const_1)) {
+      realSetPlusInfinity(res);
+      if(realIsZero(x)) {
+        realSetNegativeSign(res);
+      }
+      return;
+    }
+    if(realCompareEqual(x, const_1on2)) {
+      realCopy(mu, res);
+      return;
+    }
+
+    logisticQuantileAtContext(x, mu, s, &logit, &scaled, &value, &ctxtReal39);
+    if(WP34S_HasCancellation(mu, &scaled, &value, 1)) {
+      logisticQuantileAtContext(x, mu, s, &logit, &scaled, &value, &ctxtReal51);
+      if(WP34S_HasCancellation(mu, &scaled, &value, 13)) {
+        logisticQuantileAtContext(x, mu, s, &logit, &scaled, &value, &ctxtReal75);
+        if(WP34S_HasCancellation(mu, &scaled, &value, 37)) {
+          logisticQuantileExtended(x, mu, s, res, realContext);
+        }
+        else {
+          realPlus(&value, res, realContext);
+        }
+      }
+      else {
+        realPlus(&value, res, realContext);
+      }
+    }
+    else {
+      realPlus(&value, res, realContext);
+    }
   }
 
-#endif // !OPTION_DIST_B
+#endif // !OPTION_DIST_LOGIS

@@ -56,69 +56,159 @@ end:
 }
 
 
+static void fibonacciConstants(real_t *lnPhi, real_t *sqrt5, realContext_t *realContext) {
+  realSquareRoot(const_5, sqrt5, realContext);
+  realAdd(sqrt5, const_1, lnPhi, realContext);
+  realMultiply(lnPhi, const_1on2, lnPhi, realContext);
+  WP34S_Ln(lnPhi, lnPhi, realContext);
+}
+
+
+static void cosinePiComplex(const cplx_t *z, cplx_t *res, realContext_t *realContext) {
+  real_t sinReal, cosReal, sinhImag, coshImag, piImag;
+  const real_t *pi = realContext->digits > 51 ? const75_pi : const39_pi;
+
+  C47_WP34S_Cvt2RadSinCosTan(&z->Real, amMultPi, &sinReal, &cosReal, NULL, realContext);
+  realMultiply(&z->Imag, pi, &piImag, realContext);
+  WP34S_SinhCosh(&piImag, &sinhImag, &coshImag, realContext);
+  multiplyTrigByHyperbolic(&cosReal, &coshImag, &res->Real, realContext);
+  multiplyTrigByHyperbolic(&sinReal, &sinhImag, &res->Imag, realContext);
+  realChangeSign(&res->Imag);
+}
+
+
+static void sinePiHalfComplex(const cplx_t *z, cplx_t *res, realContext_t *realContext) {
+  real_t halfReal, sinReal, cosReal, sinhImag, coshImag, piImag;
+  const real_t *piOn2 = realContext->digits > 51 ? const75_piOn2 : const39_piOn2;
+
+  realMultiply(&z->Real, const_1on2, &halfReal, realContext);
+  C47_WP34S_Cvt2RadSinCosTan(&halfReal, amMultPi, &sinReal, &cosReal, NULL, realContext);
+  realMultiply(&z->Imag, piOn2, &piImag, realContext);
+  WP34S_SinhCosh(&piImag, &sinhImag, &coshImag, realContext);
+  multiplyTrigByHyperbolic(&sinReal, &coshImag, &res->Real, realContext);
+  multiplyTrigByHyperbolic(&cosReal, &sinhImag, &res->Imag, realContext);
+}
+
+
 static uint8_t FibonacciReal(const real_t *n, real_t *res, realContext_t *realContext) {
   // FIB(x) = [ PHI^(x) - PHI^(-x)*COS(PI * x) ] / SQRT(5)
 
-  real_t a, b;
+  real_t a, b, lnPhi, sqrt5;
 
-  realPower(const39_PHI, n, &a, realContext);                              // a   = PHI^(n)
-  realDivide(const_1, &a, &b, realContext);                                // b   = PHI^(-n) = = 1/PHI^(n)
-  realMultiply(const39_pi, n, res, realContext);                           // res = PI * n
-  C47_WP34S_Cvt2RadSinCosTan(res, amRadian, NULL, res, NULL, realContext); // res = COS(PI * n)
-  realMultiply(&b, res, &b, realContext);                                  // b   = PHI^(-n) * COS(PI * n)
-  realSquareRoot(const_5, res, realContext);                               // res = SQRT(5)
-  realSubtract(&a, &b, &a, realContext);                                   // a   = PHI^(n) - PHI^(-n) * COS(PI * n)
-  realDivide(&a, res, res, realContext);                                   // res = [ PHI^n - PHI^(-n) * COS(PI * n) ] / SQRT(5)
+  fibonacciConstants(&lnPhi, &sqrt5, realContext);
+  realMultiply(&lnPhi, n, &a, realContext);
+
+  if(realCompareAbsLessThan(n, const_1on10)) {
+    real_t oneMinusCos, sinHalf;
+
+    realCopy(&a, &b);
+    realChangeSign(&b);
+    realExp(&b, &b, realContext);
+    realAdd(&a, &a, &a, realContext);
+    WP34S_ExpM1(&a, &a, realContext);
+    realMultiply(n, const_1on2, &sinHalf, realContext);
+    C47_WP34S_Cvt2RadSinCosTan(&sinHalf, amMultPi, &sinHalf, NULL, NULL, realContext);
+    realMultiply(&sinHalf, &sinHalf, &oneMinusCos, realContext);
+    realAdd(&oneMinusCos, &oneMinusCos, &oneMinusCos, realContext);
+    realAdd(&a, &oneMinusCos, &a, realContext);
+    realMultiply(&a, &b, &a, realContext);
+  }
+  else {
+    realCopy(&a, &b);
+    realChangeSign(&b);
+    realExp(&a, &a, realContext);
+    realExp(&b, &b, realContext);
+    C47_WP34S_Cvt2RadSinCosTan(n, amMultPi, NULL, res, NULL, realContext);
+    multiplyTrigByHyperbolic(res, &b, &b, realContext);
+    realSubtract(&a, &b, &a, realContext);
+  }
+
+  realDivide(&a, &sqrt5, res, realContext);
 
   return ERROR_NONE;
 }
 
 
-static uint8_t FibonacciComplex(const real_t *nReal, const real_t *nImag, real_t *resReal, real_t *resImag, realContext_t *realContext) {
+static uint8_t FibonacciComplex(const cplx_t *n, cplx_t *res, realContext_t *realContext) {
   // FIB(x) = [ PHI^(x) - PHI^(-x)*COS(PI * x) ] / SQRT(5)
 
-  real_t aReal, aImag;
-  real_t bReal, bImag;
+  real_t lnPhi, sqrt5;
+  cplx_t a, b;
 
-  PowerComplex(const39_PHI, const_0, nReal, nImag, &aReal, &aImag, realContext);       // a   = PHI^(n)
-  divRealComplex(const_1, &aReal, &aImag, &bReal, &bImag, realContext);                // b   = PHI^(-n) = 1/PHI^(n)
-  mulComplexComplex(const39_pi, const_0, nReal, nImag, resReal, resImag, realContext); // res = PI * n
-  cosComplex(resReal, resImag, resReal, resImag, realContext);                         // res = COS(PI * n)
-  mulComplexComplex(&bReal, &bImag, resReal, resImag, &bReal, &bImag, realContext);    // b   = PHI^(-n) * COS(PI * n)
-  realSquareRoot(const_5, resReal, realContext);                                       // res = SQRT(5)
-  realSetZero(resImag);
-  realSubtract(&aReal, &bReal, &aReal, realContext);                                   // a   = PHI^(n) - PHI^(-n) * COS(PI * n)
-  realSubtract(&aImag, &bImag, &aImag, realContext);
-  divComplexComplex(&aReal, &aImag, resReal, resImag, resReal, resImag, realContext);  // res = [ PHI^(n) - PHI^(-n) * COS(PI * n) ] / SQRT(5)
+  fibonacciConstants(&lnPhi, &sqrt5, realContext);
+  mulComplexReal(n, &lnPhi, &a, realContext);
+
+  if(realCompareAbsLessThan(&n->Real, const_1on10) && realCompareAbsLessThan(&n->Imag, const_1on10)) {
+    cplx_t c;
+
+    realCopy(&a.Real, &b.Real);
+    realCopy(&a.Imag, &b.Imag);
+    realChangeSign(&b.Real);
+    realChangeSign(&b.Imag);
+    expComplex(&b, &b, realContext);
+    realAdd(&a.Real, &a.Real, &a.Real, realContext);
+    realAdd(&a.Imag, &a.Imag, &a.Imag, realContext);
+    expM1Complex(&a, &a, realContext);
+    sinePiHalfComplex(n, &c, realContext);
+    mulComplexComplex(&c, &c, &c, realContext);
+    realAdd(&c.Real, &c.Real, &c.Real, realContext);
+    realAdd(&c.Imag, &c.Imag, &c.Imag, realContext);
+    realAdd(&a.Real, &c.Real, &a.Real, realContext);
+    realAdd(&a.Imag, &c.Imag, &a.Imag, realContext);
+    mulComplexComplex(&a, &b, &a, realContext);
+  }
+  else {
+    realCopy(&a.Real, &b.Real);
+    realCopy(&a.Imag, &b.Imag);
+    realChangeSign(&b.Real);
+    realChangeSign(&b.Imag);
+    expComplex(&a, &a, realContext);
+    expComplex(&b, &b, realContext);
+    cosinePiComplex(n, res, realContext);
+    mulComplexComplex(&b, res, &b, realContext);
+    realSubtract(&a.Real, &b.Real, &a.Real, realContext);
+    realSubtract(&a.Imag, &b.Imag, &a.Imag, realContext);
+  }
+
+  divComplexReal(&a, &sqrt5, res, realContext);
 
   return ERROR_NONE;
 }
+
+
+static realContext_t *fibonacciRealContext(const real_t *n) {
+  if(realCompareAbsLessThan(n, const_1on10)) {
+    return &ctxtReal39;
+  }
+  return realIsNegative(n) ? &ctxtReal75 : &ctxtReal51;
+}
+
 
 static void fibReal(void) {
   // FIB(x) = [ PHI^(x) - PHI^(-x)*COS(PI * x) ] / SQRT(5)
   real_t x;
 
   if(getRegisterAsReal(REGISTER_X, &x)) {
-    FibonacciReal(&x, &x, &ctxtReal39);
+    FibonacciReal(&x, &x, fibonacciRealContext(&x));
     convertRealToResultRegister(&x, REGISTER_X, amNone);
   }
 }
 
 static void fibCplx(void) {
-  real_t xReal, xImag;
+  cplx_t x;
 
-  if(!getRegisterAsComplex(REGISTER_X,  &xReal, &xImag)) {
+  if(!getRegisterAsComplex(REGISTER_X,  &x)) {
     return;
   }
 
-  if(realIsZero(&xImag)) {
-    FibonacciReal(&xReal, &xReal, &ctxtReal39);
+  if(realIsZero(&x.Imag)) {
+    FibonacciReal(&x.Real, &x.Real, fibonacciRealContext(&x.Real));
   }
   else {
-    FibonacciComplex(&xReal, &xImag, &xReal, &xImag, &ctxtReal39);
+    FibonacciComplex(&x, &x, &ctxtReal75);
   }
 
-  convertComplexToResultRegister(&xReal, &xImag, REGISTER_X);
+  convertComplexToResultRegister(&x, REGISTER_X);
 }
 
 /********************************************//**

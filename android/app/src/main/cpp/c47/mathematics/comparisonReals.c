@@ -32,13 +32,67 @@ int32_t realGetExponentComp(const real_t *val) {
 }
 
 
+/********************************************//**
+ * \brief Compares one finite Real34 register with one long-integer register
+ *
+ * \param[in] first first register
+ * \param[in] second second register
+ * \param[out] comparison negative, zero or positive when first is less than, equal to or greater than second
+ * \return true for a supported finite pair, false otherwise
+ ***********************************************/
+bool_t compareFiniteReal34LongIntegerRegisters(calcRegister_t first, calcRegister_t second, int32_t *comparison) {
+  const uint32_t firstType = getRegisterDataType(first);
+  const uint32_t secondType = getRegisterDataType(second);
+  calcRegister_t realRegister, integerRegister;
+  int32_t exponent, value;
+  longInteger_t coefficient, integer, scale;
+
+  if(firstType == dtReal34 && secondType == dtLongInteger) {
+    realRegister = first;
+    integerRegister = second;
+  }
+  else if(firstType == dtLongInteger && secondType == dtReal34) {
+    realRegister = second;
+    integerRegister = first;
+  }
+  else {
+    return false;
+  }
+
+  if(real34IsSpecial(REGISTER_REAL34_DATA(realRegister))) {
+    return false;
+  }
+
+  convertReal34ToScaledLongInteger(REGISTER_REAL34_DATA(realRegister), coefficient, &exponent);
+  convertLongIntegerRegisterToLongInteger(integerRegister, integer);
+  longIntegerInit(scale);
+
+  if(exponent > 0) {
+    longIntegerPowerUIntUInt(10u, (uint32_t)exponent, scale);
+    longIntegerMultiplyUnbounded(coefficient, scale, coefficient);
+  }
+  else if(exponent < 0) {
+    longIntegerPowerUIntUInt(10u, (uint32_t)-exponent, scale);
+    longIntegerMultiplyUnbounded(integer, scale, integer);
+  }
+
+  value = longIntegerCompare(coefficient, integer);
+  value = value < 0 ? -1 : value > 0 ? 1 : 0;
+  *comparison = firstType == dtReal34 ? value : -value;
+  longIntegerFree(scale);
+  longIntegerFree(integer);
+  longIntegerFree(coefficient);
+  return true;
+}
+
+
 bool_t real34CompareAbsGreaterThan(const real34_t *number1, const real34_t *number2) {
   real34_t num1, num2;
 
   real34CopyAbs(number1, &num1);
   real34CopyAbs(number2, &num2);
   real34Compare(&num1, &num2, &num2);
-  return real34IsPositive(&num2) && !real34IsZero(&num2);
+  return !real34IsNaN(&num2) && real34IsPositive(&num2) && !real34IsZero(&num2);
 }
 
 
@@ -49,7 +103,7 @@ bool_t real34CompareAbsLessThan(const real34_t *number1, const real34_t *number2
   real34CopyAbs(number1, &num1);
   real34CopyAbs(number2, &num2);
   real34Compare(&num1, &num2, &num2);
-  return real34IsNegative(&num2) && !real34IsZero(&num2);
+  return !real34IsNaN(&num2) && real34IsNegative(&num2) && !real34IsZero(&num2);
 }
 
 
@@ -78,7 +132,7 @@ bool_t real34CompareGreaterEqual(const real34_t *number1, const real34_t *number
   real34_t compare;
 
   real34Compare(number1, number2, &compare);
-  return real34IsPositive(&compare) || real34IsZero(&compare);
+  return !real34IsNaN(&compare) && (real34IsPositive(&compare) || real34IsZero(&compare));
 }
 
 
@@ -86,7 +140,7 @@ bool_t real34CompareGreaterThan(const real34_t *number1, const real34_t *number2
   real34_t compare;
 
   real34Compare(number1, number2, &compare);
-  return real34IsPositive(&compare) && !real34IsZero(&compare);
+  return !real34IsNaN(&compare) && real34IsPositive(&compare) && !real34IsZero(&compare);
 }
 
 
@@ -94,7 +148,7 @@ bool_t real34CompareLessEqual(const real34_t *number1, const real34_t *number2) 
   real34_t compare;
 
   real34Compare(number1, number2, &compare);
-  return real34IsNegative(&compare) || real34IsZero(&compare);
+  return !real34IsNaN(&compare) && (real34IsNegative(&compare) || real34IsZero(&compare));
 }
 
 
@@ -103,7 +157,7 @@ bool_t real34CompareLessThan(const real34_t *number1, const real34_t *number2) {
   real34_t compare;
 
   real34Compare(number1, number2, &compare);
-  return real34IsNegative(&compare) && !real34IsZero(&compare);
+  return !real34IsNaN(&compare) && real34IsNegative(&compare) && !real34IsZero(&compare);
 }
 
 #if defined(OPTION_CUBIC_159) || defined(OPTION_EIGEN_159)
@@ -114,8 +168,7 @@ bool_t real34CompareLessThan(const real34_t *number1, const real34_t *number2) {
 
 
 bool_t realCompareAbsGreaterThan(const real_t *number1, const real_t *number2) {
-  realContext_t c = ctxtReal75;
-  c.digits = max(max(75, number1->digits), number2->digits);
+  realContext_t context = ctxtReal39;
   #if defined(ALLOW_159)
     REAL_T_PTR(num1, 159);
     REAL_T_PTR(num2, 159);
@@ -125,14 +178,14 @@ bool_t realCompareAbsGreaterThan(const real_t *number1, const real_t *number2) {
     REAL_T_PTR(num2, 75);
     const int32_t k = 75;
   #endif //ALLOW_159
-  if(c.digits > k) {
+  if(max(number1->digits, number2->digits) > k) {
     sprintf(errorMessage, "Exceed %" PRId32 " digits :realCompareAbsGreaterThan", k);
     displayBugScreen(errorMessage);
   }
   realCopyAbs(number1, num1);
   realCopyAbs(number2, num2);
-  realCompare(num1, num2, num2, &c);
-  return realIsPositive(num2) && !realIsZero(num2);
+  realCompare(num1, num2, num2, &context);
+  return !realIsNaN(num2) && realIsPositive(num2) && !realIsZero(num2);
 }
 
 
@@ -155,8 +208,7 @@ bool_t realCompareAbsGreaterEqual(const real_t *number1, const real_t *number2) 
 
 
 bool_t realCompareAbsLessThan(const real_t *number1, const real_t *number2) {
-  realContext_t c = ctxtReal75;
-  c.digits = max(max(75, number1->digits), number2->digits);
+  realContext_t context = ctxtReal39;
   #if defined(ALLOW_159)
     REAL_T_PTR(num1, 159);
     REAL_T_PTR(num2, 159);
@@ -166,23 +218,22 @@ bool_t realCompareAbsLessThan(const real_t *number1, const real_t *number2) {
     REAL_T_PTR(num2, 75);
     const int32_t k = 75;
   #endif //OPTION_CUBIC_159 || OPTION_EIGEN_159
-  if(c.digits > k) {
+  if(max(number1->digits, number2->digits) > k) {
     sprintf(errorMessage, "Exceed %" PRId32 " digits :realCompareAbsLessThan", k);
     displayBugScreen(errorMessage);
   }
   realCopyAbs(number1, num1);
   realCopyAbs(number2, num2);
-  realCompare(num1, num2, num2, &c);
-  return realIsNegative(num2) && !realIsZero(num2);
+  realCompare(num1, num2, num2, &context);
+  return !realIsNaN(num2) && realIsNegative(num2) && !realIsZero(num2);
 }
 
 
 
 bool_t realCompareEqual(const real_t *number1, const real_t *number2) {
   real_t compare;
-  realContext_t c = ctxtReal75;
-  c.digits = max(max(75, number1->digits), number2->digits);
-  realCompare(number1, number2, &compare, &c);
+  realContext_t context = ctxtReal39;
+  realCompare(number1, number2, &compare, &context);
   return realIsZero(&compare);
 }
 
@@ -203,8 +254,7 @@ bool_t realCompareIdentical(const real_t *number1, const real_t *number2) {
 
 
 bool_t realCompareAbsEqual(const real_t *number1, const real_t *number2) {
-  realContext_t c = ctxtReal75;
-  c.digits = max(max(75, number1->digits), number2->digits);
+  realContext_t context = ctxtReal39;
   #if defined(ALLOW_159)
     REAL_T_PTR(num1, 159);
     REAL_T_PTR(num2, 159);
@@ -214,13 +264,13 @@ bool_t realCompareAbsEqual(const real_t *number1, const real_t *number2) {
     REAL_T_PTR(num2, 75);
     const int32_t k = 75;
   #endif //ALLOW_159
-  if(c.digits > k) {
+  if(max(number1->digits, number2->digits) > k) {
     sprintf(errorMessage, "Exceed %" PRId32 " digits :realCompareAbsEqual", k);
     displayBugScreen(errorMessage);
   }
   realCopyAbs(number1, num1);
   realCopyAbs(number2, num2);
-  realCompare(num1, num2, num2, &c);
+  realCompare(num1, num2, num2, &context);
   return realIsZero(num2);
 }
 
@@ -228,40 +278,36 @@ bool_t realCompareAbsEqual(const real_t *number1, const real_t *number2) {
 
 bool_t realCompareGreaterEqual(const real_t *number1, const real_t *number2) {
   real_t compare;
-  realContext_t c = ctxtReal75;
-  c.digits = max(max(75, number1->digits), number2->digits);
-  realCompare(number1, number2, &compare, &c);
-  return realIsPositive(&compare) || realIsZero(&compare);
+  realContext_t context = ctxtReal39;
+  realCompare(number1, number2, &compare, &context);
+  return !realIsNaN(&compare) && (realIsPositive(&compare) || realIsZero(&compare));
 }
 
 
 
 bool_t realCompareGreaterThan(const real_t *number1, const real_t *number2) {
   real_t compare;
-  realContext_t c = ctxtReal75;
-  c.digits = max(max(75, number1->digits), number2->digits);
-  realCompare(number1, number2, &compare, &c);
-  return realIsPositive(&compare) && !realIsZero(&compare);
+  realContext_t context = ctxtReal39;
+  realCompare(number1, number2, &compare, &context);
+  return !realIsNaN(&compare) && realIsPositive(&compare) && !realIsZero(&compare);
 }
 
 
 
 bool_t realCompareLessEqual(const real_t *number1, const real_t *number2) {
   real_t compare;
-  realContext_t c = ctxtReal75;
-  c.digits = max(max(75, number1->digits), number2->digits);
-  realCompare(number1, number2, &compare, &c);
-  return realIsNegative(&compare) || realIsZero(&compare);
+  realContext_t context = ctxtReal39;
+  realCompare(number1, number2, &compare, &context);
+  return !realIsNaN(&compare) && (realIsNegative(&compare) || realIsZero(&compare));
 }
 
 
 
 bool_t realCompareLessThan(const real_t *number1, const real_t *number2) {
   real_t compare;
-  realContext_t c = ctxtReal75;
-  c.digits = max(max(75, number1->digits), number2->digits);
-  realCompare(number1, number2, &compare, &c);
-  return realIsNegative(&compare) && !realIsZero(&compare);
+  realContext_t context = ctxtReal39;
+  realCompare(number1, number2, &compare, &context);
+  return !realIsNaN(&compare) && realIsNegative(&compare) && !realIsZero(&compare);
 }
 
 
@@ -428,5 +474,3 @@ int16_t realIdenticalDigits(real_t *a, real_t *b) {
 //     return true;
 //   }
 //   #endif //!FUTURE_USE_IRFRAC
-
-

@@ -51,13 +51,66 @@ static void cubeReal(void) {
   convertRealToResultRegister(&x, REGISTER_X, amNone);
 }
 
-static void cubeCplx(void) {
-  real_t a, b, realSquare, imagSquare;
+/********************************************//**
+ * \brief Cubes a complex number with compensated component factors
+ *
+ * \param[in]  z          complex number
+ * \param[out] cubed      cube of z
+ * \param[in]  realContext work context
+ * \return void
+ ***********************************************/
+static void cubeComplex(const cplx_t *z, cplx_t *cubed, realContext_t *realContext) {
+  real_t factor, product, term, correction;
+  cplx_t result;
 
-  if(getRegisterAsComplex(REGISTER_X, &a, &b)) {
-    mulComplexComplex(&a, &b, &a, &b, &realSquare, &imagSquare, &ctxtReal39);
-    mulComplexComplex(&realSquare, &imagSquare, &a, &b, &a, &b, &ctxtReal39);
-    convertComplexToResultRegister(&a, &b, REGISTER_X);
+  if(realIsNaN(&z->Real) || realIsNaN(&z->Imag)) {
+    realSetNaN(&cubed->Real);
+    realSetNaN(&cubed->Imag);
+    return;
+  }
+
+  if(realIsInfinite(&z->Real) || realIsInfinite(&z->Imag)) {
+    setInfiniteComplexAngle((3 * getInfiniteComplexAngle(z)) % 8, cubed);
+    return;
+  }
+
+  // Real part: a(a^2 - 3b^2)
+  realMultiply(const_3, &z->Imag, &factor, realContext);
+  realMultiply(&z->Real, &z->Real, &product, realContext);
+  realChangeSign(&factor);
+  realFMA(&factor, &z->Imag, &product, &term, realContext);
+  realChangeSign(&product);
+  realFMA(&z->Real, &z->Real, &product, &correction, realContext);
+  realAdd(&correction, &term, &correction, realContext);
+  realMultiply(&z->Real, &correction, &result.Real, realContext);
+
+  // Imaginary part: b(3a^2 - b^2)
+  realMultiply(const_3, &z->Real, &factor, realContext);
+  realMultiply(&factor, &z->Real, &product, realContext);
+  realCopy(&z->Imag, &correction);
+  realChangeSign(&correction);
+  realFMA(&correction, &z->Imag, &product, &term, realContext);
+  realChangeSign(&product);
+  realFMA(&factor, &z->Real, &product, &correction, realContext);
+  realAdd(&correction, &term, &correction, realContext);
+  realMultiply(&z->Imag, &correction, &result.Imag, realContext);
+
+  if(realIsZero(&result.Real)) {
+    realSetZero(&result.Real);
+  }
+  if(realIsZero(&result.Imag)) {
+    realSetZero(&result.Imag);
+  }
+  realCopy(&result.Real, &cubed->Real);
+  realCopy(&result.Imag, &cubed->Imag);
+}
+
+static void cubeCplx(void) {
+  cplx_t a;
+
+  if(getRegisterAsComplex(REGISTER_X, &a)) {
+    cubeComplex(&a, &a, &ctxtReal39);
+    convertComplexToResultRegister(&a, REGISTER_X);
   }
 }
 

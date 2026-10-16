@@ -67,17 +67,48 @@ void fnCheckMatrixSquare(uint16_t unusedButMandatoryParameter) {
 }
 
 void fnCheckForZero(uint16_t mode) {
-  real_t xReal, xImag;
-  bool_t cmplx;
-  if(!getRegisterAsComplexOrAnyRealQuiet(REGISTER_X, &xReal, &xImag, &cmplx)) {
-    compareTypeErrorX();
-    return;
+  bool_t realZero, imagZero = true;
+
+  switch(getRegisterDataType(REGISTER_X)) {
+    default:
+      compareTypeErrorX();
+      return;
+
+    case dtLongInteger: {
+      longInteger_t x;
+
+      convertLongIntegerRegisterToLongInteger(REGISTER_X, x);
+      realZero = longIntegerIsZero(x);
+      longIntegerFree(x);
+      break;
+    }
+
+    case dtShortInteger: {
+      uint64_t x;
+      int16_t sign;
+
+      convertShortIntegerRegisterToUInt64(REGISTER_X, &sign, &x);
+      realZero = x == 0;
+      break;
+    }
+
+    case dtTime:
+    case dtDate:
+    case dtReal34:
+      realZero = real34IsZero(REGISTER_REAL34_DATA(REGISTER_X));
+      break;
+
+    case dtComplex34:
+      realZero = real34IsZero(REGISTER_REAL34_DATA(REGISTER_X));
+      imagZero = real34IsZero(REGISTER_IMAG34_DATA(REGISTER_X));
+      break;
   }
+
   switch(mode) {
-    case ITM_ISREZQ  : SET_TI_TRUE_FALSE(realIsZero(&xReal)); break;
-    case ITM_ISIMZQ  : SET_TI_TRUE_FALSE(realIsZero(&xImag)); break;
-    case ITM_ISRENZQ : SET_TI_TRUE_FALSE(!realIsZero(&xReal));break;
-    case ITM_ISIMNZQ : SET_TI_TRUE_FALSE(!realIsZero(&xImag));break;
+    case ITM_ISREZQ  : SET_TI_TRUE_FALSE(realZero); break;
+    case ITM_ISIMZQ  : SET_TI_TRUE_FALSE(imagZero); break;
+    case ITM_ISRENZQ : SET_TI_TRUE_FALSE(!realZero); break;
+    case ITM_ISIMNZQ : SET_TI_TRUE_FALSE(!imagZero); break;
     default:;
   }
 }
@@ -109,9 +140,9 @@ static uint32_t matrixXNumElem(void) {
   return REGISTER_MATRIX_HEADER(REGISTER_X)->matrixRows * (uint32_t)REGISTER_MATRIX_HEADER(REGISTER_X)->matrixColumns;
 }
 
-static void specialRealCheck(int (*checkFn)(const real34_t *)) {
+static void specialRealCheck(bool_t (*checkFn)(const real34_t *)) {
 
-  int check = 0;
+  bool_t check = false;
   uint32_t elements, i;
 
   switch(getRegisterDataType(REGISTER_X)) {
@@ -133,7 +164,7 @@ static void specialRealCheck(int (*checkFn)(const real34_t *)) {
       elements = matrixXNumElem();
       for(i = 0; i < elements; ++i) {
         if(checkFn(r + i)) {
-          check = 1;
+          check = true;
           break;
         }
       }
@@ -146,7 +177,7 @@ static void specialRealCheck(int (*checkFn)(const real34_t *)) {
       elements = matrixXNumElem();
       for(i = 0; i < elements; ++i) {
         if(checkFn(&cpx[i].real) || checkFn(&cpx[i].imag)) {
-          check = 1;
+          check = true;
           break;
         }
       }
@@ -156,28 +187,28 @@ static void specialRealCheck(int (*checkFn)(const real34_t *)) {
   SET_TI_TRUE_FALSE(check);
 }
 
-static int wrapperDecQuadIsNaN(const real34_t *r) {
-    return (int)decQuadIsNaN(r);
+static bool_t checkRealNaN(const real34_t *r) {
+  return real34IsNaN(r);
 }
 
-static int wrapperDecQuadIsInfinite(const real34_t *r) {
-    return (int)decQuadIsInfinite(r);
+static bool_t checkRealInfinite(const real34_t *r) {
+  return real34IsInfinite(r);
 }
 
-static int wrapperCheckRealSpecial(const real34_t *r) {
-    return wrapperDecQuadIsNaN(r) || wrapperDecQuadIsInfinite(r);
+static bool_t checkRealSpecial(const real34_t *r) {
+  return real34IsSpecial(r);
 }
 
 void fnCheckNaN(uint16_t unusedButMandatoryParameter) {
-    specialRealCheck(wrapperDecQuadIsNaN);
+  specialRealCheck(checkRealNaN);
 }
 
 void fnCheckInfinite(uint16_t unusedButMandatoryParameter) {
-    specialRealCheck(wrapperDecQuadIsInfinite);
+  specialRealCheck(checkRealInfinite);
 }
 
 void fnCheckSpecial(uint16_t unusedButMandatoryParameter) {
-    specialRealCheck(wrapperCheckRealSpecial);
+  specialRealCheck(checkRealSpecial);
 }
 
 static void zeroCheck(int neg) {
@@ -208,7 +239,7 @@ static void zeroCheck(int neg) {
     }
 
     case dtComplex34: {
-      const complex34_t *cpx = REGISTER_COMPLEX34_MATRIX_ELEMENTS(REGISTER_X);
+      const complex34_t *cpx = REGISTER_COMPLEX34_DATA(REGISTER_X);
 
       check = real34IsZero(&cpx->real) && real34IsZero(&cpx->imag) &&
               (real34IsNegative(&cpx->real) == neg || real34IsNegative(&cpx->imag) == neg);
@@ -263,9 +294,12 @@ static void signedZeroCheck(int neg) {
 
     case dtTime:
     case dtDate:
-    case dtReal34:
-      check = real34IsNegative(REGISTER_REAL34_DATA(REGISTER_X)) == neg;
+    case dtReal34: {
+      const real34_t *x = REGISTER_REAL34_DATA(REGISTER_X);
+
+      check = !real34IsNaN(x) && real34IsNegative(x) == neg;
       break;
+    }
   }
   SET_TI_TRUE_FALSE(check);
 }
@@ -340,8 +374,7 @@ static void _pushIntOut(int dtp) {
 static void _pushRealOut(real34_t* rr) {
   setSystemFlag(FLAG_ASLIFT); // 5
   liftStack();
-  reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-  real34Copy(rr, REGISTER_REAL34_DATA(REGISTER_X));
+  convertReal34ToReal34Register(rr, REGISTER_X);
   setSystemFlag(FLAG_ASLIFT);
 }
 
@@ -410,8 +443,8 @@ void fnGetType(uint16_t unusedButMandatoryParameter) {
     case dtShortInteger:
     case dtReal34:
     case dtComplex34: {
-      uint32_t v = (dtp == dtShortInteger) ? 10*(dtp*100 + (dam & 0x1F))  // 8.bb: bb=base, e.g. 8.16=hex
-                                           : 100*(dtp*10 + 5 - (dam & 0x07)); // 1.3=Degrees, 2.0=RECT etc.
+      uint32_t v = (dtp == dtShortInteger) ? 10*(dtp*100 + getRegisterShortIntegerBase(REGISTER_X))  // 8.bb: bb=base, e.g. 8.16=hex
+                                           : (uint32_t)(100*(dtp*10 + 5 - (dam & 0x07)));             // 1.3=Degrees, 2.0=RECT etc.
       uInt32ToReal34(v, &realOut);
       real34Divide(&realOut, const34_1000, &realOut);
       _pushRealOut(&realOut);

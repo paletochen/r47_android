@@ -40,102 +40,109 @@ static void gdReal(bool_t gd) {
 }
 
 static void gdCplx(bool_t gd) {
-  real_t xReal, xImag;
+  cplx_t x;
   uint8_t errorCode;
 
-  if(!getRegisterAsComplex(REGISTER_X, &xReal, &xImag)) {
+  if(!getRegisterAsComplex(REGISTER_X, &x)) {
     return;
   }
 
-  errorCode = gd ? GudermannianComplex(&xReal, &xImag, &xReal, &xImag, &ctxtReal39)
-                 : InverseGudermannianComplex(&xReal, &xImag, &xReal, &xImag, &ctxtReal39);
+  errorCode = gd ? GudermannianComplex(&x, &x, &ctxtReal39)
+                 : InverseGudermannianComplex(&x, &x, &ctxtReal39);
 
   if(errorCode != ERROR_NONE) {
     gdError(gd, errorCode);
   }
   else {
-    convertComplexToResultRegister(&xReal, &xImag, REGISTER_X);
+    convertComplexToResultRegister(&x, REGISTER_X);
   }
 }
 
 uint8_t GudermannianReal(const real_t *x, real_t *res, realContext_t *realContext) {
-  if(realIsInfinite(x)) {
-    if(realIsPositive(x)) {
-      realCopy(const39_piOn2, res);
+  const real_t *piOn2 = realContext->digits > 39 ? const75_piOn2 : const39_piOn2;
+
+  if(realIsZero(x)) {
+    if(realIsNegative(x)) {
+      realDivide(const__1, const_plusInfinity, res, realContext);
     }
     else {
-      realCopy(const39_piOn2, res);
+      realSetZero(res);
+    }
+  }
+  else if(realIsInfinite(x)) {
+    if(realIsPositive(x)) {
+      realCopy(piOn2, res);
+    }
+    else {
+      realCopy(piOn2, res);
       realChangeSign(res);
     }
   }
   else {
-    /*
-     * Gd(x) = 2 * Arctan(Exp(x)) - PI/2
-     */
-    realExp(x, res, realContext);
+    // Gd(x) = 2*atan(tanh(x/2)).
+    realMultiply(x, const_1on2, res, realContext);
+    WP34S_Tanh(res, res, realContext);
     C47_WP34S_Atan(res, res, realContext);
     realMultiply(res, const_2, res, realContext);
-    realSubtract(res, const39_piOn2, res, realContext);
-
-    /*
-     * Gd(x) = ArchSin(Tanh(x))
-     */
-    //WP34S_Tanh(x, res, realContext);
-    //WP34S_Asin(res, res, realContext);
   }
 
   return ERROR_NONE;
 }
 
-uint8_t GudermannianComplex(const real_t *xReal, const real_t *xImag, real_t *resReal, real_t *resImag, realContext_t *realContext) {
-  /*
-   * This implementation provides same results as Mathematica.
-   * Gd(x) = 2 * Arctan(Exp(x)) - PI/2
-   */
-  expComplex(xReal, xImag, resReal, resImag, realContext);
-  ArctanComplex(resReal, resImag, resReal, resImag, realContext);
+uint8_t GudermannianComplex(const cplx_t *x, cplx_t *res, realContext_t *realContext) {
+  const real_t *twoPi = realContext->digits > 39 ? const75_2pi : const39_2pi;
+  real_t cosine;
+  cplx_t tangent;
+  bool_t nonnegativeReal = !realIsNegative(&x->Real);
 
-  realMultiply(resReal, const_2, resReal, realContext);
-  realMultiply(resImag, const_2, resImag, realContext);
-  realSubtract(resReal, const39_piOn2, resReal, realContext);
+  realMultiply(&x->Real, const_1on2, &tangent.Real, realContext);
+  realMultiply(&x->Imag, const_1on2, &tangent.Imag, realContext);
+  TanhComplex(&tangent, &tangent, realContext);
+  C47_WP34S_Cvt2RadSinCosTan(&x->Imag, amRadian, NULL, &cosine, NULL, realContext);
+  ArctanComplex(&tangent, res, realContext);
+  realMultiply(&res->Real, const_2, &res->Real, realContext);
+  realMultiply(&res->Imag, const_2, &res->Imag, realContext);
 
-  /*
-   * Gd(x) = ArchSin(Tanh(x))
-   */
-  //TanhComplex(xReal, xImag, resReal, resImag, realContext);
-  //ArcsinComplex(resReal, resImag, resReal, resImag, realContext);
+  // The defining branch differs from 2*atan(tanh(z/2)) by -2*pi when Re(z) is nonnegative and cos(Im(z)) is negative; both tests precede aliased output.
+  if(nonnegativeReal && realIsNaN(&cosine)) {
+    // cos(Im(z)) is NaN for an infinite or NaN Im(z), where the branch is unknown: gd(+inf + iy) is pi/2 or -3pi/2 by the sign of cos(y).
+    realSetNaN(&res->Real);
+    realSetNaN(&res->Imag);
+  }
+  else if(nonnegativeReal && realIsNegative(&cosine)) {
+    realSubtract(&res->Real, twoPi, &res->Real, realContext);
+  }
 
   return ERROR_NONE;
 }
 
 uint8_t InverseGudermannianReal(const real_t *x, real_t *res, realContext_t *realContext) {
+  const real_t *piOn2 = realContext->digits > 39 ? const75_piOn2 : const39_piOn2;
   uint8_t result = ERROR_NONE;
+
+  if(realIsNaN(x)) {
+    realSetNaN(res);
+    return result;
+  }
 
   /*
    * InvGd(x) = Ln(Tan(x/2 + PI/4))
    */
-  if(!realIsNaN(x) && realCompareAbsLessThan(x, const39_piOn2)) {
+  if(realCompareAbsLessThan(x, piOn2)) {
     if(realIsZero(x)) {
-      realSetZero(res);
+      if(realIsNegative(x)) {
+        realDivide(const__1, const_plusInfinity, res, realContext);
+      }
+      else {
+        realSetZero(res);
+      }
     }
     else {
       real_t sin, cos;
 
-      /*
-       * InvGd(x) = Ln(Tan(x/2 + PI/4))
-       * -PI/2 < x < PI/2
-       */
-      realMultiply(x, const_1on2, res, realContext);                           // r = x/2
-      realAdd(res, const39_piOn4, res, realContext);                           // r = x/2 + pi/4
-      C47_WP34S_Cvt2RadSinCosTan(res, amRadian, &sin, &cos, res, &ctxtReal39); // r = Tan(x/2 + pi/4)
-      WP34S_Ln(res, res, &ctxtReal39);                                         // r = Ln(Tan(x/2 + pi/4))
-
-      /*
-       * InvGd(x) = ArcSinh(Tan(x))
-       * -PI/2 < x < PI/2
-       */
-      //C47_WP34S_Cvt2RadSinCosTan(x, amRadian, &sin, &cos, res, &ctxtReal39);
-      //ArcsinhReal(res, res, &ctxtReal39);
+      // InvGd(x) = asinh(tan(x)), -pi/2 < x < pi/2.
+      C47_WP34S_Cvt2RadSinCosTan(x, amRadian, &sin, &cos, res, realContext);
+      ArcsinhReal(res, res, realContext);
     }
   }
   else {
@@ -145,26 +152,19 @@ uint8_t InverseGudermannianReal(const real_t *x, real_t *res, realContext_t *rea
   return result;
 }
 
-uint8_t InverseGudermannianComplex(const real_t *xReal, const real_t *xImag, real_t *resReal, real_t *resImag, realContext_t *realContext) {
-  /*
-   * This implementation provides same results as Mathematica.
-   * InvGd(x) = Ln(Tan(x / 2 + PI / 4))
-   */
-  realMultiply(xReal, const_1on2, resReal, realContext);       // r = x/2
-  realMultiply(xImag, const_1on2, resImag, realContext);
+uint8_t InverseGudermannianComplex(const cplx_t *x, cplx_t *res, realContext_t *realContext) {
+  real_t sine, cosine, sinhImag, modulus;
 
-  realAdd(xReal, const39_piOn4, resReal, realContext);         // r = x/2 + pi/2
-
-  TanComplex(resReal, resImag, resReal, resImag, realContext); // r = Tan(x/2 + pi/4)
-  lnComplex(resReal, resImag, resReal, resImag, realContext);  // r = Ln(Tan(x/2 + pi/4))
-
-  /*
-   * InvGd(x) = ArcSinh(Tan(x))
-   */
-  //real_t tReal, tImag;
-  //
-  //TanComplex(xReal, xImag, &tReal, &tImag, realContext);
-  //ArcsinhComplex(&tReal, &tImag, resReal, resImag, realContext);
+  // With z = a + ib and c = cos a + i sinh b, InvGd(z) = asinh(sin a / |c|) + i arg(c): asinh(tan z) where cos a > 0, and i pi - asinh(tan z), or -i pi - asinh(tan z)
+  // for b < 0, where cos a < 0. For a large |b|, tan z comes within e^(-2|b|) of +-i, the branch points of asinh, and asinh(tan z) loses those digits.
+  C47_WP34S_Cvt2RadSinCosTan(&x->Real, amRadian, &sine, &cosine, NULL, realContext);
+  WP34S_SinhCosh(&x->Imag, &sinhImag, NULL, realContext);
+  realMultiply(&cosine, &cosine, &modulus, realContext);
+  realFMA(&sinhImag, &sinhImag, &modulus, &modulus, realContext);
+  realSquareRoot(&modulus, &modulus, realContext);
+  realDivide(&sine, &modulus, &res->Real, realContext);
+  ArcsinhReal(&res->Real, &res->Real, realContext);
+  C47_WP34S_Atan2(&sinhImag, &cosine, &res->Imag, realContext);
 
   return ERROR_NONE;
 }

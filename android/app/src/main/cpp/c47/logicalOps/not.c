@@ -8,14 +8,14 @@
 #include "c47.h"
 
 static void notCplx(void) {
-  real_t xr, xc;
+  cplx_t x;
   bool_t res;
   uint32_t xtype = getRegisterDataType(REGISTER_X);
 
-  if(!getRegisterAsComplex(REGISTER_X, &xr, &xc)) {
+  if(!getRegisterAsComplex(REGISTER_X, &x)) {
     return;
   }
-  res = realIsZero(&xr) && realIsZero(&xc) ? true : false;
+  res = realIsZero(&x.Real) && realIsZero(&x.Imag) ? true : false;
   logicalOpResult(res, xtype, xtype);
 }
 

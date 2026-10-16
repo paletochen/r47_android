@@ -39,16 +39,56 @@ static void squareReal(void) {
     return;
   }
 
-  realMultiply(&x, &x, &x, &ctxtReal39);
+  realMultiply(&x, &x, &x, &ctxtReal34);
   convertRealToResultRegister(&x, REGISTER_X, amNone);
 }
 
-static void squareCplx(void) {
-  real_t a, b;
+/********************************************//**
+ * \brief Squares a complex number with a compensated real component
+ *
+ * \param[in]  z           complex number
+ * \param[out] squared     square of z
+ * \param[in]  realContext work context
+ * \return void
+ ***********************************************/
+static void squareComplex(const cplx_t *z, cplx_t *squared, realContext_t *realContext) {
+  real_t product, tmp, term;
+  cplx_t result;
 
-  if(getRegisterAsComplex(REGISTER_X, &a, &b)) {
-    mulComplexComplex(&a, &b, &a, &b, &a, &b, &ctxtReal39);
-    convertComplexToResultRegister(&a, &b, REGISTER_X);
+  if(realIsSpecial(&z->Real) || realIsSpecial(&z->Imag)) {
+    mulComplexComplex(z, z, squared, realContext);
+    return;
+  }
+
+  // Real part: compensated a^2 - b^2
+  realMultiply(&z->Real, &z->Real, &product, realContext);
+  realCopy(&z->Imag, &tmp);
+  realChangeSign(&tmp);
+  realFMA(&tmp, &z->Imag, &product, &term, realContext);
+  realChangeSign(&product);
+  realFMA(&z->Real, &z->Real, &product, &result.Real, realContext);
+  realAdd(&result.Real, &term, &result.Real, realContext);
+
+  // Imaginary part: 2ab
+  realAdd(&z->Real, &z->Real, &tmp, realContext);
+  realMultiply(&tmp, &z->Imag, &result.Imag, realContext);
+
+  if(realIsZero(&result.Real)) {
+    realSetZero(&result.Real);
+  }
+  if(realIsZero(&result.Imag)) {
+    realSetZero(&result.Imag);
+  }
+  realCopy(&result.Real, &squared->Real);
+  realCopy(&result.Imag, &squared->Imag);
+}
+
+static void squareCplx(void) {
+  cplx_t a;
+
+  if(getRegisterAsComplex(REGISTER_X, &a)) {
+    squareComplex(&a, &a, &ctxtReal39);
+    convertComplexToResultRegister(&a, REGISTER_X);
   }
 }
 

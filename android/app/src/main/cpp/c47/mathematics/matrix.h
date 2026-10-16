@@ -66,7 +66,7 @@
   void       fnPNorm                        (uint16_t unusedParamButMandatory);
   void       fnVectorDist                   (uint16_t unusedParamButMandatory);
   void       convert3DtoSPH                 (const real34Matrix_t *matrix, real_t *r, real_t *th1, real_t *th2, uint8_t am, decContext *ctxtRealDisplay);
-  void       convertSPHto3D                 (real_t *r, real_t *th1, real_t *th2, uint8_t am, real34Matrix_t *matrix, decContext *ctxtRealDisplay);
+  void       convertSPHto3D                 (real_t *r, real_t *th1, real_t *th2, uint8_t am1, uint8_t am2, real34Matrix_t *matrix, decContext *ctxtRealDisplay);
   void       convert3DtoCYL                 (const real34Matrix_t *matrix, real_t *r, real_t *th1, real_t *z, uint8_t am, decContext *ctxtRealDisplay);
   void       convertCYLto3D                 (real_t *r, real_t *th1, real_t *z, uint8_t am, real34Matrix_t *matrix, decContext *ctxtRealDisplay);
   void       convert2DtoPOL                 (const real34Matrix_t *matrix, real_t *r, real_t *th1, uint8_t am, decContext *ctxtRealDisplay);
@@ -153,10 +153,10 @@
   #if defined(OPTION_SLVP_POLY)
   #define EIGENVALUES_LINKAGE
   /**
-   * Eigenvalues of a size x size matrix held as caller-allocated interleaved re/im real_t arrays; results land on the diagonal of eig.
+   * Eigenvalues of a size x size matrix in caller-allocated cplx_t arrays; results land on the diagonal of eig.
    * SLVP feeds its companion matrix through here; on builds without SLVP the engine stays file-local.
    */
-  void       calculateEigenvalues           (real_t *a, real_t *scratch, real_t *eig, uint16_t size, bool_t shifted, bool_t reducedSignificantDigits, realContext_t *realContext);
+  void       calculateEigenvalues           (cplx_t *a, cplx_t *scratch, cplx_t *eig, uint16_t size, bool_t shifted, bool_t reducedSignificantDigits, realContext_t *realContext);
   #else // OPTION_SLVP_POLY
   #define EIGENVALUES_LINKAGE static
   #endif // OPTION_SLVP_POLY
@@ -201,13 +201,6 @@
   void     fnMatrixIdentity               (uint16_t unusedButMandatoryParameter);
 
   /**
-   * Redemention a real matrix.
-   *
-   * \param[in] matrix
-   */
-  void     realMatrixRedim                (real34Matrix_t *matrix, uint16_t rows, uint16_t cols);
-
-  /**
    * Initialize a complex matrix.
    *
    * \param[out] matrix
@@ -230,13 +223,6 @@
    * \param[in] matrix
    */
   void     complexMatrixIdentity          (complex34Matrix_t *matrix, uint16_t size);
-
-  /**
-   * Redemention a complex matrix.
-   *
-   * \param[in] matrix
-   */
-  void     complexMatrixRedim             (complex34Matrix_t *matrix, uint16_t rows, uint16_t cols);
 
   /**
    * Displays the matrix editor.
@@ -374,7 +360,7 @@
   void     multiplyRealMatrices           (const real34Matrix_t *y, const real34Matrix_t *x, real34Matrix_t *res);
 
   void     multiplyComplexMatrix          (const complex34Matrix_t *matrix, const real34_t *xr, const real34_t *xi, complex34Matrix_t *res);
-  void     _multiplyComplexMatrix         (const complex34Matrix_t *matrix, const real_t *xr, const real_t *xi, complex34Matrix_t *res, realContext_t *realContext);
+  void     _multiplyComplexMatrix         (const complex34Matrix_t *matrix, const cplx_t *x, complex34Matrix_t *res, realContext_t *realContext);
   void     multiplyComplexMatrices        (const complex34Matrix_t *y, const complex34Matrix_t *x, complex34Matrix_t *res);
 
   void     euclideanNormRealMatrix        (const real34Matrix_t *matrix, uint16_t pParam, real34_t *res);
@@ -388,7 +374,7 @@
   void     dotComplexVectors              (const complex34Matrix_t *y, const complex34Matrix_t *x, real34_t *res_r, real34_t *res_i);
   void     crossComplexVectors            (const complex34Matrix_t *y, const complex34Matrix_t *x, complex34Matrix_t *res);
 
-  void     vectorAngle                    (const real34Matrix_t *y, const real34Matrix_t *x, real34_t *radians);
+  void     vectorAngle                    (const real34Matrix_t *y, const real34Matrix_t *x, real_t *radians);
 
   void     WP34S_LU_decomposition         (const real34Matrix_t *matrix, real34Matrix_t *lu, uint16_t *p);
   void     realMatrixSwapRows             (const real34Matrix_t *matrix, real34Matrix_t *res, uint16_t a, uint16_t b);
@@ -407,9 +393,9 @@
   void     detComplexMatrix               (const complex34Matrix_t *matrix, real34_t *res_r, real34_t *res_i);
   void     invertComplexMatrix            (const complex34Matrix_t *matrix, complex34Matrix_t *res);
   void     divideComplexMatrix            (const complex34Matrix_t *matrix, const real34_t *xr, const real34_t *xi, complex34Matrix_t *res);
-  void     _divideComplexMatrix           (const complex34Matrix_t *matrix, const real_t *xr, const real_t *xi, complex34Matrix_t *res, realContext_t *realContext);
+  void     _divideComplexMatrix           (const complex34Matrix_t *matrix, const cplx_t *x, complex34Matrix_t *res, realContext_t *realContext);
   void     divideByComplexMatrix          (const real34_t *yr, const real34_t *yi, const complex34Matrix_t *matrix, complex34Matrix_t *res);
-  void     _divideByComplexMatrix         (const real_t *yr, const real_t *yi, const complex34Matrix_t *matrix, complex34Matrix_t *res, realContext_t *realContext);
+  void     _divideByComplexMatrix         (const cplx_t *y, const complex34Matrix_t *matrix, complex34Matrix_t *res, realContext_t *realContext);
   void     divideComplexMatrices          (const complex34Matrix_t *y, const complex34Matrix_t *x, complex34Matrix_t *res);
 
   void     real_matrix_linear_eqn         (const real34Matrix_t *a, const real34Matrix_t *b, real34Matrix_t *r);

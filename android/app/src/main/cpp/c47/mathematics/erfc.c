@@ -7,8 +7,8 @@
 
 #include "c47.h"
 
-// erfc is computed from the normal CDF in normal.c, so it goes with OPTION_DIST_NORMAL
-#if defined(OPTION_DIST_NORMAL)
+// erfc remains grouped with OPTION_DIST_NORML in the build configuration.
+#if defined(OPTION_DIST_NORML)
 static void erfcReal(void) {
   real_t x;
 
@@ -16,10 +16,10 @@ static void erfcReal(void) {
     return;
   }
 
-  WP34S_Erfc(&x, &x, &ctxtReal39);
+  WP34S_Erfc(&x, &x, &ctxtReal51);
   convertRealToResultRegister(&x, REGISTER_X, amNone);
 }
-#endif // OPTION_DIST_NORMAL
+#endif // OPTION_DIST_NORML
 
 /********************************************//**
  * \brief regX ==> regL and erfc(regX) ==> regX
@@ -29,7 +29,7 @@ static void erfcReal(void) {
  * \return void
  ***********************************************/
 void fnErfc(uint16_t unusedButMandatoryParameter) {
-#if defined(OPTION_DIST_NORMAL)
+#if defined(OPTION_DIST_NORML)
   processRealComplexMonadicFunction(&erfcReal, NULL);
-#endif // OPTION_DIST_NORMAL
+#endif // OPTION_DIST_NORML
 }

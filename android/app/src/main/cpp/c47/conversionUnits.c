@@ -899,27 +899,28 @@ static void unitConversion(const real_t * const coefficient, uint16_t multiplyDi
     return;
   }
 
-  if(invert && realIsZero(&reX)) {
-    if(getSystemFlag(FLAG_SPCRES)) {
-      convertRealToResultRegister(realIsNegative(&reX) ? const_minusInfinity : const_plusInfinity, REGISTER_X, amNone);
-    }
-    else {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
-      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-        moreInfoOnError("In function unitConversion:", "cannot calculate divide by zero", NULL, NULL);
-      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-    }
+  if(invert && realIsZero(&reX) && !getSystemFlag(FLAG_SPCRES)) {
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+      moreInfoOnError("In function unitConversion:", "cannot calculate divide by zero", NULL, NULL);
+    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+    return;
   }
 
   if(invert) {
-    realDivide(const_1, &reX, &reX, &ctxtReal39);
+    if(multiplyDivide == multiply) {
+      realDivide(coefficient, &reX, &reX, &ctxtReal34);
+    }
+    else {
+      realMultiply(&reX, coefficient, &reX, &ctxtReal39);
+      realDivide(const_1, &reX, &reX, &ctxtReal34);
+    }
   }
-
-  if(multiplyDivide == multiply) {
-    realMultiply(&reX, coefficient, &reX, &ctxtReal39);
+  else if(multiplyDivide == multiply) {
+    realMultiply(&reX, coefficient, &reX, &ctxtReal34);
   }
   else {
-    realDivide(&reX, coefficient, &reX, &ctxtReal39);
+    realDivide(&reX, coefficient, &reX, &ctxtReal34);
   }
 
   convertRealToResultRegister(&reX, REGISTER_X, amNone);
@@ -1131,6 +1132,7 @@ TO_QSPI static const real_t * const cvtTempConsts[12][4] = {
 
 void fnCvtTemp(uint16_t ix) {
   real_t reX;
+  realContext_t *context;
 
   if(!getRegisterAsReal(REGISTER_X, &reX)) {
     return;
@@ -1140,18 +1142,26 @@ void fnCvtTemp(uint16_t ix) {
     return;
   }
 
-  //  (x - B) / C * D + E
+  if(ix >= 12) {
+    return;
+  }
 
-  //printf("ix = %d\n",ix);
-  //printRealToConsole(cvtTempConsts[ix][0], "(x - "," ) \n");
-  //printRealToConsole(cvtTempConsts[ix][1], "/ "," \n");
-  //printRealToConsole(cvtTempConsts[ix][2], "x "," \n");
-  //printRealToConsole(cvtTempConsts[ix][3], "+ ","\n");
-  if(cvtTempConsts[ix][0] != const_0) {realSubtract(&reX, cvtTempConsts[ix][0], &reX, &ctxtReal39);}
-  if(cvtTempConsts[ix][1] != const_1) {realDivide  (&reX, cvtTempConsts[ix][1], &reX, &ctxtReal39);}
-  if(cvtTempConsts[ix][2] != const_1) {realMultiply(&reX, cvtTempConsts[ix][2], &reX, &ctxtReal39);}
-  if(cvtTempConsts[ix][3] != const_0) {realAdd     (&reX, cvtTempConsts[ix][3], &reX, &ctxtReal39);}
-  //printRealToConsole(&reX, "Rex: ","\n");
+  if(ix == 10) {
+    // (F + 459.67) / 1.8 keeps the small distance from absolute zero.
+    realAdd(&reX, const_459p67, &reX, &ctxtReal39);
+    realDivide(&reX, const_9on5, &reX, &ctxtReal39);
+  }
+  else if(ix == 11) {
+    realMultiply(&reX, const_9on5, &reX, &ctxtReal39);
+    realSubtract(&reX, const_459p67, &reX, &ctxtReal39);
+  }
+  else {
+    context = ix < 2 ? &ctxtReal39 : &ctxtReal34;
+    if(cvtTempConsts[ix][0] != const_0) {realSubtract(&reX, cvtTempConsts[ix][0], &reX, context);}
+    if(cvtTempConsts[ix][1] != const_1) {realDivide  (&reX, cvtTempConsts[ix][1], &reX, context);}
+    if(cvtTempConsts[ix][2] != const_1) {realMultiply(&reX, cvtTempConsts[ix][2], &reX, context);}
+    if(cvtTempConsts[ix][3] != const_0) {realAdd     (&reX, cvtTempConsts[ix][3], &reX, context);}
+  }
 
   convertRealToResultRegister(&reX, REGISTER_X, amNone);
 

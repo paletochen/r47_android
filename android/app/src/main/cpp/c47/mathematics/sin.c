@@ -7,15 +7,51 @@
 
 #include "c47.h"
 
-void sinComplex(const real_t *real, const real_t *imag, real_t *resReal, real_t *resImag, realContext_t *realContext) {
+/********************************************//**
+ * \brief Multiply trigonometric and hyperbolic factors, preserving exact zeros with an infinite factor.
+ *
+ * \param[in] trigonometric Trigonometric factor
+ * \param[in] hyperbolic Hyperbolic factor
+ * \param[out] res Product
+ * \param[in] realContext Working context
+ * \return void
+ ***********************************************/
+void multiplyTrigByHyperbolic(const real_t *trigonometric, const real_t *hyperbolic, real_t *res, realContext_t *realContext) {
+  if(realIsZero(trigonometric)) {
+    realCopy(trigonometric, res);
+    if(!realIsNaN(hyperbolic) && realIsNegative(hyperbolic)) {
+      realChangeSign(res);
+    }
+  }
+  else if(realIsZero(hyperbolic)) {
+    realCopy(hyperbolic, res);
+    if(!realIsNaN(trigonometric) && realIsNegative(trigonometric)) {
+      realChangeSign(res);
+    }
+  }
+  else if(!realIsInfinite(hyperbolic)) {
+    realMultiply(trigonometric, hyperbolic, res, realContext);
+  }
+  else if(realIsNaN(trigonometric)) {
+    realSetNaN(res);
+  }
+  else {
+    realSetPlusInfinity(res);
+    if(realIsNegative(trigonometric) != realIsNegative(hyperbolic)) {
+      realSetNegativeSign(res);
+    }
+  }
+}
+
+void sinComplex(const cplx_t *z, cplx_t *res, realContext_t *realContext) {
   // sin(a + ib) = sin(a)*cosh(b) + i*cos(a)*sinh(b)
   real_t sina, cosa, sinhb, coshb;
 
-  C47_WP34S_Cvt2RadSinCosTan(real, amRadian, &sina, &cosa, NULL, realContext);
-  WP34S_SinhCosh(imag, &sinhb, &coshb, realContext);
+  C47_WP34S_Cvt2RadSinCosTan(&z->Real, amRadian, &sina, &cosa, NULL, realContext);
+  WP34S_SinhCosh(&z->Imag, &sinhb, &coshb, realContext);
 
-  realMultiply(&sina, &coshb, resReal, realContext);
-  realMultiply(&cosa, &sinhb, resImag, realContext);
+  multiplyTrigByHyperbolic(&sina, &coshb, &res->Real, realContext);
+  multiplyTrigByHyperbolic(&cosa, &sinhb, &res->Imag, realContext);
 }
 
 
@@ -31,12 +67,15 @@ void sinCosReal(trigType_t trigType) {
   if(realIsSpecial(&x)) {
     r = const_NaN;
   }
+  else if(trigType == trigSin && xAngularMode == amRadian && !realIsZero(&x) && realGetExponent(&x) < -18) {   // sin x = x - x³/6 to 72 digits, below |x| by less than half a unit at 34 digits
+    WP34S_TinyOddSeries(&x, const_6, false, &x, &ctxtReal75);
+  }
   else {
     if(trigType == trigSin) {
-      C47_WP34S_Cvt2RadSinCosTan(r = &x, xAngularMode, &x,   NULL, NULL, &ctxtReal75);
+      C47_WP34S_Cvt2RadSinCosTan(r = &x, xAngularMode, &x,   NULL, NULL, &ctxtReal34);
     }
     else {
-      C47_WP34S_Cvt2RadSinCosTan(r = &x, xAngularMode, NULL, &x,   NULL, &ctxtReal75);
+      C47_WP34S_Cvt2RadSinCosTan(r = &x, xAngularMode, NULL, &x,   NULL, &ctxtReal34);
     }
   }
   convertRealToResultRegister(r, REGISTER_X, amNone);
@@ -44,20 +83,20 @@ void sinCosReal(trigType_t trigType) {
 
 
 void sinCosCplx(trigType_t trigType) {
-  real_t zReal, zImag;
+  cplx_t z;
 
-  if(!getRegisterAsComplex(REGISTER_X, &zReal, &zImag)) {
+  if(!getRegisterAsComplex(REGISTER_X, &z)) {
     return;
   }
 
   if(trigType == trigSin) {
-    sinComplex(&zReal, &zImag, &zReal, &zImag, &ctxtReal75);
+    sinComplex(&z, &z, &ctxtReal39);
   }
   else {
-    cosComplex(&zReal, &zImag, &zReal, &zImag, &ctxtReal75);
+    cosComplex(&z, &z, &ctxtReal39);
   }
 
-  convertComplexToResultRegister(&zReal, &zImag, REGISTER_X);
+  convertComplexToResultRegister(&z, REGISTER_X);
 }
 
 

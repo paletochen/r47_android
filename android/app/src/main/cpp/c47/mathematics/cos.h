@@ -9,5 +9,5 @@
 
   void fnCos   (uint16_t unusedButMandatoryParameter);
 
-  void cosComplex(const real_t *real, const real_t *imag, real_t *resReal, real_t *resImag, realContext_t *realContext);
+  void cosComplex(const cplx_t *z, cplx_t *res, realContext_t *realContext);
 #endif // !COS_H

@@ -8,35 +8,69 @@
 #include "c47.h"
 
 static void arctanhCplx(void) {
-  //                    1       1 + (a + ib)
-  // arctanh(a + i b) = - * ln( ------------ )
-  //                    2       1 - (a + ib)
+  real_t aAbs, denominator, numerator, temp;
+  cplx_t x;
 
-  real_t numerReal, denomReal;
-  real_t numerImag, denomImag;
-
-  if(!getRegisterAsComplex(REGISTER_X, &denomImag, &numerImag)) {
+  if(!getRegisterAsComplex(REGISTER_X, &x)) {
     return;
   }
 
-  // numer = 1 + (a + ib)
-  realAdd(&denomImag, const_1, &numerReal, &ctxtReal39);
+  if(realIsNaN(&x.Real) || realIsNaN(&x.Imag)) {
+    realSetNaN(&numerator);
+    realSetNaN(&denominator);
+    convertComplexPartsToResultRegister(&numerator, &denominator, REGISTER_X);
+    return;
+  }
 
-  // denom = 1 - (a + ib)
-  realSubtract(const_1, &denomImag, &denomReal, &ctxtReal39);
-  realMinus(&numerImag, &denomImag, &ctxtReal39);
+  if(realIsInfinite(&x.Real) || realIsInfinite(&x.Imag)) {
+    realSetZero(&numerator);
+    if(realIsNegative(&x.Real)) {
+      realSetNegativeSign(&numerator);
+    }
+    realCopy(const39_piOn2, &denominator);
+    if(realIsNegative(&x.Imag)) {
+      realSetNegativeSign(&denominator);
+    }
+    convertComplexPartsToResultRegister(&numerator, &denominator, REGISTER_X);
+    return;
+  }
 
-  // numer = (1 + (a + ib)) / (1 - (a + ib)
-  divComplexComplex(&numerReal, &numerImag, &denomReal, &denomImag, &numerReal, &numerImag, &ctxtReal39);
+  if(realIsZero(&x.Imag) && realCompareAbsEqual(&x.Real, const_1)) {
+    realCopy(realIsNegative(&x.Real) ? const_minusInfinity : const_plusInfinity, &numerator);
+    realCopy(&x.Imag, &denominator);
+    convertComplexPartsToResultRegister(&numerator, &denominator, REGISTER_X);
+    return;
+  }
 
-  // numer = ln((1 + (a + ib)) / (1 - (a + ib))
-  lnComplex(&numerReal, &numerImag, &numerReal, &numerImag, &ctxtReal39);
+  // Re(atanh(a+bi)) = sign(a)/4 * ln(1 + 4|a|/((1-|a|)²+b²)).
+  realCopyAbs(&x.Real, &aAbs);
+  if(realIsZero(&x.Real)) {
+    realCopy(&x.Real, &numerator);
+  } else {
+    realSubtract(const_1, &aAbs, &denominator, &ctxtReal39);
+    realMultiply(&denominator, &denominator, &denominator, &ctxtReal39);
+    realFMA(&x.Imag, &x.Imag, &denominator, &denominator, &ctxtReal39);
+    realMultiply(&aAbs, const_4, &numerator, &ctxtReal39);
+    realDivide(&numerator, &denominator, &numerator, &ctxtReal39);
+    WP34S_Ln1P(&numerator, &numerator, &ctxtReal39);
+    realMultiply(&numerator, const_1on2, &numerator, &ctxtReal39);
+    realMultiply(&numerator, const_1on2, &numerator, &ctxtReal39);
+    if(realIsNegative(&x.Real)) {
+      realSetNegativeSign(&numerator);
+    }
+  }
 
-  // 1/2 * ln((1 + (a + ib)) / (1 - (a + ib))
-  realMultiply(&numerReal, const_1on2, &numerReal, &ctxtReal39);
-  realMultiply(&numerImag, const_1on2, &numerImag, &ctxtReal39);
+  // Im(atanh(a+bi)) = atan2(2b, (1-a)(1+a)-b²)/2.
+  realSubtract(const_1, &x.Real, &denominator, &ctxtReal39);
+  realAdd(const_1, &x.Real, &temp, &ctxtReal39);
+  realMultiply(&denominator, &temp, &denominator, &ctxtReal39);
+  realMinus(&x.Imag, &temp, &ctxtReal39);
+  realFMA(&temp, &x.Imag, &denominator, &denominator, &ctxtReal39);
+  realMultiply(&x.Imag, const_2, &temp, &ctxtReal39);
+  C47_WP34S_Atan2(&temp, &denominator, &denominator, &ctxtReal39);
+  realMultiply(&denominator, const_1on2, &denominator, &ctxtReal39);
 
-  convertComplexToResultRegister(&numerReal, &numerImag, REGISTER_X);
+  convertComplexPartsToResultRegister(&numerator, &denominator, REGISTER_X);
 }
 
 
@@ -49,7 +83,8 @@ static void arctanhReal(void) {
   }
 
   if(realIsZero(&x)) {
-    r = &x;  // a zero keeps its sign, as it does in arsinh, arcsin and arctan
+    WP34S_ArcTanh(&x, &x, &ctxtReal39);
+    r = &x;
   }
   else {
     if(realCompareEqual(&x, const_1)) {
@@ -92,6 +127,9 @@ static void arctanhReal(void) {
           #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
           return;
         }
+      }
+      else if(realGetExponent(&x) < -18) {   // artanh x = x + x³/3 to 72 digits, above |x| by less than half a unit at 34 digits
+        WP34S_TinyOddSeries(&x, const_3, true, &x, &ctxtReal75);
       }
       else {
         WP34S_ArcTanh(&x, &x, &ctxtReal39);

@@ -8,7 +8,7 @@
 #include "c47.h"
 
 #define ELEC_DUST_FILTER true                                                          // true: treat |Imag| below ELEC_DUST_LIMIT as real (rounding dust ignored for the complex gate); false: strict, any nonzero Imag counts as complex
-#define ELEC_DUST_LIMIT  const_1e_37                                                   // imag magnitude at or below this is rounding dust from ctxtReal39, not a genuine complex result
+#define ELEC_DUST_LIMIT  const_1e_37                                                   // imag magnitude at or below this is numerical dust, not a genuine complex result
 
 #if defined(OPTION_ELEC)
   static bool_t elecImagIsDust(const real_t *im) {                                     // true if the imaginary part is to be treated as zero for the complex gate (dust filter), else only true for exact zero
@@ -59,35 +59,99 @@
     return false;
   }
 
-  static void elecGetXYZ(cplx_t *x, cplx_t *y, cplx_t *z) {                             // read Z, Y, X registers as complex (ctxtReal39 internals, real34_t in)
-    getRegisterAsComplex(REGISTER_X, CPLX(*x));
-    getRegisterAsComplex(REGISTER_Y, CPLX(*y));
-    getRegisterAsComplex(REGISTER_Z, CPLX(*z));
+  static void elecGetXYZ(cplx_t *x, cplx_t *y, cplx_t *z) {                             // read Z, Y, X registers as complex real_t values
+    getRegisterAsComplex(REGISTER_X, x);
+    getRegisterAsComplex(REGISTER_Y, y);
+    getRegisterAsComplex(REGISTER_Z, z);
   }
 
   static void elecPutResults(const cplx_t *l, const cplx_t *x, const cplx_t *y, const cplx_t *z) {  // store L, X, Y, Z then collapse any pure-real result back to real34_t
-    convertComplexToResultRegister(CPLX(*l), REGISTER_L);
-    convertComplexToResultRegister(CPLX(*x), REGISTER_X);
-    convertComplexToResultRegister(CPLX(*y), REGISTER_Y);
-    convertComplexToResultRegister(CPLX(*z), REGISTER_Z);
+    convertComplexToResultRegister(l, REGISTER_L);
+    convertComplexToResultRegister(x, REGISTER_X);
+    convertComplexToResultRegister(y, REGISTER_Y);
+    convertComplexToResultRegister(z, REGISTER_Z);
     convertComplexRegisterToRealIfZeroImag(REGISTER_X);
     convertComplexRegisterToRealIfZeroImag(REGISTER_Y);
     convertComplexRegisterToRealIfZeroImag(REGISTER_Z);
     convertComplexRegisterToRealIfZeroImag(REGISTER_L);
   }
 
-  static void elecSetAOperators(cplx_t *aOp, cplx_t *aaOp) {                            // a = 1 angle 120deg = -1/2 + j*root3/2 ; a^2 = conjugate of a = -1/2 - j*root3/2
+  /**
+   * \brief Form the positive- and negative-sequence rotation operators.
+   *
+   * The 39-digit constant is sufficient for an isolated rotation.  A wider
+   * transform derives the irrational component in its work context because
+   * subtraction between sequence terms can expose the constant's low digits.
+   */
+  static void elecSetAOperators(cplx_t *aOp, cplx_t *aaOp, realContext_t *realContext) { // a = 1 angle 120deg = -1/2 + j*root3/2 ; a^2 is its conjugate
     realCopy(const_1on2, &aOp->Real);
     realChangeSign(&aOp->Real);
-    realCopy(const39_root3on2, &aOp->Imag);
+    if(realContext->digits <= 39) {
+      realCopy(const39_root3on2, &aOp->Imag);
+    }
+    else {
+      realSquareRoot(const_3, &aOp->Imag, realContext);
+      realDivide(&aOp->Imag, const_2, &aOp->Imag, realContext);
+    }
     realCopy(&aOp->Real, &aaOp->Real);
     realCopy(&aOp->Imag, &aaOp->Imag);
     realChangeSign(&aaOp->Imag);
   }
+
+  /**
+   * \brief Add two finite values and retain the rounding residual.
+   *
+   * The greater-magnitude operand is selected for the FastTwoSum identity.
+   */
+  static void elecTwoSum(const real_t *a, const real_t *b, real_t *sum, real_t *error, realContext_t *realContext) {
+    REAL_T_PTR(z, 75);
+    const real_t *larger = a;
+    const real_t *smaller = b;
+
+    if(realCompareAbsLessThan(larger, smaller)) {
+      larger = b;
+      smaller = a;
+    }
+    realAdd(larger, smaller, sum, realContext);
+    realSubtract(sum, larger, z, realContext);
+    realSubtract(smaller, z, error, realContext);
+  }
+
+  /**
+   * \brief Add three real components with a two-term expansion.
+   *
+   * Special inputs retain the ordinary arithmetic semantics.  Finite inputs
+   * use two FastTwoSum stages so that a small term is not discarded before a
+   * later cancellation.
+   */
+  static void elecAddThreeReal(const real_t *a, const real_t *b, const real_t *c, real_t *result, realContext_t *realContext) {
+    REAL_T_PTR(sum, 75);
+    REAL_T_PTR(total, 75);
+    REAL_T_PTR(error1, 75);
+    REAL_T_PTR(error2, 75);
+
+    if(realIsSpecial(a) || realIsSpecial(b) || realIsSpecial(c)) {
+      realAdd(a, b, result, realContext);
+      realAdd(result, c, result, realContext);
+      return;
+    }
+    elecTwoSum(a, b, sum, error1, realContext);
+    elecTwoSum(sum, c, total, error2, realContext);
+    realAdd(error1, error2, error1, realContext);
+    realAdd(total, error1, result, realContext);
+  }
+
+  /**
+   * \brief Add three complex values component by component.
+   */
+  static void elecAddThreeComplex(const cplx_t *a, const cplx_t *b, const cplx_t *c, cplx_t *result, realContext_t *realContext) {
+    elecAddThreeReal(&a->Real, &b->Real, &c->Real, &result->Real, realContext);
+    elecAddThreeReal(&a->Imag, &b->Imag, &c->Imag, &result->Imag, realContext);
+  }
 #endif // OPTION_ELEC
 
 
-  void fnDeltaToStar(uint16_t unusedButMandatoryParameter) {                          // Delta to Star; ZYX to ZYX. Complex math in real_t (ctxtReal39), in/out via real34_t
+  void fnDeltaToStar(uint16_t unusedButMandatoryParameter) {                          // Delta to Star; ZYX to ZYX. Cancellation-sensitive work uses ctxtReal75
   #if defined(OPTION_ELEC)
     cplx_t x, y, z, s, xy, yz, zx, rx, ry, rz;
     calcRegister_t inRegs[3] = {REGISTER_X, REGISTER_Y, REGISTER_Z};
@@ -96,14 +160,13 @@
       setSystemFlag(FLAG_CPXRES);
     }
     elecGetXYZ(&x, &y, &z);
-    addComplex(CPLX(x), CPLX(y), CPLX(s), &ctxtReal39);                               // s = x + y + z
-    addComplex(CPLX(s), CPLX(z), CPLX(s), &ctxtReal39);
-    mulComplexComplex(CPLX(z), CPLX(x), CPLX(zx), &ctxtReal39);                       // pairwise products
-    mulComplexComplex(CPLX(x), CPLX(y), CPLX(xy), &ctxtReal39);
-    mulComplexComplex(CPLX(y), CPLX(z), CPLX(yz), &ctxtReal39);
-    divComplexComplex(CPLX(zx), CPLX(s), CPLX(rx), &ctxtReal39);                      // X = (z*x) / s
-    divComplexComplex(CPLX(xy), CPLX(s), CPLX(ry), &ctxtReal39);                      // Y = (x*y) / s
-    divComplexComplex(CPLX(yz), CPLX(s), CPLX(rz), &ctxtReal39);                      // Z = (y*z) / s
+    elecAddThreeComplex(&x, &y, &z, &s, &ctxtReal75);                                // s = x + y + z
+    mulComplexComplex(&z, &x, &zx, &ctxtReal75);                                      // pairwise products
+    mulComplexComplex(&x, &y, &xy, &ctxtReal75);
+    mulComplexComplex(&y, &z, &yz, &ctxtReal75);
+    divComplexComplex(&zx, &s, &rx, &ctxtReal75);                                     // X = (z*x) / s
+    divComplexComplex(&xy, &s, &ry, &ctxtReal75);                                     // Y = (x*y) / s
+    divComplexComplex(&yz, &s, &rz, &ctxtReal75);                                     // Z = (y*z) / s
     if(!elecResultsOk(results, 3)) {                                                  // abort clean: nothing written, stack intact
       return;
     }
@@ -114,23 +177,22 @@
   #endif // OPTION_ELEC
   }
 
-  void fnStarToDelta(uint16_t unusedButMandatoryParameter) {                          // Star to Delta; ZYX to ZYX. Complex math in real_t (ctxtReal39), in/out via real34_t
+  void fnStarToDelta(uint16_t unusedButMandatoryParameter) {                          // Star to Delta; ZYX to ZYX. Cancellation-sensitive work uses ctxtReal75
   #if defined(OPTION_ELEC)
-    cplx_t x, y, z, p, t, rx, ry, rz;
+    cplx_t x, y, z, xy, yz, zx, p, rx, ry, rz;
     calcRegister_t inRegs[3] = {REGISTER_X, REGISTER_Y, REGISTER_Z};
     cplx_t *results[3] = {&rx, &ry, &rz};
     if(elecInputIsComplex(inRegs, 3)) {                                                // complex input declares complex intent: latch CPXRES on
       setSystemFlag(FLAG_CPXRES);
     }
     elecGetXYZ(&x, &y, &z);
-    mulComplexComplex(CPLX(x), CPLX(y), CPLX(p), &ctxtReal39);                        // p = x*y + y*z + z*x
-    mulComplexComplex(CPLX(y), CPLX(z), CPLX(t), &ctxtReal39);
-    addComplex(CPLX(p), CPLX(t), CPLX(p), &ctxtReal39);
-    mulComplexComplex(CPLX(z), CPLX(x), CPLX(t), &ctxtReal39);
-    addComplex(CPLX(p), CPLX(t), CPLX(p), &ctxtReal39);
-    divComplexComplex(CPLX(p), CPLX(z), CPLX(rx), &ctxtReal39);                       // X = p / z
-    divComplexComplex(CPLX(p), CPLX(x), CPLX(ry), &ctxtReal39);                       // Y = p / x
-    divComplexComplex(CPLX(p), CPLX(y), CPLX(rz), &ctxtReal39);                       // Z = p / y
+    mulComplexComplex(&x, &y, &xy, &ctxtReal75);                                      // p = x*y + y*z + z*x
+    mulComplexComplex(&y, &z, &yz, &ctxtReal75);
+    mulComplexComplex(&z, &x, &zx, &ctxtReal75);
+    elecAddThreeComplex(&xy, &yz, &zx, &p, &ctxtReal75);
+    divComplexComplex(&p, &z, &rx, &ctxtReal75);                                      // X = p / z
+    divComplexComplex(&p, &x, &ry, &ctxtReal75);                                      // Y = p / x
+    divComplexComplex(&p, &y, &rz, &ctxtReal75);                                      // Z = p / y
     if(!elecResultsOk(results, 3)) {                                                  // abort clean: nothing written, stack intact
       return;
     }
@@ -141,7 +203,7 @@
   #endif // OPTION_ELEC
   }
 
-  void fnSymToAbc(uint16_t unusedButMandatoryParameter) {                             // Symmetrical components -> ABC; ZYX to ZYX. Complex math in real_t (ctxtReal39), in/out via real34_t
+  void fnSymToAbc(uint16_t unusedButMandatoryParameter) {                             // Symmetrical components -> ABC; cancellation-sensitive work uses ctxtReal75
   #if defined(OPTION_ELEC)
     cplx_t a2, a1, a0, va, vb, vc, aOp, aaOp, t;
     calcRegister_t inRegs[3] = {REGISTER_X, REGISTER_Y, REGISTER_Z};
@@ -150,17 +212,14 @@
       setSystemFlag(FLAG_CPXRES);
     }
     elecGetXYZ(&a2, &a1, &a0);                                                        // X = A2 (negative), Y = A1 (positive), Z = A0 (zero) sequence
-    elecSetAOperators(&aOp, &aaOp);
-    addComplex(CPLX(a0), CPLX(a1), CPLX(va), &ctxtReal39);                            // Va = A0 + A1 + A2
-    addComplex(CPLX(va), CPLX(a2), CPLX(va), &ctxtReal39);
-    mulComplexComplex(CPLX(aaOp), CPLX(a1), CPLX(vb), &ctxtReal39);                   // Vb = A0 + a^2*A1 + a*A2
-    mulComplexComplex(CPLX(aOp),  CPLX(a2), CPLX(t),  &ctxtReal39);
-    addComplex(CPLX(vb), CPLX(t),  CPLX(vb), &ctxtReal39);
-    addComplex(CPLX(vb), CPLX(a0), CPLX(vb), &ctxtReal39);
-    mulComplexComplex(CPLX(aOp),  CPLX(a1), CPLX(vc), &ctxtReal39);                   // Vc = A0 + a*A1 + a^2*A2
-    mulComplexComplex(CPLX(aaOp), CPLX(a2), CPLX(t),  &ctxtReal39);
-    addComplex(CPLX(vc), CPLX(t),  CPLX(vc), &ctxtReal39);
-    addComplex(CPLX(vc), CPLX(a0), CPLX(vc), &ctxtReal39);
+    elecSetAOperators(&aOp, &aaOp, &ctxtReal75);
+    elecAddThreeComplex(&a0, &a1, &a2, &va, &ctxtReal75);                             // Va = A0 + A1 + A2
+    mulComplexComplex(&aaOp, &a1, &vb, &ctxtReal75);                                  // Vb = A0 + a^2*A1 + a*A2
+    mulComplexComplex(&aOp,  &a2, &t,  &ctxtReal75);
+    elecAddThreeComplex(&a0, &vb, &t, &vb, &ctxtReal75);
+    mulComplexComplex(&aOp,  &a1, &vc, &ctxtReal75);                                  // Vc = A0 + a*A1 + a^2*A2
+    mulComplexComplex(&aaOp, &a2, &t,  &ctxtReal75);
+    elecAddThreeComplex(&a0, &vc, &t, &vc, &ctxtReal75);
     if(!elecResultsOk(results, 3)) {                                                  // abort clean: nothing written, stack intact
       return;
     }
@@ -171,7 +230,7 @@
   #endif // OPTION_ELEC
   }
 
-  void fnAbcToSym(uint16_t unusedButMandatoryParameter) {                             // ABC -> symmetrical components; ZYX to ZYX. Complex math in real_t (ctxtReal39), in/out via real34_t
+  void fnAbcToSym(uint16_t unusedButMandatoryParameter) {                             // ABC -> symmetrical components; cancellation-sensitive work uses ctxtReal75
   #if defined(OPTION_ELEC)
     cplx_t vc, vb, va, s0, s1, s2, aOp, aaOp, t;
     calcRegister_t inRegs[3] = {REGISTER_X, REGISTER_Y, REGISTER_Z};
@@ -180,23 +239,20 @@
       setSystemFlag(FLAG_CPXRES);
     }
     elecGetXYZ(&vc, &vb, &va);                                                        // X = Vc, Y = Vb, Z = Va
-    elecSetAOperators(&aOp, &aaOp);
-    addComplex(CPLX(va), CPLX(vb), CPLX(s0), &ctxtReal39);                            // A0 = (Va + Vb + Vc) / 3
-    addComplex(CPLX(s0), CPLX(vc), CPLX(s0), &ctxtReal39);
-    realDivide(&s0.Real, const_3, &s0.Real, &ctxtReal39);
-    realDivide(&s0.Imag, const_3, &s0.Imag, &ctxtReal39);
-    mulComplexComplex(CPLX(aOp),  CPLX(vb), CPLX(s1), &ctxtReal39);                   // A1 = (Va + a*Vb + a^2*Vc) / 3
-    mulComplexComplex(CPLX(aaOp), CPLX(vc), CPLX(t),  &ctxtReal39);
-    addComplex(CPLX(s1), CPLX(t),  CPLX(s1), &ctxtReal39);
-    addComplex(CPLX(s1), CPLX(va), CPLX(s1), &ctxtReal39);
-    realDivide(&s1.Real, const_3, &s1.Real, &ctxtReal39);
-    realDivide(&s1.Imag, const_3, &s1.Imag, &ctxtReal39);
-    mulComplexComplex(CPLX(aaOp), CPLX(vb), CPLX(s2), &ctxtReal39);                   // A2 = (Va + a^2*Vb + a*Vc) / 3
-    mulComplexComplex(CPLX(aOp),  CPLX(vc), CPLX(t),  &ctxtReal39);
-    addComplex(CPLX(s2), CPLX(t),  CPLX(s2), &ctxtReal39);
-    addComplex(CPLX(s2), CPLX(va), CPLX(s2), &ctxtReal39);
-    realDivide(&s2.Real, const_3, &s2.Real, &ctxtReal39);
-    realDivide(&s2.Imag, const_3, &s2.Imag, &ctxtReal39);
+    elecSetAOperators(&aOp, &aaOp, &ctxtReal75);
+    elecAddThreeComplex(&va, &vb, &vc, &s0, &ctxtReal75);                            // A0 = (Va + Vb + Vc) / 3
+    realDivide(&s0.Real, const_3, &s0.Real, &ctxtReal75);
+    realDivide(&s0.Imag, const_3, &s0.Imag, &ctxtReal75);
+    mulComplexComplex(&aOp,  &vb, &s1, &ctxtReal75);                                  // A1 = (Va + a*Vb + a^2*Vc) / 3
+    mulComplexComplex(&aaOp, &vc, &t,  &ctxtReal75);
+    elecAddThreeComplex(&va, &s1, &t, &s1, &ctxtReal75);
+    realDivide(&s1.Real, const_3, &s1.Real, &ctxtReal75);
+    realDivide(&s1.Imag, const_3, &s1.Imag, &ctxtReal75);
+    mulComplexComplex(&aaOp, &vb, &s2, &ctxtReal75);                                  // A2 = (Va + a^2*Vb + a*Vc) / 3
+    mulComplexComplex(&aOp,  &vc, &t,  &ctxtReal75);
+    elecAddThreeComplex(&va, &s2, &t, &s2, &ctxtReal75);
+    realDivide(&s2.Real, const_3, &s2.Real, &ctxtReal75);
+    realDivide(&s2.Imag, const_3, &s2.Imag, &ctxtReal75);
     if(!elecResultsOk(results, 3)) {                                                  // abort clean: nothing written, stack intact
       return;
     }
@@ -216,10 +272,10 @@
       fnSwapX(regist);                                                               // bring target into X for the X-only operations below
     }
     {
-      real_t zReal, zImag;
+      cplx_t z;
       if(getRegisterDataType(REGISTER_X) != dtComplex34) {
-        if(getRegisterAsComplex(REGISTER_X, &zReal, &zImag)) {
-          convertComplexToResultRegister(&zReal, &zImag, REGISTER_X);                // promote a real register to complex (rectangular); on read failure leave X unchanged
+        if(getRegisterAsComplex(REGISTER_X, &z)) {
+          convertComplexToResultRegister(&z, REGISTER_X);                            // promote a real register to complex (rectangular); on read failure leave X unchanged
         }
       }
       else if(getComplexRegisterPolarMode(REGISTER_X) != amPolar) {
@@ -234,21 +290,21 @@
     }
   }
 
-  static void elecGetTriple(calcRegister_t base, cplx_t *r1, cplx_t *r2, cplx_t *r3) {  // read three consecutive named registers (base, base+1, base+2) as complex, ctxtReal39 internals
-    getRegisterAsComplex(base,     CPLX(*r1));
-    getRegisterAsComplex(base + 1, CPLX(*r2));
-    getRegisterAsComplex(base + 2, CPLX(*r3));
+  static void elecGetTriple(calcRegister_t base, cplx_t *r1, cplx_t *r2, cplx_t *r3) {  // read three consecutive named registers as complex real_t values
+    getRegisterAsComplex(base,     r1);
+    getRegisterAsComplex(base + 1, r2);
+    getRegisterAsComplex(base + 2, r3);
   }
 
   static void elecStoreTriple(calcRegister_t base, const cplx_t *r1, const cplx_t *r2, const cplx_t *r3) {  // place phase1,phase2,phase3 as stack X,Y,Z then copy to base..base+2. The first placement honours the incoming FLAG_ASLIFT (overwrite X when clear, push when set); the remaining placements always push. The register copy is unconditional, mirroring fn3Sto
     liftStack();
-    convertComplexToResultRegister(CPLX(*r3), REGISTER_X);                            // phase 3 (deepest) into X
+    convertComplexToResultRegister(r3, REGISTER_X);                                   // phase 3 (deepest) into X
     setSystemFlag(FLAG_ASLIFT);
     liftStack();
-    convertComplexToResultRegister(CPLX(*r2), REGISTER_X);                            // phase 2 into X, phase 3 rolls to Y
+    convertComplexToResultRegister(r2, REGISTER_X);                                   // phase 2 into X, phase 3 rolls to Y
     setSystemFlag(FLAG_ASLIFT);
     liftStack();
-    convertComplexToResultRegister(CPLX(*r1), REGISTER_X);                            // phase 1 into X, phase 2 -> Y, phase 3 -> Z
+    convertComplexToResultRegister(r1, REGISTER_X);                                   // phase 1 into X, phase 2 -> Y, phase 3 -> Z
     convertComplexRegisterToRealIfZeroImag(REGISTER_X);
     convertComplexRegisterToRealIfZeroImag(REGISTER_Y);
     convertComplexRegisterToRealIfZeroImag(REGISTER_Z);
@@ -271,7 +327,7 @@
   #define TripleRegI3_95 95  //old:rr98
 
 
-  void fnTripleZfromVI(uint16_t unusedButMandatoryParameter) {                        // V/I : three-phase Z = V / I ; pushes Z1,Z2,Z3 onto stack (X=Z1) and stores to Z1..Z3 registers. Complex math in real_t (ctxtReal39), in/out via real34_t
+  void fnTripleZfromVI(uint16_t unusedButMandatoryParameter) {                        // V/I : three-phase Z = V / I ; pushes Z1,Z2,Z3 onto stack (X=Z1) and stores to Z1..Z3 registers. Complex math in real_t (ctxtReal75), in/out via real34_t
   #if defined(OPTION_ELEC)
     cplx_t v1, v2, v3, i1, i2, i3, z1, z2, z3;
     calcRegister_t inRegs[6] = {TripleRegV1_90, TripleRegV2_91, TripleRegV3_92, TripleRegI1_93, TripleRegI2_94, TripleRegI3_95};
@@ -281,9 +337,9 @@
     }
     elecGetTriple(TripleRegV1_90, &v1, &v2, &v3);                                     // V1..V3
     elecGetTriple(TripleRegI1_93, &i1, &i2, &i3);                                     // I1..I3
-    divComplexComplex(CPLX(v1), CPLX(i1), CPLX(z1), &ctxtReal39);                     // Z1 = V1 / I1
-    divComplexComplex(CPLX(v2), CPLX(i2), CPLX(z2), &ctxtReal39);                     // Z2 = V2 / I2
-    divComplexComplex(CPLX(v3), CPLX(i3), CPLX(z3), &ctxtReal39);                     // Z3 = V3 / I3
+    divComplexComplex(&v1, &i1, &z1, &ctxtReal75);                                    // Z1 = V1 / I1
+    divComplexComplex(&v2, &i2, &z2, &ctxtReal75);                                    // Z2 = V2 / I2
+    divComplexComplex(&v3, &i3, &z3, &ctxtReal75);                                    // Z3 = V3 / I3
     if(!elecResultsOk(results, 3)) {                                                  // abort clean: nothing written, stack and registers intact
       return;
     }
@@ -292,7 +348,7 @@
   #endif // OPTION_ELEC
   }
 
-  void fnTripleVfromIZ(uint16_t unusedButMandatoryParameter) {                        // IZ : three-phase V = I * Z ; pushes V1,V2,V3 onto stack (X=V1) and stores to V1..V3 registers. Complex math in real_t (ctxtReal39), in/out via real34_t
+  void fnTripleVfromIZ(uint16_t unusedButMandatoryParameter) {                        // IZ : three-phase V = I * Z ; pushes V1,V2,V3 onto stack (X=V1) and stores to V1..V3 registers. Complex multiplication uses ctxtReal39
   #if defined(OPTION_ELEC)
     cplx_t i1, i2, i3, z1, z2, z3, v1, v2, v3;
     calcRegister_t inRegs[6] = {TripleRegI1_93, TripleRegI2_94, TripleRegI3_95, TripleRegZ1_96, TripleRegZ2_97, TripleRegZ3_98};
@@ -302,9 +358,9 @@
     }
     elecGetTriple(TripleRegI1_93, &i1, &i2, &i3);                                     // I1..I3
     elecGetTriple(TripleRegZ1_96, &z1, &z2, &z3);                                     // Z1..Z3
-    mulComplexComplex(CPLX(i1), CPLX(z1), CPLX(v1), &ctxtReal39);                     // V1 = I1 * Z1
-    mulComplexComplex(CPLX(i2), CPLX(z2), CPLX(v2), &ctxtReal39);                     // V2 = I2 * Z2
-    mulComplexComplex(CPLX(i3), CPLX(z3), CPLX(v3), &ctxtReal39);                     // V3 = I3 * Z3
+    mulComplexComplex(&i1, &z1, &v1, &ctxtReal39);                                    // V1 = I1 * Z1
+    mulComplexComplex(&i2, &z2, &v2, &ctxtReal39);                                    // V2 = I2 * Z2
+    mulComplexComplex(&i3, &z3, &v3, &ctxtReal39);                                    // V3 = I3 * Z3
     if(!elecResultsOk(results, 3)) {                                                  // abort clean: nothing written, stack and registers intact
       return;
     }
@@ -313,7 +369,7 @@
   #endif // OPTION_ELEC
   }
 
-  void fnTripleIfromVZ(uint16_t unusedButMandatoryParameter) {                        // V/Z : three-phase I = V / Z ; pushes I1,I2,I3 onto stack (X=I1) and stores to I1..I3 registers. Complex math in real_t (ctxtReal39), in/out via real34_t
+  void fnTripleIfromVZ(uint16_t unusedButMandatoryParameter) {                        // V/Z : three-phase I = V / Z ; pushes I1,I2,I3 onto stack (X=I1) and stores to I1..I3 registers. Complex math in real_t (ctxtReal75), in/out via real34_t
   #if defined(OPTION_ELEC)
     cplx_t v1, v2, v3, z1, z2, z3, i1, i2, i3;
     calcRegister_t inRegs[6] = {TripleRegV1_90, TripleRegV2_91, TripleRegV3_92, TripleRegZ1_96, TripleRegZ2_97, TripleRegZ3_98};
@@ -323,9 +379,9 @@
     }
     elecGetTriple(TripleRegV1_90, &v1, &v2, &v3);                                     // V1..V3
     elecGetTriple(TripleRegZ1_96, &z1, &z2, &z3);                                     // Z1..Z3
-    divComplexComplex(CPLX(v1), CPLX(z1), CPLX(i1), &ctxtReal39);                     // I1 = V1 / Z1
-    divComplexComplex(CPLX(v2), CPLX(z2), CPLX(i2), &ctxtReal39);                     // I2 = V2 / Z2
-    divComplexComplex(CPLX(v3), CPLX(z3), CPLX(i3), &ctxtReal39);                     // I3 = V3 / Z3
+    divComplexComplex(&v1, &z1, &i1, &ctxtReal75);                                    // I1 = V1 / Z1
+    divComplexComplex(&v2, &z2, &i2, &ctxtReal75);                                    // I2 = V2 / Z2
+    divComplexComplex(&v3, &z3, &i3, &ctxtReal75);                                    // I3 = V3 / Z3
     if(!elecResultsOk(results, 3)) {                                                  // abort clean: nothing written, stack and registers intact
       return;
     }
@@ -343,7 +399,7 @@
   #endif // OPTION_ELEC
   }
 
-  void fnCopyXtoAbc(uint16_t unusedButMandatoryParameter) {                           // Copy/create X -> ABC balanced set. 1-in/3-out: x in Z, Y = a*x, X = a^2*x ; L = original x. The input is consumed (dropped) before the set is built, so the first placement honours the incoming FLAG_ASLIFT. Complex math in real_t (ctxtReal39), in/out via real34_t
+  void fnCopyXtoAbc(uint16_t unusedButMandatoryParameter) {                           // Copy/create X -> ABC balanced set. 1-in/3-out: x in Z, Y = a*x, X = a^2*x ; L = original x. Isolated rotations use ctxtReal39
   #if defined(OPTION_ELEC)
     cplx_t x, rx, ry, aOp, aaOp;
     calcRegister_t inRegs[1] = {REGISTER_X};
@@ -351,24 +407,24 @@
     if(elecInputIsComplex(inRegs, 1)) {                                                // complex input declares complex intent: latch CPXRES on
       setSystemFlag(FLAG_CPXRES);
     }
-    getRegisterAsComplex(REGISTER_X, CPLX(x));                                        // x = source phasor
-    elecSetAOperators(&aOp, &aaOp);                                                   // a = 1 angle 120deg ; a^2 = 1 angle 240deg
-    mulComplexComplex(CPLX(aOp),  CPLX(x), CPLX(ry), &ctxtReal39);                    // a*x   -> Y
-    mulComplexComplex(CPLX(aaOp), CPLX(x), CPLX(rx), &ctxtReal39);                    // a^2*x -> X
+    getRegisterAsComplex(REGISTER_X, &x);                                             // x = source phasor
+    elecSetAOperators(&aOp, &aaOp, &ctxtReal39);                                      // a = 1 angle 120deg ; a^2 = 1 angle 240deg
+    mulComplexComplex(&aOp,  &x, &ry, &ctxtReal39);                                   // a*x   -> Y
+    mulComplexComplex(&aaOp, &x, &rx, &ctxtReal39);                                   // a^2*x -> X
     if(!elecResultsOk(results, 3)) {                                                  // abort clean: nothing written, stack intact
       return;
     }
     saveForUndo();                                                                     // commit point: disturb the stack only past the gate
     fnDrop(NOPARAM);                                                                  // consume the input so the set is built onto the stack below it
-    convertComplexToResultRegister(CPLX(x), REGISTER_L);                              // L = original x (last x)
+    convertComplexToResultRegister(&x, REGISTER_L);                                   // L = original x (last x)
     liftStack();
-    convertComplexToResultRegister(CPLX(x), REGISTER_X);                              // x is the base of the set
+    convertComplexToResultRegister(&x, REGISTER_X);                                   // x is the base of the set
     setSystemFlag(FLAG_ASLIFT);
     liftStack();
-    convertComplexToResultRegister(CPLX(ry), REGISTER_X);                             // a*x into X, x rolls to Y
+    convertComplexToResultRegister(&ry, REGISTER_X);                                  // a*x into X, x rolls to Y
     setSystemFlag(FLAG_ASLIFT);
     liftStack();
-    convertComplexToResultRegister(CPLX(rx), REGISTER_X);                             // a^2*x into X, a*x rolls to Y, x rolls to Z
+    convertComplexToResultRegister(&rx, REGISTER_X);                                  // a^2*x into X, a*x rolls to Y, x rolls to Z
     convertComplexRegisterToRealIfZeroImag(REGISTER_X);
     convertComplexRegisterToRealIfZeroImag(REGISTER_Y);
     convertComplexRegisterToRealIfZeroImag(REGISTER_Z);

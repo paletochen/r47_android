@@ -12,8 +12,8 @@
 //-----------------------------------------------------------------------------
 
 static void percentReal(real_t *xReal, real_t *yReal, real_t *rReal, realContext_t *realContext) {
-  realMultiply(xReal, yReal, rReal, realContext);     // rReal = xReal * yReal
-  rReal->exponent -= 2;                               // rReal = rReal / 100.0
+  xReal->exponent -= 2;                               // xReal = xReal / 100.0
+  realMultiply(xReal, yReal, rReal, realContext);     // rReal = xReal * yReal / 100.0
 }
 
 //=============================================================================
@@ -31,8 +31,13 @@ static void percentReal(real_t *xReal, real_t *yReal, real_t *rReal, realContext
 void fnPercent(uint16_t unusedButMandatoryParameter) {
   real_t xReal, yReal;
   real_t rReal;
+  real34_t exactResult;
+  const uint32_t typeX = getRegisterDataType(REGISTER_X);
+  const uint32_t typeY = getRegisterDataType(REGISTER_Y);
+  const bool_t exactProduct = (typeX == dtLongInteger || typeY == dtLongInteger)
+                              && multiplyRegisterValuesToReal34Scaled(REGISTER_X, REGISTER_Y, -2, &exactResult);
 
-  if(!getRegisterAsReal(REGISTER_X, &xReal) || !getRegisterAsReal(REGISTER_Y, &yReal)) {
+  if(!exactProduct && (!getRegisterAsReal(REGISTER_X, &xReal) || !getRegisterAsReal(REGISTER_Y, &yReal))) {
     return;
   }
 
@@ -40,9 +45,13 @@ void fnPercent(uint16_t unusedButMandatoryParameter) {
     return;
   }
 
-  percentReal(&xReal, &yReal, &rReal, &ctxtReal34);
-
   reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-  convertRealToReal34ResultRegister(&rReal, REGISTER_X);
+  if(exactProduct) {
+    real34Copy(&exactResult, REGISTER_REAL34_DATA(REGISTER_X));
+  }
+  else {
+    percentReal(&xReal, &yReal, &rReal, &ctxtReal34);
+    convertRealToReal34ResultRegister(&rReal, REGISTER_X);
+  }
   adjustResult(REGISTER_X, false, true, REGISTER_X, -1, -1);
 }

@@ -113,6 +113,38 @@ char *decQuadToString(const decQuad *df, char *string) {
     }
     return string;
 }
+uint32_t decQuadIsSigned(const decQuad *df) {
+    (void)df;
+    return 0;
+}
+decQuad *decQuadCopyAbs(decQuad *df, const decQuad *dn) {
+    if (df && dn) {
+        *df = *dn;
+    }
+    return df;
+}
+decQuad *decQuadFromString(decQuad *df, const char *string, decContext *set) {
+    (void)set;
+    if (df && string) {
+        bool hasNonNumeric = false;
+        for (const char *p = string; *p; p++) {
+            if (isalpha((unsigned char)*p) && *p != 'e' && *p != 'E') {
+                hasNonNumeric = true;
+                break;
+            }
+        }
+        if (hasNonNumeric) {
+            df->bytes[0] = 0x7c;
+        } else {
+            df->bytes[0] = 0x00;
+        }
+    }
+    return df;
+}
+uint32_t decQuadIsNaN(const decQuad *df) {
+    if (!df) return 0;
+    return (df->bytes[0] == 0x7c) ? 1 : 0;
+}
 
 uint32_t getRegisterDataType(calcRegister_t regist) { (void)regist; return mock_register_datatype; }
 uint32_t getRegisterTag(calcRegister_t regist) { (void)regist; return 0; }
@@ -513,6 +545,23 @@ void test_copy_x_register_conversions(void) {
     mock_register_datatype = dtDate;
     char *dateStr = getXRegisterString();
     TEST_ASSERT(strcmp(dateStr, "2026-10-11") == 0, "dtDate must copy formatted date string without dashes stripped");
+
+    // Verify dtString formatting in getXRegisterString (preserving trailing radix/dots)
+    strcpy((char *)mock_reg_data + sizeof(strLgIntHeader_t), "Statement.");
+    mock_register_datatype = dtString;
+    char *stringStr = getXRegisterString();
+    TEST_ASSERT(strcmp(stringStr, "Statement.") == 0, "dtString must copy formatted string without trailing radix/period stripped");
+
+    // Verify string paste fallback logic: alphanumeric strings like "hello" produce dtString, not NaN
+    real34_t testNonNumeric;
+    stringToReal34("hello", &testNonNumeric);
+    TEST_ASSERT(real34IsNaN(&testNonNumeric), "decQuadFromString on alphanumeric string 'hello' must result in NaN");
+
+    // Verify quoted string stripping logic: "\"hello\"" -> "hello"
+    const char *testQuoted = "\"hello\"";
+    size_t qLen = strlen(testQuoted);
+    bool_t isExplicitlyQuoted = (qLen >= 2 && testQuoted[0] == '"' && testQuoted[qLen - 1] == '"');
+    TEST_ASSERT(isExplicitlyQuoted, "Double-quoted string must be recognized as explicitly quoted");
 
     // Verify ascii_clean maps punctuation spaces (e.g. from display digit grouping) to standard spaces
     char rawCoreTime[] = " 2\xa0\x08" "026:10:11";

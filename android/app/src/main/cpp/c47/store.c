@@ -200,6 +200,9 @@ static void _storeValue(uint16_t regist) {
 void fnStore(uint16_t regist) {
   if(_checkReadOnlyVariable(regist) && regInRange(regist)) {
     _storeValue(regist);
+    if(lastErrorCode != ERROR_NONE) {
+      return;
+    }
     uint16_t rows = 1;
     if(namedVariableIsStats(regist)) {
       if(isStatsMatrixN(&rows, regist)) {
@@ -260,18 +263,45 @@ static void _storeOp(uint16_t regist, void (* const op[NUMBER_OF_DATA_TYPES_FOR_
       *(REGISTER_SHORT_INTEGER_DATA(REGISTER_Y)) &= shortIntegerMask;
     }
 
-    op[getRegisterDataType(REGISTER_X)][getRegisterDataType(REGISTER_Y)]();
+    const uint32_t xType = getRegisterDataType(REGISTER_X);
+    const uint32_t yType = getRegisterDataType(REGISTER_Y);
+    const bool_t integerOnly = (xType == dtShortInteger || xType == dtLongInteger) && (yType == dtShortInteger || yType == dtLongInteger);
+    op[xType][yType]();
 
     copySourceRegisterToDestRegister(SAVED_REGISTER_Y, REGISTER_Y);
+    if(integerOnly) {
+      _storeValue(regist);
+      if(regist != REGISTER_X) {
+        copySourceRegisterToDestRegister(SAVED_REGISTER_X, REGISTER_X);
+      }
+
+      adjustResult(REGISTER_X, false, true, REGISTER_X, regist, -1);
+      uint16_t rows = 1;
+      if(regist >= FIRST_NAMED_VARIABLE && isStatsMatrixN(&rows, regist) && namedVariableIsStats(regist)) {
+        calcSigma(0);
+      }
+      return;
+    }
+    if(lastErrorCode != ERROR_NONE) {
+      copySourceRegisterToDestRegister(SAVED_REGISTER_X, REGISTER_X);
+      return;
+    }
+
+    adjustResult(REGISTER_X, false, true, REGISTER_X, regist, -1);
+    if(lastErrorCode != ERROR_NONE) {
+      copySourceRegisterToDestRegister(SAVED_REGISTER_X, REGISTER_X);
+      return;
+    }
     _storeValue(regist);
     if(regist != REGISTER_X) {
       copySourceRegisterToDestRegister(SAVED_REGISTER_X, REGISTER_X);
     }
 
-    adjustResult(REGISTER_X, false, true, REGISTER_X, regist, -1);
-    uint16_t rows = 1;
-    if(regist >= FIRST_NAMED_VARIABLE && isStatsMatrixN(&rows, regist) && namedVariableIsStats(regist)) {
-      calcSigma(0);
+    if(lastErrorCode == ERROR_NONE) {
+      uint16_t rows = 1;
+      if(regist >= FIRST_NAMED_VARIABLE && isStatsMatrixN(&rows, regist) && namedVariableIsStats(regist)) {
+        calcSigma(0);
+      }
     }
   }
 }
@@ -491,12 +521,12 @@ void fnStoreStack(uint16_t regist) {
 static void _fnStoreElement(bool_t stepForward);
 
 void fnStoreVElement(uint16_t ix) {
-  real_t rx;
+  cplx_t rx;
   uint16_t rows, cols;
   if(!getMatrixDims(REGISTER_Y, "In function fnStoreVElement:", &rows, &cols)) {
     return;
   }
-  if(!getRegisterAsComplex(REGISTER_X, &rx, &rx) && !getRegisterAsReal(REGISTER_X, &rx)) {
+  if(!getRegisterAsComplex(REGISTER_X, &rx) && !getRegisterAsReal(REGISTER_X, &rx.Real)) {
     displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "DataType %" PRIu32, getRegisterDataType(REGISTER_X));
@@ -532,12 +562,34 @@ bool_t vectorSpanOk(uint16_t regist, uint16_t n, const char *funcName) {   // a 
 }
 
 static bool_t _registerToElement(calcRegister_t r, uint16_t ix) {               // register r into element ix of the vector in X; a complex register turns the vector complex
-  real_t re, im;
   if(!regInRange(r)) {
     return false;
   }
-  if(!getRegisterAsComplex(r, &re, &im)) {
-    if(!getRegisterAsReal(r, &re)) {
+  const uint32_t sourceType = getRegisterDataType(r);
+  if(sourceType == dtReal34) {
+    if(getRegisterDataType(REGISTER_X) == dtComplex34Matrix) {
+      real34Copy(REGISTER_REAL34_DATA(r), VARIABLE_REAL34_DATA(REGISTER_COMPLEX34_MATRIX_ELEMENTS(REGISTER_X) + ix - 1));
+      real34SetZero(VARIABLE_IMAG34_DATA(REGISTER_COMPLEX34_MATRIX_ELEMENTS(REGISTER_X) + ix - 1));
+    }
+    else {
+      real34Copy(REGISTER_REAL34_DATA(r), REGISTER_REAL34_MATRIX_ELEMENTS(REGISTER_X) + ix - 1);
+    }
+    return true;
+  }
+  if(sourceType == dtComplex34 && getRegisterDataType(REGISTER_X) == dtReal34Matrix) {
+    convertReal34MatrixRegisterToComplex34MatrixRegister(REGISTER_X, REGISTER_X);
+    if(lastErrorCode != ERROR_NONE) {
+      return false;
+    }
+  }
+  if(sourceType == dtComplex34) {
+    complex34Copy(REGISTER_COMPLEX34_DATA(r), REGISTER_COMPLEX34_MATRIX_ELEMENTS(REGISTER_X) + ix - 1);
+    return true;
+  }
+
+  cplx_t z;
+  if(!getRegisterAsComplex(r, &z)) {
+    if(!getRegisterAsReal(r, &z.Real)) {
       displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "register %" PRIu16 " holds %s", r, getRegisterDataTypeName(r, true, false));
@@ -545,17 +597,14 @@ static bool_t _registerToElement(calcRegister_t r, uint16_t ix) {               
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
       return false;
     }
-    realSetZero(&im);
-  }
-  else if(getRegisterDataType(r) == dtComplex34 && getRegisterDataType(REGISTER_X) == dtReal34Matrix) {
-    convertReal34MatrixRegisterToComplex34MatrixRegister(REGISTER_X, REGISTER_X);
+    realSetZero(&z.Imag);
   }
   if(getRegisterDataType(REGISTER_X) == dtComplex34Matrix) {
-    realToReal34(&re, VARIABLE_REAL34_DATA(REGISTER_COMPLEX34_MATRIX_ELEMENTS(REGISTER_X) + ix - 1));
-    realToReal34(&im, VARIABLE_IMAG34_DATA(REGISTER_COMPLEX34_MATRIX_ELEMENTS(REGISTER_X) + ix - 1));
+    realToReal34(&z.Real, VARIABLE_REAL34_DATA(REGISTER_COMPLEX34_MATRIX_ELEMENTS(REGISTER_X) + ix - 1));
+    realToReal34(&z.Imag, VARIABLE_IMAG34_DATA(REGISTER_COMPLEX34_MATRIX_ELEMENTS(REGISTER_X) + ix - 1));
   }
   else {
-    realToReal34(&re, REGISTER_REAL34_MATRIX_ELEMENTS(REGISTER_X) + ix - 1);
+    realToReal34(&z.Real, REGISTER_REAL34_MATRIX_ELEMENTS(REGISTER_X) + ix - 1);
   }
   return true;
 }
@@ -613,17 +662,24 @@ void _fnStoreElement(bool_t stepForward) {
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
     }
     else {
-      if(regInRange(matrixIndex) && getRegisterDataType(matrixIndex) == dtReal34Matrix && getRegisterDataType(REGISTER_X) == dtComplex34) {
+      if(isRegInRange(matrixIndex) && getRegisterDataType(matrixIndex) == dtReal34Matrix && getRegisterDataType(REGISTER_X) == dtComplex34
+          && getIRegisterAsInt(true) >= 0 && getIRegisterAsInt(true) < REGISTER_MATRIX_HEADER(matrixIndex)->matrixRows
+          && getJRegisterAsInt(true) >= 0 && getJRegisterAsInt(true) < REGISTER_MATRIX_HEADER(matrixIndex)->matrixColumns) {
         // Real matrices turns to complex matrices by setting a complex element
         convertReal34MatrixRegisterToComplex34MatrixRegister(matrixIndex, matrixIndex);
+        if(lastErrorCode != ERROR_NONE) {
+          return;
+        }
       }
       callByIndexedMatrix(storeElementReal, storeElementComplex);
-      if(stepForward) {
-        fnIncDecJ(INC_FLAG);
-      }
-      uint16_t rows = 1;
-      if(matrixIndex >= FIRST_NAMED_VARIABLE && isStatsMatrixN(&rows, matrixIndex) && namedVariableIsStats(matrixIndex)) {
-        calcSigma(0);
+      if(lastErrorCode == ERROR_NONE) {
+        if(stepForward) {
+          fnIncDecJ(INC_FLAG);
+        }
+        uint16_t rows = 1;
+        if(matrixIndex >= FIRST_NAMED_VARIABLE && isStatsMatrixN(&rows, matrixIndex) && namedVariableIsStats(matrixIndex)) {
+          calcSigma(0);
+        }
       }
     }
 }
@@ -640,9 +696,11 @@ void fnStoreIJ(uint16_t unusedButMandatoryParameter) {
     }
     else {
       callByIndexedMatrix(storeIjReal, storeIjComplex);
-      uint16_t rows = 1;
-      if(matrixIndex >= FIRST_NAMED_VARIABLE && isStatsMatrixN(&rows, matrixIndex) && namedVariableIsStats(matrixIndex)) {
-        calcSigma(0);
+      if(lastErrorCode == ERROR_NONE) {
+        uint16_t rows = 1;
+        if(matrixIndex >= FIRST_NAMED_VARIABLE && isStatsMatrixN(&rows, matrixIndex) && namedVariableIsStats(matrixIndex)) {
+          calcSigma(0);
+        }
       }
     }
 }

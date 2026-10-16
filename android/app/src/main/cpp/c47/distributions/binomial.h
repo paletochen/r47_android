@@ -17,4 +17,7 @@
   void WP34S_Cdf_Binomial (const real_t *x, const real_t *p0, const real_t *n, real_t *res, realContext_t *realContext);
   void WP34S_Cdf_Binomial2(const real_t *x, const real_t *p0, const real_t *n, real_t *res, realContext_t *realContext);
   void WP34S_Qf_Binomial  (const real_t *x, const real_t *p0, const real_t *n, real_t *res, realContext_t *realContext);
+  #if defined(OPTION_DIST_BINOM)
+  bool_t binomialCheckDomain(bool_t registersValid, real_t *x, real_t *first, real_t *second, real_t *third, uint16_t parameter);
+  #endif // OPTION_DIST_BINOM
 #endif // !BINOMIAL_H

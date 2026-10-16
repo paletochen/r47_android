@@ -29,8 +29,13 @@ static bool_t deltaPercentReal(real_t *xReal, real_t *yReal, real_t *rReal, real
   }
   else if(realIsZero(yReal)) {
     if(getSystemFlag(FLAG_SPCRES)) {
-      realSetPlusInfinity(rReal);
-      rReal->bits |= DECNEG*realIsZero(xReal);
+      if(realIsNaN(xReal)) {
+        realSetNaN(rReal);
+      }
+      else {
+        realSetPlusInfinity(rReal);
+        rReal->bits |= DECNEG*(realIsNegative(xReal) != realIsNegative(yReal));
+      }
     }
     else {
       displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
@@ -49,6 +54,28 @@ static bool_t deltaPercentReal(real_t *xReal, real_t *yReal, real_t *rReal, real
   return true;
 }
 
+
+
+static bool_t deltaPercentExactRegisters(real34_t *result) {
+  int32_t xExponent, yExponent, differenceExponent;
+  longInteger_t x, y, difference;
+
+  if(!convertRegisterToScaledLongInteger(REGISTER_X, x, &xExponent)) {
+    return false;
+  }
+  if(!convertRegisterToScaledLongInteger(REGISTER_Y, y, &yExponent)) {
+    longIntegerFree(x);
+    return false;
+  }
+
+  addSubtractScaledLongIntegers(x, xExponent, y, yExponent, true, difference, &differenceExponent);
+  const bool_t ok = divideScaledLongIntegersToReal34(difference, differenceExponent + 2, false, y, yExponent, result);
+  longIntegerFree(difference);
+  longIntegerFree(y);
+  longIntegerFree(x);
+  return ok;
+}
+
 //=============================================================================
 // Main function
 //-----------------------------------------------------------------------------
@@ -64,8 +91,13 @@ static bool_t deltaPercentReal(real_t *xReal, real_t *yReal, real_t *rReal, real
 void fnDeltaPercent(uint16_t unusedButMandatoryParameter) {
   real_t xReal, yReal;
   real_t rReal;
+  real34_t exactResult;
+  const uint32_t typeX = getRegisterDataType(REGISTER_X);
+  const uint32_t typeY = getRegisterDataType(REGISTER_Y);
+  const bool_t exactQuotient = (typeX == dtLongInteger || typeY == dtLongInteger)
+                               && deltaPercentExactRegisters(&exactResult);
 
-  if(!getRegisterAsReal(REGISTER_X, &xReal) || !getRegisterAsReal(REGISTER_Y, &yReal)) {
+  if(!exactQuotient && (!getRegisterAsReal(REGISTER_X, &xReal) || !getRegisterAsReal(REGISTER_Y, &yReal))) {
     return;
   }
 
@@ -73,11 +105,15 @@ void fnDeltaPercent(uint16_t unusedButMandatoryParameter) {
     return;
   }
 
-  realSetZero(&rReal);
-  deltaPercentReal(&xReal, &yReal, &rReal, &ctxtReal39);
-
   reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-  convertRealToReal34ResultRegister(&rReal, REGISTER_X);
+  if(exactQuotient) {
+    real34Copy(&exactResult, REGISTER_REAL34_DATA(REGISTER_X));
+  }
+  else {
+    realSetZero(&rReal);
+    deltaPercentReal(&xReal, &yReal, &rReal, &ctxtReal39);
+    convertRealToReal34ResultRegister(&rReal, REGISTER_X);
+  }
   setRegisterAngularMode(REGISTER_X, amNone);
   adjustResult(REGISTER_X, false, true, REGISTER_X, -1, -1);
 

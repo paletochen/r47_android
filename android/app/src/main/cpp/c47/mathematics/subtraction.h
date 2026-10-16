@@ -8,7 +8,10 @@
   #define SUBTRACTION_H
 
   void fnSubtract (uint16_t unusedButMandatoryParameter);
-  void subComplex(const real_t *aReal, const real_t *aImag, const real_t *bReal, const real_t *bImag, real_t *resReal, real_t *resImag, realContext_t *realContext);
+  void subComplex(const cplx_t *a, const cplx_t *b, cplx_t *res, realContext_t *realContext);
+  #if defined(OPTION_CUBIC_159) || defined(OPTION_SQUARE_159) || defined(OPTION_EIGEN_159)
+    void subComplex159(const cplx159_t *a, const cplx159_t *b, cplx159_t *res, realContext_t *realContext);
+  #endif // OPTION_CUBIC_159 || OPTION_SQUARE_159 || OPTION_EIGEN_159
 
   #if (EXTRA_INFO_ON_CALC_ERROR == 1)
     void subError   (void);

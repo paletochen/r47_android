@@ -8,4 +8,5 @@
   #define MODULO_H
 
   void fnMod(uint16_t unusedButMandatoryParameter);
+  void integerRemainder(bool_t floorMod, bool_t shortResult);   // the body MOD and RMD share over two integers
 #endif // !MODULO_H

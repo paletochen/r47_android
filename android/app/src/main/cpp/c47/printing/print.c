@@ -832,13 +832,16 @@ static void _realStringToPrint(char *realString, int16_t max_len) {
 // Fit a real in a string for printing
 //
 
-static void _real34ToPrintString(real34_t *real34, uint16_t amMode, char *realString, int16_t maxWidth) {
+#define PRINTER_REAL_DIGITS             16
+#define PRINTER_POLAR_COMPUTE_DIGITS    (PRINTER_REAL_DIGITS + 2) // magnitude and argument use two guard digits
+
+static void _real34ToPrintString(const real34_t *real34, uint16_t amMode, char *realString, int16_t maxWidth) {
   uint8_t grpGroupingLeftOld  = grpGroupingLeft;
   uint8_t grpGroupingRightOld = grpGroupingRight;
 
   grpGroupingLeft  = 0;
   grpGroupingRight = 0;
-  real34ToDisplayString(real34, amMode, realString, &standardFont, maxWidth, 16, true, false, true);
+  real34ToDisplayString(real34, amMode, realString, &standardFont, maxWidth, PRINTER_REAL_DIGITS, true, false, true);
   grpGroupingRight = grpGroupingRightOld;
   grpGroupingLeft  = grpGroupingLeftOld;
   uint16_t i, j;
@@ -936,25 +939,24 @@ static void _real34ToPrintString(real34_t *real34, uint16_t amMode, char *realSt
 // Fit a complex in a string for printing
 //
 
-static void _complex34ToPrintString(real34_t *registReal34, real34_t *registImag34, uint16_t tagAngle, uint16_t tagPolar, char *realString) {
+static void _complex34ToPrintString(const real34_t *registReal34, const real34_t *registImag34, uint16_t tagAngle, uint16_t tagPolar, char *realString) {
   int16_t max_len = 17;
-  real_t real, imagIc;
+  cplx_t z;
   real34_t real34, imag34;
 
   if(tagPolar) {  // polar mode
     temporaryFlagPolar = true;
-    real34ToReal(registReal34, &real);
-    real34ToReal(registImag34, &imagIc);
+    real34ToReal(registReal34, &z.Real);
+    real34ToReal(registImag34, &z.Imag);
 
-    decContext c = ctxtReal39;
-    int maxExponent = max(real.exponent + real.digits, imagIc.exponent + imagIc.digits);
-    c.digits = (SHOWMODE ? 39 : max(0, maxExponent) + NUMBER_OF_DISPLAY_REAL_CONTEXT_DIGITS + 2); //add 2 guard digits for Taylor etc.
-    realRectangularToPolar(&real, &imagIc, &real, &imagIc, &c); // imagIc in radian
-    c.digits = (SHOWMODE ? 39 : 3 + NUMBER_OF_DISPLAY_REAL_CONTEXT_DIGITS); //converting from radians to grad is the worst, i.e. x 2E2 / pi, which requires 3 digits accuarcy more
-    convertAngleFromTo(&imagIc, amRadian, tagAngle, &c);
+    realContext_t c = ctxtReal39;
+    c.digits = PRINTER_POLAR_COMPUTE_DIGITS;
+    realRectangularToPolar(&z, &z.Mag, &z.Arg, &c);             // imagIc in radian
+    tagAngle = tagAngle == amNone ? currentAngularMode : tagAngle;
+    convertAngleFromTo(&z.Arg, amRadian, tagAngle, &c);
 
-    realToReal34(&real, &real34);
-    realToReal34(&imagIc, &imag34);
+    realToReal34(&z.Mag, &real34);
+    realToReal34(&z.Arg, &imag34);
   }
   else { // rectangular mode
     real34Copy(registReal34, &real34);
@@ -962,25 +964,35 @@ static void _complex34ToPrintString(real34_t *registReal34, real34_t *registImag
   }
 
   // Real part
-  _real34ToPrintString(&real34, amNone, tmpString, max_len * 9);
-  _realStringToPrint(tmpString, max_len);                 // Adjust the real part lenght (same as a standard real)
+  _real34ToPrintString(&real34, amNone, realString, max_len * 9);
+  _realStringToPrint(realString, max_len);                 // Adjust the real part lenght (same as a standard real)
 
   // Separator
   if(tagPolar) {
-    strcat(tmpString, STD_MEASURED_ANGLE);
-    tagAngle = (tagAngle == amNone ? currentAngularMode : tagAngle);
+    strcat(realString, STD_MEASURED_ANGLE);
   }
   else {
-    strcat(tmpString, "+i");
-    strcat(tmpString, PRODUCT_SIGN);
+    strcat(realString, "+i");
+    strcat(realString, PRODUCT_SIGN);
     tagAngle = amNone;
   }
 
   // Imaginary part
-  char * imaginaryPart = tmpString + strlen(tmpString);
+  char * imaginaryPart = realString + strlen(realString);
   _real34ToPrintString(&imag34, tagAngle, imaginaryPart, max_len * 9);
   _realStringToPrint(imaginaryPart, max_len + (tagPolar ? 1 : 0));             // Adjust the imaginary part length
 }
+
+#if defined(TESTSUITE_BUILD)
+void printerReal34ToStringForTest(const real34_t *real34, char *realString) {
+  _real34ToPrintString(real34, amNone, realString, 17 * 9);
+  _realStringToPrint(realString, 17);
+}
+
+void printerComplex34ToStringForTest(const real34_t *real34, const real34_t *imag34, uint16_t tagAngle, uint16_t tagPolar, char *realString) {
+  _complex34ToPrintString(real34, imag34, tagAngle, tagPolar, realString);
+}
+#endif // TESTSUITE_BUILD
 
 //
 //  Pad the value already built in tmpString and send it to the paper
@@ -2626,4 +2638,3 @@ void fnP_PrintAllItems (uint16_t unusedButMandatoryParameter) {
     }
   #endif //PC_BUILD && OPTION_IR_PRINTING
 }
-

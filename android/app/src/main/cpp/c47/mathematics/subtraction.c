@@ -25,6 +25,23 @@ TO_QSPI void (* const subtraction[NUMBER_OF_DATA_TYPES_FOR_CALCULATIONS][NUMBER_
 };
 
 
+static void subtractLongIntegerMatrixElement(calcRegister_t integerRegister, const real_t *integer, bool_t integerFirst, real34_t *element) {
+  if(!addSubtractLongIntegerReal34(integerRegister, element, integerFirst, true, element)) {
+    real_t value;
+
+    real34ToReal(element, &value);
+    if(integerFirst) {
+      realSubtract(integer, &value, &value, &ctxtReal39);
+    }
+    else {
+      realSubtract(&value, integer, &value, &ctxtReal39);
+    }
+    roundToSignificantDigits(&value, &value, significantDigits == 0 ? 34 : significantDigits, &ctxtReal39);
+    realToReal34(&value, element);
+  }
+}
+
+
 
 /********************************************//**
  * \brief Data type error in subtraction
@@ -73,17 +90,7 @@ void fnSubtract(uint16_t unusedButMandatoryParameter) {
  * \return void
  ***********************************************/
 void subLonILonI(void) {
-  longInteger_t y, x;
-
-  convertLongIntegerRegisterToLongInteger(REGISTER_Y, y);
-  convertLongIntegerRegisterToLongInteger(REGISTER_X, x);
-
-  longIntegerSubtract(y, x, x);
-
-  convertLongIntegerToLongIntegerRegister(x, REGISTER_X);
-
-  longIntegerFree(y);
-  longIntegerFree(x);
+  addSubIntInt(longIntegerSubtract, convertLongIntegerRegisterToLongInteger, convertLongIntegerRegisterToLongInteger);
 }
 
 
@@ -95,8 +102,7 @@ void subLonILonI(void) {
  * \return void
  ***********************************************/
 void subLonITime(void) {
-  convertLongIntegerRegisterToTimeRegister(REGISTER_Y, REGISTER_Y);
-  real34Subtract(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X));
+  addSubTimeLonI(real34SubtractOp, REGISTER_Y);
 }
 
 
@@ -108,8 +114,7 @@ void subLonITime(void) {
  * \return void
  ***********************************************/
 void subTimeLonI(void) {
-  convertLongIntegerRegisterToTimeRegister(REGISTER_X, REGISTER_X);
-  real34Subtract(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X));
+  addSubTimeLonI(real34SubtractOp, REGISTER_X);
 }
 
 
@@ -121,11 +126,7 @@ void subTimeLonI(void) {
  * \return void
  ***********************************************/
 void subDateLonI(void) {
-  real34_t val;
-  convertLongIntegerRegisterToReal34Register(REGISTER_X, REGISTER_X);
-  real34Multiply(REGISTER_REAL34_DATA(REGISTER_X), const34_86400, &val);
-  reallocateRegister(REGISTER_X, dtDate, 0, amNone);
-  real34Subtract(REGISTER_REAL34_DATA(REGISTER_Y), &val, REGISTER_REAL34_DATA(REGISTER_X));
+  addSubDateLonI(real34SubtractOp);
 }
 
 
@@ -137,17 +138,7 @@ void subDateLonI(void) {
  * \return void
  ***********************************************/
 void subLonIShoI(void) {
-  longInteger_t y, x;
-
-  convertLongIntegerRegisterToLongInteger(REGISTER_Y, y);
-  convertShortIntegerRegisterToLongInteger(REGISTER_X, x);
-
-  longIntegerSubtract(y, x, x);
-
-  convertLongIntegerToLongIntegerRegister(x, REGISTER_X);
-
-  longIntegerFree(y);
-  longIntegerFree(x);
+  addSubIntInt(longIntegerSubtract, convertLongIntegerRegisterToLongInteger, convertShortIntegerRegisterToLongInteger);
 }
 
 
@@ -159,17 +150,7 @@ void subLonIShoI(void) {
  * \return void
  ***********************************************/
 void subShoILonI(void) {
-  longInteger_t y, x;
-
-  convertShortIntegerRegisterToLongInteger(REGISTER_Y, y);
-  convertLongIntegerRegisterToLongInteger(REGISTER_X, x);
-
-  longIntegerSubtract(y, x, x);
-
-  convertLongIntegerToLongIntegerRegister(x, REGISTER_X);
-
-  longIntegerFree(y);
-  longIntegerFree(x);
+  addSubIntInt(longIntegerSubtract, convertShortIntegerRegisterToLongInteger, convertLongIntegerRegisterToLongInteger);
 }
 
 
@@ -181,23 +162,7 @@ void subShoILonI(void) {
  * \return void
  ***********************************************/
 void subLonIReal(void) {
-  real_t y, x;
-  angularMode_t xAngularMode;
-
-  convertLongIntegerRegisterToReal(REGISTER_Y, &y, &ctxtReal39);
-  real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &x);
-  xAngularMode = getRegisterAngularMode(REGISTER_X);
-
-  if(xAngularMode == amNone) {
-    realSubtract(&y, &x, &x, &ctxtReal39);
-    convertRealToReal34ResultRegister(&x, REGISTER_X);
-  }
-  else {
-    convertAngleFromTo(&x, xAngularMode, currentAngularMode, &ctxtReal39);
-    realSubtract(&y, &x, &x, &ctxtReal39);
-    convertRealToReal34ResultRegister(&x, REGISTER_X);
-    setRegisterAngularMode(REGISTER_X, currentAngularMode);
-  }
+  lonIRealOp(subFastLonIReal, realSubtractOp);
 }
 
 
@@ -209,24 +174,7 @@ void subLonIReal(void) {
  * \return void
  ***********************************************/
 void subRealLonI(void) {
-  real_t y, x;
-  angularMode_t yAngularMode;
-
-  real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &y);
-  yAngularMode = getRegisterAngularMode(REGISTER_Y);
-  convertLongIntegerRegisterToReal(REGISTER_X, &x, &ctxtReal39);
-  reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-
-  if(yAngularMode == amNone) {
-    realSubtract(&y, &x, &x, &ctxtReal39);
-    convertRealToReal34ResultRegister(&x, REGISTER_X);
-  }
-  else {
-    convertAngleFromTo(&y, yAngularMode, currentAngularMode, &ctxtReal39);
-    realSubtract(&y, &x, &x, &ctxtReal39);
-    convertRealToReal34ResultRegister(&x, REGISTER_X);
-    setRegisterAngularMode(REGISTER_X, currentAngularMode);
-  }
+  realLonIOp(subFastLonIReal, realSubtractOp);
 }
 
 
@@ -240,12 +188,12 @@ void subRealLonI(void) {
 void subLonICplx(void) {
   real_t a, c;
 
-  convertLongIntegerRegisterToReal(REGISTER_Y, &a, &ctxtReal39);
-  real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &c);
-
-  realSubtract(&a, &c, &c, &ctxtReal39);
-
-  convertRealToReal34ResultRegister(&c, REGISTER_X);
+  if(!addSubtractLongIntegerReal34(REGISTER_Y, REGISTER_REAL34_DATA(REGISTER_X), true, true, REGISTER_REAL34_DATA(REGISTER_X))) {
+    convertLongIntegerRegisterToReal(REGISTER_Y, &a, &ctxtReal39);
+    real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &c);
+    realSubtract(&a, &c, &c, &ctxtReal39);
+    convertRealToReal34ResultRegister(&c, REGISTER_X);
+  }
   real34ChangeSign(REGISTER_IMAG34_DATA(REGISTER_X));
 
 }
@@ -260,16 +208,20 @@ void subLonICplx(void) {
  ***********************************************/
 void subCplxLonI(void) {
   real_t a, c;
-  real34_t b;
+  real34_t b, result;
 
-  real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &a);
   real34Copy(REGISTER_IMAG34_DATA(REGISTER_Y), &b);
-  convertLongIntegerRegisterToReal(REGISTER_X, &c, &ctxtReal39);
-
-  realSubtract(&a, &c, &c, &ctxtReal39);
-
-  reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
-  convertRealToReal34ResultRegister(&c, REGISTER_X);
+  if(addSubtractLongIntegerReal34(REGISTER_X, REGISTER_REAL34_DATA(REGISTER_Y), false, true, &result)) {
+    reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
+    real34Copy(&result, REGISTER_REAL34_DATA(REGISTER_X));
+  }
+  else {
+    real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &a);
+    convertLongIntegerRegisterToReal(REGISTER_X, &c, &ctxtReal39);
+    realSubtract(&a, &c, &c, &ctxtReal39);
+    reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
+    convertRealToReal34ResultRegister(&c, REGISTER_X);
+  }
   real34Copy(&b, REGISTER_IMAG34_DATA(REGISTER_X));
 
 }
@@ -391,7 +343,7 @@ void subDateReal(void) {
  ***********************************************/
 void subRemaLonI(void) {
   real34Matrix_t ym;
-  real_t y, x;
+  real_t x;
 
   linkToRealMatrixRegister(REGISTER_Y, &ym);
 
@@ -401,10 +353,7 @@ void subRemaLonI(void) {
 
   convertLongIntegerRegisterToReal(REGISTER_X, &x, &ctxtReal39);
   for(i = 0; i < cols * rows; ++i) {
-    real34ToReal(&ym.matrixElements[i], &y);
-    realSubtract(&y, &x, &y, &ctxtReal39);
-    roundToSignificantDigits(&y, &y, significantDigits == 0 ? 34 : significantDigits, &ctxtReal39);
-    realToReal34(&y, &ym.matrixElements[i]);
+    subtractLongIntegerMatrixElement(REGISTER_X, &x, false, &ym.matrixElements[i]);
   }
   fnSwapXY(NOPARAM);
 }
@@ -419,7 +368,7 @@ void subRemaLonI(void) {
  ***********************************************/
 void subLonIRema(void) {
   real34Matrix_t xm;
-  real_t y, x;
+  real_t y;
 
   linkToRealMatrixRegister(REGISTER_X, &xm);
 
@@ -429,10 +378,7 @@ void subLonIRema(void) {
 
   convertLongIntegerRegisterToReal(REGISTER_Y, &y, &ctxtReal39);
   for(i = 0; i < cols * rows; ++i) {
-    real34ToReal(&xm.matrixElements[i], &x);
-    realSubtract(&y, &x, &x, &ctxtReal39);
-    roundToSignificantDigits(&x, &x, significantDigits == 0 ? 34 : significantDigits, &ctxtReal39);
-    realToReal34(&x, &xm.matrixElements[i]);
+    subtractLongIntegerMatrixElement(REGISTER_Y, &y, true, &xm.matrixElements[i]);
   }
 }
 
@@ -511,23 +457,8 @@ void subCxmaRema(void) {
  * \return void
  ***********************************************/
 void subRemaShoI(void) {
-  real34Matrix_t ym;
-  real_t y, x;
-
-  linkToRealMatrixRegister(REGISTER_Y, &ym);
-
-  const uint16_t rows = ym.header.matrixRows;
-  const uint16_t cols = ym.header.matrixColumns;
-  int32_t i;
-
-  convertShortIntegerRegisterToReal(REGISTER_X, &x, &ctxtReal39);
-  for(i = 0; i < cols * rows; ++i) {
-    real34ToReal(&ym.matrixElements[i], &y);
-    realSubtract(&y, &x, &y, &ctxtReal39);
-    roundToSignificantDigits(&y, &y, significantDigits == 0 ? 34 : significantDigits, &ctxtReal39);
-    realToReal34(&y, &ym.matrixElements[i]);
-  }
-  fnSwapXY(NOPARAM);
+  convertShortIntegerRegisterToReal34Register(REGISTER_X, REGISTER_X);
+  subRemaReal();
 }
 
 
@@ -539,22 +470,8 @@ void subRemaShoI(void) {
  * \return void
  ***********************************************/
 void subShoIRema(void) {
-  real34Matrix_t xm;
-  real_t y, x;
-
-  linkToRealMatrixRegister(REGISTER_X, &xm);
-
-  const uint16_t rows = xm.header.matrixRows;
-  const uint16_t cols = xm.header.matrixColumns;
-  int32_t i;
-
-  convertShortIntegerRegisterToReal(REGISTER_Y, &y, &ctxtReal39);
-  for(i = 0; i < cols * rows; ++i) {
-    real34ToReal(&xm.matrixElements[i], &x);
-    realSubtract(&y, &x, &x, &ctxtReal39);
-    roundToSignificantDigits(&x, &x, significantDigits == 0 ? 34 : significantDigits, &ctxtReal39);
-    realToReal34(&x, &xm.matrixElements[i]);
-  }
+  convertShortIntegerRegisterToReal34Register(REGISTER_Y, REGISTER_Y);
+  subRealRema();
 }
 
 
@@ -566,25 +483,7 @@ void subShoIRema(void) {
  * \return void
  ***********************************************/
 void subRemaReal(void) {
-  real34Matrix_t y;
-  angularMode_t xAngularMode;
-
-  linkToRealMatrixRegister(REGISTER_Y, &y);
-  xAngularMode = getRegisterAngularMode(REGISTER_X);
-
-  if(xAngularMode == amNone) {
-    const uint16_t rows = y.header.matrixRows;
-    const uint16_t cols = y.header.matrixColumns;
-    int32_t i;
-
-    for(i = 0; i < cols * rows; ++i) {
-      real34Subtract(&y.matrixElements[i], REGISTER_REAL34_DATA(REGISTER_X), &y.matrixElements[i]);
-    }
-    fnSwapXY(NOPARAM);
-  }
-  else {
-    elementwiseRemaReal(subRealReal);
-  }
+  addSubRemaReal(real34SubtractOp, subRealReal);
 }
 
 
@@ -596,24 +495,7 @@ void subRemaReal(void) {
  * \return void
  ***********************************************/
 void subRealRema(void) {
-  real34Matrix_t x;
-  angularMode_t yAngularMode;
-
-  linkToRealMatrixRegister(REGISTER_X, &x);
-  yAngularMode = getRegisterAngularMode(REGISTER_Y);
-
-  if(yAngularMode == amNone) {
-    const uint16_t rows = x.header.matrixRows;
-    const uint16_t cols = x.header.matrixColumns;
-    int32_t i;
-
-    for(i = 0; i < cols * rows; ++i) {
-      real34Subtract(REGISTER_REAL34_DATA(REGISTER_Y), &x.matrixElements[i], &x.matrixElements[i]);
-    }
-  }
-  else {
-    elementwiseRealRema(subRealReal);
-  }
+  addSubRealRema(real34SubtractOp, subRealReal);
 }
 
 
@@ -662,7 +544,7 @@ void subCplxRema(void) {
  ***********************************************/
 void subCxmaLonI(void) {
   complex34Matrix_t ym;
-  real_t y, x;
+  real_t x;
 
   linkToComplexMatrixRegister(REGISTER_Y, &ym);
 
@@ -672,10 +554,7 @@ void subCxmaLonI(void) {
 
   convertLongIntegerRegisterToReal(REGISTER_X, &x, &ctxtReal39);
   for(i = 0; i < cols * rows; ++i) {
-    real34ToReal(VARIABLE_REAL34_DATA(&ym.matrixElements[i]), &y);
-    realSubtract(&y, &x, &y, &ctxtReal39);
-    roundToSignificantDigits(&y, &y, significantDigits == 0 ? 34 : significantDigits, &ctxtReal39);
-    realToReal34(&y, VARIABLE_REAL34_DATA(&ym.matrixElements[i]));
+    subtractLongIntegerMatrixElement(REGISTER_X, &x, false, VARIABLE_REAL34_DATA(&ym.matrixElements[i]));
   }
   fnSwapXY(NOPARAM);
 }
@@ -690,7 +569,7 @@ void subCxmaLonI(void) {
  ***********************************************/
 void subLonICxma(void) {
   complex34Matrix_t xm;
-  real_t y, x;
+  real_t y;
 
   linkToComplexMatrixRegister(REGISTER_X, &xm);
 
@@ -700,10 +579,7 @@ void subLonICxma(void) {
 
   convertLongIntegerRegisterToReal(REGISTER_Y, &y, &ctxtReal39);
   for(i = 0; i < cols * rows; ++i) {
-    real34ToReal(VARIABLE_REAL34_DATA(&xm.matrixElements[i]), &x);
-    realSubtract(&y, &x, &x, &ctxtReal39);
-    roundToSignificantDigits(&x, &x, significantDigits == 0 ? 34 : significantDigits, &ctxtReal39);
-    realToReal34(&x, VARIABLE_REAL34_DATA(&xm.matrixElements[i]));
+    subtractLongIntegerMatrixElement(REGISTER_Y, &y, true, VARIABLE_REAL34_DATA(&xm.matrixElements[i]));
     real34ChangeSign(VARIABLE_IMAG34_DATA(&xm.matrixElements[i]));
   }
 }
@@ -751,23 +627,8 @@ void subCxmaCxma(void) {
  * \return void
  ***********************************************/
 void subCxmaShoI(void) {
-  complex34Matrix_t ym;
-  real_t y, x;
-
-  linkToComplexMatrixRegister(REGISTER_Y, &ym);
-
-  const uint16_t rows = ym.header.matrixRows;
-  const uint16_t cols = ym.header.matrixColumns;
-  int32_t i;
-
-  convertShortIntegerRegisterToReal(REGISTER_X, &x, &ctxtReal39);
-  for(i = 0; i < cols * rows; ++i) {
-    real34ToReal(VARIABLE_REAL34_DATA(&ym.matrixElements[i]), &y);
-    realSubtract(&y, &x, &y, &ctxtReal39);
-    roundToSignificantDigits(&y, &y, significantDigits == 0 ? 34 : significantDigits, &ctxtReal39);
-    realToReal34(&y, VARIABLE_REAL34_DATA(&ym.matrixElements[i]));
-  }
-  fnSwapXY(NOPARAM);
+  convertShortIntegerRegisterToReal34Register(REGISTER_X, REGISTER_X);
+  subCxmaReal();
 }
 
 
@@ -779,23 +640,8 @@ void subCxmaShoI(void) {
  * \return void
  ***********************************************/
 void subShoICxma(void) {
-  complex34Matrix_t xm;
-  real_t y, x;
-
-  linkToComplexMatrixRegister(REGISTER_X, &xm);
-
-  const uint16_t rows = xm.header.matrixRows;
-  const uint16_t cols = xm.header.matrixColumns;
-  int32_t i;
-
-  convertShortIntegerRegisterToReal(REGISTER_Y, &y, &ctxtReal39);
-  for(i = 0; i < cols * rows; ++i) {
-    real34ToReal(VARIABLE_REAL34_DATA(&xm.matrixElements[i]), &x);
-    realSubtract(&y, &x, &x, &ctxtReal39);
-    roundToSignificantDigits(&x, &x, significantDigits == 0 ? 34 : significantDigits, &ctxtReal39);
-    realToReal34(&x, VARIABLE_REAL34_DATA(&xm.matrixElements[i]));
-    real34ChangeSign(VARIABLE_IMAG34_DATA(&xm.matrixElements[i]));
-  }
+  convertShortIntegerRegisterToReal34Register(REGISTER_Y, REGISTER_Y);
+  subRealCxma();
 }
 
 
@@ -807,25 +653,7 @@ void subShoICxma(void) {
  * \return void
  ***********************************************/
 void subCxmaReal(void) {
-  complex34Matrix_t y;
-  angularMode_t xAngularMode;
-
-  linkToComplexMatrixRegister(REGISTER_Y, &y);
-  xAngularMode = getRegisterAngularMode(REGISTER_X);
-
-  if(xAngularMode == amNone) {
-    const uint16_t rows = y.header.matrixRows;
-    const uint16_t cols = y.header.matrixColumns;
-    int32_t i;
-
-    for(i = 0; i < cols * rows; ++i) {
-      real34Subtract(VARIABLE_REAL34_DATA(&y.matrixElements[i]), REGISTER_REAL34_DATA(REGISTER_X), VARIABLE_REAL34_DATA(&y.matrixElements[i]));
-    }
-    fnSwapXY(NOPARAM);
-  }
-  else {
-    elementwiseCxmaReal(subCplxReal);
-  }
+  addSubCxmaReal(real34SubtractOp, subCplxReal);
 }
 
 
@@ -867,19 +695,7 @@ void subRealCxma(void) {
  * \return void
  ***********************************************/
 void subCxmaCplx(void) {
-  complex34Matrix_t y;
-
-  linkToComplexMatrixRegister(REGISTER_Y, &y);
-
-  const uint16_t rows = y.header.matrixRows;
-  const uint16_t cols = y.header.matrixColumns;
-  int32_t i;
-
-  for(i = 0; i < cols * rows; ++i) {
-    real34Subtract(VARIABLE_REAL34_DATA(&y.matrixElements[i]), REGISTER_REAL34_DATA(REGISTER_X), VARIABLE_REAL34_DATA(&y.matrixElements[i]));
-    real34Subtract(VARIABLE_IMAG34_DATA(&y.matrixElements[i]), REGISTER_IMAG34_DATA(REGISTER_X), VARIABLE_IMAG34_DATA(&y.matrixElements[i]));
-  }
-  fnSwapXY(NOPARAM);
+  addSubCxmaCplx(real34SubtractOp);
 }
 
 
@@ -891,18 +707,7 @@ void subCxmaCplx(void) {
  * \return void
  ***********************************************/
 void subCplxCxma(void) {
-  complex34Matrix_t x;
-
-  linkToComplexMatrixRegister(REGISTER_X, &x);
-
-  const uint16_t rows = x.header.matrixRows;
-  const uint16_t cols = x.header.matrixColumns;
-  int32_t i;
-
-  for(i = 0; i < cols * rows; ++i) {
-    real34Subtract(REGISTER_REAL34_DATA(REGISTER_Y), VARIABLE_REAL34_DATA(&x.matrixElements[i]), VARIABLE_REAL34_DATA(&x.matrixElements[i]));
-    real34Subtract(REGISTER_IMAG34_DATA(REGISTER_Y), VARIABLE_IMAG34_DATA(&x.matrixElements[i]), VARIABLE_IMAG34_DATA(&x.matrixElements[i]));
-  }
+  addSubCplxCxma(real34SubtractOp);
 }
 
 
@@ -931,17 +736,17 @@ void subShoIShoI(void) {
  * \return void
  ***********************************************/
 void subShoIReal(void) {
-  real_t y, x;
   angularMode_t xAngularMode = getRegisterAngularMode(REGISTER_X);
 
-  convertShortIntegerRegisterToReal(REGISTER_Y, &y, &ctxtReal39);
-  real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &x);
-
   if(xAngularMode == amNone) {
-    realSubtract(&y, &x, &x, &ctxtReal39);
-    convertRealToReal34ResultRegister(&x, REGISTER_X);
+    convertShortIntegerRegisterToReal34Register(REGISTER_Y, REGISTER_Y);
+    real34Subtract(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X));
   }
   else {
+    real_t y, x;
+
+    convertShortIntegerRegisterToReal(REGISTER_Y, &y, &ctxtReal39);
+    real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &x);
     convertAngleFromTo(&x, xAngularMode, currentAngularMode, &ctxtReal39);
     realSubtract(&y, &x, &x, &ctxtReal39);
     convertRealToReal34ResultRegister(&x, REGISTER_X);
@@ -958,18 +763,18 @@ void subShoIReal(void) {
  * \return void
  ***********************************************/
 void subRealShoI(void) {
-  real_t y, x;
   angularMode_t yAngularMode = getRegisterAngularMode(REGISTER_Y);
 
-  real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &y);
-  convertShortIntegerRegisterToReal(REGISTER_X, &x, &ctxtReal39);
-  reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-
   if(yAngularMode == amNone) {
-    realSubtract(&y, &x, &x, &ctxtReal39);
-    convertRealToReal34ResultRegister(&x, REGISTER_X);
+    convertShortIntegerRegisterToReal34Register(REGISTER_X, REGISTER_X);
+    real34Subtract(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X));
   }
   else {
+    real_t y, x;
+
+    real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &y);
+    convertShortIntegerRegisterToReal(REGISTER_X, &x, &ctxtReal39);
+    reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
     convertAngleFromTo(&y, yAngularMode, currentAngularMode, &ctxtReal39);
     realSubtract(&y, &x, &x, &ctxtReal39);
     convertRealToReal34ResultRegister(&x, REGISTER_X);
@@ -1001,10 +806,7 @@ void subShoICplx(void) {
  * \return void
  ***********************************************/
 void subCplxShoI(void) {
-  convertShortIntegerRegisterToReal34Register(REGISTER_X, REGISTER_X);
-  real34Subtract(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_Y)); // real part
-  reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
-  complex34Copy(REGISTER_COMPLEX34_DATA(REGISTER_Y), REGISTER_COMPLEX34_DATA(REGISTER_X));
+  addSubCplxShoI(real34SubtractOp);
 }
 
 
@@ -1071,8 +873,7 @@ void subRealCplx(void) {
  ***********************************************/
 void subCplxReal(void) {
   real34Subtract(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_Y)); // real part
-  reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
-  complex34Copy(REGISTER_COMPLEX34_DATA(REGISTER_Y), REGISTER_COMPLEX34_DATA(REGISTER_X));
+  convertReal34ToComplex34Register(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_IMAG34_DATA(REGISTER_Y), REGISTER_X);
 }
 
 
@@ -1080,10 +881,19 @@ void subCplxReal(void) {
 /******************************************************************************************************************************************************************************************/
 /* complex34 - ...                                                                                                                                                                        */
 /******************************************************************************************************************************************************************************************/
-void subComplex(const real_t *aReal, const real_t *aImag, const real_t *bReal, const real_t *bImag, real_t *resReal, real_t *resImag, realContext_t *realContext) {
-  realSubtract(aReal, bReal, resReal, realContext);
-  realSubtract(aImag, bImag, resImag, realContext);
+void subComplex(const cplx_t *a, const cplx_t *b, cplx_t *res, realContext_t *realContext) {
+  realSubtract(&a->Real, &b->Real, &res->Real, realContext);
+  realSubtract(&a->Imag, &b->Imag, &res->Imag, realContext);
 }
+
+
+#if defined(OPTION_CUBIC_159) || defined(OPTION_SQUARE_159) || defined(OPTION_EIGEN_159)
+// subComplex for 159 digit values in a cplx159_t
+void subComplex159(const cplx159_t *a, const cplx159_t *b, cplx159_t *res, realContext_t *realContext) {
+  realSubtract(&a->Real, &b->Real, &res->Real, realContext);
+  realSubtract(&a->Imag, &b->Imag, &res->Imag, realContext);
+}
+#endif // OPTION_CUBIC_159 || OPTION_SQUARE_159 || OPTION_EIGEN_159
 
 /********************************************//**
  * \brief Y(complex34) - X(complex34) ==> X(complex34)
@@ -1092,6 +902,5 @@ void subComplex(const real_t *aReal, const real_t *aImag, const real_t *bReal, c
  * \return void
  ***********************************************/
 void subCplxCplx(void) {
-  real34Subtract(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X)); // real part
-  real34Subtract(REGISTER_IMAG34_DATA(REGISTER_Y), REGISTER_IMAG34_DATA(REGISTER_X), REGISTER_IMAG34_DATA(REGISTER_X)); // imaginary part
+  addSubCplxCplx(real34SubtractOp);
 }

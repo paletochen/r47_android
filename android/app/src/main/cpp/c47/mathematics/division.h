@@ -15,11 +15,14 @@
     #define divError typeError
   #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
 
-  void divComplexComplex(const real_t *numerReal, const real_t *numerImag,  const real_t *denomReal, const real_t *denomImag,   real_t *quotientReal, real_t *quotientImag, realContext_t *realContext);
-  void divRealComplex   (const real_t *numer,                               const real_t *denomReal, const real_t *denomImag,   real_t *quotientReal, real_t *quotientImag, realContext_t *realContext);
-  void divComplexReal   (const real_t *numerReal, const real_t *numerImag,  const real_t *denom,                                real_t *quotientReal, real_t *quotientImag, realContext_t *realContext);
+  void divComplexComplex(const cplx_t *numer, const cplx_t *denom, cplx_t *quotient, realContext_t *realContext);
+  void divRealComplex   (const real_t *numer, const cplx_t *denom, cplx_t *quotient, realContext_t *realContext);
+  void divComplexReal   (const cplx_t *numer, const real_t *denom, cplx_t *quotient, realContext_t *realContext);
 
-//  void divComplexComplex159(const real_t *numerReal, const real_t *numerImag, const real_t *denomReal, const real_t *denomImag, real_t *quotientReal, real_t *quotientImag, realContext_t *realContext);
+  #if defined(OPTION_CUBIC_159) || defined(OPTION_SQUARE_159) || defined(OPTION_EIGEN_159)
+    void divComplexComplex159(const cplx159_t *numer, const cplx159_t *denom, cplx159_t *quotient, realContext_t *realContext);
+    void divComplexReal159(const cplx159_t *numer, const real_t *denom, cplx159_t *quotient, realContext_t *realContext);
+  #endif // OPTION_CUBIC_159 || OPTION_SQUARE_159 || OPTION_EIGEN_159
 
   //      RegYRegX
   void divLonILonI(void);

@@ -12,7 +12,6 @@
   #define noShiftOffset       2                                                                                   // the plain left indent, where the indicator is not on the line
 
   bool_t   registerFMA(calcRegister_t regist, real_t *tmp1, real_t *tmp2, real_t *tmp4, real34_t *tmp3, angularMode_t *angle, realContext_t *c);
-  bool_t   xfnViewValue(calcRegister_t regist, real34_t *value, angularMode_t *angle);
 
   void     setLastintegerBasetoZero           (void);
   extern bool_t   doRefreshSoftMenu;                                                                              //dr
@@ -280,5 +279,4 @@
   void     showShiftStateF                    (void);
   void     showShiftStateG                    (void);
   void     displayShiftAndTamBuffer           (void);
-  extern char diskInfoStr[256];
 #endif // !SCREEN_H

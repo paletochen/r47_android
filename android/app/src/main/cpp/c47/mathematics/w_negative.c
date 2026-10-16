@@ -20,8 +20,8 @@ static void wNegReal(void) {
     return;
   }
 
-  if(realCompareGreaterEqual(&x, get_1oneE(&res)) && realCompareLessEqual(&x, const_0)) {
-    WP34S_LambertW(&x, &res, true, &ctxtReal39);
+  if(realIsNaN(&x) || (realCompareGreaterEqual(&x, get_1oneE(&res)) && realCompareLessEqual(&x, const_0))) {
+    WP34S_LambertW(&x, &res, true, &ctxtReal75);
     convertRealToResultRegister(&res, REGISTER_X, amNone);
   }
   else {
@@ -33,16 +33,21 @@ static void wNegReal(void) {
 }
 
 static void wNegCplx(void) {
-  real_t xr, xi, res;
+  real_t res;
+  cplx_t x;
 
-  if(!getRegisterAsComplex(REGISTER_X, &xr, &xi)) {
+  if(!getRegisterAsComplex(REGISTER_X, &x)) {
     return;
   }
 
-  if(realIsZero(&xi)) {
-    if(realCompareGreaterEqual(&xr, get_1oneE(&res)) && realCompareLessEqual(&xr, const_0)) {
-      WP34S_LambertW(&xr, &res, true, &ctxtReal39);
-      convertComplexToResultRegister(&res, const_0, REGISTER_X);
+  if(realIsNaN(&x.Real) || realIsNaN(&x.Imag)) {
+    realSetNaN(&res);
+    convertComplexPartsToResultRegister(&res, &res, REGISTER_X);
+  }
+  else if(realIsZero(&x.Imag)) {
+    if(realCompareGreaterEqual(&x.Real, get_1oneE(&res)) && realCompareLessEqual(&x.Real, const_0)) {
+      WP34S_LambertW(&x.Real, &res, true, &ctxtReal75);
+      convertComplexPartsToResultRegister(&res, const_0, REGISTER_X);
     }
     else {
       displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);

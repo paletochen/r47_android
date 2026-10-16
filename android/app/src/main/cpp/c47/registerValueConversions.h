@@ -35,6 +35,28 @@
 
   void convertReal34ToLongInteger                            (const real34_t *real34, longInteger_t lgInt, enum rounding mode);
   void convertReal34ToLongIntegerRegister                    (const real34_t *real34, calcRegister_t dest, enum rounding mode);
+  void convertReal34ToReal34Register                         (const real34_t *real34, calcRegister_t dest);
+  void convertReal34ToComplex34Register                      (const real34_t *real34, const real34_t *imag34, calcRegister_t dest);
+  bool_t convertRegisterToScaledLongInteger                  (calcRegister_t regist, longInteger_t coefficient, int32_t *exponent);
+  int32_t getRegisterIntegerParity                           (calcRegister_t regist);
+  bool_t convertReal34ToScaledLongInteger                    (const real34_t *real34, longInteger_t coefficient, int32_t *exponent);
+  void convertScaledLongIntegerToReal                        (const longInteger_t coefficient, int32_t exponent, real_t *real, realContext_t *realContext);
+  void convertScaledLongIntegerToReal34                      (const longInteger_t coefficient, int32_t exponent, real34_t *real34);
+  void addSubtractScaledLongIntegers                         (const longInteger_t first, int32_t firstExponent, const longInteger_t second, int32_t secondExponent, bool_t subtract, longInteger_t result, int32_t *resultExponent);
+  bool_t rootLongIntegerToReal34                             (const longInteger_t operand, uint32_t order, real34_t *result);
+  bool_t reciprocalRootLongIntegerToReal34                   (const longInteger_t operand, uint32_t order, real34_t *result);
+  bool_t rootRegisterToReal34                                (calcRegister_t regist, uint32_t order, bool_t exactExponent, real34_t *result);
+  bool_t powerLongIntegerToReal34                            (const longInteger_t base, int32_t exponent, real34_t *result);
+  bool_t addSubtractLongIntegerReal34                        (calcRegister_t integerRegister, const real34_t *real34, bool_t integerFirst, bool_t subtract, real34_t *result);
+  bool_t multiplyLongIntegerReal34                           (calcRegister_t integerRegister, const real34_t *real34, real34_t *result);
+  bool_t divideLongIntegerReal34                             (calcRegister_t integerRegister, const real34_t *real34, bool_t integerFirst, real34_t *result);
+  bool_t multiplyRegisterValuesToReal34Scaled                (calcRegister_t firstRegister, calcRegister_t secondRegister, int32_t exponentAdjustment, real34_t *result);
+  bool_t divideScaledLongIntegersToReal                      (const longInteger_t numerator, int32_t numeratorExponent, bool_t negativeZero, const longInteger_t denominator, int32_t denominatorExponent, real_t *result, realContext_t *realContext);
+  bool_t divideScaledLongIntegersToReal34                    (const longInteger_t numerator, int32_t numeratorExponent, bool_t negativeZero, const longInteger_t denominator, int32_t denominatorExponent, real34_t *result);
+  bool_t divideRegisterValuesToReal34Scaled                  (calcRegister_t numeratorRegister, calcRegister_t denominatorRegister, int32_t exponentAdjustment, real34_t *result);
+  bool_t divideRegisterValuesToReal34                        (calcRegister_t numeratorRegister, calcRegister_t denominatorRegister, real34_t *result);
+  bool_t reciprocalLongIntegerRegisterToReal34               (calcRegister_t denominatorRegister, real34_t *result);
+  bool_t registerIdentityExponentToReal34                    (calcRegister_t baseRegister, calcRegister_t exponentRegister, real34_t *result);
   void convertRealToLongInteger                              (const real_t *real, longInteger_t lgInt, enum rounding mode);
   void convertRealToLongIntegerRegister                      (const real_t *real, calcRegister_t dest, enum rounding mode);
   void realToIntegralValue                                   (const real_t *source, real_t *destination, enum rounding mode, realContext_t *realContext);
@@ -65,7 +87,8 @@
   void convertRealToImag34ResultRegister                     (const real_t *real, calcRegister_t dest);
 
   void convertRealToResultRegister                           (const real_t *x, calcRegister_t dest, angularMode_t angle);
-  void convertComplexToResultRegister                        (const real_t *real, const real_t *imag, calcRegister_t dest);
+  void convertComplexToResultRegister                        (const cplx_t *z, calcRegister_t dest);
+  void convertComplexPartsToResultRegister                   (const real_t *real, const real_t *imag, calcRegister_t dest);
   void convertComplexToResultRegisterRPangle                 (const real_t *real, const real_t *imag, calcRegister_t dest, angularMode_t angl, uint8_t polarTag);
 
   void convertTimeRegisterToReal34Register                   (calcRegister_t source, calcRegister_t destination);
@@ -108,13 +131,14 @@
   void badTypeErrorX(void);
   void badDomainErrorX(void);
 
-  bool_t getRegisterAsComplex(calcRegister_t reg, real_t *r, real_t *c);
-  bool_t getRegisterAsComplexOrReal(calcRegister_t reg, real_t *r, real_t *c, bool_t *cmplx);
-  bool_t getRegisterAsComplexOrAnyReal(calcRegister_t reg, real_t *r, real_t *i, bool_t *cmplx);
+  bool_t getRegisterAsComplex(calcRegister_t reg, cplx_t *z);
+  bool_t getRegisterAsComplexOrReal(calcRegister_t reg, cplx_t *z, bool_t *cmplx);
+  bool_t getRegisterAsComplexOrAnyReal(calcRegister_t reg, cplx_t *z, bool_t *cmplx);
   bool_t getRegisterAsReal(calcRegister_t reg, real_t *val);
   bool_t getRegisterAsAnyReal(calcRegister_t reg, real_t *val);
   bool_t getRegisterAsReal34Quiet(calcRegister_t reg, real34_t *val);
   #define ifLongIntegerDoAngleReduction true
+  bool_t reduceLongIntegerRegisterAngle(calcRegister_t regist, angularMode_t angularMode, real_t *reducedAngle, bool_t reduceLongintegerAngle);
   bool_t getRegisterAsRealAngle(calcRegister_t reg, real_t *val, angularMode_t *xAngularMode, bool_t reduceLongintegerAngle);
   bool_t getRegisterAsLongInt(calcRegister_t reg, longInteger_t val, bool_t *fractional);
   bool_t getRegisterAsUint32Param(uint16_t regist, uint32_t *value);
@@ -124,8 +148,8 @@
 
   bool_t getRegisterAsRealQuiet(calcRegister_t reg, real_t *val);
   bool_t getRegisterAsAnyRealQuiet(calcRegister_t reg, real_t *val);
-  bool_t getRegisterAsComplexOrRealQuiet(calcRegister_t reg, real_t *r, real_t *c, bool_t *cmplx);
-  bool_t getRegisterAsComplexOrAnyRealQuiet(calcRegister_t reg, real_t *r, real_t *i, bool_t *cmplx);
+  bool_t getRegisterAsComplexOrRealQuiet(calcRegister_t reg, cplx_t *z, bool_t *cmplx);
+  bool_t getRegisterAsComplexOrAnyRealQuiet(calcRegister_t reg, cplx_t *z, bool_t *cmplx);
   /* returns error code or ERROR_NONE if okay */
   int getRegisterAsLongIntQuiet(calcRegister_t reg, longInteger_t val, bool_t *fractional);
 
@@ -145,6 +169,8 @@
 
   void saveRegisterSnapshot(calcRegister_t reg, snap_t *s);
   void restoreRegisterSnapshot(calcRegister_t reg, snap_t *s);
+  void applyRegisterSnapshot(calcRegister_t reg, snap_t *s); // write it back and keep it usable, for a loop
+  void freeRegisterSnapshot(snap_t *s);                     // release what it owns without writing it back
 
   void processRealComplexMonadicFunction(void (*realf)(void), void (*complexf)(void));
   void processIntRealComplexMonadicFunction(void (*realf)(void), void (*complexf)(void), void (*shortintf)(void), void (*longintf)(void));

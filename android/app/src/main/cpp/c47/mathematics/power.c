@@ -11,13 +11,20 @@ static void powReal(void);
 static void powCplx(void);
 
 
-void PowerReal(const real_t *y, const real_t *x, real_t *res, realContext_t *realContext) {
+static void powerRealWithParity(const real_t *y, const real_t *x, real_t *res, realContext_t *realContext, int32_t integerParity) {
   real_t lny;
 
-  if(realIsNegative(y) && realIsAnInteger(x)){
+  realCopyAbs(x, &lny);
+  if(realIsAnInteger(x) && realCompareLessEqual(&lny, const_10p9__1)) {
+    realPower(y, x, res, realContext);
+  }
+  else if(realIsNegative(y) && (integerParity >= 0 || realIsAnInteger(x))) {
     bool_t isOdd = false;
 
-    if(!realIsInfinite(x)) {                             // realIsAnInteger() is true for an infinity, which is neither odd nor even
+    if(integerParity >= 0) {
+      isOdd = integerParity == 1;
+    }
+    else if(!realIsInfinite(x)) {                        // realIsAnInteger() is true for an infinity, which is neither odd nor even
       realDivideRemainder(x, const_2, &lny, realContext);
       isOdd = !realIsZero(&lny);
     }
@@ -25,9 +32,6 @@ void PowerReal(const real_t *y, const real_t *x, real_t *res, realContext_t *rea
     WP34S_Ln(&lny, &lny, realContext);
     realMultiply(x, &lny, res, realContext);
     realExp(res, res, realContext);
-    #if defined(PC_BUILD)
-      fflush(stdout);
-    #endif //PC_BUILD
     if(isOdd) {
       realChangeSign(res);
     }
@@ -37,6 +41,11 @@ void PowerReal(const real_t *y, const real_t *x, real_t *res, realContext_t *rea
     realMultiply(x, &lny, res, realContext);
     realExp(res, res, realContext);
   }
+}
+
+
+void PowerReal(const real_t *y, const real_t *x, real_t *res, realContext_t *realContext) {
+  powerRealWithParity(y, x, res, realContext, -1);
 }
 
 
@@ -156,6 +165,7 @@ static void powShoI(void) {
  ***********************************************/
 static void powLonI(void) {
   longInteger_t base, exponent, result;
+  real34_t exactPower, reciprocal;
 
   if(!getRegisterAsLongInt(REGISTER_Y, base, NULL)) {
     goto finish1;
@@ -174,6 +184,15 @@ static void powLonI(void) {
 
   if((longIntegerCompareInt(base, 1) == 0 || longIntegerCompareInt(base, -1) == 0) && longIntegerCompareInt(exponent, -1) == 0) {
     convertLongIntegerToLongIntegerRegister(base, REGISTER_X);
+    goto finish2;
+  }
+  else if(longIntegerCompareInt(exponent, -1) == 0 && reciprocalLongIntegerRegisterToReal34(REGISTER_Y, &reciprocal)) {
+    convertReal34ToReal34Register(&reciprocal, REGISTER_X);
+    goto finish2;
+  }
+  else if((longIntegerCompareInt(exponent, -2) == 0 || longIntegerCompareInt(exponent, -3) == 0 || longIntegerCompareInt(exponent, -4) == 0)
+          && powerLongIntegerToReal34(base, longIntegerCompareInt(exponent, -2) == 0 ? -2 : longIntegerCompareInt(exponent, -3) == 0 ? -3 : -4, &exactPower)) {
+    convertReal34ToReal34Register(&exactPower, REGISTER_X);
     goto finish2;
   }
   else if(longIntegerIsNegative(exponent)) {
@@ -206,8 +225,41 @@ finish1:
  ***********************************************/
 static void powReal(void) {
   real_t y, x, res;
+  real34_t exactResult;
+  const int32_t integerParity = getRegisterIntegerParity(REGISTER_X);
+
+  if(getRegisterDataType(REGISTER_Y) == dtLongInteger && getRegisterDataType(REGISTER_X) == dtReal34 && real34IsAnInteger(REGISTER_REAL34_DATA(REGISTER_X))) {
+    longInteger_t base;
+    const int32_t exponent = real34ToInt32(REGISTER_REAL34_DATA(REGISTER_X));   // 0 out of range; powerLongIntegerToReal34 takes ±2, ±3 and ±4 only
+
+    convertLongIntegerRegisterToLongInteger(REGISTER_Y, base);
+    const bool_t exactPower = powerLongIntegerToReal34(base, exponent, &exactResult);
+    longIntegerFree(base);
+    if(exactPower) {
+      convertReal34ToReal34Register(&exactResult, REGISTER_X);
+      return;
+    }
+  }
+
+  if(registerIdentityExponentToReal34(REGISTER_Y, REGISTER_X, &exactResult)) {
+    convertReal34ToReal34Register(&exactResult, REGISTER_X);
+    return;
+  }
 
   if(!getRegisterAsReal(REGISTER_X, &x) || !getRegisterAsReal(REGISTER_Y, &y)) {
+    return;
+  }
+
+  if((realCompareEqual(&x, const_1on2) || realCompareEqual(&x, const_1on4))
+     && rootRegisterToReal34(REGISTER_Y, realCompareEqual(&x, const_1on2) ? 2u : 4u, false, &exactResult)) {   // y^(1/n) is the n-th root of y, rounded once
+    convertReal34ToReal34Register(&exactResult, REGISTER_X);
+    return;
+  }
+
+  if(realCompareEqual(&x, const_1on2) && realIsNegative(&y) && !realIsZero(&y) && !realIsInfinite(&y) && getFlag(FLAG_CPXRES)) {   // (-y)^(1/2) is 0 + i√y, as √ gives it
+    realSetPositiveSign(&y);
+    realSquareRoot(&y, &y, &ctxtReal39);
+    convertComplexPartsToResultRegister(const_0, &y, REGISTER_X);
     return;
   }
 
@@ -221,7 +273,10 @@ static void powReal(void) {
     else {
       bool_t oddIntegerExponent = false;
       if(!realIsInfinite(&x)) {                        // ReM p.202: y^(+/-inf) follows the exponent sign alone; realIsAnInteger() is true for an infinity
-        if(realIsAnInteger(&x)) {
+        if(integerParity >= 0) {
+          oddIntegerExponent = integerParity == 1;
+        }
+        else if(realIsAnInteger(&x)) {
           WP34S_Mod(&x, const_2, &res, &ctxtReal39);
           oddIntegerExponent = !realIsZero(&res);
         }
@@ -258,7 +313,7 @@ static void powReal(void) {
     goto finish;
   }
 
-  PowerReal(&y, &x, &res, &ctxtReal39);
+  powerRealWithParity(&y, &x, &res, realIsAnInteger(&x) ? &ctxtReal39 : &ctxtReal51, integerParity);
 
   if(realIsPositive(&y) && !realIsZero(&x) && !realIsSpecial(&res)) {   // an exponent 1/n with an exact n-th root of y gives that root
     real_t n;
@@ -296,17 +351,20 @@ finish:
  * getInfiniteComplexAngle() reports, so phi.x is representable only when it lands on one too. Returns false when it does
  * not, the exponent being infinite or the product fractional, leaving the caller to return an infinity of no angle.
  */
-static bool_t setInfiniteComplexPower(const real_t *yReal, const real_t *yImag, const real_t *xReal, real_t *rReal, real_t *rImag, realContext_t *realContext) {
-  real_t re, im, sector;
+static bool_t setInfiniteComplexPower(const cplx_t *y, const real_t *xReal, int32_t exponentModulo8, cplx_t *r, realContext_t *realContext) {
+  real_t sector, residue;
+  const real_t *exponent = xReal;
 
   if(realIsInfinite(xReal)) {                            // phi.x is then unbounded, and WP34S_Mod() of it is a NaN
     return false;
   }
 
-  realCopy(yReal, &re);                                  // getInfiniteComplexAngle() takes non-const operands
-  realCopy(yImag, &im);
-  int32ToReal(getInfiniteComplexAngle(&re, &im), &sector);
-  realMultiply(&sector, xReal, &sector, realContext);
+  int32ToReal(getInfiniteComplexAngle(y), &sector);
+  if(exponentModulo8 >= 0) {                             // a long integer exponent above 75 digits comes rounded in xReal
+    int32ToReal(exponentModulo8, &residue);
+    exponent = &residue;
+  }
+  realMultiply(&sector, exponent, &sector, realContext);
   WP34S_Mod(&sector, const_8, &sector, realContext);     // remainder is truncated, so lift it into [0, 8) = one revolution
   if(realIsNegative(&sector)) {
     realAdd(&sector, const_8, &sector, realContext);
@@ -315,55 +373,119 @@ static bool_t setInfiniteComplexPower(const real_t *yReal, const real_t *yImag, 
   if(!realIsAnInteger(&sector)) {
     return false;
   }
-  setInfiniteComplexAngle(realToInt32C47(&sector, NULL), rReal, rImag);
+  setInfiniteComplexAngle(realToInt32C47(&sector, NULL), r);
   return true;
+}
+
+
+/********************************************//**
+ * \brief Computes the principal logarithm of a finite nonzero complex base
+ *
+ * \param[in] z the base
+ * \param[out] lnReal logarithm of the magnitude
+ * \param[out] lnImag phase in radians
+ * \param[in] realContext working context
+ * \return void
+ ***********************************************/
+static void lnPowerComplex(const cplx_t *z, real_t *lnReal, real_t *lnImag, realContext_t *realContext) {
+  REAL_T_PTR(delta, 75);
+  REAL_T_PTR(sum, 75);
+
+  realMultiply(&z->Real, &z->Real, lnReal, realContext);
+  realFMA(&z->Imag, &z->Imag, lnReal, lnReal, realContext);
+  realSquareRoot(lnReal, lnReal, realContext);
+  C47_WP34S_Atan2(&z->Imag, &z->Real, lnImag, realContext);
+
+  if(realContext->digits == 75 && realCompareGreaterThan(lnReal, const_1on2) && realCompareLessThan(lnReal, const_2)) {
+    if(realCompareAbsLessThan(&z->Real, &z->Imag)) {
+      realSubtract(&z->Imag, const_1, delta, realContext);
+      realAdd(&z->Imag, const_1, sum, realContext);
+      realMultiply(delta, sum, delta, realContext);
+      realFMA(&z->Real, &z->Real, delta, delta, realContext);
+    } else {
+      realSubtract(&z->Real, const_1, delta, realContext);
+      realAdd(&z->Real, const_1, sum, realContext);
+      realMultiply(delta, sum, delta, realContext);
+      realFMA(&z->Imag, &z->Imag, delta, delta, realContext);
+    }
+    WP34S_Ln1P(delta, lnReal, realContext);
+    realMultiply(lnReal, const_1on2, lnReal, realContext);
+  } else {
+    WP34S_Ln(lnReal, lnReal, realContext);
+  }
+}
+
+
+/********************************************//**
+ * \brief Reduces the real exponent for an exact-axis phase
+ *
+ * \param[in] exponent real component of the exponent
+ * \param[in] period phase period in exponent units
+ * \param[in] exponentModulo8 a long integer exponent modulo 8, a multiple of every period, which the real component rounded above 75 digits no longer gives, or -1
+ * \param[out] remainder reduced exponent
+ * \param[in] realContext working context
+ * \return void
+ ***********************************************/
+static void reducePowerExponent(const real_t *exponent, const real_t *period, int32_t exponentModulo8, real_t *remainder, realContext_t *realContext) {
+  if(exponentModulo8 >= 0) {
+    int32ToReal(exponentModulo8, remainder);
+  }
+  else if(exponent->digits <= 34 && period->digits <= 34) {
+    WP34S_Real34Remainder(exponent, period, remainder);
+  } else {
+    WP34S_Mod(exponent, period, remainder, realContext);
+  }
 }
 
 
 /*
  * Calculate y^x for complex numbers.
  */
-uint8_t PowerComplex(const real_t *yReal, const real_t *yImag, const real_t *xReal, const real_t *xImag, real_t *rReal, real_t *rImag, realContext_t *realContext) {
+static uint8_t powerComplexWithResidue(const cplx_t *y, const cplx_t *x, cplx_t *r, realContext_t *realContext, int32_t exponentModulo8) {
   uint8_t errorCode = ERROR_NONE;
 
-  if(realIsInfinite(yReal) || realIsInfinite(yImag)) {   // the base has an infinite component
-    if(realIsNaN(xReal) || realIsNaN(xImag)) {           // inf ^ NaN is NaN
-      realSetNaN(rReal);
-      realSetNaN(rImag);
+  if(realIsInfinite(&y->Real) || realIsInfinite(&y->Imag)) {  // the base has an infinite component
+    if(realIsNaN(&x->Real) || realIsNaN(&x->Imag)) {     // inf ^ NaN is NaN
+      realSetNaN(&r->Real);
+      realSetNaN(&r->Imag);
     }
-    else if(realIsZero(xReal) && realIsZero(xImag)) {    // inf ^ 0 is indeterminate
-      realSetNaN(rReal);
-      realSetNaN(rImag);
+    else if(realIsZero(&x->Real) && realIsZero(&x->Imag)) {  // inf ^ 0 is indeterminate
+      realSetNaN(&r->Real);
+      realSetNaN(&r->Imag);
     }
-    else if(realIsZero(xReal)) {                         // Re(exponent) == 0 (pure imaginary) is indeterminate
-      realSetNaN(rReal);
-      realSetNaN(rImag);
+    else if(realIsZero(&x->Real)) {                      // Re(exponent) == 0 (pure imaginary) is indeterminate
+      realSetNaN(&r->Real);
+      realSetNaN(&r->Imag);
     }
-    else if(realIsNegative(xReal)) {                     // Re(exponent) < 0 ==> modulus collapses to 0, where the angle no longer counts
-      realSetZero(rReal);
-      realSetZero(rImag);
+    else if(realIsNegative(&x->Real)) {                  // Re(exponent) < 0 ==> modulus collapses to 0, where the angle no longer counts
+      realSetZero(&r->Real);
+      realSetZero(&r->Imag);
     }
     else {                                               // Re(exponent) > 0 ==> infinite modulus
       bool_t onSector = false;
 
-      if(realIsZero(xImag)) {                            // Im(exponent) != 0 adds Im(x).ln r to the argument, leaving it unbounded
-        onSector = setInfiniteComplexPower(yReal, yImag, xReal, rReal, rImag, realContext);
+      if(realIsZero(&x->Imag)) {                         // Im(exponent) != 0 adds Im(x).ln r to the argument, leaving it unbounded
+        onSector = setInfiniteComplexPower(y, &x->Real, exponentModulo8, r, realContext);
       }
       if(!onSector) {
-        realSetPlusInfinity(rReal);
-        realSetPlusInfinity(rImag);
+        realSetPlusInfinity(&r->Real);
+        realSetPlusInfinity(&r->Imag);
       }
     }
   }
-  else if(realIsZero(yReal) && realIsZero(yImag)) {
-    if(realIsZero(xReal)) {
-      realSetNaN(rReal);
-      realSetNaN(rImag);
+  else if(realIsZero(&y->Real) && realIsZero(&y->Imag)) {
+    if(realIsNaN(&x->Real) || realIsNaN(&x->Imag) || realIsZero(&x->Real)) {
+      realSetNaN(&r->Real);
+      realSetNaN(&r->Imag);
     }
     else {
-      realSetZero(rReal);
-      realSetZero(rImag);
+      realSetZero(&r->Real);
+      realSetZero(&r->Imag);
     }
+  }
+  else if(realCompareEqual(&x->Real, const_1) && realIsZero(&x->Imag) && !realIsNaN(&y->Real) && !realIsNaN(&y->Imag)) {
+    realCopy(&y->Real, &r->Real);
+    realCopy(&y->Imag, &r->Imag);
   }
   else {
     real_t theta;
@@ -376,18 +498,17 @@ uint8_t PowerComplex(const real_t *yReal, const real_t *yImag, const real_t *xRe
     // EXP [ (Xr.LN r) * (-theta Xi)  +   i.(Xi.LN r + (theta . Xr)) ]  [5]
 
 
-    realRectangularToPolar(yReal, yImag, rReal, &theta, realContext);
-    WP34S_Ln(rReal, rReal, realContext);
+    lnPowerComplex(y, &r->Real, &theta, realContext);
 
-    realMultiply(rReal, xImag, rImag, realContext);                 //rImag = Xi.LN r
+    realMultiply(&r->Real, &x->Imag, &r->Imag, realContext);        //rImag = Xi.LN r
 
     real_t xR;
     int8_t md;
     bool_t doZeroingReal = false;
     bool_t doZeroingImag = false;
-    if(realCompareAbsEqual(yReal, yImag)) {
-      realDivideRemainder(xReal, const_8, &xR, realContext);        // {See [5], if yR=yI then we have theta = pi/4 exact, then we can do a Xr remainder by 8}
-      if(realIsZero(xImag) && realIsAnInteger(&xR)) {              // only compute md when exponent is integer
+    if(realCompareAbsEqual(&y->Real, &y->Imag)) {
+      reducePowerExponent(&x->Real, const_8, exponentModulo8, &xR, realContext);     // {See [5], if yR=yI then we have theta = pi/4 exact, then we can do a Xr remainder by 8}
+      if(realIsZero(&x->Imag) && realIsAnInteger(&xR)) {           // only compute md when exponent is integer
         md = realToInt32C47(&xR, NULL);
         if(md % 4 == 0) {
           doZeroingImag = true;
@@ -397,9 +518,9 @@ uint8_t PowerComplex(const real_t *yReal, const real_t *yImag, const real_t *xRe
         }
       }
     }
-    else if(realIsZero(yReal)) {
-      realDivideRemainder(xReal, const_4, &xR, realContext);        // {See [5], if yR=0 then we have theta = pi/2 exact, then we can do a Xr remainder by 4}
-      if(realIsZero(xImag) && realIsAnInteger(&xR)) {              // only compute md when exponent is integer
+    else if(realIsZero(&y->Real)) {
+      reducePowerExponent(&x->Real, const_4, exponentModulo8, &xR, realContext);     // {See [5], if yR=0 then we have theta = pi/2 exact, then we can do a Xr remainder by 4}
+      if(realIsZero(&x->Imag) && realIsAnInteger(&xR)) {           // only compute md when exponent is integer
         md = realToInt32C47(&xR, NULL);
         if(md % 2 == 0) {
           doZeroingImag = true;
@@ -409,33 +530,64 @@ uint8_t PowerComplex(const real_t *yReal, const real_t *yImag, const real_t *xRe
         }
       }
     }
+    else if(realIsZero(&y->Imag) && realIsNegative(&y->Real)) {
+      reducePowerExponent(&x->Real, const_2, exponentModulo8, &xR, realContext);
+      if(realIsZero(&x->Imag) && realIsAnInteger(&xR)) {
+        doZeroingImag = true;
+      }
+    }
     else {
-      realCopy(xReal, &xR);
+      realCopy(&x->Real, &xR);
     }
 
-    realFMA(&theta, &xR, rImag, rImag, realContext);                //rImag = Xi.LN r  +  theta . Xr  ===> this theta.Xt is the coefficient of r.e^i.COEF, hence the angle and therefore we can get the remainder after dividing by number of revolutions.
+    realFMA(&theta, &xR, &r->Imag, &r->Imag, realContext);          //rImag = Xi.LN r  +  theta . Xr  ===> this theta.Xt is the coefficient of r.e^i.COEF, hence the angle and therefore we can get the remainder after dividing by number of revolutions.
     realChangeSign(&theta);
 
-    realMultiply(rReal, xReal, rReal, realContext);                 //rReal = Xr.LN r
-    realFMA(&theta, xImag, rReal, rReal, realContext);              //rReal = Xr.LN r  *  -theta . Xi
+    realMultiply(&r->Real, &x->Real, &r->Real, realContext);        //rReal = Xr.LN r
+    realFMA(&theta, &x->Imag, &r->Real, &r->Real, realContext);     //rReal = Xr.LN r  *  -theta . Xi
 
-    realExp(rReal, &tmp, realContext);
-    realPolarToRectangular(const_1, rImag, rReal, rImag, realContext);
+    realExp(&r->Real, &tmp, realContext);
+    realPolarToRectangular(const_1, &r->Imag, r, realContext);
     if(doZeroingImag) {
-      realSetZero(rImag);
+      realSetZero(&r->Imag);
     }
     else {
-      realMultiply(&tmp, rImag, rImag, realContext);
+      realMultiply(&tmp, &r->Imag, &r->Imag, realContext);
     }
     if(doZeroingReal) {
-      realSetZero(rReal);
+      realSetZero(&r->Real);
     }
     else {
-      realMultiply(&tmp, rReal, rReal, realContext);
+      realMultiply(&tmp, &r->Real, &r->Real, realContext);
     }
   }
 
   return errorCode;
+}
+
+
+uint8_t PowerComplex(const cplx_t *y, const cplx_t *x, cplx_t *r, realContext_t *realContext) {
+  return powerComplexWithResidue(y, x, r, realContext, -1);
+}
+
+
+/********************************************//**
+ * \brief Returns a long integer register value modulo 8
+ *
+ * \param[in] regist source register
+ * \return the residue from 0 to 7, or -1 for any other data type
+ ***********************************************/
+static int32_t registerLongIntegerModulo8(calcRegister_t regist) {
+  longInteger_t integer;
+  int32_t residue;
+
+  if(getRegisterDataType(regist) != dtLongInteger) {
+    return -1;
+  }
+  convertLongIntegerRegisterToLongInteger(regist, integer);
+  residue = longIntegerModuloUInt(integer, 8);
+  longIntegerFree(integer);
+  return residue;
 }
 
 /********************************************//**
@@ -445,13 +597,13 @@ uint8_t PowerComplex(const real_t *yReal, const real_t *yImag, const real_t *xRe
  * \return void
  ***********************************************/
 static void powCplx(void) {
-  real_t yReal, yImag, xReal, xImag, rReal, rImag;
+  cplx_t y, x, r;
 
-  if(!getRegisterAsComplex(REGISTER_Y, &yReal, &yImag) || !getRegisterAsComplex(REGISTER_X, &xReal, &xImag)) {
+  if(!getRegisterAsComplex(REGISTER_Y, &y) || !getRegisterAsComplex(REGISTER_X, &x)) {
     return;
   }
 
-  uint8_t errorCode = PowerComplex(&yReal, &yImag, &xReal, &xImag, &rReal, &rImag, &ctxtReal39);
+  uint8_t errorCode = powerComplexWithResidue(&y, &x, &r, &ctxtReal75, registerLongIntegerModulo8(REGISTER_X));
 
   if(errorCode != ERROR_NONE) {
     displayCalcErrorMessage(errorCode, ERR_REGISTER_LINE);
@@ -462,7 +614,7 @@ static void powCplx(void) {
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
   }
   else {
-    convertComplexToResultRegister(&rReal, &rImag, REGISTER_X);
+    convertComplexToResultRegister(&r, REGISTER_X);
   }
 }
 

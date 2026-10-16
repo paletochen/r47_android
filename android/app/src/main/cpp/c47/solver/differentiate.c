@@ -335,9 +335,30 @@ static void _differentiatorIteration(calcRegister_t label, calcRegister_t variab
   }
 }
 
-// Try to compute a single derivative estimate from a stencil. r takes the weighted sum as it builds, and t is the caller's working space.
+// A centred first-derivative stencil has antisymmetric coefficients, while a centred second-derivative stencil has symmetric coefficients. Identifying that
+// structure lets calcOneDeriv combine opposite samples before multiplying by the coefficient. The remaining stencils retain their original ordered sum.
+static bool_t deriv_stencil_is_centred(const FINITE_DIFF_COEFF *stencil) {
+  uint16_t i, maxi = 2 * stencil->n + 1;
+  int64_t halfSum = 0;
+
+  if(stencil->order == 1 && stencil->coeff[stencil->n] != 0) {
+    return false;
+  }
+  for(i = 0; i < stencil->n; i++) {
+    const int32_t left = fdValues[stencil->coeff[i]];
+    const int32_t right = fdValues[stencil->coeff[maxi - i - 1]];
+
+    if((stencil->order == 1 && left != -right) || (stencil->order == 2 && left != right)) {
+      return false;
+    }
+    halfSum += right;
+  }
+  return stencil->order == 1 || fdValues[stencil->coeff[stencil->n]] == -2 * halfSum;
+}
+
+// Try to compute a single derivative estimate from a stencil. r takes the weighted sum as it builds; t and pair are the caller's working space.
 static bool_t calcOneDeriv(const FINITE_DIFF_COEFF *stencil, const real_t fxIn[],
-                           const real_t *h, real_t *r, real_t *t, realContext_t *realContext) {
+                           const real_t *h, real_t *r, real_t *t, real_t *pair, realContext_t *realContext) {
   uint16_t i, maxi = 2*stencil->n+1;
   const real_t * const fx = fxIn + MAX_ORDER - stencil->n;
 
@@ -348,12 +369,29 @@ static bool_t calcOneDeriv(const FINITE_DIFF_COEFF *stencil, const real_t fxIn[]
     }
   }
 
-  // All values are defined where required so calculate the weighted sum
+  // Pairing centred samples preserves exact odd/even cancellation. This also reduces the magnitude of the products that the accumulator must cancel.
   realSetZero(r);
-  for(i=0; i<maxi; i++) {
-    if(stencil->coeff[i] != 0) {
-      int32ToReal(fdValues[stencil->coeff[i]], t);
-      realFMA(fx+i, t, r, r, realContext);
+  if(deriv_stencil_is_centred(stencil)) {
+    for(i = 0; i < stencil->n; i++) {
+      if(stencil->order == 1) {
+        realSubtract(fx + maxi - i - 1, fx + i, pair, realContext);
+      }
+      else {
+        // Since the centre coefficient is minus twice the sum of either side, each pair can be formed as two differences from f(x). Constant offsets cancel here.
+        realSubtract(fx + i, fx + stencil->n, pair, realContext);
+        realSubtract(fx + maxi - i - 1, fx + stencil->n, t, realContext);
+        realAdd(pair, t, pair, realContext);
+      }
+      int32ToReal(fdValues[stencil->coeff[maxi - i - 1]], t);
+      realFMA(pair, t, r, r, realContext);
+    }
+  }
+  else {
+    for(i=0; i<maxi; i++) {
+      if(stencil->coeff[i] != 0) {
+        int32ToReal(fdValues[stencil->coeff[i]], t);
+        realFMA(fx+i, t, r, r, realContext);
+      }
     }
   }
   // Inefficiently factor in the derivative order
@@ -447,7 +485,7 @@ static void calcDeriv(calcRegister_t label, const FINITE_DIFF_COEFF *const *finD
         printf("f[x+%dh] = %s\n", i - MAX_ORDER, decNumberToString(fx+i, buf));
       }
       for(i=0; finDiff[i] != NULL; i++) {
-        if(calcOneDeriv(finDiff[i], fx, h, x, scratch, &ctxtReal39)) {
+        if(calcOneDeriv(finDiff[i], fx, h, x, scratch, gap, &ctxtReal39)) {
           printf("df/dx = %s\t(%s)\n", decNumberToString(x, buf), finDiff[i]->desc);
         }
       }
@@ -476,7 +514,7 @@ static void calcDeriv(calcRegister_t label, const FINITE_DIFF_COEFF *const *finD
 
       // Compute the function at the finite difference points
       saveForUndo();
-      calcFuncValues(label, variable, x, fx, h, &ctxtReal39);
+      calcFuncValues(label, variable, x, fx, h, &ctxtReal34);
       undo();
       if(variable != INVALID_VARIABLE) {   // undo() rolls back the stack only, so the sampled variable is put back here
         restoreRegisterSnapshot(variable, &savedRegister);
@@ -488,7 +526,7 @@ static void calcDeriv(calcRegister_t label, const FINITE_DIFF_COEFF *const *finD
       // Try finite differences until we get a result
       stencil = -1;
       for(i=0; finDiff[i] != NULL; i++) {
-        if(calcOneDeriv(finDiff[i], fx, h, estimate, scratch, &ctxtReal39)) {
+        if(calcOneDeriv(finDiff[i], fx, h, estimate, scratch, gap, &ctxtReal39)) {
           stencil = i;
           break;
         }
@@ -564,4 +602,3 @@ freeWork:
   setRoundingMode(userRoundingMode);
   freeC47Blocks(work, DERIV_WORK_REALS * REAL_SIZE_IN_BLOCKS(75));
 }
-

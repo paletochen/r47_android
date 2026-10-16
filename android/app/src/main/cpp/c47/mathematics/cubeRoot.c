@@ -3,6 +3,38 @@
 
 #include "c47.h"
 
+/********************************************//**
+ * \brief Replaces an approximation with an exact Real34 cube root when one exists
+ *
+ * A nearest 34-digit candidate is reduced before verification. An exact decimal cube
+ * with a 34-digit coefficient has a reduced root coefficient of at most 12 digits, so
+ * two 39-digit multiplications verify it exactly.
+ *
+ * \param[in] operand cube-root operand
+ * \param[in,out] root approximate cube root, replaced when exact
+ * \return void
+ ***********************************************/
+static void correctExactReal34Cube(const real_t *operand, real_t *root) {
+  realContext_t nearestContext = ctxtReal34;
+  real_t nearest, cube;
+
+  if(realIsSpecial(operand) || realIsZero(operand)) {
+    return;
+  }
+  nearestContext.round = DEC_ROUND_HALF_EVEN;
+  realPlus(root, &nearest, &nearestContext);
+  realReduce(&nearest, &nearest, &ctxtReal39);
+  if(nearest.digits > 12) {
+    return;
+  }
+  realMultiply(&nearest, &nearest, &cube, &ctxtReal39);
+  realMultiply(&cube, &nearest, &cube, &ctxtReal39);
+  if(realCompareEqual(&cube, operand)) {
+    realCopy(&nearest, root);
+  }
+}
+
+
 static void curtShoI(void) {
   real_t x, operand, nearest, cube;
   int32_t cubeRoot;
@@ -39,11 +71,13 @@ static void curtShoI(void) {
 
 
 void curtReal(void) {
-  real_t x;
+  real_t x, operand;
+  real34_t root;
 
   if(!getRegisterAsReal(REGISTER_X, &x)) {
     return;
   }
+  realCopy(&x, &operand);
 
   if(realIsInfinite(&x) && !getSystemFlag(FLAG_SPCRES)) {
     displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
@@ -53,10 +87,14 @@ void curtReal(void) {
     return;
   }
 
-  real_t a;
-
-  realCopyAbs(&x, &a);
-  if(realIsPositive(&x)) {
+  if(realIsZero(&x)) {
+    convertRealToResultRegister(&x, REGISTER_X, amNone);
+    return;
+  }
+  if(rootRegisterToReal34(REGISTER_X, 3u, true, &root)) {   // the cube root of the integer coefficient, rounded once by RM
+    real34ToReal(&root, &x);
+  }
+  else if(realIsPositive(&x)) {
     PowerReal(&x, const39_1on3, &x, &ctxtReal39);
   }
   else {
@@ -64,14 +102,7 @@ void curtReal(void) {
     PowerReal(&x, const39_1on3, &x, &ctxtReal39);
     realSetNegativeSign(&x);
   }
-  if(!realIsZero(&a) && !realIsSpecial(&a)) {                     // a cube of a number of 34 digits gives that number
-    const bool_t negative = realIsNegative(&x);
-    realSetPositiveSign(&x);
-    realExactRoot(&a, const_3, &x);
-    if(negative) {
-      realSetNegativeSign(&x);
-    }
-  }
+  correctExactReal34Cube(&operand, &x);
   convertRealToResultRegister(&x, REGISTER_X, amNone);
 }
 
@@ -84,38 +115,57 @@ static  void curtLonI(void) {
 
 
 void curtCplx(void) {
-  real_t a, b;
+  real_t operandReal;
+  cplx_t a;
+  bool_t operandImaginaryZero;
 
-  if(getRegisterAsComplex(REGISTER_X, &a, &b)) {
-    curtComplex(&a, &b, &a, &b, &ctxtReal39);
-    convertComplexToResultRegister(&a, &b, REGISTER_X);
+  if(getRegisterAsComplex(REGISTER_X, &a)) {
+    realCopy(&a.Real, &operandReal);
+    operandImaginaryZero = realIsZero(&a.Imag);
+    curtComplex(&a, &a, &ctxtReal39);
+    if(operandImaginaryZero) {
+      correctExactReal34Cube(&operandReal, &a.Real);
+    }
+    convertComplexToResultRegister(&a, REGISTER_X);
   }
 }
 
 
 
-void curtComplex75(const real_t *real, const real_t *imag, real_t *resReal, real_t *resImag, realContext_t *realContext) {
-  real_t a, b;
+void curtComplex(const cplx_t *z, cplx_t *res, realContext_t *realContext) {
+  cplx_t w;
 
-  realCopy(real, &a);
-  realCopy(imag, &b);
+  realCopy(&z->Real, &w.Real);
+  realCopy(&z->Imag, &w.Imag);
 
-  if(realIsZero(&b)) {
-    if(realIsPositive(&a)) {
-      PowerReal(&a, const39_1on3, resReal, realContext);
+  if(realIsZero(&w.Imag)) {
+    if(realIsPositive(&w.Real)) {
+      PowerReal(&w.Real, const39_1on3, &res->Real, realContext);
     }
     else {
-      realSetPositiveSign(&a);
-      PowerReal(&a, const39_1on3, resReal, realContext);
-      realSetNegativeSign(resReal);
+      realSetPositiveSign(&w.Real);
+      PowerReal(&w.Real, const39_1on3, &res->Real, realContext);
+      realSetNegativeSign(&res->Real);
     }
-    realSetZero(resImag);
+    realCopy(&w.Imag, &res->Imag);
+  }
+  else if(realIsInfinite(&w.Real) && !realIsSpecial(&w.Imag)) {
+    realSetPlusInfinity(&res->Real);
+    if(realIsPositive(&w.Real)) {
+      realSetZero(&res->Imag);
+    }
+    else {
+      realSetPlusInfinity(&res->Imag);
+    }
+    if(realIsNegative(&w.Imag)) {
+      realSetNegativeSign(&res->Imag);
+    }
   }
   else {
-    realRectangularToPolar(&a, &b, &a, &b, realContext);
-    PowerReal(&a, const39_1on3, &a, realContext);
-    realMultiply(&b, const39_1on3, &b, realContext);
-    realPolarToRectangular(&a, &b, resReal, resImag, realContext);
+    realRectangularToPolar(&w, &w.Mag, &w.Arg, realContext);
+    PowerReal(&w.Mag, const39_1on3, &w.Mag, realContext);
+    realMultiply(&w.Arg, const39_1on3, &w.Arg, realContext);
+    realPolarToRectangular(&w.Mag, &w.Arg, res, realContext);
   }
 }
 
@@ -123,7 +173,7 @@ void curtComplex75(const real_t *real, const real_t *imag, real_t *resReal, real
 #if defined(OPTION_CUBIC_159) || defined(OPTION_EIGEN_159)
 // Complex cube root using Halley's method: x_{n+1} = x_n * (x_n³ + 2z) / (2x_n³ + z)
 //   The point of using this is we cannot use complex trig without a 159 digit precision Taylor et al.
-void curtComplex159(const real_t *zReal, const real_t *zImag, real_t *resReal, real_t *resImag, realContext_t *realContext) {
+void curtComplex159(const cplx159_t *z, cplx159_t *res, realContext_t *realContext) {
   #define HALLEY_ITER_MAX 15 //8
   //printf("DEBUG curtComplex159: realContext->digits = %d\n", realContext->digits);
   #if defined(PC_BUILD)
@@ -177,12 +227,12 @@ void curtComplex159(const real_t *zReal, const real_t *zImag, real_t *resReal, r
   realSetZero(temp);
   realSetZero(denom_mag);
 
-  realCopy(zReal, zr);
-  realCopy(zImag, zi);
+  realCopy(&z->Real, zr);
+  realCopy(&z->Imag, zi);
 
   if(realIsZero(zr) && realIsZero(zi)) {
-    realSetZero(resReal);
-    realSetZero(resImag);
+    realSetZero(&res->Real);
+    realSetZero(&res->Imag);
     return;
   }
 
@@ -204,12 +254,12 @@ void curtComplex159(const real_t *zReal, const real_t *zImag, real_t *resReal, r
 
     // xi = |zi|^(1/3) * 1/2 * sign(zi_original)
     realMultiply(temp, const_1on2, xi, realContext);
-    if(realIsNegative(zImag)) {
+    if(realIsNegative(&z->Imag)) {
       realChangeSign(xi);
     }
 
-    realCopy(xr, resReal);
-    realCopy(xi, resImag);
+    realCopy(xr, &res->Real);
+    realCopy(xi, &res->Imag);
     return;
   }
 
@@ -227,8 +277,8 @@ void curtComplex159(const real_t *zReal, const real_t *zImag, real_t *resReal, r
       realSetZero(xi);
       realSetNegativeSign(zr); // Restore to negative (input was negative real, we're handling cbrt of negative)
     }
-    realCopy(xr, resReal);
-    realCopy(xi, resImag);
+    realCopy(xr, &res->Real);
+    realCopy(xi, &res->Imag);
     return;
   }
 
@@ -318,84 +368,61 @@ void curtComplex159(const real_t *zReal, const real_t *zImag, real_t *resReal, r
 
   // The three cube roots are: w, w*omega, w*omega^2
   // where omega = -1/2 + i*sqrt(3)/2
-  REAL_T_PTR(w1r, 159);
-  REAL_T_PTR(w1i, 159);
-  REAL_T_PTR(w2r, 159);
-  REAL_T_PTR(w2i, 159);
-  REAL_T_PTR(w3r, 159);
-  REAL_T_PTR(w3i, 159);
-  realSetZero(w1r);
-  realSetZero(w1i);
-  realSetZero(w2r);
-  realSetZero(w2i);
-  realSetZero(w3r);
-  realSetZero(w3i);
+  cplx159_t w1, w2, w3;
+  realSetZero(&w1.Real);
+  realSetZero(&w1.Imag);
+  realSetZero(&w2.Real);
+  realSetZero(&w2.Imag);
+  realSetZero(&w3.Real);
+  realSetZero(&w3.Imag);
 
   // w1 = current root
-  realCopy(xr, w1r);
-  realCopy(xi, w1i);
+  realCopy(xr, &w1.Real);
+  realCopy(xi, &w1.Imag);
 
   // omega = -1/2 + i*sqrt(3)/2
-  REAL_T_PTR(omega_r, 159);
-  REAL_T_PTR(omega_i, 159);
-  realSetZero(omega_r);
-  realSetZero(omega_i);
-  realCopy(const_1on2, omega_r);
-  realChangeSign(omega_r); // -1/2
-  realSquareRoot(const_3, omega_i, realContext);
-  realMultiply(omega_i, const_1on2, omega_i, realContext); // sqrt(3)/2
+  cplx159_t omega;
+  realSetZero(&omega.Real);
+  realSetZero(&omega.Imag);
+  realCopy(const_1on2, &omega.Real);
+  realChangeSign(&omega.Real); // -1/2
+  realSquareRoot(const_3, &omega.Imag, realContext);
+  realMultiply(&omega.Imag, const_1on2, &omega.Imag, realContext); // sqrt(3)/2
   //realToString(omega_r, dbg); printf("DEBUG curtComplex159: omega_r = %s\n", dbg);
   //realToString(omega_i, dbg); printf("DEBUG curtComplex159: omega_i = %s\n", dbg);
 
   // w2 = w1 * omega
-  mulComplexComplex(w1r, w1i, omega_r, omega_i, w2r, w2i, realContext);
+  mulComplexComplex159(&w1, &omega, &w2, realContext);
   //realToString(w2r, dbg); printf("DEBUG curtComplex159: w2r = %s\n", dbg);
   //realToString(w2i, dbg); printf("DEBUG curtComplex159: w2i = %s\n", dbg);
 
   // w3 = w1 * omega^2 = w1 * conj(omega)
-  realChangeSign(omega_i);
-  mulComplexComplex(w1r, w1i, omega_r, omega_i, w3r, w3i, realContext);
+  realChangeSign(&omega.Imag);
+  mulComplexComplex159(&w1, &omega, &w3, realContext);
   //realToString(w3r, dbg); printf("DEBUG curtComplex159: w3r = %s\n", dbg);
   //realToString(w3i, dbg); printf("DEBUG curtComplex159: w3i = %s\n", dbg);
 
   // Select root with largest real part
-  realCopy(w1r, xr);
-  realCopy(w1i, xi);
+  realCopy(&w1.Real, xr);
+  realCopy(&w1.Imag, xi);
   //printf("DEBUG curtComplex159: Starting with w1 as candidate\n");
 
-  if(realCompareLessThan(xr, w2r)) {
+  if(realCompareLessThan(xr, &w2.Real)) {
     //printf("DEBUG curtComplex159: w2 has larger real part than current, selecting w2\n");
-    realCopy(w2r, xr);
-    realCopy(w2i, xi);
+    realCopy(&w2.Real, xr);
+    realCopy(&w2.Imag, xi);
   }
-  if(realCompareLessThan(xr, w3r)) {
+  if(realCompareLessThan(xr, &w3.Real)) {
     //printf("DEBUG curtComplex159: w3 has larger real part than current, selecting w3\n");
-    realCopy(w3r, xr);
-    realCopy(w3i, xi);
+    realCopy(&w3.Real, xr);
+    realCopy(&w3.Imag, xi);
   }
   //realToString(xr, dbg); printf("DEBUG curtComplex159: Final selected root xr = %s\n", dbg);
   //realToString(xi, dbg); printf("DEBUG curtComplex159: Final selected root xi = %s\n", dbg);
-  realCopy(xr, resReal);
-  realCopy(xi, resImag);
+  realCopy(xr, &res->Real);
+  realCopy(xi, &res->Imag);
 }
 #endif //OPTION_CUBIC_159 || OPTION_EIGEN_159
-
-
-void curtComplex(const real_t *zReal, const real_t *zImag, real_t *resReal, real_t *resImag, realContext_t *realContext) {
-  if(realContext->digits <= 75) {
-    curtComplex75(zReal, zImag, resReal, resImag, realContext);
-  #if defined(OPTION_CUBIC_159) || defined(OPTION_EIGEN_159)
-  }
-  else if(realContext->digits <= 159) {
-    curtComplex159(zReal, zImag, resReal, resImag, realContext);
-  #endif //OPTION_CUBIC_159) || OPTION_EIGEN_159
-  }
-  else {
-    sprintf(errorMessage, "Exceed digits :curtComplex159: %d", (int)(realContext->digits));
-    displayBugScreen(errorMessage);
-  }
-}
-
 
 
 

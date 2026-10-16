@@ -33,6 +33,10 @@ static void fpShoI(void) {
 static void fpReal(void) {
   real34_t x;
 
+  if(real34IsZero(REGISTER_REAL34_DATA(REGISTER_X))) {
+    return;
+  }
+
   real34ToIntegralValue(REGISTER_REAL34_DATA(REGISTER_X), &x, DEC_ROUND_DOWN);
   real34Subtract(REGISTER_REAL34_DATA(REGISTER_X), &x, REGISTER_REAL34_DATA(REGISTER_X));
 }

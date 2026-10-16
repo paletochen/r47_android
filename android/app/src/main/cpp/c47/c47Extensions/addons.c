@@ -1514,7 +1514,7 @@ static void cpxToStk(const real_t *real1, const real_t *real2, const bool_t sl) 
 //  realToReal34(real1, REGISTER_REAL34_DATA(REGISTER_X));
 //  realToReal34(real2, REGISTER_IMAG34_DATA(REGISTER_X));
 //  adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-  convertComplexToResultRegister(real1, real2, REGISTER_X);
+  convertComplexPartsToResultRegister(real1, real2, REGISTER_X);
 }
 
 
@@ -1559,10 +1559,6 @@ void fn_cnst_0_cpx(uint16_t unusedButMandatoryParameter) {
 void fn_cnst_1_cpx(uint16_t unusedButMandatoryParameter) {
   cpxToStk(const_1, const_0, !forcedLiftTheStack);
 }
-
-struct cmplxPair {
-  real_t r, i;
-};
 
 void fn_cnst_op_A(uint16_t option) {
   complex34Matrix_t matrixC;
@@ -1654,14 +1650,14 @@ TO_QSPI static const struct {
   };
 
 
-  static bool_t processDefaultVector(calcRegister_t regist, uint8_t p, uint8_t d, struct cmplxPair *x, bool_t *complexCoefs) {
+  static bool_t processDefaultVector(calcRegister_t regist, uint8_t p, uint8_t d, cplx_t *x, bool_t *complexCoefs) {
     if(d == V_COPY) {
-      if(!getRegisterAsComplexOrReal(regist, &x[p].r, &x[p].i, complexCoefs)) {
+      if(!getRegisterAsComplexOrReal(regist, &x[p], complexCoefs)) {
         return false;
       }
     }
     else if(d <= V_D1) {
-      realCopy(d == V_D1 ? const_1 : const_0, &x[p].r);
+      realCopy(d == V_D1 ? const_1 : const_0, &x[p].Real);
     }
     return true;
   }
@@ -1732,7 +1728,7 @@ void fnExchangeStkToMx(uint16_t opType) {
 void fnConvertStkToMx(uint16_t constVector1) {
 #if defined(OPTION_VECTOR) || defined(OPTION_ELEC)
   bool_t complexCoefs = false;
-  struct cmplxPair x[4];
+  cplx_t x[4];
   real34Matrix_t matrix;
   complex34Matrix_t matrixC;
   uint16_t elements;
@@ -1798,25 +1794,6 @@ void fnConvertStkToMx(uint16_t constVector1) {
     }
   }
 
-
-  //only allow VECT_CR_yx to allow an angle to be processed here, and immediately convert to 2D vector
-  if(validPolarInput) {
-    convertAngleFromTo(&x[0].r, ang2Dx, amRadian, &ctxtReal39);
-    if(realCompareLessThan(&x[1].r, const_0)) {
-      realSetPositiveSign(&x[1].r);
-      realAdd(&x[0].r, const39_pi, &x[0].r, &ctxtReal39);
-    }
-  }
-
-
-  //only allow VECT_CR_zyx to allow an angle to be processed here, and immediately convert to 3D vector
-  if(validSPHInput) {
-    convertAngleFromTo(&x[vecCreate[constVector].x].r, ang3Dx, amRadian, &ctxtReal39);
-    convertAngleFromTo(&x[vecCreate[constVector].y].r, ang3Dy, amRadian, &ctxtReal39);
-  }
-  else if(validCYLInput) {
-    convertAngleFromTo(&x[vecCreate[constVector].y].r, ang3Dy, amRadian, &ctxtReal39);
-  }
 #endif //OPTION_VECTOR || OPTION_ELEC
 
 
@@ -1861,20 +1838,20 @@ void fnConvertStkToMx(uint16_t constVector1) {
 
 #if defined(OPTION_VECTOR) || defined(OPTION_ELEC)
     if(ang2Dx != amNone && ang2Dy == amNone && constVector == VECT_CR_yx) {
-      convertPOLto2D(&x[1].r, &x[0].r, amRadian, &matrix, &ctxtReal39);
+      convertPOLto2D(&x[1].Real, &x[0].Real, ang2Dx, &matrix, &ctxtReal39);
       matrixRegisterLoaded = true;
     }
     else if(ang3Dx != amNone && ang3Dy != amNone && (constVector == VECT_CR_zyx || constVector == VECT_CR_zxy)) {
       if(constVector == VECT_CR_zxy) {
-        convertSPHto3D(&x[2].r, &x[0].r, &x[1].r, amRadian, &matrix, &ctxtReal39);
+        convertSPHto3D(&x[2].Real, &x[0].Real, &x[1].Real, ang3Dx, ang3Dy, &matrix, &ctxtReal39);
       }
       else {
-        convertSPHto3D(&x[2].r, &x[1].r, &x[0].r, amRadian, &matrix, &ctxtReal39);
+        convertSPHto3D(&x[2].Real, &x[1].Real, &x[0].Real, ang3Dy, ang3Dx, &matrix, &ctxtReal39);
       }
       matrixRegisterLoaded = true;
     }
     else if(ang3Dx == amNone && ang3Dy != amNone && constVector == VECT_CR_zyx) {
-      convertCYLto3D(&x[2].r, &x[1].r, &x[0].r, amRadian, &matrix, &ctxtReal39);
+      convertCYLto3D(&x[2].Real, &x[1].Real, &x[0].Real, ang3Dy, &matrix, &ctxtReal39);
       matrixRegisterLoaded = true;
     }
 #endif //OPTION_VECTOR || OPTION_ELEC
@@ -1884,11 +1861,11 @@ void fnConvertStkToMx(uint16_t constVector1) {
   if(!matrixRegisterLoaded) {
     for(int i = 0; i < elements; i++) {
       if(complexCoefs) {
-        realToReal34(&x[elements-1-i].r, VARIABLE_REAL34_DATA(&matrixC.matrixElements[i]));
-        realToReal34(&x[elements-1-i].i, VARIABLE_IMAG34_DATA(&matrixC.matrixElements[i]));
+        realToReal34(&x[elements-1-i].Real, VARIABLE_REAL34_DATA(&matrixC.matrixElements[i]));
+        realToReal34(&x[elements-1-i].Imag, VARIABLE_IMAG34_DATA(&matrixC.matrixElements[i]));
       }
       else {
-        realToReal34(&x[elements-1-i].r, &matrix.matrixElements[i]);
+        realToReal34(&x[elements-1-i].Real, &matrix.matrixElements[i]);
       }
     }
   }
@@ -2028,13 +2005,13 @@ void fnConvertMxToStk(uint16_t param1) { //first try the vector type in lower ni
 
 #if defined(OPTION_VECTOR) || defined(OPTION_ELEC)
   if(constVector == VECT_CR_yx && ang2Dx != amNone) {
-    real_t theta, magnitude;
-    real34ToReal(&matrix.matrixElements[0], &magnitude);
-    real34ToReal(&matrix.matrixElements[1], &theta);
-    realRectangularToPolar(&magnitude, &theta, &magnitude, &theta, &ctxtReal39); // theta in radian
-    convertAngleFromTo(&theta, amRadian, ang2Dx, &ctxtReal39);
-    realToReal34(&magnitude, &matrix.matrixElements[0]);
-    realToReal34(&theta,     &matrix.matrixElements[1]);
+    cplx_t v;
+    real34ToReal(&matrix.matrixElements[0], &v.Real);
+    real34ToReal(&matrix.matrixElements[1], &v.Imag);
+    realRectangularToPolar(&v, &v.Mag, &v.Arg, &ctxtReal39);                     // theta in radian
+    convertAngleFromTo(&v.Arg, amRadian, ang2Dx, &ctxtReal39);
+    realToReal34(&v.Mag, &matrix.matrixElements[0]);
+    realToReal34(&v.Arg, &matrix.matrixElements[1]);
   }
   else if((constVector == VECT_CR_zyx || constVector == VECT_CR_zxy) && (ang3Dy != amNone && ang3Dx == amNone)) {           // CYL
     real_t theta, magnitude, zz;
@@ -2598,8 +2575,7 @@ void timeToReal34(uint16_t hms) { //always 24 hour time;
 
   if(hms == 3) {
     //total seconds
-    reallocateRegister(regist, dtReal34, 0, amNone);
-    real34Copy(&real34, REGISTER_REAL34_DATA(regist));
+    convertReal34ToReal34Register(&real34, regist);
     if(sign) {
       real34ChangeSign(REGISTER_REAL34_DATA(regist));
     }

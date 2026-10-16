@@ -76,28 +76,25 @@ void decompReal(void) {
   else {
     uint64_t ssf0 = systemFlags0;
     uint64_t ssf1 = systemFlags1;
-    int16_t sign, lessEqualGreater;
-    uint64_t intPart, numer, denom;
+    int16_t fractionSign, lessEqualGreater;
+    uint64_t fractionIntPart, numer, denom;
+    real34_t absX, intPart, fracPart;
     longInteger_t lgInt;
 
-//    if(denMax == 0) {                     // *** remove ^^
-//      denMax = MAX_INTERNAL_DENMAX;       // *** remove ^^
-//    }                                     // *** remove ^^
-//    else {                                // *** remove ^^
-//      denMax = MAX_DENMAX;                // *** remove ^^
-//    }                                     // *** remove ^^
+    real34CopyAbs(&x, &absX);
+    real34ToIntegralValue(&absX, &intPart, DEC_ROUND_DOWN);
+    real34Subtract(&absX, &intPart, &fracPart);
+    real34Copy(&fracPart, REGISTER_REAL34_DATA(REGISTER_Y));
+
     clearSystemFlag(FLAG_PROPFR); // set improper fraction mode
-
-    fraction(REGISTER_Y, &sign, &intPart, &numer, &denom, &lessEqualGreater);
-
-//    denMax = savedDenMax;                 // *** remove ^^
+    fraction(REGISTER_Y, &fractionSign, &fractionIntPart, &numer, &denom, &lessEqualGreater);
     systemFlags0 = ssf0;
     systemFlags1 = ssf1;
 
-    longIntegerInit(lgInt);
-
-    uInt32ToLongInteger((uint32_t)numer, lgInt);
-    if(sign == -1) {
+    convertReal34ToLongInteger(&intPart, lgInt, DEC_ROUND_DOWN);
+    longIntegerMultiplyUInt(lgInt, (uint32_t)denom, lgInt);
+    longIntegerAddUInt(lgInt, (uint32_t)numer, lgInt);
+    if(real34IsNegative(&x)) {
       longIntegerSetNegativeSign(lgInt);
     }
     convertLongIntegerToLongIntegerRegister(lgInt, REGISTER_Y);

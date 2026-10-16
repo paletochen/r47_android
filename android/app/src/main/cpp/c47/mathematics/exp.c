@@ -36,25 +36,38 @@ void realExp(const real_t *x, real_t *res, realContext_t *set) {
   }
 }
 
-void expComplex(const real_t *real, const real_t *imag, real_t *resReal, real_t *resImag, realContext_t *realContext) {
-  real_t expa, sin, cos;
-
-  if(realIsZero(imag)) {
-   realExp(real, resReal, realContext);
-   realSetZero(resImag);
+void expComplex(const cplx_t *z, cplx_t *res, realContext_t *realContext) {
+  if(realIsZero(&z->Imag)) {
+   realExp(&z->Real, &res->Real, realContext);
+   realSetZero(&res->Imag);
    return;
   }
 
-  if(realIsSpecial(real) || realIsSpecial(imag)) {
-    realSetNaN(resReal);
-    realSetNaN(resImag);
+  if(realIsNaN(&z->Real) || realIsSpecial(&z->Imag)) {
+    realSetNaN(&res->Real);
+    realSetNaN(&res->Imag);
     return;
   }
 
- realExp(real, &expa, realContext);
- C47_WP34S_Cvt2RadSinCosTan(imag, amRadian, &sin, &cos, NULL, realContext);
- realMultiply(&expa, &cos, resReal, realContext);
- realMultiply(&expa, &sin, resImag, realContext);
+  REAL_T_ALLOC(expa, 75);                                                         // three wide working reals, in a deep call chain under the solver, go on the heap not the DM42 frame
+  REAL_T_ALLOC(sin,  75);
+  REAL_T_ALLOC(cos,  75);
+  if(expa == NULL || sin == NULL || cos == NULL) {
+    REAL_T_FREE(expa, 75);
+    REAL_T_FREE(sin,  75);
+    REAL_T_FREE(cos,  75);
+    realSetNaN(&res->Real);
+    realSetNaN(&res->Imag);
+    return;
+  }
+
+ realExp(&z->Real, expa, realContext);
+ C47_WP34S_Cvt2RadSinCosTan(&z->Imag, amRadian, sin, cos, NULL, realContext);
+ realMultiply(expa, cos, &res->Real, realContext);
+ realMultiply(expa, sin, &res->Imag, realContext);
+  REAL_T_FREE(expa, 75);
+  REAL_T_FREE(sin,  75);
+  REAL_T_FREE(cos,  75);
 }
 
 static void expReal(void) {
@@ -79,11 +92,11 @@ static void expReal(void) {
 
 
 static void expCplx(void) {
-  real_t zReal, zImag;
+  cplx_t z;
 
-  if(getRegisterAsComplex(REGISTER_X, &zReal, &zImag)) {
-    expComplex(&zReal, &zImag, &zReal, &zImag, &ctxtReal39);
-    convertComplexToResultRegister(&zReal, &zImag, REGISTER_X);
+  if(getRegisterAsComplex(REGISTER_X, &z)) {
+    expComplex(&z, &z, &ctxtReal39);
+    convertComplexToResultRegister(&z, REGISTER_X);
   }
 }
 

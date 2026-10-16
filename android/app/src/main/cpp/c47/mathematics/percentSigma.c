@@ -12,23 +12,20 @@
 //-----------------------------------------------------------------------------
 
 bool_t percentSigma(real_t *xReal, real_t *rReal, realContext_t *realContext) {
+  real_t scaledX;
+
   realCopy(SIGMA_X, rReal);    // r = Sum(x)
-  if(realIsZero(rReal)) {
-    if(getSystemFlag(FLAG_SPCRES)) {
-      realSetPlusInfinity(rReal);
-      rReal->bits |= DECNEG*realIsNegative(rReal);
-    }
-    else {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
-      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-        moreInfoOnError("In function percentSigma:", "cannot divide a real by 0", NULL, NULL);
-      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      return false;
-    }
+  if(realIsZero(rReal) && !getSystemFlag(FLAG_SPCRES)) {
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+      moreInfoOnError("In function percentSigma:", "cannot divide a real by 0", NULL, NULL);
+    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+    return false;
   }
 
-  realDivide(xReal, rReal, rReal, realContext); // r = x/Sum(x)
-  rReal->exponent += 2;                         // r = x/Sum(x) * 100
+  realCopy(xReal, &scaledX);
+  scaledX.exponent += 2;                          // scaledX = x * 100
+  realDivide(&scaledX, rReal, rReal, realContext);  // r = x * 100 / Sum(x)
 
   return true;
 }
@@ -42,12 +39,11 @@ bool_t percentSigma(real_t *xReal, real_t *rReal, realContext_t *realContext) {
 static void percentSigmaReal(void) {
   real_t xReal, rReal;
 
-  if(!getRegisterAsReal(REGISTER_X, &xReal) || !percentSigma(&xReal, &rReal, &ctxtReal39)) {
+  if(!getRegisterAsReal(REGISTER_X, &xReal) || !percentSigma(&xReal, &rReal, &ctxtReal34)) {
     return;
   }
 
-  reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-  convertRealToReal34ResultRegister(&rReal, REGISTER_X);
+  convertRealToResultRegister(&rReal, REGISTER_X, amNone);
 }
 
 //=============================================================================

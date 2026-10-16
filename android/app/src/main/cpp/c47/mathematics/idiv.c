@@ -60,9 +60,73 @@ void fnIDiv(uint16_t unusedButMandatoryParameter) {
 
 
 
+/********************************************//**
+ * \brief Computes exact integer division for finite integer and Real34 registers
+ *
+ * \param[in] returnRemainder whether to return the Real34 remainder in Y
+ * \return true when both registers are finite supported values, false when a special Real34 needs the decimal path
+ ***********************************************/
+bool_t integerDivideFiniteRegisters(bool_t returnRemainder) {
+  int32_t exponentY, exponentX, remainderExponent;
+  longInteger_t y, x, quotient, remainder;
+
+  if(!convertRegisterToScaledLongInteger(REGISTER_Y, y, &exponentY)) {
+    return false;
+  }
+  if(!convertRegisterToScaledLongInteger(REGISTER_X, x, &exponentX)) {
+    longIntegerFree(y);
+    return false;
+  }
+
+  longIntegerInit(quotient);
+  longIntegerInit(remainder);
+  longIntegerScaledDivide(y, exponentY, x, exponentX, quotient, remainder, &remainderExponent);
+  convertLongIntegerToLongIntegerRegister(quotient, REGISTER_X);
+
+  if(returnRemainder) {
+    reallocateRegister(REGISTER_Y, dtReal34, 0, amNone);
+    convertScaledLongIntegerToReal34(remainder, remainderExponent, REGISTER_REAL34_DATA(REGISTER_Y));
+  }
+
+  longIntegerFree(remainder);
+  longIntegerFree(quotient);
+  longIntegerFree(x);
+  longIntegerFree(y);
+  return true;
+}
+
+
+
 /******************************************************************************************************************************************************************************************/
 /* long integer idiv ...                                                                                                                                                                     */
 /******************************************************************************************************************************************************************************************/
+
+// The three integer IDIV routines differ only in the conversion that reads each operand.
+static void idivIntInt(registerToLongInteger_t cvtX, registerToLongInteger_t cvtY) {
+  longInteger_t x;
+
+  cvtX(REGISTER_X, x);
+
+  if(longIntegerIsZero(x)) {
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+      moreInfoOnError("In function idivIntInt:", "cannot IDIV an integer by 0", NULL, NULL);
+    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+  }
+  else {
+    longInteger_t y;
+
+    cvtY(REGISTER_Y, y);
+    longIntegerDivide(y, x, x);
+    convertLongIntegerToLongIntegerRegister(x, REGISTER_X);
+
+    longIntegerFree(y);
+  }
+
+  longIntegerFree(x);
+}
+
+
 
 /********************************************//**
  * \brief Y(long integer) idiv X(long integer) ==> X(long integer)
@@ -71,27 +135,7 @@ void fnIDiv(uint16_t unusedButMandatoryParameter) {
  * \return void
  ***********************************************/
 void idivLonILonI(void) {
-  longInteger_t x;
-
-  convertLongIntegerRegisterToLongInteger(REGISTER_X, x);
-
-  if(longIntegerIsZero(x)) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
-    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      moreInfoOnError("In function idivLonILonI:", "cannot IDIV a long integer by 0", NULL, NULL);
-    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-  }
-  else {
-    longInteger_t y;
-
-    convertLongIntegerRegisterToLongInteger(REGISTER_Y, y);
-    longIntegerDivide(y, x, x);
-    convertLongIntegerToLongIntegerRegister(x, REGISTER_X);
-
-    longIntegerFree(y);
-  }
-
-  longIntegerFree(x);
+  idivIntInt(convertLongIntegerRegisterToLongInteger, convertLongIntegerRegisterToLongInteger);
 }
 
 
@@ -103,27 +147,7 @@ void idivLonILonI(void) {
  * \return void
  ***********************************************/
 void idivLonIShoI(void) {
-  longInteger_t x;
-
-  convertShortIntegerRegisterToLongInteger(REGISTER_X, x);
-
-  if(longIntegerIsZero(x)) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
-    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      moreInfoOnError("In function idivLonIShoI:", "cannot IDIV a long integer by 0", NULL, NULL);
-    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-  }
-  else {
-    longInteger_t y;
-
-    convertLongIntegerRegisterToLongInteger(REGISTER_Y, y);
-    longIntegerDivide(y, x, x);
-    convertLongIntegerToLongIntegerRegister(x, REGISTER_X);
-
-    longIntegerFree(y);
-  }
-
-  longIntegerFree(x);
+  idivIntInt(convertShortIntegerRegisterToLongInteger, convertLongIntegerRegisterToLongInteger);
 }
 
 
@@ -135,27 +159,7 @@ void idivLonIShoI(void) {
  * \return void
  ***********************************************/
 void idivShoILonI(void) {
-  longInteger_t x;
-
-  convertLongIntegerRegisterToLongInteger(REGISTER_X, x);
-
-  if(longIntegerIsZero(x)) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
-    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      moreInfoOnError("In function idivShoILonI:", "cannot IDIV a short integer by 0", NULL, NULL);
-    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-  }
-  else {
-    longInteger_t y;
-
-    convertShortIntegerRegisterToLongInteger(REGISTER_Y, y);
-    longIntegerDivide(y, x, x);
-    convertLongIntegerToLongIntegerRegister(x, REGISTER_X);
-
-    longIntegerFree(y);
-  }
-
-  longIntegerFree(x);
+  idivIntInt(convertLongIntegerRegisterToLongInteger, convertShortIntegerRegisterToLongInteger);
 }
 
 
@@ -172,6 +176,10 @@ void idivLonIReal(void) {
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function idivLonIReal:", "cannot IDIV a long integer by 0", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+    return;
+  }
+
+  if(integerDivideFiniteRegisters(false)) {
     return;
   }
 
@@ -200,6 +208,10 @@ void idivRealLonI(void) {
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function idivRealLonI:", "cannot IDIV a real34 by 0", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+    return;
+  }
+
+  if(integerDivideFiniteRegisters(false)) {
     return;
   }
 
@@ -256,6 +268,10 @@ void idivShoIReal(void) {
     return;
   }
 
+  if(integerDivideFiniteRegisters(false)) {
+    return;
+  }
+
   real_t y, x;
 
   convertShortIntegerRegisterToReal(REGISTER_Y, &y, &ctxtReal39);
@@ -284,6 +300,10 @@ void idivRealShoI(void) {
     return;
   }
 
+  if(integerDivideFiniteRegisters(false)) {
+    return;
+  }
+
   real_t y;
 
   real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &y);
@@ -309,6 +329,10 @@ void idivRealReal(void) {
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function idivRealReal:", "cannot IDIV a real34 by 0", NULL, NULL);
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+    return;
+  }
+
+  if(integerDivideFiniteRegisters(false)) {
     return;
   }
 

@@ -11,45 +11,24 @@
 
   /**
    * Solve quadratic equation a x^2 + b x + c = 0 at the precision the build options select:
-   * 159 digits under OPTION_SQUARE_159, 75 otherwise, results rounded to 39 digits.
+   * 159 digits under OPTION_SQUARE_159, 75 otherwise.  The caller converts the work results.
    * Parameters as solveQuadraticEquation, without the context.
    */
-  void solveQuadratic(const real_t *aReal, const real_t *aImag,
-                      const real_t *bReal, const real_t *bImag,
-                      const real_t *cReal, const real_t *cImag,
-                            real_t *rReal,       real_t *rImag,
-                            real_t *x1Real,      real_t *x1Imag,
-                            real_t *x2Real,      real_t *x2Imag);
+  void solveQuadratic(const cplx_t *a, const cplx_t *b, const cplx_t *c, cplx_t *r, cplx_t *x1, cplx_t *x2);
 
   /**
    * Solve quadratic equation a x^2 + b x + c = 0.
    *
-   * \param[in] aReal the real part of the quadratic coefficient
-   * \param[in] aImag the imaginary part of the quadratic coefficient
-   * \param[in] bReal the real part of the linear coefficient
-   * \param[in] bImag the imaginary part of the linear coefficient
-   * \param[in] cReal the real part of the constant term
-   * \param[in] cImag the imaginary part of the constant term
-   * \param[out] rReal the real part of the discriminant b^2 - 4 a c
-   * \param[out] rImag the imaginary part of the discriminant
-   * \param[out] x1Real the real part of the 1st root
-   * \param[out] x1Imag the imaginary part of the 1st root
-   * \param[out] x2Real the real part of the 2nd root
-   * \param[out] x2Imag the imaginary part of the 2nd root
+   * \param[in] a the quadratic coefficient
+   * \param[in] b the linear coefficient
+   * \param[in] c the constant term
+   * \param[out] r the discriminant b^2 - 4 a c
+   * \param[out] x1 the 1st root
+   * \param[out] x2 the 2nd root
    * \param[in] realContext
    */
-  void solveQuadraticEquation(const real_t *aReal, const real_t *aImag,
-                              const real_t *bReal, const real_t *bImag,
-                              const real_t *cReal, const real_t *cImag,
-                                    real_t *rReal,       real_t *rImag,
-                                    real_t *x1Real,      real_t *x1Imag,
-                                    real_t *x2Real,      real_t *x2Imag, realContext_t *realContext);
+  void solveQuadraticEquation(const cplx_t *a, const cplx_t *b, const cplx_t *c, cplx_t *r, cplx_t *x1, cplx_t *x2, realContext_t *realContext);
 
-  void solveQuadraticEquation159(const real_t *aReal, const real_t *aImag,
-                              const real_t *bReal, const real_t *bImag,
-                              const real_t *cReal, const real_t *cImag,
-                                    real_t *rReal,       real_t *rImag,
-                                    real_t *x1Real,      real_t *x1Imag,
-                                    real_t *x2Real,      real_t *x2Imag, realContext_t *realContext);
+  void solveQuadraticEquation159(const cplx159_t *a, const cplx159_t *b, const cplx159_t *c, cplx159_t *r, cplx159_t *x1, cplx159_t *x2, realContext_t *realContext);
 
 #endif // !SLVQ_H

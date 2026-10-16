@@ -256,29 +256,873 @@ void convertUInt64ToShortIntegerRegister(int16_t sign, uint64_t value, uint32_t 
 
 
 void convertReal34ToLongInteger(const real34_t *re34, longInteger_t lgInt, enum rounding roundingMode) {
-  uint8_t bcd[DECQUAD_Pmax];
-  int32_t sign, exponent;
+  int32_t exponent;
   real34_t real34;
 
   real34ToIntegralValue(re34, &real34, roundingMode);
-  sign = real34GetCoefficient(&real34, bcd);
-  exponent = real34GetExponent(&real34);
-
-  longIntegerInit(lgInt);
-  uInt32ToLongInteger(bcd[0], lgInt);
-
-  for(int i=1; i<DECQUAD_Pmax; i++) {
-    longIntegerMultiplyUInt(lgInt, 10, lgInt);
-    longIntegerAddUInt(lgInt, bcd[i], lgInt);
+  if(!convertReal34ToScaledLongInteger(&real34, lgInt, &exponent)) {
+    longIntegerInit(lgInt);
+    return;
   }
 
   while(exponent > 0) {
     longIntegerMultiplyUInt(lgInt, 10, lgInt);
     exponent--;
   }
+}
+
+
+
+/********************************************//**
+ * \brief Converts an integer or finite Real34 register to an integer coefficient and decimal exponent
+ *
+ * \param[in] regist source register
+ * \param[out] coefficient signed integer coefficient, initialised when conversion succeeds
+ * \param[out] exponent decimal exponent
+ * \return true when conversion succeeds, false for an unsupported or special value
+ ***********************************************/
+bool_t convertRegisterToScaledLongInteger(calcRegister_t regist, longInteger_t coefficient, int32_t *exponent) {
+  *exponent = 0;
+
+  switch(getRegisterDataType(regist)) {
+    case dtLongInteger: {
+      convertLongIntegerRegisterToLongInteger(regist, coefficient);
+      return true;
+    }
+    case dtShortInteger: {
+      convertShortIntegerRegisterToLongInteger(regist, coefficient);
+      return true;
+    }
+    case dtReal34: {
+      return convertReal34ToScaledLongInteger(REGISTER_REAL34_DATA(regist), coefficient, exponent);
+    }
+    default: {
+      return false;
+    }
+  }
+}
+
+
+/********************************************//**
+ * \brief Returns the exact parity of an integer register value
+ *
+ * \param[in] regist source register
+ * \return one for odd, zero for even, or minus one for a noninteger or unsupported value
+ ***********************************************/
+int32_t getRegisterIntegerParity(calcRegister_t regist) {
+  longInteger_t integer;
+
+  switch(getRegisterDataType(regist)) {
+    case dtLongInteger: {
+      convertLongIntegerRegisterToLongInteger(regist, integer);
+      break;
+    }
+    case dtShortInteger: {
+      convertShortIntegerRegisterToLongInteger(regist, integer);
+      break;
+    }
+    case dtReal34: {
+      if(!real34IsAnInteger(REGISTER_REAL34_DATA(regist))) {
+        return -1;
+      }
+      convertReal34ToLongInteger(REGISTER_REAL34_DATA(regist), integer, DEC_ROUND_DOWN);
+      break;
+    }
+    default: {
+      return -1;
+    }
+  }
+
+  const int32_t parity = longIntegerIsOdd(integer) ? 1 : 0;
+  longIntegerFree(integer);
+  return parity;
+}
+
+
+
+/********************************************//**
+ * \brief Converts a finite Real34 to its signed integer coefficient and decimal exponent
+ *
+ * \param[in] real34 source value
+ * \param[out] coefficient signed integer coefficient, initialised when the source is finite
+ * \param[out] exponent decimal exponent
+ * \return true for a finite source, false for a special value
+ ***********************************************/
+bool_t convertReal34ToScaledLongInteger(const real34_t *real34, longInteger_t coefficient, int32_t *exponent) {
+  uint8_t bcd[DECQUAD_Pmax];
+  int32_t sign;
+
+  if(real34IsSpecial(real34)) {
+    return false;
+  }
+
+  sign = real34GetCoefficient(real34, bcd);
+  *exponent = real34GetExponent(real34);
+
+  longIntegerInit(coefficient);
+  uInt32ToLongInteger(bcd[0], coefficient);
+
+  for(int i=1; i<DECQUAD_Pmax; i++) {
+    longIntegerMultiplyUInt(coefficient, 10, coefficient);
+    longIntegerAddUInt(coefficient, bcd[i], coefficient);
+  }
 
   if(sign) {
-    longIntegerChangeSign(lgInt);
+    longIntegerChangeSign(coefficient);
+  }
+
+  return true;
+}
+
+
+
+static uint32_t exactLongIntegerDecimalDigits(const longInteger_t value) {
+  uint32_t digits;
+  longInteger_t boundary;
+
+  longIntegerInit(boundary);
+  digits = longIntegerBase10Digits(value);
+  longIntegerPowerUIntUInt(10u, digits - 1, boundary);
+  if(longIntegerCompareAbs(value, boundary) < 0) {
+    digits--;
+  }
+  longIntegerFree(boundary);
+  return digits;
+}
+
+
+
+/********************************************//**
+ * \brief Converts a signed integer coefficient and decimal exponent to a Real
+ *
+ * \param[in] coefficient signed integer coefficient
+ * \param[in] exponent decimal exponent
+ * \param[out] real result value
+ * \param[in] realContext destination context
+ * \return void
+ ***********************************************/
+void convertScaledLongIntegerToReal(const longInteger_t coefficient, int32_t exponent, real_t *real, realContext_t *realContext) {
+  size_t length;
+  uint32_t digits;
+
+  if(longIntegerIsZero(coefficient)) {
+    realSetZero(real);
+    return;
+  }
+
+  digits = longIntegerBase10Digits(coefficient);
+
+  if(digits > (uint32_t)realContext->digits + 2) {
+    const uint32_t discarded = digits - ((uint32_t)realContext->digits + 2);
+    longInteger_t leading, trailing, boundary;
+
+    longIntegerInit(boundary);
+    longIntegerPowerUIntUInt(10u, discarded, boundary);
+    longIntegerInit(leading);
+    longIntegerInit(trailing);
+    longIntegerDivideQuotientRemainder(coefficient, boundary, leading, trailing);
+    longIntegerToAllocatedString(leading, tmpString, TMP_STR_LENGTH);
+    length = strlen(tmpString);
+    if(!longIntegerIsZero(trailing)) {
+      tmpString[length++] = '1';
+      tmpString[length] = 0;
+      exponent += (int32_t)discarded - 1;
+    }
+    else {
+      exponent += (int32_t)discarded;
+    }
+    longIntegerFree(trailing);
+    longIntegerFree(leading);
+    longIntegerFree(boundary);
+  }
+  else {
+    longIntegerToAllocatedString(coefficient, tmpString, TMP_STR_LENGTH);
+  }
+
+  length = strlen(tmpString);
+  snprintf(tmpString + length, TMP_STR_LENGTH - length, "e%" PRId32, exponent);
+  stringToReal(tmpString, real, realContext);
+}
+
+
+
+static void exactResultContext(realContext_t *realContext) {
+  *realContext = ctxtReal34;
+  if(significantDigits > 0 && significantDigits < 34) {
+    realContext->digits = significantDigits;
+    realContext->emin += significantDigits - 34;
+  }
+}
+
+
+
+static void convertScaledLongIntegerToReal34Result(const longInteger_t coefficient, int32_t exponent, real34_t *real34) {
+  real_t real;
+  realContext_t realContext;
+
+  exactResultContext(&realContext);
+  convertScaledLongIntegerToReal(coefficient, exponent, &real, &realContext);
+  realToReal34(&real, real34);
+}
+
+
+
+/********************************************//**
+ * \brief Converts a signed integer coefficient and decimal exponent to Real34
+ *
+ * \param[in] coefficient signed integer coefficient
+ * \param[in] exponent decimal exponent
+ * \param[out] real34 result value
+ * \return void
+ ***********************************************/
+void convertScaledLongIntegerToReal34(const longInteger_t coefficient, int32_t exponent, real34_t *real34) {
+  real_t real;
+
+  convertScaledLongIntegerToReal(coefficient, exponent, &real, &ctxtReal34);
+  realToReal34(&real, real34);
+}
+
+
+
+/********************************************//**
+ * \brief Adds or subtracts two scaled integer coefficients exactly
+ *
+ * \p result is initialised by this function and must be freed by the caller.
+ *
+ * \param[in] first first signed integer coefficient
+ * \param[in] firstExponent decimal exponent of the first coefficient
+ * \param[in] second second signed integer coefficient
+ * \param[in] secondExponent decimal exponent of the second coefficient
+ * \param[in] subtract true for subtraction, false for addition
+ * \param[out] result exact signed integer coefficient
+ * \param[out] resultExponent decimal exponent of the result coefficient
+ * \return void
+ ***********************************************/
+void addSubtractScaledLongIntegers(const longInteger_t first, int32_t firstExponent, const longInteger_t second, int32_t secondExponent, bool_t subtract, longInteger_t result, int32_t *resultExponent) {
+  mpz_srcptr firstScaled = first, secondScaled = second;
+  longInteger_t scale;
+
+  *resultExponent = min(firstExponent, secondExponent);
+  longIntegerInit(scale);
+  longIntegerInit(result);
+  if(firstExponent > *resultExponent) {
+    longIntegerPowerUIntUInt(10u, firstExponent - *resultExponent, result);
+    longIntegerMultiplyUnbounded(first, result, scale);
+    firstScaled = scale;
+  }
+  else if(secondExponent > *resultExponent) {
+    longIntegerPowerUIntUInt(10u, secondExponent - *resultExponent, result);
+    longIntegerMultiplyUnbounded(second, result, scale);
+    secondScaled = scale;
+  }
+
+  if(subtract) {
+    longIntegerSubtractUnbounded(firstScaled, secondScaled, result);
+  }
+  else {
+    longIntegerAddUnbounded(firstScaled, secondScaled, result);
+  }
+
+  longIntegerFree(scale);
+}
+
+
+
+static bool_t rootLongIntegerToReal34Internal(const longInteger_t operand, uint32_t order, bool_t reciprocal, int32_t exponentShift, real34_t *result) {
+  if(order < 2u || order > 4u || longIntegerIsZero(operand) || ((order & 1u) == 0u && longIntegerIsNegative(operand))) {
+    return false;
+  }
+
+  const bool_t negative = longIntegerIsNegative(operand);
+  const uint32_t targetDigits = significantDigits > 0 && significantDigits < 34 ? significantDigits : 34;
+  int64_t decimalScale;
+  longInteger_t magnitude, scale, scaled, discarded, coefficient, remainder;
+  longInteger_t midpoint, midpointPower, comparison;
+
+  longIntegerInit(magnitude);
+  longIntegerCopy(operand, magnitude);
+  longIntegerSetPositiveSign(magnitude);
+  const uint32_t digits = exactLongIntegerDecimalDigits(magnitude);
+  if(reciprocal) {
+    const uint64_t adjustedExponent = digits - 1u;
+    int64_t rootExponent = (int64_t)((adjustedExponent + order - 1u) / order);
+
+    if(adjustedExponent % order == 0u) {
+      longIntegerInit(scale);
+      longIntegerPowerUIntUInt(10u, (uint32_t)adjustedExponent, scale);
+      if(longIntegerCompare(magnitude, scale) > 0) {
+        rootExponent++;
+      }
+      longIntegerFree(scale);
+    }
+    decimalScale = targetDigits - 1 + rootExponent;
+  }
+  else {
+    decimalScale = targetDigits - 1 - (int64_t)((digits - 1u) / order);
+  }
+  const uint64_t scalePower = order * (uint64_t)(decimalScale < 0 ? -decimalScale : decimalScale);
+  if(scalePower > UINT32_MAX || decimalScale < INT32_MIN || decimalScale > INT32_MAX) {
+    longIntegerFree(magnitude);
+    return false;
+  }
+
+  longIntegerInit(scale);
+  longIntegerInit(scaled);
+  longIntegerInit(discarded);
+  longIntegerInit(coefficient);
+  longIntegerInit(remainder);
+  longIntegerPowerUIntUInt(10u, (uint32_t)scalePower, scale);
+  if(reciprocal) {
+    longIntegerDivideQuotientRemainder(scale, magnitude, scaled, discarded);
+  }
+  else if(decimalScale >= 0) {
+    longIntegerMultiplyUnbounded(magnitude, scale, scaled);
+  }
+  else {
+    longIntegerDivideQuotientRemainder(magnitude, scale, scaled, discarded);
+  }
+  mpz_rootrem(coefficient, remainder, scaled, order);
+  const bool_t inexact = !longIntegerIsZero(remainder) || !longIntegerIsZero(discarded);
+
+  bool_t increment = false;
+  if(inexact) {
+    const enum rounding mode = roundingModeTable[roundingMode];
+
+    if(mode == DEC_ROUND_HALF_EVEN || mode == DEC_ROUND_HALF_UP || mode == DEC_ROUND_HALF_DOWN) {
+      longIntegerInit(midpoint);
+      longIntegerInit(midpointPower);
+      longIntegerInit(comparison);
+      longIntegerMultiplyUInt(coefficient, 2u, midpoint);
+      longIntegerAddUInt(midpoint, 1u, midpoint);
+      mpz_pow_ui(midpointPower, midpoint, order);
+      if(reciprocal) {
+        longIntegerMultiplyUInt(scale, 1u << order, comparison);
+        longIntegerMultiplyUnbounded(midpointPower, magnitude, midpointPower);
+      }
+      else {
+        longIntegerMultiplyUInt(magnitude, 1u << order, comparison);
+        if(decimalScale >= 0) {
+          longIntegerMultiplyUnbounded(comparison, scale, comparison);
+        }
+        else {
+          longIntegerMultiplyUnbounded(midpointPower, scale, midpointPower);
+        }
+      }
+      const int32_t midpointComparison = longIntegerCompare(comparison, midpointPower);
+      increment = midpointComparison > 0
+                  || (midpointComparison == 0
+                      && (mode == DEC_ROUND_HALF_UP || (mode == DEC_ROUND_HALF_EVEN && longIntegerIsOdd(coefficient))));
+      longIntegerFree(comparison);
+      longIntegerFree(midpointPower);
+      longIntegerFree(midpoint);
+    }
+    else if(mode == DEC_ROUND_UP) {
+      increment = true;
+    }
+    else if(mode == DEC_ROUND_CEILING) {
+      increment = !negative;
+    }
+    else if(mode == DEC_ROUND_FLOOR) {
+      increment = negative;
+    }
+  }
+
+  if(increment) {
+    longIntegerAddUInt(coefficient, 1u, coefficient);
+  }
+  if(negative) {
+    longIntegerChangeSign(coefficient);
+  }
+  convertScaledLongIntegerToReal34Result(coefficient, exponentShift - (int32_t)decimalScale, result);
+
+  longIntegerFree(remainder);
+  longIntegerFree(coefficient);
+  longIntegerFree(discarded);
+  longIntegerFree(scaled);
+  longIntegerFree(scale);
+  longIntegerFree(magnitude);
+  return true;
+}
+
+
+
+/********************************************//**
+ * \brief Rounds a positive square root or signed cube root of a long integer directly to Real34
+ *
+ * \param[in] operand integer radicand
+ * \param[in] order root order from two through four
+ * \param[out] result correctly rounded Real34 result
+ * \return true for a supported radicand and order, otherwise false
+ ***********************************************/
+bool_t rootLongIntegerToReal34(const longInteger_t operand, uint32_t order, real34_t *result) {
+  return rootLongIntegerToReal34Internal(operand, order, false, 0, result);
+}
+
+
+
+/********************************************//**
+ * \brief Rounds a reciprocal square root or reciprocal signed cube root of a long integer directly to Real34
+ *
+ * \param[in] operand integer radicand
+ * \param[in] order root order from two through four
+ * \param[out] result correctly rounded Real34 result
+ * \return true for a supported radicand and order, otherwise false
+ ***********************************************/
+bool_t reciprocalRootLongIntegerToReal34(const longInteger_t operand, uint32_t order, real34_t *result) {
+  return rootLongIntegerToReal34Internal(operand, order, true, 0, result);
+}
+
+
+
+/********************************************//**
+ * \brief Rounds the root of an integer or Real34 register once to Real34
+ *
+ * c·10ᵉ is scaled to an exponent that is a multiple of the order, so its root is the root of the integer c, scaled exactly.
+ *
+ * \param[in] regist register containing the radicand
+ * \param[in] order root order from two through four
+ * \param[in] exactExponent true gives an exact root the exponent e/order, false gives it 34 digits as an inexact root has
+ * \param[out] result correctly rounded Real34 result
+ * \return true for a supported radicand and order, otherwise false
+ ***********************************************/
+bool_t rootRegisterToReal34(calcRegister_t regist, uint32_t order, bool_t exactExponent, real34_t *result) {
+  longInteger_t coefficient, root;
+  int32_t exponent;
+  bool_t rooted = true;
+
+  if(!convertRegisterToScaledLongInteger(regist, coefficient, &exponent)) {
+    return false;
+  }
+  while(exponent % (int32_t)order != 0) {
+    longIntegerMultiplyUInt(coefficient, 10, coefficient);
+    exponent--;
+  }
+  longIntegerInit(root);
+  if(exactExponent && longIntegerIsPositive(coefficient) && longIntegerRoot(coefficient, order, root)) {   // an exact root takes the exponent e/order, as decNumber gives an exact square root
+    convertScaledLongIntegerToReal34Result(root, exponent / (int32_t)order, result);
+  }
+  else {
+    rooted = rootLongIntegerToReal34Internal(coefficient, order, false, exponent / (int32_t)order, result);
+  }
+  longIntegerFree(root);
+  longIntegerFree(coefficient);
+  return rooted;
+}
+
+
+
+/********************************************//**
+ * \brief Evaluates a long integer to a small signed integral power with one Real34 rounding
+ *
+ * \param[in] base integer base
+ * \param[in] exponent exponent from minus four through four, excluding minus one through one
+ * \param[out] result correctly rounded Real34 result
+ * \return true for a supported base and exponent, otherwise false
+ ***********************************************/
+bool_t powerLongIntegerToReal34(const longInteger_t base, int32_t exponent, real34_t *result) {
+  uint32_t magnitude;
+  longInteger_t power;
+
+  if((exponent < -4 || exponent > 4 || (exponent >= -1 && exponent <= 1)) || (exponent < 0 && longIntegerIsZero(base))) {
+    return false;
+  }
+  magnitude = exponent < 0 ? (uint32_t)-exponent : (uint32_t)exponent;
+
+  longIntegerInit(power);
+  mpz_pow_ui(power, base, magnitude);
+  if(exponent > 0) {
+    convertScaledLongIntegerToReal34Result(power, 0, result);
+  }
+  else {
+    longInteger_t one;
+
+    longIntegerInit(one);
+    uInt32ToLongInteger(1u, one);
+    divideScaledLongIntegersToReal34(one, 0, false, power, 0, result);
+    longIntegerFree(one);
+  }
+  longIntegerFree(power);
+  return true;
+}
+
+
+
+/********************************************//**
+ * \brief Adds or subtracts a long integer and a finite Real34 exactly before the Real34 conversion
+ *
+ * \param[in] integerRegister long integer source register
+ * \param[in] real34 Real34 source value
+ * \param[in] integerFirst true when the integer is the left operand
+ * \param[in] subtract true for subtraction, false for addition
+ * \param[out] result Real34 result
+ * \return true for a finite Real34 source, false for a special value
+ ***********************************************/
+bool_t addSubtractLongIntegerReal34(calcRegister_t integerRegister, const real34_t *real34, bool_t integerFirst, bool_t subtract, real34_t *result) {
+  int32_t exponent;
+  longInteger_t integer, coefficient, combined;
+  const bool_t integerNegative = subtract && !integerFirst;
+  const bool_t realNegative = real34IsNegative(real34) != (subtract && integerFirst);
+
+  convertLongIntegerRegisterToLongInteger(integerRegister, integer);
+  if(!convertReal34ToScaledLongInteger(real34, coefficient, &exponent)) {
+    longIntegerFree(integer);
+    return false;
+  }
+
+  const bool_t negativeZero = longIntegerIsZero(integer) && longIntegerIsZero(coefficient) && integerNegative == realNegative
+                              ? integerNegative : ctxtReal34.round == DEC_ROUND_FLOOR;
+  if(integerFirst) {
+    addSubtractScaledLongIntegers(integer, 0, coefficient, exponent, subtract, combined, &exponent);
+  }
+  else {
+    addSubtractScaledLongIntegers(coefficient, exponent, integer, 0, subtract, combined, &exponent);
+  }
+
+  convertScaledLongIntegerToReal34Result(combined, exponent, result);
+  if(longIntegerIsZero(combined) && negativeZero) {
+    real34SetNegativeSign(result);
+  }
+
+  longIntegerFree(combined);
+  longIntegerFree(coefficient);
+  longIntegerFree(integer);
+  return true;
+}
+
+
+
+/********************************************//**
+ * \brief Multiplies two scaled integer coefficients before one Real34 conversion
+ *
+ * \param[in] first first signed integer coefficient
+ * \param[in] firstExponent decimal exponent of the first coefficient
+ * \param[in] second second signed integer coefficient
+ * \param[in] secondExponent decimal exponent of the second coefficient
+ * \param[in] exponentAdjustment additional decimal exponent adjustment
+ * \param[in] negativeZero sign to use when the product coefficient is zero
+ * \param[out] result Real34 result
+ * \return void
+ ***********************************************/
+static void multiplyScaledLongIntegersToReal34(const longInteger_t first, int32_t firstExponent, const longInteger_t second, int32_t secondExponent, int32_t exponentAdjustment, bool_t negativeZero, real34_t *result) {
+  longInteger_t product;
+
+  longIntegerInit(product);
+  longIntegerMultiplyUnbounded(first, second, product);
+  convertScaledLongIntegerToReal34Result(product, firstExponent + secondExponent + exponentAdjustment, result);
+  if(longIntegerIsZero(product) && negativeZero) {
+    real34SetNegativeSign(result);
+  }
+  longIntegerFree(product);
+}
+
+
+
+/********************************************//**
+ * \brief Multiplies a long integer and a finite Real34 exactly before the Real34 conversion
+ *
+ * \param[in] integerRegister long integer source register
+ * \param[in] real34 Real34 source value
+ * \param[out] result Real34 result
+ * \return true for a finite Real34 source, false for a special value
+ ***********************************************/
+bool_t multiplyLongIntegerReal34(calcRegister_t integerRegister, const real34_t *real34, real34_t *result) {
+  int32_t exponent;
+  longInteger_t integer, coefficient;
+  const bool_t negative = (getRegisterLongIntegerSign(integerRegister) == LI_NEGATIVE) != real34IsNegative(real34);
+
+  convertLongIntegerRegisterToLongInteger(integerRegister, integer);
+  if(!convertReal34ToScaledLongInteger(real34, coefficient, &exponent)) {
+    longIntegerFree(integer);
+    return false;
+  }
+
+  multiplyScaledLongIntegersToReal34(integer, 0, coefficient, exponent, 0, negative, result);
+
+  longIntegerFree(coefficient);
+  longIntegerFree(integer);
+  return true;
+}
+
+
+
+/********************************************//**
+ * \brief Multiplies two finite register values with a decimal scale and one Real34 rounding
+ *
+ * \param[in] firstRegister first integer or Real34 source register
+ * \param[in] secondRegister second integer or Real34 source register
+ * \param[in] exponentAdjustment additional decimal exponent adjustment
+ * \param[out] result Real34 result
+ * \return true for supported finite operands, otherwise false
+ ***********************************************/
+bool_t multiplyRegisterValuesToReal34Scaled(calcRegister_t firstRegister, calcRegister_t secondRegister, int32_t exponentAdjustment, real34_t *result) {
+  int32_t firstExponent, secondExponent;
+  longInteger_t first, second;
+
+  if(!convertRegisterToScaledLongInteger(firstRegister, first, &firstExponent)) {
+    return false;
+  }
+  if(!convertRegisterToScaledLongInteger(secondRegister, second, &secondExponent)) {
+    longIntegerFree(first);
+    return false;
+  }
+
+  bool_t firstNegative = longIntegerIsNegative(first);
+  bool_t secondNegative = longIntegerIsNegative(second);
+  if(longIntegerIsZero(first) && getRegisterDataType(firstRegister) == dtReal34) {
+    firstNegative = real34IsNegative(REGISTER_REAL34_DATA(firstRegister));
+  }
+  if(longIntegerIsZero(second) && getRegisterDataType(secondRegister) == dtReal34) {
+    secondNegative = real34IsNegative(REGISTER_REAL34_DATA(secondRegister));
+  }
+  multiplyScaledLongIntegersToReal34(first, firstExponent, second, secondExponent, exponentAdjustment, firstNegative != secondNegative, result);
+
+  longIntegerFree(second);
+  longIntegerFree(first);
+  return true;
+}
+
+
+
+/********************************************//**
+ * \brief Divides two scaled integer coefficients in the supplied context
+ *
+ * \param[in] numerator signed numerator coefficient
+ * \param[in] numeratorExponent decimal exponent of the numerator coefficient
+ * \param[in] negativeZero sign to use when the numerator coefficient is zero
+ * \param[in] denominator signed denominator coefficient
+ * \param[in] denominatorExponent decimal exponent of the denominator coefficient
+ * \param[out] result Real result
+ * \param[in] realContext destination context
+ * \return true for a nonzero denominator, otherwise false
+ ***********************************************/
+bool_t divideScaledLongIntegersToReal(const longInteger_t numerator, int32_t numeratorExponent, bool_t negativeZero, const longInteger_t denominator, int32_t denominatorExponent, real_t *result, realContext_t *realContext) {
+  int32_t scale;
+  longInteger_t scaledNumerator, scaledDenominator, power, quotient, remainder;
+
+  if(longIntegerIsZero(denominator)) {
+    return false;
+  }
+
+  if(longIntegerIsZero(numerator)) {
+    realSetZero(result);
+    if(negativeZero) {
+      realSetNegativeSign(result);
+    }
+    return true;
+  }
+
+  const bool_t negative = longIntegerIsNegative(numerator) != longIntegerIsNegative(denominator);
+  // Each base-10 digit count can exceed the exact count by one; two extra places guarantee a rounding digit.
+  scale = realContext->digits + 2 + longIntegerBase10Digits(denominator) - longIntegerBase10Digits(numerator);
+
+  longIntegerInit(scaledNumerator);
+  longIntegerInit(scaledDenominator);
+  longIntegerInit(power);
+  longIntegerInit(quotient);
+  longIntegerInit(remainder);
+  longIntegerCopy(numerator, scaledNumerator);
+  longIntegerCopy(denominator, scaledDenominator);
+  longIntegerSetPositiveSign(scaledNumerator);
+  longIntegerSetPositiveSign(scaledDenominator);
+  if(scale >= 0) {
+    longIntegerPowerUIntUInt(10u, scale, power);
+    longIntegerMultiplyUnbounded(scaledNumerator, power, scaledNumerator);
+  }
+  else {
+    longIntegerPowerUIntUInt(10u, -scale, power);
+    longIntegerMultiplyUnbounded(scaledDenominator, power, scaledDenominator);
+  }
+  longIntegerDivideQuotientRemainder(scaledNumerator, scaledDenominator, quotient, remainder);
+
+  if(!longIntegerIsZero(remainder)) {
+    longIntegerMultiplyUInt(quotient, 10u, quotient);
+    longIntegerAddUInt(quotient, 1u, quotient);
+    scale++;
+  }
+  if(negative) {
+    longIntegerChangeSign(quotient);
+  }
+
+  convertScaledLongIntegerToReal(quotient, numeratorExponent - denominatorExponent - scale, result, realContext);
+  longIntegerFree(remainder);
+  longIntegerFree(quotient);
+  longIntegerFree(power);
+  longIntegerFree(scaledDenominator);
+  longIntegerFree(scaledNumerator);
+  return true;
+}
+
+
+
+/********************************************//**
+ * \brief Divides two scaled integer coefficients with one result rounding
+ *
+ * \param[in] numerator signed numerator coefficient
+ * \param[in] numeratorExponent decimal exponent of the numerator coefficient
+ * \param[in] negativeZero sign to use when the numerator coefficient is zero
+ * \param[in] denominator signed denominator coefficient
+ * \param[in] denominatorExponent decimal exponent of the denominator coefficient
+ * \param[out] result Real34 result
+ * \return true for a nonzero denominator, otherwise false
+ ***********************************************/
+bool_t divideScaledLongIntegersToReal34(const longInteger_t numerator, int32_t numeratorExponent, bool_t negativeZero, const longInteger_t denominator, int32_t denominatorExponent, real34_t *result) {
+  real_t real;
+  realContext_t realContext;
+
+  exactResultContext(&realContext);
+  const bool_t ok = divideScaledLongIntegersToReal(numerator, numeratorExponent, negativeZero, denominator, denominatorExponent, &real, &realContext);
+  if(ok) {
+    realToReal34(&real, result);
+  }
+  return ok;
+}
+
+
+
+/********************************************//**
+ * \brief Divides a long integer and a finite Real34 with one result rounding
+ *
+ * \param[in] integerRegister long integer source register
+ * \param[in] real34 Real34 source value
+ * \param[in] integerFirst true when the integer is the numerator
+ * \param[out] result Real34 result
+ * \return true for finite operands and a nonzero denominator, otherwise false
+ ***********************************************/
+bool_t divideLongIntegerReal34(calcRegister_t integerRegister, const real34_t *real34, bool_t integerFirst, real34_t *result) {
+  int32_t exponent;
+  longInteger_t integer, coefficient;
+
+  convertLongIntegerRegisterToLongInteger(integerRegister, integer);
+  if(!convertReal34ToScaledLongInteger(real34, coefficient, &exponent)) {
+    longIntegerFree(integer);
+    return false;
+  }
+
+  bool_t ok;
+  if(integerFirst) {
+    ok = divideScaledLongIntegersToReal34(integer, 0, real34IsNegative(real34), coefficient, exponent, result);
+  }
+  else {
+    const bool_t negativeZero = longIntegerIsZero(coefficient) && (real34IsNegative(real34) != longIntegerIsNegative(integer));
+    ok = divideScaledLongIntegersToReal34(coefficient, exponent, negativeZero, integer, 0, result);
+  }
+  longIntegerFree(coefficient);
+  longIntegerFree(integer);
+  return ok;
+}
+
+
+
+/********************************************//**
+ * \brief Divides two finite integer or Real34 register values with a decimal scale and one Real34 rounding
+ *
+ * \param[in] numeratorRegister numerator source register
+ * \param[in] denominatorRegister denominator source register
+ * \param[in] exponentAdjustment additional decimal exponent adjustment
+ * \param[out] result Real34 result
+ * \return true for finite operands and a nonzero denominator, otherwise false
+ ***********************************************/
+bool_t divideRegisterValuesToReal34Scaled(calcRegister_t numeratorRegister, calcRegister_t denominatorRegister, int32_t exponentAdjustment, real34_t *result) {
+  int32_t numeratorExponent, denominatorExponent;
+  longInteger_t numerator, denominator;
+
+  if(!convertRegisterToScaledLongInteger(numeratorRegister, numerator, &numeratorExponent)) {
+    return false;
+  }
+  if(!convertRegisterToScaledLongInteger(denominatorRegister, denominator, &denominatorExponent)) {
+    longIntegerFree(numerator);
+    return false;
+  }
+
+  bool_t negativeZero = false;
+  if(longIntegerIsZero(numerator)) {
+    const bool_t numeratorNegative = getRegisterDataType(numeratorRegister) == dtReal34 && real34IsNegative(REGISTER_REAL34_DATA(numeratorRegister));
+    negativeZero = numeratorNegative != longIntegerIsNegative(denominator);
+  }
+  const bool_t ok = divideScaledLongIntegersToReal34(numerator, numeratorExponent + exponentAdjustment, negativeZero, denominator, denominatorExponent, result);
+  longIntegerFree(denominator);
+  longIntegerFree(numerator);
+  return ok;
+}
+
+
+
+/********************************************//**
+ * \brief Divides two finite integer or Real34 register values with one Real34 rounding
+ *
+ * \param[in] numeratorRegister numerator source register
+ * \param[in] denominatorRegister denominator source register
+ * \param[out] result Real34 result
+ * \return true for finite operands and a nonzero denominator, otherwise false
+ ***********************************************/
+bool_t divideRegisterValuesToReal34(calcRegister_t numeratorRegister, calcRegister_t denominatorRegister, real34_t *result) {
+  return divideRegisterValuesToReal34Scaled(numeratorRegister, denominatorRegister, 0, result);
+}
+
+
+
+/********************************************//**
+ * \brief Divides one by a long integer with one Real34 rounding
+ *
+ * \param[in] denominatorRegister long or short integer denominator register
+ * \param[out] result Real34 result
+ * \return true for a nonzero denominator, otherwise false
+ ***********************************************/
+bool_t reciprocalLongIntegerRegisterToReal34(calcRegister_t denominatorRegister, real34_t *result) {
+  longInteger_t numerator, denominator;
+
+  longIntegerInit(numerator);
+  uInt32ToLongInteger(1u, numerator);
+  getRegisterAsLongIntQuiet(denominatorRegister, denominator, NULL);
+  const bool_t ok = divideScaledLongIntegersToReal34(numerator, 0, false, denominator, 0, result);
+  longIntegerFree(denominator);
+  longIntegerFree(numerator);
+  return ok;
+}
+
+
+
+/********************************************//**
+ * \brief Evaluates a finite scalar base raised to an exponent of plus or minus one
+ *
+ * \param[in] baseRegister scalar base register
+ * \param[in] exponentRegister Real34 exponent register
+ * \param[out] result Real34 result
+ * \return true when the identity was evaluated, otherwise false
+ ***********************************************/
+bool_t registerIdentityExponentToReal34(calcRegister_t baseRegister, calcRegister_t exponentRegister, real34_t *result) {
+  if(getRegisterDataType(exponentRegister) != dtReal34 || !real34CompareAbsEqual(REGISTER_REAL34_DATA(exponentRegister), const34_1)) {
+    return false;
+  }
+
+  const bool_t reciprocal = real34IsNegative(REGISTER_REAL34_DATA(exponentRegister));
+  switch(getRegisterDataType(baseRegister)) {
+    case dtLongInteger: {
+      if(reciprocal) {
+        return reciprocalLongIntegerRegisterToReal34(baseRegister, result);
+      }
+      longInteger_t base;
+
+      convertLongIntegerRegisterToLongInteger(baseRegister, base);
+      convertScaledLongIntegerToReal34Result(base, 0, result);
+      longIntegerFree(base);
+      return true;
+    }
+    case dtReal34: {
+      if(reciprocal) {
+        if(real34IsSpecial(REGISTER_REAL34_DATA(baseRegister)) || real34IsZero(REGISTER_REAL34_DATA(baseRegister))) {
+          return false;
+        }
+        real34Divide(const34_1, REGISTER_REAL34_DATA(baseRegister), result);
+      }
+      else {
+        real34Copy(REGISTER_REAL34_DATA(baseRegister), result);
+      }
+      return true;
+    }
+    default: {
+      return false;
+    }
   }
 }
 
@@ -291,6 +1135,21 @@ void convertReal34ToLongIntegerRegister(const real34_t *real34, calcRegister_t d
   convertLongIntegerToLongIntegerRegister(lgInt, dest);
 
   longIntegerFree(lgInt);
+}
+
+
+
+void convertReal34ToReal34Register(const real34_t *real34, calcRegister_t dest) {
+  reallocateRegister(dest, dtReal34, REAL34_SIZE_IN_BLOCKS, amNone);
+  real34Copy(real34, REGISTER_REAL34_DATA(dest));
+}
+
+
+
+void convertReal34ToComplex34Register(const real34_t *real34, const real34_t *imag34, calcRegister_t dest) {
+  reallocateRegister(dest, dtComplex34, COMPLEX34_SIZE_IN_BLOCKS, amNone);
+  real34Copy(real34, REGISTER_REAL34_DATA(dest));
+  real34Copy(imag34, REGISTER_IMAG34_DATA(dest));
 }
 
 
@@ -359,15 +1218,25 @@ void realToIntegralValue(const real_t *source, real_t *destination, enum roundin
 
 
 void convertRealToReal34ResultRegister(const real_t *real, calcRegister_t dest) {
-  real_t rounded;
-  roundToSignificantDigits(real, &rounded, significantDigits == 0 ? 34 : significantDigits, &ctxtReal75);
-  realToReal34(&rounded, REGISTER_REAL34_DATA(dest));
+  if(significantDigits == 0 || significantDigits >= 34) {
+    realToReal34(real, REGISTER_REAL34_DATA(dest));
+  }
+  else {
+    real_t rounded;
+    roundToSignificantDigits(real, &rounded, significantDigits, &ctxtReal34);
+    realToReal34(&rounded, REGISTER_REAL34_DATA(dest));
+  }
 }
 
 void convertRealToImag34ResultRegister(const real_t *real, calcRegister_t dest) {
-  real_t rounded;
-  roundToSignificantDigits(real, &rounded, significantDigits == 0 ? 34 : significantDigits, &ctxtReal75);
-  realToReal34(&rounded, REGISTER_IMAG34_DATA(dest));
+  if(significantDigits == 0 || significantDigits >= 34) {
+    realToReal34(real, REGISTER_IMAG34_DATA(dest));
+  }
+  else {
+    real_t rounded;
+    roundToSignificantDigits(real, &rounded, significantDigits, &ctxtReal34);
+    realToReal34(&rounded, REGISTER_IMAG34_DATA(dest));
+  }
 }
 
 void convertRealToResultRegister(const real_t *x, calcRegister_t dest, angularMode_t angle) {
@@ -375,7 +1244,12 @@ void convertRealToResultRegister(const real_t *x, calcRegister_t dest, angularMo
   convertRealToReal34ResultRegister(x, dest);
 }
 
-void convertComplexToResultRegister(const real_t *real, const real_t *imag, calcRegister_t dest) {
+void convertComplexToResultRegister(const cplx_t *z, calcRegister_t dest) {
+  convertComplexPartsToResultRegister(&z->Real, &z->Imag, dest);
+}
+
+// convertComplexToResultRegister for a real and an imaginary part that are not one cplx_t, such as constants or parts computed apart
+void convertComplexPartsToResultRegister(const real_t *real, const real_t *imag, calcRegister_t dest) {
   reallocateRegister(dest, dtComplex34, COMPLEX34_SIZE_IN_BLOCKS, amNone);
   convertRealToReal34ResultRegister(real, dest);
   convertRealToImag34ResultRegister(imag, dest);
@@ -832,9 +1706,9 @@ void sci_fmt(char *buf, int n, double x) {
 
 
 double convertRegisterToDouble(calcRegister_t regist) {
-  real_t regReal, regImag;
+  cplx_t regValue;
 
-  return getRegisterAsComplex(regist, &regReal, &regImag) ? fnRealToFloat(&regReal) : DOUBLE_NOT_INIT;
+  return getRegisterAsComplex(regist, &regValue) ? fnRealToFloat(&regValue.Real) : DOUBLE_NOT_INIT;
 }
 
 
@@ -1031,23 +1905,23 @@ void badDomainErrorX(void) {
   badDomainError(REGISTER_X);
 }
 
-bool_t getRegisterAsComplex(calcRegister_t reg, real_t *r, real_t *i) {
+bool_t getRegisterAsComplex(calcRegister_t reg, cplx_t *z) {
   switch(getRegisterDataType(reg)) {
     case dtLongInteger:
-      convertLongIntegerRegisterToReal(reg, r, &ctxtReal75);
+      convertLongIntegerRegisterToReal(reg, &z->Real, &ctxtReal75);
       break;
 
     case dtShortInteger:
-      convertShortIntegerRegisterToReal(reg, r, &ctxtReal34);
+      convertShortIntegerRegisterToReal(reg, &z->Real, &ctxtReal34);
       break;
 
     case dtReal34:
-      real34ToReal(REGISTER_REAL34_DATA(reg), r);
+      real34ToReal(REGISTER_REAL34_DATA(reg), &z->Real);
       break;
 
     case dtComplex34:
-      real34ToReal(REGISTER_REAL34_DATA(reg), r);
-      real34ToReal(REGISTER_IMAG34_DATA(reg), i);
+      real34ToReal(REGISTER_REAL34_DATA(reg), &z->Real);
+      real34ToReal(REGISTER_IMAG34_DATA(reg), &z->Imag);
       return true;
 
     default: {
@@ -1055,29 +1929,29 @@ bool_t getRegisterAsComplex(calcRegister_t reg, real_t *r, real_t *i) {
       return false;
     }
   }
-  realSetZero(i);
+  realSetZero(&z->Imag);
   return true;
 }
 
-bool_t getRegisterAsComplexOrAnyRealQuiet(calcRegister_t reg, real_t *r, real_t *i, bool_t *cmplx) {
+bool_t getRegisterAsComplexOrAnyRealQuiet(calcRegister_t reg, cplx_t *z, bool_t *cmplx) {
   switch(getRegisterDataType(reg)) {
     case dtLongInteger:
-      convertLongIntegerRegisterToReal(reg, r, &ctxtReal75);
+      convertLongIntegerRegisterToReal(reg, &z->Real, &ctxtReal75);
       break;
 
     case dtShortInteger:
-      convertShortIntegerRegisterToReal(reg, r, &ctxtReal34);
+      convertShortIntegerRegisterToReal(reg, &z->Real, &ctxtReal34);
       break;
 
     case dtTime:
     case dtDate:
     case dtReal34:
-      real34ToReal(REGISTER_REAL34_DATA(reg), r);
+      real34ToReal(REGISTER_REAL34_DATA(reg), &z->Real);
       break;
 
     case dtComplex34:
-      real34ToReal(REGISTER_REAL34_DATA(reg), r);
-      real34ToReal(REGISTER_IMAG34_DATA(reg), i);
+      real34ToReal(REGISTER_REAL34_DATA(reg), &z->Real);
+      real34ToReal(REGISTER_IMAG34_DATA(reg), &z->Imag);
       if(cmplx != NULL) {
         *cmplx = true;
       }
@@ -1086,12 +1960,12 @@ bool_t getRegisterAsComplexOrAnyRealQuiet(calcRegister_t reg, real_t *r, real_t 
     default:
       return false;
   }
-  realSetZero(i);
+  realSetZero(&z->Imag);
   return true;
 }
 
-bool_t getRegisterAsComplexOrAnyReal(calcRegister_t reg, real_t *r, real_t *i, bool_t *cmplx) {
-  const bool_t ret = getRegisterAsComplexOrAnyRealQuiet(reg, r, i, cmplx);
+bool_t getRegisterAsComplexOrAnyReal(calcRegister_t reg, cplx_t *z, bool_t *cmplx) {
+  const bool_t ret = getRegisterAsComplexOrAnyRealQuiet(reg, z, cmplx);
 
   if(!ret) {
     badTypeError(reg);
@@ -1100,18 +1974,18 @@ bool_t getRegisterAsComplexOrAnyReal(calcRegister_t reg, real_t *r, real_t *i, b
   return ret;
 }
 
-bool_t getRegisterAsComplexOrRealQuiet(calcRegister_t reg, real_t *r, real_t *i, bool_t *cmplx) {
+bool_t getRegisterAsComplexOrRealQuiet(calcRegister_t reg, cplx_t *z, bool_t *cmplx) {
   const uint32_t t = getRegisterDataType(reg);
 
   if(t == dtTime || t == dtDate) {
     return false;
   }
 
-  return getRegisterAsComplexOrAnyRealQuiet(reg, r, i, cmplx);
+  return getRegisterAsComplexOrAnyRealQuiet(reg, z, cmplx);
 }
 
-bool_t getRegisterAsComplexOrReal(calcRegister_t reg, real_t *r, real_t *i, bool_t *cmplx) {
-  const bool_t ret = getRegisterAsComplexOrRealQuiet(reg, r, i, cmplx);
+bool_t getRegisterAsComplexOrReal(calcRegister_t reg, cplx_t *z, bool_t *cmplx) {
+  const bool_t ret = getRegisterAsComplexOrRealQuiet(reg, z, cmplx);
 
   if(!ret) {
     badTypeError(reg);
@@ -1379,7 +2253,11 @@ bool_t getRegisterAsInt32Param(uint16_t regist, int32_t *value) {     // signed 
   return ok;
 }
 
-static void longIntegerAngleReduction(calcRegister_t regist, angularMode_t angularMode, real_t *reducedAngle, bool_t reduceLongintegerAngle) {
+// Integer radian reduction: one width for the context, the buffers and the 2pi divisor, so the divisor cannot drift from the context; 2139 covers the 1000 digit input cap.
+#define LONGINT_RADIAN_REDUCTION_DIGITS 2139
+#define LONGINT_RADIAN_REDUCTION_2PI    const2139_2pi
+
+bool_t reduceLongIntegerRegisterAngle(calcRegister_t regist, angularMode_t angularMode, real_t *reducedAngle, bool_t reduceLongintegerAngle) {
   uint32_t oneTurn;
   longInteger_t angle;
 
@@ -1401,42 +2279,42 @@ static void longIntegerAngleReduction(calcRegister_t regist, angularMode_t angul
       case amRadian: {
         //incoming longInteger, converted via tempString to real6147, modulus 2pi into real6147, convert to real75
         // The two 2139 digit buffers are 1436 bytes each, 2872 of this function's 2936 byte frame. From the heap the frame falls to 64 bytes.
-        REAL_T_ALLOC(reducedAngleTmp,  2139); // This cannot be increased to 6147 further. 6147 overruns the stack even if we just have the type in here also when using 2139 digits below.
-        REAL_T_ALLOC(reducedAngleTmp2, 2139);
+        REAL_T_ALLOC(reducedAngleTmp,  LONGINT_RADIAN_REDUCTION_DIGITS); // This cannot be increased to 6147 further. 6147 overruns the stack even if we just have the type in here also when using 2139 digits below.
+        REAL_T_ALLOC(reducedAngleTmp2, LONGINT_RADIAN_REDUCTION_DIGITS);
         if(reducedAngleTmp == NULL || reducedAngleTmp2 == NULL) {
-          REAL_T_FREE(reducedAngleTmp,  2139);
-          REAL_T_FREE(reducedAngleTmp2, 2139);
+          REAL_T_FREE(reducedAngleTmp,  LONGINT_RADIAN_REDUCTION_DIGITS);
+          REAL_T_FREE(reducedAngleTmp2, LONGINT_RADIAN_REDUCTION_DIGITS);
           displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
-          return;
+          return false;
         }
         realContext_t c = ctxtReal75;
-        c.digits = 2139;                               // Cannot be increased further. It works well on 1071, worked for a few tests already on 2139 but crashes if this goes to 6147 (together with the real_xxx above)
+        c.digits = LONGINT_RADIAN_REDUCTION_DIGITS;    // Cannot be increased further. It works well on 1071, worked for a few tests already on 2139 but crashes if this goes to 6147 (together with the real_xxx above)
                                                        // The minimum required for 1000 digits input reduction is slightly less than double, so 1071 is maybe ok for 99.99% cases, but 2139 is preferred as theoretically you will not have a case where 2139 will not work.
         convertLongIntegerRegisterToLongInteger(regist, angle);
 
-        if(longIntegerBase10Digits(angle) > 1000) {
+        if(longIntegerBase10Digits(angle) > 1001) {
           displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-            moreInfoOnError("In function longIntegerAngleReduction:", "Invalid integer size for angle reduction in radians: exponent too large.", NULL, NULL);
+            moreInfoOnError("In function reduceLongIntegerRegisterAngle:", "Invalid integer size for angle reduction in radians: exponent too large.", NULL, NULL);
           #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
           longIntegerFree(angle);
-          REAL_T_FREE(reducedAngleTmp,  2139);
-          REAL_T_FREE(reducedAngleTmp2, 2139);
-          return;
+          REAL_T_FREE(reducedAngleTmp,  LONGINT_RADIAN_REDUCTION_DIGITS);
+          REAL_T_FREE(reducedAngleTmp2, LONGINT_RADIAN_REDUCTION_DIGITS);
+          return false;
         }
 
         longIntegerToString(angle, 10, tmpString);
         decNumberFromString(reducedAngleTmp, tmpString, &c);
-        WP34S_Mod(reducedAngleTmp, const6147_2pi, reducedAngleTmp2, &c);
+        WP34S_Mod(reducedAngleTmp, LONGINT_RADIAN_REDUCTION_2PI, reducedAngleTmp2, &c);  // the 2139-digit 2pi reduces at the 2139 context; the 12321-digit 2pi NaNs on the DM42 decNumber here
         realPlus(reducedAngleTmp2, reducedAngle, &ctxtReal75);
         longIntegerFree(angle);
-        REAL_T_FREE(reducedAngleTmp,  2139);
-        REAL_T_FREE(reducedAngleTmp2, 2139);
-        return;
+        REAL_T_FREE(reducedAngleTmp,  LONGINT_RADIAN_REDUCTION_DIGITS);
+        REAL_T_FREE(reducedAngleTmp2, LONGINT_RADIAN_REDUCTION_DIGITS);
+        return true;
       }
       default: { //amNone
         convertLongIntegerRegisterToReal(regist, reducedAngle, &ctxtReal75);
-        return;
+        return true;
       }
     }
   }
@@ -1448,6 +2326,7 @@ static void longIntegerAngleReduction(calcRegister_t regist, angularMode_t angul
   } else {
     convertLongIntegerRegisterToReal(regist, reducedAngle, &ctxtReal39);  // No reduction for DEG, GRAD, MULPI branch
   }
+  return true;
 }
 
 
@@ -1455,8 +2334,10 @@ static void longIntegerAngleReduction(calcRegister_t regist, angularMode_t angul
 bool_t getRegisterAsRealAngle(calcRegister_t reg, real_t *val, angularMode_t *xAngularMode, bool_t reduceLongintegerAngle) {
   switch(getRegisterDataType(reg)) {
     case dtLongInteger:
-      longIntegerAngleReduction(reg, currentAngularMode, val, reduceLongintegerAngle);
-      // out of range error rolled into longIntegerAngleReduction as the longintegr is not accessible here except for converting again
+      if(!reduceLongIntegerRegisterAngle(reg, currentAngularMode, val, reduceLongintegerAngle)) {
+        return false;
+      }
+      // out of range error rolled into reduceLongIntegerRegisterAngle as the longintegr is not accessible here except for converting again
       *xAngularMode = currentAngularMode;
       break;
 
@@ -1573,12 +2454,32 @@ void restoreRegisterSnapshot(calcRegister_t reg, snap_t *s) {
   setRegisterDataType(reg, s->t, s->tag);
 }
 
+// Write a snapshot back and leave it usable, for a loop that puts the same operand back at every element. restoreRegisterSnapshot frees what it owns, so this
+// takes a fresh copy of the register straight after writing it back.
+void applyRegisterSnapshot(calcRegister_t reg, snap_t *s) {
+  restoreRegisterSnapshot(reg, s);
+  saveRegisterSnapshot(reg, s);
+}
+
+// Release what a snapshot owns without writing it back. A loop driven by applyRegisterSnapshot ends with this, so the result register is left alone.
+void freeRegisterSnapshot(snap_t *s) {
+  if(s->t == dtLongInteger) {
+    longIntegerFree(s->li);
+  }
+  else if(s->mem) {
+    freeC47Blocks(s->mem, s->blocks);
+    s->mem = NULL;
+    s->blocks = 0;
+  }
+}
+
+
 void processRealComplexMonadicFunction(void (*realf)(void), void (*complexf)(void)) {
   processIntRealComplexMonadicFunction(realf, complexf, NULL, NULL);
 }
 
 void processIntRealComplexMonadicFunction(void (*realf)(void), void (*complexf)(void), void (*shortintf)(void), void (*longintf)(void)) {
-  real_t aReal, aImag;
+  cplx_t a;
   bool_t cmplxRes = false;
   const uint32_t type = getRegisterDataType(REGISTER_X);
 
@@ -1606,7 +2507,7 @@ void processIntRealComplexMonadicFunction(void (*realf)(void), void (*complexf)(
   else if(type == dtComplex34Matrix && complexf != NULL) {
     elementwiseCxma(complexf);
   }
-  else if(getRegisterAsComplexOrReal(REGISTER_X, &aReal, &aImag, &cmplxRes)) {
+  else if(getRegisterAsComplexOrReal(REGISTER_X, &a, &cmplxRes)) {
     if(!cmplxRes && realf != NULL) {
       realf();
     }
@@ -1623,7 +2524,7 @@ done:
 }
 
 void processRealComplexDyadicFunction(void (*realf)(void), void (*complexf)(void)) {
-  real_t xReal, xImag, yReal, yImag;
+  cplx_t x, y;
   const uint32_t typeX = getRegisterDataType(REGISTER_X);
   const uint32_t typeY = getRegisterDataType(REGISTER_Y);
   bool_t xCmplx = false, yCmplx = false, cmplxRes = false;
@@ -1690,12 +2591,17 @@ void processRealComplexDyadicFunction(void (*realf)(void), void (*complexf)(void
     goto fin;
   }
   else if(typeY == dtComplex34Matrix && xNumber) {
-    elementwiseCxmaCplx(complexf);
+    if(complexf != NULL) {
+      elementwiseCxmaCplx(complexf);
+    }
+    else {
+      badTypeError(REGISTER_Y);
+    }
     goto fin;
   }
 
   /* Fall through to numeric/numeric or error if not */
-  if(!getRegisterAsComplexOrReal(REGISTER_X, &xReal, &xImag, &cmplxRes) || !getRegisterAsComplexOrReal(REGISTER_Y, &yReal, &yImag, &cmplxRes)) {
+  if(!getRegisterAsComplexOrReal(REGISTER_X, &x, &cmplxRes) || !getRegisterAsComplexOrReal(REGISTER_Y, &y, &cmplxRes)) {
     return;
   }
 

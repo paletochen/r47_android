@@ -82,15 +82,15 @@ void realRandomU01(real_t *res) {
 
   uInt32ToReal(boundedRand(100000000),  &t);
   res->exponent += 8;
-  realAdd(res, &t, res, &ctxtReal39);
+  realAdd(res, &t, res, &ctxtReal34); // exact concatenation, at most 16 digits
 
   uInt32ToReal(boundedRand(1000000000), &t);
   res->exponent += 9;
-  realAdd(res, &t, res, &ctxtReal39);
+  realAdd(res, &t, res, &ctxtReal34); // exact concatenation, at most 25 digits
 
   uInt32ToReal(boundedRand(1000000000), &t);
   res->exponent += 9;
-  realAdd(res, &t, res, &ctxtReal39);
+  realAdd(res, &t, res, &ctxtReal34); // exact concatenation, at most 34 digits
 
   res->exponent -= 34;
 }
@@ -165,7 +165,7 @@ static void doRealRandomI(void) {
     return;
   }
 
-  realSubtract(&regX, &regY, &t, &ctxtReal39);
+  realSubtract(&regX, &regY, &t, &ctxtReal75); // a cancellation-sensitive affine map can need all 68 input digits
   if(realIsZero(&t)) {
     goto end;
   }
@@ -179,7 +179,7 @@ static void doRealRandomI(void) {
   }
 
   realRandomU01(&u);
-  realFMA(&u, &t, lower, &regX, &ctxtReal39);
+  realFMA(&u, &t, lower, &regX, &ctxtReal34); // final selected-mode rounding
 end:
   convertRealToResultRegister(&regX, REGISTER_X, amNone);
 }
@@ -197,8 +197,7 @@ void fnRandom(uint16_t unusedButMandatoryParameter) {
 
   realRandomU01(&r);
   liftStack();
-  reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-  convertRealToReal34ResultRegister(&r, REGISTER_X);
+  convertRealToResultRegister(&r, REGISTER_X, amNone);
   adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
 }
 

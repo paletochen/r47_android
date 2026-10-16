@@ -7,7 +7,7 @@
 
 #include "c47.h"
 
-#if !defined(OPTION_DIST_C)
+#if !defined(OPTION_DIST_BINOM)
   void fnBinomialP           (uint16_t unusedButMandatoryParameter){}
   void fnBinomialL           (uint16_t unusedButMandatoryParameter){}
   void fnBinomialR           (uint16_t unusedButMandatoryParameter){}
@@ -19,136 +19,55 @@
   //void WP34S_Qf_Binomial  (const real_t *x, const real_t *p0, const real_t *n, real_t *res, realContext_t *realContext){}
 
 #else
-  static bool_t checkParamBinomial(real_t *x, real_t *i, real_t *j) {
-    if(!saveLastX()) {
+  bool_t binomialCheckDomain(bool_t registersValid, real_t *x, real_t *i, real_t *j, real_t *unusedThird, uint16_t unusedParameter) {
+    if(!registersValid) {
       return false;
     }
 
-    if( !getRegisterAsReal(REGISTER_X, x) || !getRegisterAsReal(REGISTER_P, i) || !getRegisterAsReal(REGISTER_N, j)) {
-      goto err;
-    }
-
-    if(!checkRegisterNoFP(j)) {
+    if(!checkRegisterNoFP(j) || realIsSpecial(j)) {
       displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-        moreInfoOnError("In function checkParamBinomial:", "n is not an integer", NULL, NULL);
+        moreInfoOnError("In function binomialCheckDomain:", "n is not a finite integer", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      goto err;
+      return false;
     }
-    else if(realIsNegative(x)) {
-      displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
-      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-        moreInfoOnError("In function checkParamBinomial:", "cannot calculate for x < 0", NULL, NULL);
-      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      goto err;
+    else if(realIsNaN(x)) {
+      if(!getSystemFlag(FLAG_SPCRES)) {
+        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+          moreInfoOnError("In function binomialCheckDomain:", "x is NaN", NULL, NULL);
+        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+      }
+      return false;
     }
-    else if(realIsNegative(i) || realCompareGreaterThan(i, const_1) || realIsNegative(j)) {
+    else if(realIsSpecial(i) || realCompareLessThan(i, const_0) || realCompareGreaterThan(i, const_1) || realCompareLessThan(j, const_0)) {
       displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-        moreInfoOnError("In function checkParamBinomial:", "the parameters must be 0 " STD_LESS_EQUAL " p " STD_LESS_EQUAL " 1 and n > 0", NULL, NULL);
+        moreInfoOnError("In function binomialCheckDomain:", "the parameters must be 0 " STD_LESS_EQUAL " p " STD_LESS_EQUAL " 1 and n " STD_GREATER_EQUAL " 0", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      goto err;
+      return false;
     }
     return true;
-
-  err:
-    if(getSystemFlag(FLAG_SPCRES)) {
-      convertRealToResultRegister(const_NaN, REGISTER_X, amNone);
-    }
-    return false;
   }
 
 
   void fnBinomialP(uint16_t unusedButMandatoryParameter) {
-    real_t val, ans, prob, num;
-
-    if(checkParamBinomial(&val, &prob, &num)) {
-      if(realIsAnInteger(&val)) {
-        WP34S_Pdf_Binomial(&val, &prob, &num, &ans, &ctxtReal39);
-      }
-      else {
-        realSetZero(&ans);
-      }
-      if(realIsNaN(&ans)) {
-        displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE);
-        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-          moreInfoOnError("In function fnBinomialP:", "a parameter is invalid", NULL, NULL);
-        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      }
-      else {
-        convertRealToResultRegister(&ans, REGISTER_X, amNone);
-      }
-      adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-    }
+    fnDistribution(DIST_BINOM * 4 + DIST_P);
   }
 
 
   void fnBinomialL(uint16_t unusedButMandatoryParameter) {
-    real_t val, ans, prob, num;
-
-    if(checkParamBinomial(&val, &prob, &num)) {
-      WP34S_Cdf_Binomial(&val, &prob, &num, &ans, &ctxtReal39);
-      if(realIsNaN(&ans)) {
-        displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE);
-        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-          moreInfoOnError("In function fnBinomialL:", "a parameter is invalid", NULL, NULL);
-        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      }
-      else {
-        convertRealToResultRegister(&ans, REGISTER_X, amNone);
-      }
-      adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-    }
+    fnDistribution(DIST_BINOM * 4 + DIST_L);
   }
 
 
   void fnBinomialR(uint16_t unusedButMandatoryParameter) {
-    real_t val, ans, prob, num;
-
-    if(checkParamBinomial(&val, &prob, &num)) {
-      WP34S_Cdfu_Binomial(&val, &prob, &num, &ans, &ctxtReal39);
-      if(realIsNaN(&ans)) {
-        displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE);
-        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-          moreInfoOnError("In function fnBinomialR:", "a parameter is invalid", NULL, NULL);
-        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      }
-      else {
-        convertRealToResultRegister(&ans, REGISTER_X, amNone);
-      }
-      adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-    }
+    fnDistribution(DIST_BINOM * 4 + DIST_R);
   }
 
 
   void fnBinomialI(uint16_t unusedButMandatoryParameter) {
-    real_t val, ans, prob, num;
-
-    if(checkParamBinomial(&val, &prob, &num)) {
-      if(realCompareLessEqual(&val, const_0) || realCompareGreaterEqual(&val, const_1)) {
-        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
-        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-          moreInfoOnError("In function fnBinomialI:", "the argument must be 0 < x < 1", NULL, NULL);
-        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-        if(getSystemFlag(FLAG_SPCRES)) {
-          convertRealToResultRegister(const_NaN, REGISTER_X, amNone);
-        }
-        return;
-      }
-      WP34S_Qf_Binomial(&val, &prob, &num, &ans, &ctxtReal39);
-      if(realIsNaN(&ans)) {
-        displayDomainErrorMessage(ERROR_NO_ROOT_FOUND, ERR_REGISTER_LINE);
-        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-          moreInfoOnError("In function fnBinomialI:", "WP34S_Qf_Binomial did not converge", NULL, NULL);
-        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-        if(getSystemFlag(FLAG_SPCRES)) {
-          convertRealToResultRegister(const_NaN, REGISTER_X, amNone);
-        }
-        return;
-      }
-      convertRealToResultRegister(&ans, REGISTER_X, amNone);
-      adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-    }
+    fnDistribution(DIST_BINOM * 4 + DIST_I);
   }
 
 
@@ -157,69 +76,108 @@
    * This functions are borrowed from the WP34S project
    ******************************************************/
 
-  bool_t binomial_param(const real_t *n, real_t *res) {
-    if(realIsSpecial(n)) {
-      realSetNaN(res);
-      return false;
-    }
-    if(realIsNegative(n) || (!realIsAnInteger(n))) {
-      realSetZero(res);
-      return false;
-    }
-    return true;
+  /********************************************//**
+   * \brief Checks the complete binomial parameter pair.
+   ***********************************************/
+  static bool_t binomialParametersAreValid(const real_t *p, const real_t *n) {
+    return !realIsSpecial(p) && !realIsSpecial(n) && realCompareGreaterEqual(p, const_0) &&
+           realCompareLessEqual(p, const_1) && realCompareGreaterEqual(n, const_0) && realIsAnInteger(n);
   }
 
-  void WP34S_Pdf_Binomial(const real_t *x, const real_t *p0, const real_t *n, real_t *res, realContext_t *realContext) {
-    real_t p, q, nn, xx;
 
-    if(!binomial_param(n, res)) {
+  void WP34S_Pdf_Binomial(const real_t *x, const real_t *p0, const real_t *n, real_t *res, realContext_t *realContext) {
+    real_t a, b, logP, logQ, logit, logMass, nPlusOne, q0, value;
+    realContext_t *calculationContext = &ctxtReal51;
+
+    if(realIsNaN(x) || !binomialParametersAreValid(p0, n)) {
+      realSetNaN(res);
       return;
     }
-    if(realIsNegative(x) || realCompareGreaterThan(x, n)) {
+    if(realCompareLessThan(x, const_0) || realCompareGreaterThan(x, n)) {
       realSetZero(res);
       return;
     }
-    realMinus(p0, &p, realContext);
-    WP34S_Ln1P(&p, &p, realContext);
-    realSubtract(n, x, &q, realContext);
-    realMultiply(&p, &q, &p, realContext);
-    // Rewrote below with ln(yCx) function
-    realCopy(n, &nn);
-    realCopy(x, &xx);
-    logCyxReal(&nn, &xx, &q, realContext);
-    realAdd(&p, &q, &p, realContext);
-    WP34S_Ln(p0, &q, realContext);
-    realMultiply(&q, x, &q, realContext);
-    realAdd(&p, &q, &p, realContext);
-    realExp(&p, res, realContext);
+    if(realIsZero(n)) {
+      realCopy(realIsZero(x) ? const_1 : const_0, res);
+      return;
+    }
+    if(realIsZero(p0)) {
+      realCopy(realIsZero(x) ? const_1 : const_0, res);
+      return;
+    }
+    if(realCompareEqual(p0, const_1)) {
+      realCopy(realCompareEqual(x, n) ? const_1 : const_0, res);
+      return;
+    }
+
+    realAdd(x, const_1, &a, calculationContext);
+    realSubtract(n, x, &b, calculationContext);
+    realAdd(&b, const_1, &b, calculationContext);
+    WP34S_DistributionProbabilityData(p0, &q0, &logP, &logQ, &logit, calculationContext);
+    if(realIsZero(x)) {
+      realMultiply(n, &logQ, &logMass, calculationContext);
+    }
+    else if(realCompareEqual(x, n)) {
+      realMultiply(n, &logP, &logMass, calculationContext);
+    }
+    else {
+      distributionLogBetaPrefix(&a, &b, p0, &q0, &logit, &logMass, calculationContext);
+      realSubtract(&logMass, &logP, &logMass, calculationContext);
+      realSubtract(&logMass, &logQ, &logMass, calculationContext);
+      realAdd(n, const_1, &nPlusOne, calculationContext);
+      WP34S_Ln(&nPlusOne, &value, calculationContext);
+      realSubtract(&logMass, &value, &logMass, calculationContext);
+    }
+    realExp(&logMass, &value, calculationContext);
+    if(realIsZero(&value)) {
+      realNextToward(&value, const_1, &value, calculationContext);
+    }
+    realPlus(&value, res, realContext);
   }
 
   void WP34S_Cdfu_Binomial(const real_t *x, const real_t *p0, const real_t *n, real_t *res, realContext_t *realContext) {
-    real_t p, q, r;
+    real_t a, b, logP, logQ, logit, lower, p, q0, upper;
+    realContext_t *calculationContext;
 
-    if(!binomial_param(n, res)) {
+    if(realIsNaN(x) || !binomialParametersAreValid(p0, n)) {
+      realSetNaN(res);
       return;
     }
     realToIntegralValue(x, &p, DEC_ROUND_CEILING, realContext);
-    if(realCompareLessThan(&p, const_1)) {
+    if(realCompareLessEqual(&p, const_0)) {
       realSetOne(res);
       return;
     }
-    realSubtract(&p, const_1, &p, realContext);
-    if(realCompareGreaterThan(&p, n)) {
+    if(realCompareGreaterThan(&p, n) || realIsZero(p0)) {
       realSetZero(res);
       return;
     }
+    if(realCompareEqual(p0, const_1)) {
+      realSetOne(res);
+      return;
+    }
 
-    realSubtract(n, &p, &q, realContext);
-    realAdd(const_1, &p, &r, realContext);
-    WP34S_betai(&q, &r, p0, res, realContext);
+    realCopy(&p, &a);
+    realSubtract(n, &p, &b, &ctxtReal51);
+    realAdd(&b, const_1, &b, &ctxtReal51);
+    calculationContext = WP34S_BetaCalculationContext(&a, &b);
+    realCopy(&p, &a);
+    realSubtract(n, &p, &b, calculationContext);
+    realAdd(&b, const_1, &b, calculationContext);
+    WP34S_DistributionProbabilityData(p0, &q0, &logP, &logQ, &logit, calculationContext);
+    if(!distributionBetaPair(&a, &b, p0, &q0, &logit, &lower, &upper, calculationContext)) {
+      realSetNaN(res);
+      return;
+    }
+    WP34S_MarkProbability(&lower, calculationContext);
+    realPlus(&lower, res, realContext);
   }
 
   void WP34S_Cdf_Binomial(const real_t *x, const real_t *p0, const real_t *n, real_t *res, realContext_t *realContext) {
     real_t p;
 
-    if(!binomial_param(n, res)) {
+    if(realIsNaN(x) || !binomialParametersAreValid(p0, n)) {
+      realSetNaN(res);
       return;
     }
     realToIntegralValue(x, &p, DEC_ROUND_FLOOR, realContext);
@@ -227,40 +185,73 @@
   }
 
   void WP34S_Cdf_Binomial2(const real_t *x, const real_t *p0, const real_t *n, real_t *res, realContext_t *realContext) {
-    real_t p, q, r;
+    real_t a, b, logP, logQ, logit, lower, q0, upper;
+    realContext_t *calculationContext;
 
+    if(realIsNaN(x) || !binomialParametersAreValid(p0, n)) {
+      realSetNaN(res);
+      return;
+    }
     if(realCompareLessThan(x, const_0)) {
       realSetZero(res);
       return;
     }
-    if(realCompareGreaterThan(x, n)) {
+    if(realCompareGreaterEqual(x, n) || realIsZero(p0)) {
       realSetOne(res);
       return;
     }
+    if(realCompareEqual(p0, const_1)) {
+      realSetZero(res);
+      return;
+    }
 
-    realSubtract(n, x, &q, realContext);
-    realAdd(const_1, x, &r, realContext);
-    realSubtract(const_1, p0, &p, realContext);
-    WP34S_betai(&r, &q, &p, res, realContext);
+    realSubtract(n, x, &a, &ctxtReal51);
+    realAdd(x, const_1, &b, &ctxtReal51);
+    calculationContext = WP34S_BetaCalculationContext(&a, &b);
+    realSubtract(n, x, &a, calculationContext);
+    realAdd(x, const_1, &b, calculationContext);
+    WP34S_DistributionProbabilityData(p0, &q0, &logP, &logQ, &logit, calculationContext);
+    realChangeSign(&logit);
+    if(!distributionBetaPair(&a, &b, &q0, p0, &logit, &lower, &upper, calculationContext)) {
+      realSetNaN(res);
+      return;
+    }
+    WP34S_MarkProbability(&lower, calculationContext);
+    realPlus(&lower, res, realContext);
   }
 
   void WP34S_Qf_Binomial(const real_t *x, const real_t *p0, const real_t *n, real_t *res, realContext_t *realContext) {
-    real_t p, q, r;
+    real_t estimate, mean, q, standardDeviation, variance;
 
-    if(!binomial_param(n, res)) {
+    if(!binomialParametersAreValid(p0, n) || realIsNaN(x)) {
+      realSetNaN(res);
       return;
     }
     if(realCompareLessEqual(x, const_0)) {
       realSetZero(res);
-     return;
+      return;
     }
-    realMultiply(p0, n, &p, realContext);       // mean = np
+    if(realCompareGreaterEqual(x, const_1) || realCompareEqual(p0, const_1)) {
+      realCopy(n, res);
+      return;
+    }
+    if(realIsZero(n) || realIsZero(p0)) {
+      realSetZero(res);
+      return;
+    }
+
+    realMultiply(p0, n, &mean, realContext);
     realSubtract(const_1, p0, &q, realContext);
-    realMultiply(&q, &p, &p, realContext);      // variance = np(1-p)
-    realSquareRoot(&q, &q, realContext);
-    WP34S_normal_moment_approx(x, &q, &p, &r, realContext);
-    WP34S_Qf_Newton(QF_NEWTON_BINOMIAL, x, &r, p0, n, NULL, &p, realContext);
-    realCopy(realCompareLessEqual(&p, n) ? &p : n, res);
+    realMultiply(&q, &mean, &variance, realContext);
+    realSquareRoot(&variance, &standardDeviation, realContext);
+    WP34S_normal_moment_approx(x, &standardDeviation, &mean, &estimate, realContext);
+    WP34S_Qf_Newton(QF_NEWTON_BINOMIAL, x, &estimate, p0, n, NULL, &mean, realContext);
+    if(realIsNaN(&mean)) {
+      realSetNaN(res);
+    }
+    else {
+      realCopy(realCompareLessEqual(&mean, n) ? &mean : n, res);
+    }
   }
 
-#endif // !OPTION_DIST_C
+#endif // !OPTION_DIST_BINOM

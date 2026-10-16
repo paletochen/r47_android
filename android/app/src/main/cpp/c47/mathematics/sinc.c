@@ -8,45 +8,133 @@
 
 #include "c47.h"
 
-void sincComplex(const real_t *real, const real_t *imag, real_t *resReal, real_t *resImag, realContext_t *realContext) {
+/********************************************//**
+ * \brief Evaluate complex sinc with its power series.
+ *
+ * \param[in] z Complex argument
+ * \param[out] res Result
+ * \param[in] realContext Working context
+ * \return void
+ ***********************************************/
+static void sincComplexSeries(const cplx_t *z, cplx_t *res, realContext_t *realContext) {
+  cplx_t z2;
+  cplx_t term;
+  cplx_t next;
+  cplx_t previous;
+  REAL_T_PTR(divisor, 75);
+
+  mulComplexComplex(z, z, &z2, realContext);
+  realSetOne(&term.Real);
+  realSetZero(&term.Imag);
+  realSetZero(&res->Real);
+  realSetZero(&res->Imag);
+
+  for(int32_t n = 1; n < 1000; n++) {
+    mulComplexComplex(&term, &z2, &next, realContext);
+    realChangeSign(&next.Real);
+    realChangeSign(&next.Imag);
+    int32ToReal((2 * n) * (2 * n + 1), divisor);
+    realDivide(&next.Real, divisor, &term.Real, realContext);
+    realDivide(&next.Imag, divisor, &term.Imag, realContext);
+    realCopy(&res->Real, &previous.Real);
+    realCopy(&res->Imag, &previous.Imag);
+    realAdd(&res->Real, &term.Real, &res->Real, realContext);
+    realAdd(&res->Imag, &term.Imag, &res->Imag, realContext);
+    if(realCompareEqual(&res->Real, &previous.Real) && realCompareEqual(&res->Imag, &previous.Imag)) {
+      break;
+    }
+  }
+
+  realCopy(&res->Real, &previous.Real);
+  realAdd(const_1, &previous.Real, &res->Real, realContext);
+  if(!realIsZero(&previous.Real) && realCompareEqual(&res->Real, const_1)) {
+    realNextToward(&res->Real, realIsNegative(&previous.Real) ? const_0 : const_2, &res->Real, realContext);
+  }
+}
+
+void sincComplex(const cplx_t *z, cplx_t *res, realContext_t *realContext) {
   // sin(a + ib) = sin(a)*cosh(b) + i*cos(a)*sinh(b)
   // sinc (a + ib) = sin(a + ib) / (a + ib), for the allowable conditions
-  real_t rr;
-  real_t ii;
+  cplx_t x;
 
   //fnCvtFromCurrentAngularMode(amRadian);
 
-  realCopy(real, &rr);
-  realCopy(imag, &ii);
+  realCopy(&z->Real, &x.Real);
+  realCopy(&z->Imag, &x.Imag);
 
-  if(realIsZero(&rr) && realIsZero(&ii)) {
-    realSetOne(resReal);
-    realSetZero(resImag);
+  if(realIsZero(&x.Real) && realIsZero(&x.Imag)) {
+    realSetOne(&res->Real);
+    realSetZero(&res->Imag);
+  }
+  else if(realCompareAbsLessThan(&x.Real, const_1on10) && realCompareAbsLessThan(&x.Imag, const_1on10)) {
+    sincComplexSeries(&x, res, realContext);
+  }
+  else if(realIsZero(&x.Real) && !realIsSpecial(&x.Imag)) {
+    WP34S_SinhCosh(&x.Imag, &res->Real, NULL, realContext);
+    realDivide(&res->Real, &x.Imag, &res->Real, realContext);
+    realSetZero(&res->Imag);
   }
   else {
-    real_t sina, cosa, sinhb, coshb, sinR, sinImag;
+    real_t sina, cosa, sinhb, coshb;
+    cplx_t sinZ;
 
-    C47_WP34S_Cvt2RadSinCosTan(real, amRadian, &sina, &cosa, NULL, realContext);
-    WP34S_SinhCosh(imag, &sinhb, &coshb, realContext);
+    C47_WP34S_Cvt2RadSinCosTan(&z->Real, amRadian, &sina, &cosa, NULL, realContext);
+    WP34S_SinhCosh(&z->Imag, &sinhb, &coshb, realContext);
 
-    realMultiply(&sina, &coshb, resReal, realContext);
-    realMultiply(&cosa, &sinhb, resImag, realContext);
+    if(!realIsSpecial(&x.Real) && !realIsSpecial(&x.Imag) && (realIsInfinite(&sinhb) || realIsInfinite(&coshb))) {
+      realCopyAbs(&x.Imag, &sinZ.Real);
+      realMultiply(&x.Real, &sina, &res->Real, realContext);
+      realFMA(&sinZ.Real, &cosa, &res->Real, &res->Real, realContext);
+      realMultiply(&x.Real, &cosa, &res->Imag, realContext);
+      realChangeSign(&sina);
+      realFMA(&sinZ.Real, &sina, &res->Imag, &res->Imag, realContext);
+      if(realIsNegative(&x.Imag)) {
+        realChangeSign(&res->Imag);
+      }
+      if(!realIsZero(&res->Real)) {
+        bool_t negative = realIsNegative(&res->Real);
+        realSetPlusInfinity(&res->Real);
+        if(negative) {
+          realSetNegativeSign(&res->Real);
+        }
+      }
+      if(!realIsZero(&res->Imag)) {
+        bool_t negative = realIsNegative(&res->Imag);
+        realSetPlusInfinity(&res->Imag);
+        if(negative) {
+          realSetNegativeSign(&res->Imag);
+        }
+      }
+    }
+    else {
+      multiplyTrigByHyperbolic(&sina, &coshb, &res->Real, realContext);
+      multiplyTrigByHyperbolic(&cosa, &sinhb, &res->Imag, realContext);
 
-    realCopy(resReal, &sinR);
-    realCopy(resImag, &sinImag);
-    divComplexComplex(&sinR, &sinImag, &rr, &ii, resReal, resImag, realContext);
+      realCopy(&res->Real, &sinZ.Real);
+      realCopy(&res->Imag, &sinZ.Imag);
+      divComplexComplex(&sinZ, &x, res, realContext);
+    }
   }
 }
 
 
 static void sincReal(void) {
-  real_t x, sine;
+  real_t x, sine, phase;
   const real_t *r = &x;
   angularMode_t xAngularMode;
   const uint32_t type = getRegisterDataType(REGISTER_X);
 
-  if(!getRegisterAsReal(REGISTER_X, &x)) {
-    return;
+  if(type == dtLongInteger) {
+    convertLongIntegerRegisterToReal(REGISTER_X, &x, &ctxtReal75);
+    if(!reduceLongIntegerRegisterAngle(REGISTER_X, amRadian, &phase, true)) {
+      return;
+    }
+  }
+  else {
+    if(!getRegisterAsReal(REGISTER_X, &x)) {
+      return;
+    }
+    realCopy(&x, &phase);
   }
 
   if(realIsInfinite(&x)) {
@@ -66,14 +154,18 @@ static void sincReal(void) {
       r = const_1;
     }
     else {
+      xAngularMode = amRadian;
       if(type == dtReal34) {
         xAngularMode = getRegisterAngularMode(REGISTER_X);
-        if(xAngularMode != amNone) {
-          convertAngleFromTo(&x, xAngularMode, amRadian, &ctxtReal39);
+        if(xAngularMode == amNone) {
+          xAngularMode = amRadian;
         }
       }
-      C47_WP34S_Cvt2RadSinCosTan(&x, amRadian, &sine, NULL, NULL, &ctxtReal39);
-      realDivide(&sine, &x, &x, &ctxtReal75);
+      C47_WP34S_Cvt2RadSinCosTan(&phase, xAngularMode, &sine, NULL, NULL, &ctxtReal39);
+      if(xAngularMode != amRadian) {
+        convertAngleFromTo(&x, xAngularMode, amRadian, &ctxtReal39);
+      }
+      realDivide(&sine, &x, &x, &ctxtReal39);
     }
   }
   convertRealToResultRegister(r, REGISTER_X, amNone);
@@ -82,15 +174,15 @@ static void sincReal(void) {
 
 
 static void sincCplx(void) {
-  real_t zReal, zImag;
+  cplx_t z;
 
-  if(!getRegisterAsComplex(REGISTER_X, &zReal, &zImag)) {
+  if(!getRegisterAsComplex(REGISTER_X, &z)) {
     return;
   }
 
-  sincComplex(&zReal, &zImag, &zReal, &zImag, &ctxtReal75);
+  sincComplex(&z, &z, &ctxtReal75);
 
-  convertComplexToResultRegister(&zReal, &zImag, REGISTER_X);
+  convertComplexToResultRegister(&z, REGISTER_X);
 }
 
 

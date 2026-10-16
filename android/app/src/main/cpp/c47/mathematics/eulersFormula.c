@@ -7,34 +7,46 @@
 
 #include "c47.h"
 
-void eulersFormula(const real_t *inReal, const real_t *inImag, real_t *outReal, real_t *outImag, realContext_t *ctxt) {
-  real_t zReal, zImag;
+void eulersFormula(const cplx_t *in, cplx_t *out, realContext_t *ctxt) {
+  cplx_t z;
 
-  mulComplexi(inReal, inImag, &zReal, &zImag);
-  expComplex(&zReal, &zImag, outReal, outImag, ctxt);
-}
-
-static void eulersFormulaCplx(void) {
-  real_t zReal, zImag;
-
-  if(!getRegisterAsComplex(REGISTER_X, &zReal, &zImag)) {
+  if(realIsZero(&in->Imag)) {
+    realCopy(&in->Real, &z.Real);
+    C47_WP34S_Cvt2RadSinCosTan(&z.Real, amRadian, &out->Imag, &out->Real, NULL, ctxt);
     return;
   }
 
-  if( (realIsInfinite(&zReal) || (realIsInfinite(&zImag))) ) {
-    if(!getSystemFlag(FLAG_SPCRES)) {
-      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
-      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-        moreInfoOnError("In function eulersFormulaCplx:", "cannot use " STD_PLUS_MINUS STD_INFINITY " as real or imag X input when flag SPCRES is not set", NULL, NULL);
-      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      return;
-    }
-    convertComplexToResultRegister(const_NaN, const_NaN, REGISTER_X);
+  mulComplexi(in, &z);
+  expComplex(&z, out, ctxt);
+}
+
+static void eulersFormulaCplx(void) {
+  cplx_t z;
+
+  if(!getRegisterAsComplex(REGISTER_X, &z)) {
+    return;
+  }
+
+  if((realIsInfinite(&z.Real) || realIsInfinite(&z.Imag)) && !getSystemFlag(FLAG_SPCRES)) {
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+      moreInfoOnError("In function eulersFormulaCplx:", "cannot use " STD_PLUS_MINUS STD_INFINITY " as real or imag X input when flag SPCRES is not set", NULL, NULL);
+    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+    return;
+  }
+
+  if(realIsInfinite(&z.Real)) {
+    convertComplexPartsToResultRegister(const_NaN, const_NaN, REGISTER_X);
     goto end;
   }
 
-  eulersFormula(&zReal, &zImag, &zReal, &zImag, &ctxtReal39);
-  convertComplexToResultRegister(&zReal, &zImag, REGISTER_X);
+  if(realIsZero(&z.Imag)) {
+    eulersFormula(&z, &z, &ctxtReal34);
+  }
+  else {
+    eulersFormula(&z, &z, &ctxtReal39);
+  }
+  convertComplexToResultRegister(&z, REGISTER_X);
 
 end:
   fnSetFlag(FLAG_CPXRES);
@@ -42,15 +54,21 @@ end:
 }
 
 static void eulersFormulaReal(void) {
-  real_t c, i;
-  angularMode_t xAngularMode;
+  real_t angle;
+  cplx_t c;
+  angularMode_t xAngularMode = amNone;
   const uint32_t type = getRegisterDataType(REGISTER_X);
 
-  if(!getRegisterAsReal(REGISTER_X, &c)) {
+  if(type == dtLongInteger) {
+    if(!reduceLongIntegerRegisterAngle(REGISTER_X, amRadian, &c.Real, true)) {
+      return;
+    }
+  }
+  else if(!getRegisterAsReal(REGISTER_X, &c.Real)) {
     return;
   }
 
-  if(realIsInfinite(&c) && !getSystemFlag(FLAG_SPCRES)) {
+  if(realIsInfinite(&c.Real) && !getSystemFlag(FLAG_SPCRES)) {
     displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function eulersFormulaReal:", "cannot use " STD_PLUS_MINUS STD_INFINITY " as X input when flag SPCRES is not set", NULL, NULL);
@@ -61,13 +79,17 @@ static void eulersFormulaReal(void) {
   if(type == dtReal34) {
     xAngularMode = getRegisterAngularMode(REGISTER_X);
     if(xAngularMode != amNone) {
-      convertAngleFromTo(&c, xAngularMode, amRadian, &ctxtReal39);
+      realCopy(&c.Real, &angle);
+      C47_WP34S_Cvt2RadSinCosTan(&angle, xAngularMode, &c.Imag, &c.Real, NULL, &ctxtReal34);
     }
   }
 
-  eulersFormula(&c, const_0, &c, &i, &ctxtReal39);
+  if(type != dtReal34 || xAngularMode == amNone) {
+    realSetZero(&c.Imag);
+    eulersFormula(&c, &c, &ctxtReal34);
+  }
 
-  convertComplexToResultRegister(&c, &i, REGISTER_X);
+  convertComplexToResultRegister(&c, REGISTER_X);
   fnSetFlag(FLAG_CPXRES);
   fnRefreshState();
 }

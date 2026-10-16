@@ -17,6 +17,10 @@ void dotCplx(const real_t *xReal, const real_t *xImag, const real_t *yReal, cons
 
   realMultiply(xReal, yReal, &p, realContext);
   realFMA(xImag, yImag, &p, &t, realContext);
+  if(realIsSpecial(xReal) || realIsSpecial(xImag) || realIsSpecial(yReal) || realIsSpecial(yImag)) {
+    realCopy(&t, rReal);
+    return;
+  }
   realChangeSign(&p);
   realFMA(xReal, yReal, &p, rReal, realContext);
   realAdd(rReal, &t, rReal, realContext);
@@ -31,9 +35,16 @@ void dotCplx(const real_t *xReal, const real_t *xImag, const real_t *yReal, cons
  ***********************************************/
 void doDotReal(void) {
   real_t x, y, r;
+  real34_t exactResult;
+  const uint32_t typeX = getRegisterDataType(REGISTER_X);
+  const uint32_t typeY = getRegisterDataType(REGISTER_Y);
+  realContext_t *realContext = typeX == dtReal34 && typeY == dtReal34 ? &ctxtReal34 : &ctxtReal39;
 
-  if(getRegisterAsReal(REGISTER_X, &x) && getRegisterAsReal(REGISTER_Y, &y)) {
-    realMultiply(&x, &y, &r, &ctxtReal39);
+  if((typeX == dtLongInteger || typeY == dtLongInteger) && multiplyRegisterValuesToReal34Scaled(REGISTER_X, REGISTER_Y, 0, &exactResult)) {
+    convertReal34ToReal34Register(&exactResult, REGISTER_X);
+  }
+  else if(getRegisterAsReal(REGISTER_X, &x) && getRegisterAsReal(REGISTER_Y, &y)) {
+    realMultiply(&x, &y, &r, realContext);
     convertRealToResultRegister(&r, REGISTER_X, amNone);
   }
 }
@@ -45,11 +56,11 @@ void doDotReal(void) {
  * \return void
  ***********************************************/
 void doDotCplx(void) {
-  real_t xReal, xImag, yReal, yImag;
+  cplx_t x, y;
   real_t rReal;
 
-  if(getRegisterAsComplex(REGISTER_X, &xReal, &xImag) && getRegisterAsComplex(REGISTER_Y, &yReal, &yImag)) {
-    dotCplx(&xReal, &xImag, &yReal, &yImag, &rReal, &ctxtReal39);
+  if(getRegisterAsComplex(REGISTER_X, &x) && getRegisterAsComplex(REGISTER_Y, &y)) {
+    dotCplx(&x.Real, &x.Imag, &y.Real, &y.Imag, &rReal, &ctxtReal39);
     convertRealToResultRegister(&rReal, REGISTER_X, amNone);
   }
 }
@@ -82,8 +93,7 @@ static void dotRemaRema(void) {
   }
   else {
     dotRealVectors(&y, &x, &res);
-    reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-    real34Copy(&res, REGISTER_REAL34_DATA(REGISTER_X));
+    convertReal34ToReal34Register(&res, REGISTER_X);
   }
 }
 
@@ -111,9 +121,7 @@ static void dotCpmaCpma(void) {
   }
   else {
     dotComplexVectors(&y, &x, &res_r, &res_i);
-    reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
-    real34Copy(&res_r, REGISTER_REAL34_DATA(REGISTER_X));
-    real34Copy(&res_i, REGISTER_IMAG34_DATA(REGISTER_X));
+    convertReal34ToComplex34Register(&res_r, &res_i, REGISTER_X);
   }
 }
 

@@ -16,7 +16,7 @@ static void log2Real(void) {
 }
 
 static void log2Cplx(void) {
-  logxyCplx(const39_ln2);
+  logBaseCplx(const39_ln2);
 }
 
 /********************************************//**

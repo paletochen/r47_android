@@ -7,40 +7,65 @@
 
 #include "c47.h"
 
-void sqrt1Px2Complex(const real_t *real, const real_t *imag, real_t *resReal, real_t *resImag, realContext_t *realContext) {
-  real_t x, y;
+void sqrt1Px2Complex(const cplx_t *z, cplx_t *res, realContext_t *realContext) {
+  real_t magnitude;
+  cplx_t w;
 
-  if(realIsZero(imag)) {
-    if(realIsInfinite(real)) {
-      realSetPlusInfinity(resReal);
-      realSetZero(resImag);
+  if(realIsZero(&z->Imag)) {
+    if(realIsInfinite(&z->Real)) {
+      realSetPlusInfinity(&res->Real);
+      realSetZero(&res->Imag);
       return;
     }
-    realFMA(real, real, const_1, resReal, realContext);
-    realSquareRoot(resReal, resReal, realContext);
-    realSetZero(resImag);
+    realFMA(&z->Real, &z->Real, const_1, &res->Real, realContext);
+    realSquareRoot(&res->Real, &res->Real, realContext);
+    realSetZero(&res->Imag);
     return;
   }
 
-  if(realIsSpecial(real) || realIsSpecial(imag)) {
-    realSetNaN(resReal);
-    realSetNaN(resImag);
+  if(realIsSpecial(&z->Real) || realIsSpecial(&z->Imag)) {
+    realSetNaN(&res->Real);
+    realSetNaN(&res->Imag);
     return;
   }
 
   // sqrt(1 + a^2 - b^2 + 2 a b i)
-  realFMA(imag, imag, const__1, &x, realContext);
-  realChangeSign(&x);
-  realFMA(real, real, &x, &x, realContext);
-  realMultiply(real, imag, &y, realContext);
-  realAdd(&y, &y, &y, realContext);
-  sqrtComplex(&x, &y, resReal, resImag, realContext);
+  realFMA(&z->Imag, &z->Imag, const__1, &w.Real, realContext);
+  realChangeSign(&w.Real);
+  realFMA(&z->Real, &z->Real, &w.Real, &w.Real, realContext);
+  realAdd(&z->Real, &z->Real, &w.Imag, realContext);
+  realMultiply(&w.Imag, &z->Imag, &w.Imag, realContext);
+
+  if(realIsZero(&w.Imag)) {
+    sqrtComplex(&w, res, realContext);
+  }
+  else {
+    complexMagnitude(&w, &magnitude, realContext);
+    if(realIsNegative(&w.Real)) {
+      realSubtract(&magnitude, &w.Real, &res->Imag, realContext);
+      realDivideBy2(&res->Imag, realContext);
+      realSquareRoot(&res->Imag, &res->Imag, realContext);
+      if(realIsNegative(&w.Imag)) {
+        realChangeSign(&res->Imag);
+      }
+      realDivide(&w.Imag, &res->Imag, &res->Real, realContext);
+      realDivideBy2(&res->Real, realContext);
+    }
+    else {
+      realAdd(&magnitude, &w.Real, &res->Real, realContext);
+      realDivideBy2(&res->Real, realContext);
+      realSquareRoot(&res->Real, &res->Real, realContext);
+      realDivide(&w.Imag, &res->Real, &res->Imag, realContext);
+      realDivideBy2(&res->Imag, realContext);
+    }
+  }
 }
 
 
 
+
 static void sqrt1Px2Real(void) {
-  real_t x;
+  real_t magnitude, x;
 
   if(!getRegisterAsReal(REGISTER_X, &x)) {
     return;
@@ -61,8 +86,12 @@ static void sqrt1Px2Real(void) {
     realSetNaN(&x);
   }
   else {
-    realFMA(&x, &x, const_1, &x, &ctxtReal51);
-    realSquareRoot(&x, &x, &ctxtReal51);
+    realCopyAbs(&x, &magnitude);
+    realFMA(&x, &x, const_1, &x, &ctxtReal39);
+    realSquareRoot(&x, &x, &ctxtReal39);
+    if(realCompareEqual(&x, &magnitude)) {
+      realNextToward(&x, const_plusInfinity, &x, &ctxtReal39);
+    }
   }
   convertRealToResultRegister(&x, REGISTER_X, amNone);
 }
@@ -70,15 +99,15 @@ static void sqrt1Px2Real(void) {
 
 
 static void sqrt1Px2Cplx(void) {
-  real_t zReal, zImag;
+  cplx_t z;
 
-  if(!getRegisterAsComplex(REGISTER_X, &zReal, &zImag)) {
+  if(!getRegisterAsComplex(REGISTER_X, &z)) {
     return;
   }
 
-  sqrt1Px2Complex(&zReal, &zImag, &zReal, &zImag, &ctxtReal75);
+  sqrt1Px2Complex(&z, &z, &ctxtReal39);
 
-  convertComplexToResultRegister(&zReal, &zImag, REGISTER_X);
+  convertComplexToResultRegister(&z, REGISTER_X);
 }
 
 
@@ -92,6 +121,5 @@ static void sqrt1Px2Cplx(void) {
 void fnSqrt1Px2(uint16_t unusedButMandatoryParameter) {
   processRealComplexMonadicFunction(&sqrt1Px2Real, &sqrt1Px2Cplx);
 }
-
 
 

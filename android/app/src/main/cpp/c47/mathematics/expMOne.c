@@ -8,23 +8,34 @@
 
 #include "c47.h"
 
-void expM1Complex(const real_t *real, const real_t *imag, real_t *resReal, real_t *resImag, realContext_t *realContext) {
-  real_t z2_real, z2_imag, e_real, e_imag;
+void expM1Complex(const cplx_t *z, cplx_t *res, realContext_t *realContext) {
+  cplx_t z2;
+  cplx_t e;
 
-  if(realIsZero(imag)) {
-    if(realIsInfinite(real) && realIsNegative(real)) {
-      realSetNegativeOne(resReal);
-      realSetZero(resImag);
+  if(realIsZero(&z->Imag)) {
+    if(realIsInfinite(&z->Real) && realIsNegative(&z->Real)) {
+      realSetNegativeOne(&res->Real);
+      realSetZero(&res->Imag);
       return;
     }
-    realExpM1(real, resReal, realContext);
-    realSetZero(resImag);
+    realExpM1(&z->Real, &res->Real, realContext);
+    realSetZero(&res->Imag);
     return;
   }
 
-  if(realIsSpecial(real) || realIsSpecial(imag)) {
-    realSetNaN(resReal);
-    realSetNaN(resImag);
+  if(realIsNaN(&z->Real) || realIsSpecial(&z->Imag)) {
+    realSetNaN(&res->Real);
+    realSetNaN(&res->Imag);
+    return;
+  }
+
+  /* The split identity below has factors that approach zero and infinity for
+   * a large negative real part. Direct subtraction is well-conditioned for
+   * real <= -0.1 and avoids multiplying those factors.
+   */
+  if(realIsInfinite(&z->Real) || (realIsNegative(&z->Real) && !realCompareAbsLessThan(&z->Real, const_1on10))) {
+    expComplex(z, res, realContext);
+    realSubtract(&res->Real, const_1, &res->Real, realContext);
     return;
   }
 
@@ -32,20 +43,20 @@ void expM1Complex(const real_t *real, const real_t *imag, real_t *resReal, real_
    *
    * With a bit of algebra it can be shown that:
    *  e^z - 1 = -exp(z/2) * 2*i*sin(i*z/2)
-   * which has no obvious accuracy issues inherent here.
+   * which avoids direct subtraction near the zeros of e^z - 1.
    *
    * The negation and multiplication by i are simplified to negates and swaps.
    */
-  realMultiply(real, const_1on2, &z2_real, realContext);
-  realMultiply(imag, const_1on2, &z2_imag, realContext);
-  expComplex(&z2_real, &z2_imag, &e_real, &e_imag, realContext);
-  realChangeSign(&e_real);
-  realAdd(&e_real, &e_real, &e_real, realContext);
-  realAdd(&e_imag, &e_imag, &e_imag, realContext);
+  realMultiply(&z->Real, const_1on2, &z2.Real, realContext);
+  realMultiply(&z->Imag, const_1on2, &z2.Imag, realContext);
+  expComplex(&z2, &e, realContext);
+  chsComplex(&e);
+  mulComplexi(&e, &e);
+  addComplex(&e, &e, &e, realContext);
   /* sin(i * z/2) */
-  realChangeSign(&z2_imag);
-  sinComplex(&z2_imag, &z2_real, &z2_real, &z2_imag, realContext);
-  mulComplexComplex(&z2_real, &z2_imag, &e_imag, &e_real, resReal, resImag, realContext);
+  mulComplexi(&z2, &z2);
+  sinComplex(&z2, &z2, realContext);
+  mulComplexComplex(&z2, &e, res, realContext);
 }
 
 void realExpM1(const real_t *x, real_t *res, realContext_t *realContext)
@@ -75,14 +86,18 @@ static void expM1Real(void) {
 
 
 static void expM1Cplx(void) {
-  real_t zReal, zImag;
+  cplx_t z;
+  realContext_t *realContext = &ctxtReal75;
 
-  if(!getRegisterAsComplex(REGISTER_X, &zReal, &zImag)) {
+  if(!getRegisterAsComplex(REGISTER_X, &z)) {
     return;
   }
 
-  expM1Complex(&zReal, &zImag, &zReal, &zImag, &ctxtReal75);
-  convertComplexToResultRegister(&zReal, &zImag, REGISTER_X);
+  if(realIsInfinite(&z.Real) || (realIsNegative(&z.Real) && !realCompareAbsLessThan(&z.Real, const_1on10))) {
+    realContext = &ctxtReal39;
+  }
+  expM1Complex(&z, &z, realContext);
+  convertComplexToResultRegister(&z, REGISTER_X);
 }
 
 
@@ -96,6 +111,3 @@ static void expM1Cplx(void) {
 void fnExpM1(uint16_t unusedButMandatoryParameter) {
   processRealComplexMonadicFunction(&expM1Real, &expM1Cplx);
 }
-
-
-

@@ -9,6 +9,7 @@
 
   void fnArcsin   (uint16_t unusedButMandatoryParameter);
 
+  uint8_t ArcsinAcosComplex(const cplx_t *z, cplx_t *r, bool_t calculateAcos, realContext_t *realContext);
   bool_t exactArcSinCosAngle(const real_t *x, bool_t cosine, real_t *res);
-  uint8_t ArcsinComplex(const real_t *xReal, const real_t *xImag, real_t *rReal, real_t *rImag, realContext_t *realContext);
+  uint8_t ArcsinComplex(const cplx_t *x, cplx_t *r, realContext_t *realContext);
 #endif // !ARCSIN_H

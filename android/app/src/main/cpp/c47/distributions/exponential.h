@@ -12,10 +12,11 @@
   void fnExponentialR  (uint16_t unusedButMandatoryParameter);
   void fnExponentialI  (uint16_t unusedButMandatoryParameter);
 
-  #if defined(OPTION_DIST_B)
+  #if defined(OPTION_DIST_EXPON)
+  bool_t exponentialCheckDomain(bool_t registersValid, real_t *x, real_t *first, real_t *second, real_t *third, uint16_t parameter);
   void WP34S_Pdf_Expon (const real_t *x, const real_t *lambda, real_t *res, realContext_t *realContext);
   void WP34S_Cdfu_Expon(const real_t *x, const real_t *lambda, real_t *res, realContext_t *realContext);
   void WP34S_Cdf_Expon (const real_t *x, const real_t *lambda, real_t *res, realContext_t *realContext);
   void WP34S_Qf_Expon  (const real_t *x, const real_t *lambda, real_t *res, realContext_t *realContext);
-  #endif // OPTION_DIST_B
+  #endif // OPTION_DIST_EXPON
 #endif // !EXPONENTIAL_H

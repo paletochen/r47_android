@@ -7,6 +7,32 @@
 
 #include "c47.h"
 
+
+/**
+ * \brief Converts rectangular Real34 components to polar Real34 values in a
+ * selected angular unit.
+ *
+ * \param[in] real34 Real component
+ * \param[in] imag34 Imaginary component
+ * \param[out] magnitude34 Magnitude
+ * \param[out] theta34 Angle in angularMode
+ * \param[in] angularMode Unit for theta34
+ */
+static void rectangularToPolar34InUnit(const real34_t *real34, const real34_t *imag34,
+                                       real34_t *magnitude34, real34_t *theta34,
+                                       angularMode_t angularMode) {
+  cplx_t z;
+  REAL_T_PTR(magnitude, 39);
+  REAL_T_PTR(theta, 39);
+
+  real34ToReal(real34, &z.Real);
+  real34ToReal(imag34, &z.Imag);
+  realRectangularToPolar(&z, magnitude, theta, &ctxtReal39);
+  convertAngleFromTo(theta, amRadian, angularMode, &ctxtReal39);
+  realToReal34(magnitude, magnitude34);
+  realToReal34(theta, theta34);
+}
+
 /********************************************//**
  * \brief regX ==> regL and re(regX) ==> regY, im(regX) ==> regX or magnitude(regX) ==> regY, angle(regX) ==> regX
  * enables stack lift and refreshes the stack
@@ -31,8 +57,8 @@ void fnCxToRe(uint16_t unusedButMandatoryParameter) {
       }
       liftStack();
       reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-      real34RectangularToPolar(REGISTER_REAL34_DATA(REGISTER_L), REGISTER_IMAG34_DATA(REGISTER_L), REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X)); // X in radians
-      convertAngle34FromTo(REGISTER_REAL34_DATA(REGISTER_X), amRadian, tempAngle);
+      rectangularToPolar34InUnit(REGISTER_REAL34_DATA(REGISTER_L), REGISTER_IMAG34_DATA(REGISTER_L),
+                                 REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X), tempAngle);
       setRegisterAngularMode(REGISTER_X, tempAngle);
       temporaryInformation = TI_THETA_RADIUS;
     }
@@ -58,8 +84,8 @@ void fnCxToRe(uint16_t unusedButMandatoryParameter) {
       if(realMatrixInit(&iMat, cMat.header.matrixRows, cMat.header.matrixColumns)) {
         for(uint16_t i = 0; i < cMat.header.matrixRows * cMat.header.matrixColumns; ++i) {
           if(getSystemFlag(FLAG_POLAR)) { // polar mode
-            real34RectangularToPolar(VARIABLE_REAL34_DATA(&cMat.matrixElements[i]), VARIABLE_IMAG34_DATA(&cMat.matrixElements[i]), &rMat.matrixElements[i], &iMat.matrixElements[i]);
-            convertAngle34FromTo(&iMat.matrixElements[i], amRadian, currentAngularMode);
+            rectangularToPolar34InUnit(VARIABLE_REAL34_DATA(&cMat.matrixElements[i]), VARIABLE_IMAG34_DATA(&cMat.matrixElements[i]),
+                                       &rMat.matrixElements[i], &iMat.matrixElements[i], currentAngularMode);
           }
           else { // rectangular mode
             real34Copy(VARIABLE_REAL34_DATA(&cMat.matrixElements[i]), &rMat.matrixElements[i]);

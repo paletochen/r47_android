@@ -8,6 +8,7 @@
 #include "c47.h"
 
 static void fnToRect(int8_t angleInY);
+static void polarToRect(const real_t *magnitude, const real_t *theta, angularMode_t angularMode, bool_t reduceRadianAtP75, cplx_t *z, realContext_t *realContext);
 
   void fnToRect_HP             (uint16_t unusedButMandatoryParameter){
     bool_t FLAG_HPRP_mem = getSystemFlag(FLAG_HPRP);
@@ -94,7 +95,7 @@ void fnToRect2(uint16_t unusedButMandatoryParameter) {
 void fnToRect(int8_t angleInY) {
   uint32_t dataTypeX, dataTypeY;
   calcRegister_t REG_X, REG_Y;
-  real_t x, y;
+  cplx_t z;
 
   if(angleInY == 1) {
     REG_X = REGISTER_X;
@@ -109,7 +110,11 @@ void fnToRect(int8_t angleInY) {
   dataTypeY = getRegisterDataType(REG_Y);
 
   if((dataTypeX == dtReal34 || dataTypeX == dtLongInteger) && (dataTypeY == dtReal34 || dataTypeY == dtLongInteger)) {
-    angularMode_t yAngularMode = getRegisterAngularMode(REG_Y);
+    angularMode_t yAngularMode;
+
+    if(!getRegisterAsRealAngle(REG_Y, &z.Arg, &yAngularMode, true) || lastErrorCode != ERROR_NONE) {
+      return;
+    }
 
     if(!saveLastX()) {
       return;
@@ -117,11 +122,11 @@ void fnToRect(int8_t angleInY) {
 
     switch(dataTypeX) {
       case dtLongInteger: {
-        convertLongIntegerRegisterToReal(REG_X, &x, &ctxtReal39);
+        convertLongIntegerRegisterToReal(REG_X, &z.Mag, &ctxtReal39);
         break;
       }
       case dtReal34: {
-        real34ToReal(REGISTER_REAL34_DATA(REG_X), &x);
+        real34ToReal(REGISTER_REAL34_DATA(REG_X), &z.Mag);
         break;
       }
       default: {
@@ -130,30 +135,7 @@ void fnToRect(int8_t angleInY) {
       }
     }
 
-    if(yAngularMode == amNone) {
-      yAngularMode = currentAngularMode;
-    }
-
-    switch(dataTypeY) {
-      case dtLongInteger: {
-        convertLongIntegerRegisterToReal(REG_Y, &y, &ctxtReal39);
-        convertAngleFromTo(&y, currentAngularMode, amRadian, &ctxtReal39);
-        break;
-      }
-
-      case dtReal34: {
-        real34ToReal(REGISTER_REAL34_DATA(REG_Y), &y);
-        convertAngleFromTo(&y, yAngularMode, amRadian, &ctxtReal39);
-        break;
-      }
-
-      default: {
-        sprintf(errorMessage, commonBugScreenMessages[bugMsgUnexpectedSValue], "fnToRect", dataTypeY, "dataTypeY");
-        displayBugScreen(errorMessage);
-      }
-    }
-
-    realPolarToRectangular(&x, &y, &x, &y, &ctxtReal39);
+    polarToRect(&z.Mag, &z.Arg, yAngularMode, false, &z, &ctxtReal39);
 
     if(getSystemFlag(FLAG_HPRP)) {
       REG_X = REGISTER_X;
@@ -167,8 +149,8 @@ void fnToRect(int8_t angleInY) {
     reallocateRegister(REG_X, dtReal34, 0, amNone);
     reallocateRegister(REG_Y, dtReal34, 0, amNone);
 
-    convertRealToReal34ResultRegister(&x, REG_X);
-    convertRealToReal34ResultRegister(&y, REG_Y);
+    convertRealToReal34ResultRegister(&z.Real, REG_X);
+    convertRealToReal34ResultRegister(&z.Imag, REG_Y);
 
     if(getSystemFlag(FLAG_HPRP)) {
       temporaryInformation = TI_X_Y;
@@ -201,7 +183,38 @@ void real34PolarToRectangular(const real34_t *magnitude34, const real34_t *theta
 }
 */
 
-void realPolarToRectangular(const real_t *mag, const real_t *the, real_t *real, real_t *imag, realContext_t *realContext) {
+void realPolarToRectangular(const real_t *mag, const real_t *the, cplx_t *z, realContext_t *realContext) {
+  polarToRect(mag, the, amRadian, true, z, realContext);
+}
+
+
+/**
+ * \brief Converts a polar pair while retaining the supplied angular unit
+ * through argument reduction.
+ *
+ * \param[in] magnitude Magnitude
+ * \param[in] theta Angle in angularMode
+ * \param[in] angularMode Unit of theta
+ * \param[out] z Complex result
+ * \param[in] realContext Arithmetic context
+ */
+void realPolarToRectangularInUnit(const real_t *magnitude, const real_t *theta, angularMode_t angularMode,
+                                  cplx_t *z, realContext_t *realContext) {
+  polarToRect(magnitude, theta, angularMode, false, z, realContext);
+}
+
+
+/**
+ * \brief Converts a magnitude and tagged angle to rectangular components.
+ *
+ * \param[in] mag Magnitude
+ * \param[in] the Angle
+ * \param[in] angularMode Unit of the angle
+ * \param[in] reduceRadianAtP75 Whether to retain the reusable helper's p75 radian reduction
+ * \param[out] z Complex result
+ * \param[in] realContext Arithmetic context
+ */
+static void polarToRect(const real_t *mag, const real_t *the, angularMode_t angularMode, bool_t reduceRadianAtP75, cplx_t *z, realContext_t *realContext) {
   ///////////////////////////////////////////
   //
   //  +----+----+-------------+------+------+
@@ -239,6 +252,7 @@ void realPolarToRectangular(const real_t *mag, const real_t *the, real_t *real, 
   //  |+∞  |+∞  |             |NaN   |NaN   | 30
 
   real_t sin, cos, magnitude, theta;
+  const real_t *trigAngle = the;
   bool_t negativeAngle;
 
   // Testing NaNs and infinities
@@ -256,17 +270,35 @@ void realPolarToRectangular(const real_t *mag, const real_t *the, real_t *real, 
     //  |0   |+∞  |             |NaN   |NaN   | 16
     //  |r   |-∞  |             |NaN   |NaN   | 17
     //  |r   |+∞  |             |NaN   |NaN   | 19
-    realSetNaN(real);
-    realSetNaN(imag);
+    realSetNaN(&z->Real);
+    realSetNaN(&z->Imag);
     return;
   }
 
   realCopy(mag, &magnitude);
-  mod2Pi(the, &theta, &ctxtReal75);  // here   0 ≤ theta < 2pi
-  negativeAngle = realIsNegative(&theta);
 
   // Magnitude is infinite
   if(realIsInfinite(&magnitude)) {
+    if(angularMode != amRadian) {
+      C47_WP34S_Cvt2RadSinCosTan(the, angularMode, &sin, &cos, NULL, realContext);
+      if(realIsZero(&cos)) {
+        realSetZero(&z->Real);
+      }
+      else {
+        realMultiply(&magnitude, &cos, &z->Real, realContext);
+      }
+      if(realIsZero(&sin)) {
+        realSetZero(&z->Imag);
+      }
+      else {
+        realMultiply(&magnitude, &sin, &z->Imag, realContext);
+      }
+      return;
+    }
+
+    mod2Pi(the, &theta, &ctxtReal75);
+    negativeAngle = realIsNegative(&theta);
+
     if(negativeAngle) {
       realChangeSign(&theta);
     }
@@ -276,39 +308,39 @@ void realPolarToRectangular(const real_t *mag, const real_t *the, real_t *real, 
       //  | ρ  | θ  | Condition   | Re   | Im   |
       //  +----+----+-------------+------+------+
       //  |+∞  |0   |             |+∞    |0     | 23
-      realSetPlusInfinity(real);
-      realSetZero(imag);
+      realSetPlusInfinity(&z->Real);
+      realSetZero(&z->Imag);
     }
     else {
-      realSubtract(&theta, const39_piOn2, real, &ctxtReal39);
-      if(realIsZero(real)) { // theta = pi/2
+      realSubtract(&theta, const39_piOn2, &z->Real, &ctxtReal39);
+      if(realIsZero(&z->Real)) { // theta = pi/2
         //  +----+----+-------------+------+------+
         //  | ρ  | θ  | Condition   | Re   | Im   |
         //  +----+----+-------------+------+------+
         //  |+∞  |π/2 |             |0     |+∞    | 24
-        realSetZero(real);
-        realSetPlusInfinity(imag);
+        realSetZero(&z->Real);
+        realSetPlusInfinity(&z->Imag);
       }
       else {
-        realSubtract(&theta, const39_3piOn2, real, &ctxtReal39);
-        if(realIsZero(real)) { // theta = -pi/2
+        realSubtract(&theta, const39_3piOn2, &z->Real, &ctxtReal39);
+        if(realIsZero(&z->Real)) { // theta = -pi/2
           //  +----+----+-------------+------+------+
           //  | ρ  | θ  | Condition   | Re   | Im   |
           //  +----+----+-------------+------+------+
           //  |+∞  |-π/2|             |0     |-∞    | 22
-          realSetZero(real);
-          realSetMinusInfinity(imag);
+          realSetZero(&z->Real);
+          realSetMinusInfinity(&z->Imag);
         }
         else {
-          realSubtract(&theta, const39_pi, real, &ctxtReal39);
-          if(realIsZero(real)) { // theta = pi
+          realSubtract(&theta, const39_pi, &z->Real, &ctxtReal39);
+          if(realIsZero(&z->Real)) { // theta = pi
             //  +----+----+-------------+------+------+
             //  | ρ  | θ  | Condition   | Re   | Im   |
             //  +----+----+-------------+------+------+
             //  |+∞  |-π  |             |-∞    |0     | 21
             //  |+∞  |π   |             |-∞    |0     | 25
-            realSetMinusInfinity(real);
-            realSetZero(imag);
+            realSetMinusInfinity(&z->Real);
+            realSetZero(&z->Imag);
           }
           else {
             realSubtract(&theta, const39_piOn2, &theta, &ctxtReal39);
@@ -317,8 +349,8 @@ void realPolarToRectangular(const real_t *mag, const real_t *the, real_t *real, 
               //  | ρ  | θ  | Condition   | Re   | Im   |
               //  +----+----+-------------+------+------+
               //  |+∞  |θ   |0 < θ < π/2  |+∞    |+∞    | 26
-              realSetPlusInfinity(real);
-              realSetPlusInfinity(imag);
+              realSetPlusInfinity(&z->Real);
+              realSetPlusInfinity(&z->Imag);
             }
             else {
               realSubtract(&theta, const39_piOn2, &theta, &ctxtReal39);
@@ -327,8 +359,8 @@ void realPolarToRectangular(const real_t *mag, const real_t *the, real_t *real, 
                 //  | ρ  | θ  | Condition   | Re   | Im   |
                 //  +----+----+-------------+------+------+
                 //  |+∞  |θ   |π/2 < θ < π  |-∞    |+∞    | 27
-                realSetMinusInfinity(real);
-                realSetPlusInfinity(imag);
+                realSetMinusInfinity(&z->Real);
+                realSetPlusInfinity(&z->Imag);
               }
               else {
                 realSubtract(&theta, const39_piOn2, &theta, &ctxtReal39);
@@ -337,16 +369,16 @@ void realPolarToRectangular(const real_t *mag, const real_t *the, real_t *real, 
                   //  | ρ  | θ  | Condition   | Re   | Im   |
                   //  +----+----+-------------+------+------+
                   //  |+∞  |θ   |-π < θ < -π/2|-∞    |-∞    | 28
-                  realSetMinusInfinity(real);
-                  realSetMinusInfinity(imag);
+                  realSetMinusInfinity(&z->Real);
+                  realSetMinusInfinity(&z->Imag);
                 }
                 else { //  3pi/2 < theta < 2pi
                   //  +----+----+-------------+------+------+
                   //  | ρ  | θ  | Condition   | Re   | Im   |
                   //  +----+----+-------------+------+------+
                   //  |+∞  |θ   |-π/2 < θ < 0 |+∞    |-∞    | 29
-                  realSetPlusInfinity(real);
-                  realSetMinusInfinity(imag);
+                  realSetPlusInfinity(&z->Real);
+                  realSetMinusInfinity(&z->Imag);
                 }
               }
             }
@@ -368,16 +400,16 @@ void realPolarToRectangular(const real_t *mag, const real_t *the, real_t *real, 
       //  |-∞  |θ   |π/2 < θ < π  |+∞    |-∞    | 10
       //  |-∞  |θ   |-π < θ < -π/2|+∞    |+∞    | 11
       //  |-∞  |θ   |-π/2 < θ < 0 |-∞    |+∞    | 12
-      if(!realIsNaN(real) && !realIsZero(real)) {
-        realChangeSign(real);
+      if(!realIsNaN(&z->Real) && !realIsZero(&z->Real)) {
+        realChangeSign(&z->Real);
       }
-      if(!realIsNaN(imag) && !realIsZero(imag)) {
-        realChangeSign(imag);
+      if(!realIsNaN(&z->Imag) && !realIsZero(&z->Imag)) {
+        realChangeSign(&z->Imag);
       }
     }
 
-    if(negativeAngle && !realIsNaN(imag) && !realIsZero(imag)) {
-      realChangeSign(imag);
+    if(negativeAngle && !realIsNaN(&z->Imag) && !realIsZero(&z->Imag)) {
+      realChangeSign(&z->Imag);
     }
 
     return;
@@ -388,8 +420,8 @@ void realPolarToRectangular(const real_t *mag, const real_t *the, real_t *real, 
     //  +----+----+-------------+------+------+
     //  |0   |θ   |             |0     |0     | 15
     if(realIsZero(&magnitude)) {
-      realSetZero(real);
-      realSetZero(imag);
+      realSetZero(&z->Real);
+      realSetZero(&z->Imag);
       return;
     }
 
@@ -398,7 +430,11 @@ void realPolarToRectangular(const real_t *mag, const real_t *the, real_t *real, 
     //  +----+----+-------------+------+------+
     //  |r   |θ   |             |r·cosθ|r·sinθ| 18
 
-  C47_WP34S_Cvt2RadSinCosTan(&theta, amRadian, &sin, &cos, NULL, realContext);
-  realMultiply(&magnitude, &cos, real, realContext);
-  realMultiply(&magnitude, &sin, imag, realContext);
+  if(angularMode == amRadian && reduceRadianAtP75) {
+    mod2Pi(the, &theta, &ctxtReal75);
+    trigAngle = &theta;
+  }
+  C47_WP34S_Cvt2RadSinCosTan(trigAngle, angularMode, &sin, &cos, NULL, realContext);
+  realMultiply(&magnitude, &cos, &z->Real, realContext);
+  realMultiply(&magnitude, &sin, &z->Imag, realContext);
 }

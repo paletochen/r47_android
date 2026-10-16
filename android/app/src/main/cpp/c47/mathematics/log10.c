@@ -38,16 +38,14 @@ void logxyReal(const real_t *denom) {
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
       return;
     }
+    else if(realIsPositive(&a)) {
+      realSetPlusInfinity(&a);
+    }
     else if(getFlag(FLAG_CPXRES)) {
-      if(real34IsPositive(REGISTER_REAL34_DATA(REGISTER_X))) {
-        realSetPlusInfinity(&a);
-      }
-      else {
-        reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
-        realDivide(const39_pi, denom, &a, &ctxtReal39);
-        convertComplexToResultRegister(const_plusInfinity, &a, REGISTER_X);
-        return;
-      }
+      reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
+      realDivide(const39_pi, denom, &a, &ctxtReal39);
+      convertComplexPartsToResultRegister(const_plusInfinity, &a, REGISTER_X);
+      return;
     }
     else {
       realSetNaN(&a);
@@ -61,8 +59,12 @@ void logxyReal(const real_t *denom) {
       WP34S_Ln(&a, &a, &ctxtReal39);
       realDivide(&a, denom, &a, &ctxtReal39);
       realRescale(&a, &k, const_0, &ctxtReal39);
-      if(realIntegerPowerExact(denom == const39_ln2 ? const_2 : const_10, &k, &p) && realCompareEqual(&p, &b)) {   // X an exact power of the base gives the integer
-        realCopy(&k, &a);
+      const int32_t n = realToInt32C47(&k, NULL);
+      if(denom != const39_ln2 || (n >= -100 && n <= 112)) {   // 10ᵏ, and 2ᵏ in that range, are exact at 75 digits; the range takes every power of 2 of 34 digits
+        (denom == const39_ln2 ? realPower2 : realPower10)(&k, &p, &ctxtReal75);
+        if(realCompareEqual(&p, &b)) {                         // X an exact power of the base gives the integer
+          realCopy(&k, &a);
+        }
       }
     }
     else if(getFlag(FLAG_CPXRES)) {
@@ -70,7 +72,7 @@ void logxyReal(const real_t *denom) {
       WP34S_Ln(&a, &a, &ctxtReal39);
       realDivide(&a, denom, &a, &ctxtReal39);
       realDivide(const39_pi, denom, &b, &ctxtReal39);
-      convertComplexToResultRegister(&a, &b, REGISTER_X);
+      convertComplexPartsToResultRegister(&a, &b, REGISTER_X);
       return;
     }
     else if(getSystemFlag(FLAG_SPCRES)) {
@@ -90,16 +92,16 @@ void logxyReal(const real_t *denom) {
 
 
 void logxyCplx(const real_t *denom) {
-  real_t a, b;
+  cplx_t x;
 
-  if(!getRegisterAsComplex(REGISTER_X, &a, &b)) {
+  if(!getRegisterAsComplex(REGISTER_X, &x)) {
     return;
   }
 
-  if(realIsZero(&a) && realIsZero(&b)) {
+  if(realIsZero(&x.Real) && realIsZero(&x.Imag)) {
     if(getSystemFlag(FLAG_SPCRES)) {
-      realSetMinusInfinity(&a);
-      realSetZero(&b);
+      realSetMinusInfinity(&x.Real);
+      realSetZero(&x.Imag);
     }
     else {
       displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
@@ -110,12 +112,12 @@ void logxyCplx(const real_t *denom) {
     }
   }
   else {
-    realRectangularToPolar(&a, &b, &a, &b, &ctxtReal39);
-    WP34S_Ln(&a, &a, &ctxtReal39);
-    realDivide(&a, denom, &a, &ctxtReal39);
-    realDivide(&b, denom, &b, &ctxtReal39);
+    realRectangularToPolar(&x, &x.Mag, &x.Arg, &ctxtReal39);
+    WP34S_Ln(&x.Mag, &x.Real, &ctxtReal39);
+    realDivide(&x.Real, denom, &x.Real, &ctxtReal39);
+    realDivide(&x.Imag, denom, &x.Imag, &ctxtReal39);
   }
-  convertComplexToResultRegister(&a, &b, REGISTER_X);
+  convertComplexToResultRegister(&x, REGISTER_X);
 }
 
 
@@ -176,8 +178,62 @@ static void log10Real(void) {
   logxyReal(const39_ln10);
 }
 
+// log10 and log2 of a complex differ only in the constant they divide by. logxyCplx above has no near unit branch, so it is a different routine and is
+// left alone.
+void logBaseCplx(const real_t *denom) {
+  cplx_t x;
+  cplx_t result;
+
+  if(!getRegisterAsComplex(REGISTER_X, &x)) {
+    return;
+  }
+
+  if(realIsZero(&x.Real) && realIsZero(&x.Imag)) {
+    if(getSystemFlag(FLAG_SPCRES)) {
+      realSetMinusInfinity(&result.Real);
+      realSetZero(&result.Imag);
+    }
+    else {
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+        moreInfoOnError("In function logBaseCplx:", "cannot calculate the log of 0", NULL, NULL);
+      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+      return;
+    }
+  }
+  else {
+    realRectangularToPolar(&x, &result.Mag, &result.Arg, &ctxtReal39);
+    if(realCompareGreaterThan(&result.Real, const_1on2) && realCompareLessThan(&result.Real, const_2)) {
+      realContext_t nearUnitContext = ctxtReal75;
+      // Factoring the component with greater magnitude keeps its offset from one in working precision, while the other component contributes its square directly.
+      if(realCompareAbsLessThan(&x.Real, &x.Imag)) {
+        realSubtract(&x.Imag, const_1, &result.Real, &nearUnitContext);
+        realAdd(&x.Imag, const_1, &x.Imag, &nearUnitContext);
+        realMultiply(&result.Real, &x.Imag, &result.Real, &nearUnitContext);
+        realFMA(&x.Real, &x.Real, &result.Real, &result.Real, &nearUnitContext);
+      }
+      else {
+        realSubtract(&x.Real, const_1, &result.Real, &nearUnitContext);
+        realAdd(&x.Real, const_1, &x.Real, &nearUnitContext);
+        realMultiply(&result.Real, &x.Real, &result.Real, &nearUnitContext);
+        realFMA(&x.Imag, &x.Imag, &result.Real, &result.Real, &nearUnitContext);
+      }
+      WP34S_Ln1P(&result.Real, &result.Real, &nearUnitContext);
+      realMultiply(&result.Real, const_1on2, &result.Real, &nearUnitContext);
+      realDivide(&result.Real, denom, &result.Real, &nearUnitContext);
+    }
+    else {
+      WP34S_Ln(&result.Real, &result.Real, &ctxtReal39);
+      realDivide(&result.Real, denom, &result.Real, &ctxtReal39);
+    }
+    realDivide(&result.Imag, denom, &result.Imag, &ctxtReal39);
+  }
+  convertComplexToResultRegister(&result, REGISTER_X);
+}
+
+
 static void log10Cplx(void) {
-  logxyCplx(const39_ln10);
+  logBaseCplx(const39_ln10);
 }
 
 

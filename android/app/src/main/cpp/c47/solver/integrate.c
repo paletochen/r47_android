@@ -93,28 +93,28 @@ void _fnIntegrate(uint16_t labelOrVariable, bool_t XY) {
   }
   else if(FIRST_NAMED_VARIABLE <= labelOrVariable && labelOrVariable <= LAST_NAMED_VARIABLE) {
     real_t acc, ulim, llim, res;
-    bool_t smallerEpsilon = false;
     if(engineNestingRefused(false)) {
       return;
     }
     real34ToReal(REGISTER_REAL34_DATA(RESERVED_VARIABLE_ACC),  &acc);
     real34ToReal(REGISTER_REAL34_DATA(RESERVED_VARIABLE_ULIM), &ulim);
     real34ToReal(REGISTER_REAL34_DATA(RESERVED_VARIABLE_LLIM), &llim);
-    smallerEpsilon = realCompareAbsLessThan(&acc, const_1e_16) && ((realCompareAbsLessThan(&ulim, const_1e_32) || realCompareAbsLessThan(&llim, const_1e_32)));
-    #if USE_MICHALSKI_MOSIG_TANH_SINH == 1
-      smallerEpsilon = smallerEpsilon && (realIsSpecial(&ulim) || realIsSpecial(&llim)); // smallerEpsilon not needed
-    #endif // USE_MICHALSKI_MOSIG_TANH_SINH == 1
-    if(realIsZero(&acc)) { // it may freeze if ACC=0
-      realCopy(const_1e_32, &acc);   //used to be const_1e_6143
-    }
+    calcRegister_t regist = labelOrVariable;  //at this point, it is a register variable
+    saveForUndo();
+    realSetPositiveSign(&acc);
     if(real34CompareEqual(REGISTER_REAL34_DATA(RESERVED_VARIABLE_ULIM), REGISTER_REAL34_DATA(RESERVED_VARIABLE_LLIM) )) {
       realSetZero(&res);
       realSetZero(&acc);
       goto done;
     }
-
-calcRegister_t regist = labelOrVariable;  //at this point, it is a register variable
-saveForUndo();
+    if(realIsSpecial(&acc)) {
+      realSetNaN(&res);
+      realSetNaN(&acc);
+      goto done;
+    }
+    if(realIsZero(&acc)) { // it may freeze if ACC=0
+      realCopy(const_1e_32, &acc);   //used to be const_1e_6143
+    }
 
 #define SPEEDUPEXPERIMENT
 //#undef SPEEDUPEXPERIMENT
@@ -128,41 +128,14 @@ saveForUndo();
     realDivide(&digits, const39_ln10, &digits, &ctxtReal39);
     digitsN = max(min(-realToInt32C47(&digits, NULL), 34-3), 1);
     #if (defined PC_BUILD) && (defined INTEGRATEDEBUG)
-      printf("integrate: digitsN=%i smallerEpsilon=%u\n", digitsN, smallerEpsilon);
+      printf("integrate: digitsN=%i\n", digitsN);
       printRealToConsole(&digits, "  digits: ", "\n");
       printRealToConsole(&acc,    "  acc:    ", "\n");
       printRealToConsole(&llim,   "  llim:   ", "\n");
       printRealToConsole(&ulim,   "  ulim:   ", "\n");
     #endif // PC_BUILD && INTEGRATEDEBUG
 
-    if(digitsN == 6) {
-      #if defined(PC_BUILD)
-        printf("Special accuracy test case: N=6 Reducing DEC to single precision and SDIGS digits to %i etc.\n", digitsN+3);
-      #endif // PC_BUILD
-      significantDigits = digitsN+3;
-      ctxtReal4.digits  = 7;
-      ctxtReal34.digits = digitsN+3;
-      ctxtReal39.digits = digitsN+5;
-      ctxtReal51.digits = digitsN+7;
-      ctxtReal75.digits = digitsN+13;
-      integrate(regist, &llim, &ulim, &acc, &res, &ctxtReal4);
-        //WP34S_Ln(&acc, &digits, &ctxtReal39);
-        //realDivide(&digits, const39_ln10, &digits, &ctxtReal39);
-        //digitsN = max(min(-realToInt32C47(&digits, NULL), 34-3), 1);
-        //#ifdef PC_BUILD
-        //  printf("nnn=%i\n", digitsN);
-        //#endif
-        //real_t tt;
-        //int32ToReal(-digitsN, &tt);
-        //realRescale(&res, &res, &tt, &ctxtReal4);
-      significantDigits = significantDigitsMem;
-      ctxtReal4.digits  = s4;
-      ctxtReal34.digits = s34;
-      ctxtReal39.digits = s39;
-      ctxtReal51.digits = s51;
-      ctxtReal75.digits = s75;
-    }
-    else if(digitsN <= 10) {
+    if(digitsN <= 10) {
       #if defined(PC_BUILD)
         printf("Special accuracy test case: N<=10 Reducing SDIGS digits to %i etc.\n", digitsN+3);
       #endif // PC_BUILD
@@ -195,13 +168,13 @@ saveForUndo();
       printRealToConsole(&ulim, "               ulim: ", "\n");
       printRealToConsole(&acc,  "               acc:  ", "\n");
     #endif // PC_BUILD && INTEGRATEDEBUG
-    integrate(regist, &llim, &ulim, &acc, &res, smallerEpsilon ? &ctxtReal75 : &ctxtReal39);
+    integrate(regist, &llim, &ulim, &acc, &res, &ctxtReal39);
     #if (defined PC_BUILD) && (defined INTEGRATEDEBUG)
       printRealToConsole(&res,  "integrate out: res:  ", "\n\n");
     #endif // PC_BUILD && INTEGRATEDEBUG
     }
 #else // !SPEEDUPEXPERIMENT
-    integrate(regist, &llim, &ulim, &acc, &res, smallerEpsilon ? &ctxtReal75 : &ctxtReal39);
+    integrate(regist, &llim, &ulim, &acc, &res, &ctxtReal39);
 #endif // SPEEDUPEXPERIMENT
 
 done:
@@ -401,8 +374,13 @@ static void DEI_xeq_user(calcRegister_t regist, const real_t *x, real_t *res, re
     //printReal34ToConsole(REGISTER_REAL34_DATA(regist), "", " -> ");
     _integratorIteration();
     //printReal34ToConsole(REGISTER_REAL34_DATA(REGISTER_X), "", "\n"); fflush(stdout);
-    real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), res);
-    if(realIsSpecial(res)) { // do not stop in error (if SPCRES was set)
+    if(lastErrorCode != ERROR_NONE) { // do not stop in error (if SPCRES was set)
+      realSetZero(res);
+    }
+    else if(getRegisterDataType(REGISTER_X) == dtLongInteger) {
+      convertLongIntegerRegisterToReal(REGISTER_X, res, realContext);  // at the working context: res can be a 39-digit REAL_T_ALLOC buffer, and getRegisterAsReal converts at 75 digits
+    }
+    else if(!getRegisterAsReal(REGISTER_X, res) || realIsSpecial(res)) {
       realSetZero(res);
     }
     //if(d) {
@@ -1158,18 +1136,17 @@ static void DEI_xeq_user_adr(calcRegister_t regist, const real_t* a, const real_
 
 static real_t* exp_sinh_opt_d(calcRegister_t regist, const real_t* a, const real_t* eps, real_t* d, realContext_t *realContext) {
 
-  // The ten working reals come from the heap, not the frame: ten decNumbers at 60 bytes is 600 of this function's 672 byte frame, on a DM42 stack grant of 8088 that a
-  // plotted integral has already spent half of before reaching here. Taken per call, and freed on both exits.
-  REAL_T_ALLOC(fl,  75);
-  REAL_T_ALLOC(fr,  75);
-  REAL_T_ALLOC(h2,  75);
-  REAL_T_ALLOC(r,   75);
-  REAL_T_ALLOC(h,   75);
-  REAL_T_ALLOC(lfl, 75);
-  REAL_T_ALLOC(lfr, 75);
-  REAL_T_ALLOC(lr,  75);
-  REAL_T_ALLOC(s,   75);
-  REAL_T_ALLOC(s1,  75);                                       // scratch variable
+  // The ten p39 working reals use heap storage because the plotted-integral call depth leaves insufficient DM42 stack space. Every exit reaches freeWork.
+  REAL_T_ALLOC(fl,  39);
+  REAL_T_ALLOC(fr,  39);
+  REAL_T_ALLOC(h2,  39);
+  REAL_T_ALLOC(r,   39);
+  REAL_T_ALLOC(h,   39);
+  REAL_T_ALLOC(lfl, 39);
+  REAL_T_ALLOC(lfr, 39);
+  REAL_T_ALLOC(lr,  39);
+  REAL_T_ALLOC(s,   39);
+  REAL_T_ALLOC(s1,  39);                                       // scratch variable
 
   if(fl == NULL || fr == NULL || h2 == NULL || r == NULL || h == NULL || lfl == NULL || lfr == NULL || lr == NULL || s == NULL || s1 == NULL) {
     displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
@@ -1177,6 +1154,61 @@ static real_t* exp_sinh_opt_d(calcRegister_t regist, const real_t* a, const real
   }
 
   DEI_xeq_user_adr(regist, a, d, const_2, fl, fr, h2, realContext);
+
+  // Decimal-exponent bisection puts d within one decade of |f(a+d/2)| = 4|f(a+2d)| when d=1 is outside the sampled scale.
+  realCopy(d, lr);
+  realCopyAbs(fl, lfl);
+  realCopyAbs(fr, lfr);
+  if((realIsZero(fl) && realIsZero(fr)) || realCompareLessThan(lfl, lfr)) {
+    real34_t endpoint34, probe34;
+    int32_t lowerExponent;
+    int32_t upperExponent;
+    bool_t exponentBracket = false;
+
+    if(realIsZero(fl) && realIsZero(fr)) {
+      lowerExponent = DECQUAD_Emin - DECQUAD_Pmax + 1;
+      upperExponent = 0;
+      realCopy(lr, s1);
+      realAdjustExponent(s1, lowerExponent);
+      realAdd(a, s1, h, realContext);
+      realToReal34(a, &endpoint34);
+      realToReal34(h, &probe34);
+      if(!real34CompareEqual(&endpoint34, &probe34)) {
+        DEI_xeq_user_adr(regist, a, s1, const_2, fl, fr, h, realContext);
+        realCopyAbs(fl, lfl);
+        realCopyAbs(fr, lfr);
+        if(IS_FINITE(h) && (!realIsZero(fl) || !realIsZero(fr))) {
+          realCopy(s1, d);
+          realCopy(h, h2);
+          exponentBracket = realCompareLessThan(lfl, lfr);
+        }
+      }
+    }
+    else {
+      lowerExponent = 0;
+      upperExponent = DECQUAD_Emax;
+      exponentBracket = true;
+    }
+
+    while(exponentBracket && upperExponent - lowerExponent > 1) {
+      int32_t exponent = lowerExponent + (upperExponent - lowerExponent) / 2;
+      realCopy(lr, s1);
+      realAdjustExponent(s1, exponent);
+      DEI_xeq_user_adr(regist, a, s1, const_2, fl, fr, h, realContext);
+      realCopyAbs(fl, lfl);
+      realCopyAbs(fr, lfr);
+      if(IS_FINITE(h) && (!realIsZero(fl) || !realIsZero(fr)) && realCompareLessThan(lfl, lfr)) {
+        lowerExponent = exponent;
+        realCopy(s1, d);
+      }
+      else {
+        upperExponent = exponent;
+      }
+    }
+    if(exponentBracket) {
+      DEI_xeq_user_adr(regist, a, d, const_2, fl, fr, h2, realContext);
+    }
+  }
 
   if(IS_INFINITE(h2) || (realIsZero(fl) && realIsZero(fr))) {
     goto freeWork;
@@ -1189,7 +1221,7 @@ static real_t* exp_sinh_opt_d(calcRegister_t regist, const real_t* a, const real
   realCopy(const_2, lr);
   do { // find max j such that fl and fr are both finite - will usually be 16.
     j /= 2;
-    uInt32ToReal(1 << (i + j), r);
+    uInt32ToReal(1u << (i + j), r);
     DEI_xeq_user_adr(regist, a, d, r, fl, fr, h, realContext);
   } while(j > 1 && IS_INFINITE(h));
 
@@ -1200,7 +1232,7 @@ static real_t* exp_sinh_opt_d(calcRegister_t regist, const real_t* a, const real
 
     do { // bisect in 4 iterations
       j /= 2;
-      uInt32ToReal(1 << (i + j), r);
+      uInt32ToReal(1u << (i + j), r);
       DEI_xeq_user_adr(regist, a, d, r, fl, fr, h, realContext);
       if(IS_FINITE(h)) {
         realCopyAbs(h, s1);
@@ -1234,16 +1266,16 @@ static real_t* exp_sinh_opt_d(calcRegister_t regist, const real_t* a, const real
   }
 
 freeWork:
-  REAL_T_FREE(fl,  75);
-  REAL_T_FREE(fr,  75);
-  REAL_T_FREE(h2,  75);
-  REAL_T_FREE(r,   75);
-  REAL_T_FREE(h,   75);
-  REAL_T_FREE(lfl, 75);
-  REAL_T_FREE(lfr, 75);
-  REAL_T_FREE(lr,  75);
-  REAL_T_FREE(s,   75);
-  REAL_T_FREE(s1,  75);
+  REAL_T_FREE(fl,  39);
+  REAL_T_FREE(fr,  39);
+  REAL_T_FREE(h2,  39);
+  REAL_T_FREE(r,   39);
+  REAL_T_FREE(h,   39);
+  REAL_T_FREE(lfl, 39);
+  REAL_T_FREE(lfr, 39);
+  REAL_T_FREE(lr,  39);
+  REAL_T_FREE(s,   39);
+  REAL_T_FREE(s1,  39);
   return d;
 }
 #undef IS_FINITE
@@ -1267,25 +1299,24 @@ static void dbl_exp_int_new(calcRegister_t regist, const real_t *a, const real_t
   currentKeyCode = 255;
   bool_t exitSignalled = false;
 
-  // The sixteen working reals come from the heap, not the frame: sixteen decNumbers at 60 bytes is 960 bytes, and this function sits at the bottom of a plotted integral
-  // where the DM42 grant of 8088 is already all but spent. The six from the outer loop are hoisted here so the loop allocates nothing; each is still written before it is
-  // read on every pass, so the reset at the top of the loop still does its work. Freed on every exit through freeWork.
-  REAL_T_ALLOC(c,   75);
-  REAL_T_ALLOC(d,   75);
-  REAL_T_ALLOC(s,   75);
-  REAL_T_ALLOC(v,   75);
-  REAL_T_ALLOC(h,   75);
-  REAL_T_ALLOC(y,   75);
-  REAL_T_ALLOC(eps, 75);
-  REAL_T_ALLOC(s1,  75);   // scratch variables
-  REAL_T_ALLOC(s2,  75);
-  REAL_T_ALLOC(s3,  75);
-  REAL_T_ALLOC(p,   75);
-  REAL_T_ALLOC(q,   75);
-  REAL_T_ALLOC(fp,  75);
-  REAL_T_ALLOC(fm,  75);
-  REAL_T_ALLOC(t,   75);
-  REAL_T_ALLOC(eh,  75);
+  // The sixteen p39 working reals use heap storage because the plotted-integral call depth leaves insufficient DM42 stack space. Every exit reaches freeWork.
+  // The six outer-iteration values are allocated once for this invocation and written before use.
+  REAL_T_ALLOC(c,   39);
+  REAL_T_ALLOC(d,   39);
+  REAL_T_ALLOC(s,   39);
+  REAL_T_ALLOC(v,   39);
+  REAL_T_ALLOC(h,   39);
+  REAL_T_ALLOC(y,   39);
+  REAL_T_ALLOC(eps, 39);
+  REAL_T_ALLOC(s1,  39);   // scratch variables
+  REAL_T_ALLOC(s2,  39);
+  REAL_T_ALLOC(s3,  39);
+  REAL_T_ALLOC(p,   39);
+  REAL_T_ALLOC(q,   39);
+  REAL_T_ALLOC(fp,  39);
+  REAL_T_ALLOC(fm,  39);
+  REAL_T_ALLOC(t,   39);
+  REAL_T_ALLOC(eh,  39);
 
   if(c == NULL || d == NULL || s == NULL || v == NULL || h == NULL || y == NULL || eps == NULL || s1 == NULL || s2 == NULL || s3 == NULL ||
      p == NULL || q == NULL || fp == NULL || fm == NULL || t == NULL || eh == NULL) {
@@ -1599,22 +1630,22 @@ static void dbl_exp_int_new(calcRegister_t regist, const real_t *a, const real_t
   goto freeWork;
 
 freeWork:
-  REAL_T_FREE(c,   75);
-  REAL_T_FREE(d,   75);
-  REAL_T_FREE(s,   75);
-  REAL_T_FREE(v,   75);
-  REAL_T_FREE(h,   75);
-  REAL_T_FREE(y,   75);
-  REAL_T_FREE(eps, 75);
-  REAL_T_FREE(s1,  75);
-  REAL_T_FREE(s2,  75);
-  REAL_T_FREE(s3,  75);
-  REAL_T_FREE(p,   75);
-  REAL_T_FREE(q,   75);
-  REAL_T_FREE(fp,  75);
-  REAL_T_FREE(fm,  75);
-  REAL_T_FREE(t,   75);
-  REAL_T_FREE(eh,  75);
+  REAL_T_FREE(c,   39);
+  REAL_T_FREE(d,   39);
+  REAL_T_FREE(s,   39);
+  REAL_T_FREE(v,   39);
+  REAL_T_FREE(h,   39);
+  REAL_T_FREE(y,   39);
+  REAL_T_FREE(eps, 39);
+  REAL_T_FREE(s1,  39);
+  REAL_T_FREE(s2,  39);
+  REAL_T_FREE(s3,  39);
+  REAL_T_FREE(p,   39);
+  REAL_T_FREE(q,   39);
+  REAL_T_FREE(fp,  39);
+  REAL_T_FREE(fm,  39);
+  REAL_T_FREE(t,   39);
+  REAL_T_FREE(eh,  39);
 }
 
 #endif // USE_NEW_DEI_INTEGRATION_CODE > 0

@@ -38,7 +38,11 @@ void fnOrthoPoly(uint16_t kind) {
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
       }
       else {
-        WP34S_OrthoPoly(kind, &x, &y, &z, &ans, &ctxtReal39);
+        realContext_t *workContext = &ctxtReal75;
+        if(realIsZero(&y) || (realCompareEqual(&y, const_1) && (kind != ORTHOPOLY_LAGUERRE_L_ALPHA || realIsZero(&z)))) {
+          workContext = &ctxtReal34;
+        }
+        WP34S_OrthoPoly(kind, &x, &y, &z, &ans, workContext);
         convertRealToResultRegister(&ans, REGISTER_X, amNone);
         if(kind == ORTHOPOLY_LAGUERRE_L_ALPHA) {
           fnDropY(NOPARAM);

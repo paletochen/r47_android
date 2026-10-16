@@ -11,6 +11,31 @@ static void twoPowReal(void);
 
 
 void realPower2(const real_t *x, real_t *res, realContext_t *realContext) {
+  bool_t error;
+  int32_t exponent;
+
+  if(!realIsSpecial(x)) {
+    exponent = realToInt32C47(x, &error);
+    if(!error) {
+      REAL_T_PTR(integerPart, 39);
+
+      int32ToReal(exponent, integerPart);
+      realSubtract(x, integerPart, res, realContext);
+      if(realIsZero(res)) {
+        realPower(const_2, integerPart, res, realContext);
+      }
+      else {
+        REAL_T_PTR(factor, 75);
+
+        realMultiply(res, const39_ln2, res, realContext);
+        realExp(res, res, realContext);
+        realPower(const_2, integerPart, factor, realContext);
+        realMultiply(factor, res, res, realContext);
+      }
+      return;
+    }
+  }
+
   realMultiply(x, const39_ln2, res, realContext);
   realExp(res, res, realContext);
 }
@@ -81,7 +106,7 @@ static void twoPowReal(void) {
 
 
 static void twoPowCplx(void) {
-  intPowCplx(const39_ln2);
+  intPowCplx(&realPower2, const75_ln2);
 }
 
 

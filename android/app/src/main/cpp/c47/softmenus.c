@@ -3023,46 +3023,58 @@ bool_t savedspace(int16_t itemNr) {  //strike out all SAVED_SPACE items
     #endif // !OPTION_XFN_1000
 
 
-    #if !defined(OPTION_DIST_B)    // cauchy, chi, expo, logis, t, weibull
+    #if !defined(OPTION_DIST_CAUCH)
       case  -MNU_CAUCH   :
       case  ITM_CAUCHP  :
       case  ITM_CAUCH   :
       case  ITM_CAUCHU  :
       case  ITM_CAUCHM1 :
+    #endif // !OPTION_DIST_CAUCH
+    #if !defined(OPTION_DIST_CHI2)
       case  -MNU_CHI2    :
       case  ITM_chi2Px  :
       case  ITM_chi2x   :
       case  ITM_chi2ux  :
       case  ITM_chi2M1  :
+    #endif // !OPTION_DIST_CHI2
+    #if !defined(OPTION_DIST_EXPON)
       case  -MNU_EXPON   :
       case  ITM_EXPONP  :
       case  ITM_EXPON   :
       case  ITM_EXPONU  :
       case  ITM_EXPONM1 :
+    #endif // !OPTION_DIST_EXPON
+    #if !defined(OPTION_DIST_WEIBL)
       case  -MNU_WEIBL   :
       case  ITM_WEIBLP  :
       case  ITM_WEIBL   :
       case  ITM_WEIBLU  :
       case  ITM_WEIBLM1 :
+    #endif // !OPTION_DIST_WEIBL
+    #if !defined(OPTION_DIST_LOGIS)
       case  -MNU_LOGIS   :
       case  ITM_LOGISP  :
       case  ITM_LOGIS   :
       case  ITM_LOGISU  :
       case  ITM_LOGISM1 :
+    #endif // !OPTION_DIST_LOGIS
+    #if !defined(OPTION_DIST_T)
       case  -MNU_T       :
       case  ITM_TPX     :
       case  ITM_TX      :
       case  ITM_TUX     :
       case  ITM_TM1P    :
-    #endif // !OPTION_DIST_B
+    #endif // !OPTION_DIST_T
 
 
-    #if !defined(OPTION_DIST_D)   // Gev, Pareto, Uniform, Discr Uniform
+    #if !defined(OPTION_DIST_GEV)
       case -MNU_GEV       :
       case ITM_GEVP      :
       case ITM_GEV       :
       case ITM_GEVU      :
       case ITM_GEVM1     :
+    #endif // !OPTION_DIST_GEV
+    #if !defined(OPTION_DIST_PRTO)
       case -MNU_PARETO    :
       case ITM_PARETOP   :
       case ITM_PARETOL   :
@@ -3072,6 +3084,8 @@ bool_t savedspace(int16_t itemNr) {  //strike out all SAVED_SPACE items
       case ITM_PARETO2L  :
       case ITM_PARETO2U  :
       case ITM_PARETO2M1 :
+    #endif // !OPTION_DIST_PRTO
+    #if !defined(OPTION_DIST_UNFM)
       case -MNU_UNIFORM    :
       case ITM_UNIFORMP   :
       case ITM_UNIFORML   :
@@ -3082,9 +3096,9 @@ bool_t savedspace(int16_t itemNr) {  //strike out all SAVED_SPACE items
       case ITM_DISUNIFORML:
       case ITM_DISUNIFORMU:
       case ITM_DISUNIFORMI:
-    #endif // !OPTION_DIST_D
+    #endif // !OPTION_DIST_UNFM
 
-    #if !defined(OPTION_DIST_NORMAL)
+    #if !defined(OPTION_DIST_NORML)
       case -MNU_NORML :
       case ITM_NORMLP :      case ITM_NORML  :      case ITM_NORMLU :      case ITM_NORMLM1:
       case ITM_LGNRMP :      case ITM_LGNRM  :      case ITM_LGNRMU :      case ITM_LGNRMM1:
@@ -3094,9 +3108,9 @@ bool_t savedspace(int16_t itemNr) {  //strike out all SAVED_SPACE items
       case ITM_STDNORMLU :
       case ITM_STDNORMLM1:
       case ITM_ERFC      :   // erfc is the normal CDF in disguise, so it goes with this option
-    #endif // !OPTION_DIST_NORMAL
+    #endif // !OPTION_DIST_NORML
 
-    #if !defined(OPTION_DIST_C)
+    #if !defined(OPTION_DIST_BINOM)
       case -MNU_F: case -MNU_BINOM: case -MNU_HYPER: case -MNU_POISS: case -MNU_GEOM:
       case ITM_FPX:      case ITM_FX:      case ITM_FUX:      case ITM_FM1P:
       case ITM_BINOMP:   case ITM_BINOM:   case ITM_BINOMU:   case ITM_BINOMM1:
@@ -3104,7 +3118,7 @@ bool_t savedspace(int16_t itemNr) {  //strike out all SAVED_SPACE items
       case ITM_HYPERP:   case ITM_HYPER:   case ITM_HYPERU:   case ITM_HYPERM1:
       case ITM_POISSP:   case ITM_POISS:   case ITM_POISSU:   case ITM_POISSM1:
       case ITM_GEOMP:    case ITM_GEOM:    case ITM_GEOMU:    case ITM_GEOMM1 :
-    #endif // !OPTION_DIST_C
+    #endif // !OPTION_DIST_BINOM
 
     case 9999: return true;  break;
     default:   return false; break;

@@ -14,22 +14,22 @@ static void arcsinhReal(void) {
     return;
   }
 
-  ArcsinhReal(&x, &x, &ctxtReal51);
+  ArcsinhReal(&x, &x, &ctxtReal39);
   convertRealToResultRegister(&x, REGISTER_X, amNone);
 }
 
 
 
 static void arcsinhCplx(void) {
-  real_t xReal, xImag, rReal, rImag;
+  cplx_t x, r;
 
-  if(!getRegisterAsComplex(REGISTER_X, &xReal, &xImag)) {
+  if(!getRegisterAsComplex(REGISTER_X, &x)) {
     return;
   }
 
-  ArcsinhComplex(&xReal, &xImag, &rReal, &rImag, &ctxtReal39);
+  ArcsinhComplex(&x, &r, &ctxtReal39);
 
-  convertComplexToResultRegister(&rReal, &rImag, REGISTER_X);
+  convertComplexToResultRegister(&r, REGISTER_X);
 }
 
 
@@ -45,41 +45,84 @@ uint8_t ArcsinhReal(const real_t *x, real_t *res, realContext_t *realContext) {
 }
 
 
-uint8_t ArcsinhComplex(const real_t *xReal, const real_t *xImag, real_t *rReal, real_t *rImag, realContext_t *realContext) {
-  real_t a, b;
+uint8_t ArcsinhComplex(const cplx_t *z, cplx_t *r, realContext_t *realContext) {
+  real_t x, xAbs, xSquared, y, yAbs, q, d, t;
 
-  realCopy(xReal, &a);
-  realCopy(xImag, &b);
+  realCopy(&z->Real, &x);
+  realCopy(&z->Imag, &y);
 
-  // arcsinh(z) = ln(z + sqrt(z� + 1))
-  // calculate z�   real part
-  realMultiply(&b, &b, rReal, realContext);
-  realChangeSign(rReal);
-  realFMA(&a, &a, rReal, rReal, realContext);
+  if(realIsNaN(&x) || realIsNaN(&y)) {
+    realSetNaN(&r->Real);
+    realSetNaN(&r->Imag);
+    return ERROR_NONE;
+  }
 
-  // calculate z�   imaginary part
-  realMultiply(&a, &b, rImag, realContext);
-  realMultiply(rImag, const_2, rImag, realContext);
+  if(realIsInfinite(&x)) {
+    realCopy(realIsNegative(&x) ? const_minusInfinity : const_plusInfinity, &r->Real);
+    if(realIsInfinite(&y)) {
+      realCopy(const39_piOn4, &r->Imag);
+      if(realIsNegative(&y)) {
+        realSetNegativeSign(&r->Imag);
+      }
+    } else {
+      realSetZero(&r->Imag);
+      if(realIsNegative(&y)) {
+        realSetNegativeSign(&r->Imag);
+      }
+    }
+    return ERROR_NONE;
+  }
 
-  // calculate z� + 1
-  realAdd(rReal, const_1, rReal, realContext);
+  if(realIsInfinite(&y)) {
+    realCopy(realIsNegative(&x) ? const_minusInfinity : const_plusInfinity, &r->Real);
+    realCopy(const39_piOn2, &r->Imag);
+    if(realIsNegative(&y)) {
+      realSetNegativeSign(&r->Imag);
+    }
+    return ERROR_NONE;
+  }
 
-  // calculate sqrt(z� + 1)
-  realRectangularToPolar(rReal, rImag, rReal, rImag, realContext);
-  realSquareRoot(rReal, rReal, realContext);
-  realMultiply(rImag, const_1on2, rImag, realContext);
-  realPolarToRectangular(rReal, rImag, rReal, rImag, realContext);
+  // For asinh(x+iy)=u+iv, t=sinh(u)² is the nonnegative root of t²-(x²+y²-1)t-x²=0; this separates component signs from their magnitudes during evaluation.
+  realCopyAbs(&x, &xAbs);
+  realCopyAbs(&y, &yAbs);
+  realMultiply(&xAbs, &xAbs, &xSquared, realContext);
+  realSubtract(&yAbs, const_1, &q, realContext);
+  realAdd(&yAbs, const_1, &d, realContext);
+  realMultiply(&q, &d, &q, realContext);
+  realFMA(&xAbs, &xAbs, &q, &q, realContext);
 
-  // calculate z + sqrt(z� + 1)
-  realAdd(&a, rReal, rReal, realContext);
-  realAdd(&b, rImag, rImag, realContext);
+  // d=sqrt(q²+4x²); the q<0 expression uses d-q instead of q+d, avoiding subtraction of nearly equal operands near the finite imaginary-axis segment.
+  realMultiply(&xSquared, const_4, &d, realContext);
+  realFMA(&q, &q, &d, &d, realContext);
+  realSquareRoot(&d, &d, realContext);
+  if(realIsNegative(&q)) {
+    realSubtract(&d, &q, &r->Imag, realContext);
+    realMultiply(&xSquared, const_2, &t, realContext);
+    realDivide(&t, &r->Imag, &t, realContext);
+  } else {
+    realAdd(&q, &d, &t, realContext);
+    realMultiply(&t, const_1on2, &t, realContext);
+  }
 
-  // calculate ln(z + sqtr(z� + 1))
-  realRectangularToPolar(rReal, rImag, &a, &b, realContext);
-  WP34S_Ln(&a, &a, realContext);
+  realSquareRoot(&t, &xSquared, realContext);
+  WP34S_ArcSinh(&xSquared, &r->Real, realContext);
+  if(realIsNegative(&x)) {
+    realSetNegativeSign(&r->Real);
+  }
 
-  realCopy(&a, rReal);
-  realCopy(&b, rImag);
+  realAdd(&t, const_1, &r->Imag, realContext);
+  realSquareRoot(&r->Imag, &r->Imag, realContext);
+  if(realIsZero(&t)) {
+    realSubtract(const_1, &yAbs, &q, realContext);
+    realAdd(const_1, &yAbs, &d, realContext);
+    realMultiply(&q, &d, &q, realContext);
+    realSquareRoot(&q, &q, realContext);
+    C47_WP34S_Atan2(&y, &q, &r->Imag, realContext);
+  } else {
+    realMultiply(&y, &xSquared, &q, realContext);
+    realMultiply(&xAbs, &r->Imag, &d, realContext);
+    C47_WP34S_Atan2(&q, &d, &r->Imag, realContext);
+  }
 
   return ERROR_NONE;
 }

@@ -51,12 +51,17 @@ void fnMant(uint16_t unusedButMandatoryParameter) {
 
 
 void mantLonI(void) {
-  real_t x;
+  longInteger_t x;
+  size_t length, digits;
 
-  convertLongIntegerRegisterToReal(REGISTER_X, &x, &ctxtReal39);
-  x.exponent = 1 - x.digits;
-  reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-  convertRealToReal34ResultRegister(&x, REGISTER_X);
+  convertLongIntegerRegisterToLongInteger(REGISTER_X, x);
+  longIntegerToAllocatedString(x, tmpString, TMP_STR_LENGTH);
+  length = strlen(tmpString);
+  digits = length - (tmpString[0] == '-');
+  snprintf(tmpString + length, TMP_STR_LENGTH - length, "e%" PRId32, 1 - (int32_t)digits);
+  reallocateRegister(REGISTER_X, dtReal34, REAL34_SIZE_IN_BLOCKS, amNone);
+  stringToReal34(tmpString, REGISTER_REAL34_DATA(REGISTER_X));
+  longIntegerFree(x);
 }
 
 

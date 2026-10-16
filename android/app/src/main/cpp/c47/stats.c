@@ -409,6 +409,28 @@ void calcSigma(uint16_t maxOffset) {
 }
 
 
+/********************************************//**
+ * \brief Returns true when x and y are the row Sigma+ or Sigma- saved last, rounded as STATS stores it.
+ *
+ * \param[in] x const real_t* Last row of STATS, first column
+ * \param[in] y const real_t* Last row of STATS, second column
+ * \return bool_t
+ ***********************************************/
+static bool_t isSavedSigmaRow(const real_t *x, const real_t *y) {
+  real34_t stored;
+  real_t value;
+
+  realToReal34(&SAVED_SIGMA_LASTX, &stored);
+  real34ToReal(&stored, &value);
+  if(!realCompareEqual(&value, x)) {
+    return false;
+  }
+  realToReal34(&SAVED_SIGMA_LASTY, &stored);
+  real34ToReal(&stored, &value);
+  return realCompareEqual(&value, y);
+}
+
+
 static void getLastRowStatsMatrix(real_t *x, real_t *y) {
   uint16_t rows = 0, cols;
   calcRegister_t regStats = findNamedVariable(statMx);
@@ -673,6 +695,10 @@ void fnSigmaAddRem(uint16_t plusMinusSelection) {
     else if(plusMinusSelection == SIGMA_MINUS) { // SIGMA-
       if(checkMinimumDataPoints(const_1)) {
         getLastRowStatsMatrix(&x, &y);
+        if(isSavedSigmaRow(&x, &y)) {  // STATS keeps a long integer wider than 34 digits rounded, and the sums take it with all its digits
+          realCopy(&SAVED_SIGMA_LASTX, &x);
+          realCopy(&SAVED_SIGMA_LASTY, &y);
+        }
         if(statisticalSumsUpdate) {
           subSigma(&x, &y);
         }
@@ -765,10 +791,10 @@ void fnRangeXY(uint16_t unusedButMandatoryParameter) {
     setSystemFlag(FLAG_ASLIFT);
     liftStack();
 
-    realSubtract(SIGMA_XMAX, SIGMA_XMIN, &t, &ctxtReal39);
+    realSubtract(SIGMA_XMAX, SIGMA_XMIN, &t, &ctxtReal34);
     convertRealToResultRegister(&t, REGISTER_X, amNone);
 
-    realSubtract(SIGMA_YMAX, SIGMA_YMIN, &t, &ctxtReal39);
+    realSubtract(SIGMA_YMAX, SIGMA_YMIN, &t, &ctxtReal34);
     convertRealToResultRegister(&t, REGISTER_Y, amNone);
 
     temporaryInformation = TI_RANGEX_RANGEY;
@@ -779,80 +805,80 @@ void fnRangeXY(uint16_t unusedButMandatoryParameter) {
 //----------- Histogram Section -----------------
 
 
-  static bool_t isHistoMatrix(uint16_t *rows, char *mx) {
-    *rows = 0;
-    calcRegister_t regHisto = findNamedVariable(mx);
-    if(regHisto == INVALID_VARIABLE) {
+  static bool_t histogramBoundsAreValid(const real_t *lb, const real_t *hb) {
+    if(realIsSpecial(lb) || realIsSpecial(hb) || realCompareGreaterThan(lb, hb)) {
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
       return false;
-    }
-    else {
-      if(getRegisterDataType(regHisto) != dtReal34Matrix) {
-        return false;
-      }
-      else {
-        real34Matrix_t histo;
-        linkToRealMatrixRegister(regHisto, &histo);
-        *rows = histo.header.matrixRows;
-        if(histo.header.matrixColumns != 2) {
-          return false;
-        }
-      }
     }
     return true;
   }
 
 
-  static bool_t initHistoMatrix(real_t *s) {
-    uint16_t rows = 0, cols;
-    calcRegister_t regHisto = findNamedVariable("HISTO");
-    if(!isHistoMatrix(&rows, "HISTO")) {
-      regHisto = allocateNamedMatrix("HISTO", 1, 2);
-      real34Matrix_t histo;
-      linkToRealMatrixRegister(regHisto, &histo);
-      //realMatrixInit(&histo, 1, 2);
-      //printf("Initialising HISTO\n");
+  static bool_t histogramBinCount(const real_t *nb, int32_t *count) {
+    bool_t conversionError;
+
+    if(realIsSpecial(nb) || !realIsAnInteger(nb) || !realCompareGreaterThan(nb, const_0)) {
+      displayCalcErrorMessage(ERROR_INVALID_INTEGER_INPUT, ERR_REGISTER_LINE);
+      return false;
     }
-    else {
-      if(appendRowAtMatrixRegister(regHisto)) {
+    *count = realToInt32C47(nb, &conversionError);
+    if(conversionError || *count > 4095) {                       // matrixRows is a 12-bit field
+      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+      return false;
+    }
+    return true;
+  }
+
+
+  static int32_t compareHistoValueToEdge(const real_t *value, int32_t edge, int32_t count, const real_t *lb, const real_t *hb) {
+    real_t factor, valueTerm, lowerTerm, upperTerm, difference;
+    const real_t *terms[3] = {&valueTerm, &lowerTerm, &upperTerm};
+    realContext_t context = ctxtReal39;
+    context.round = DEC_ROUND_HALF_EVEN;
+
+    int32ToReal(count, &factor);
+    realMultiply(value, &factor, &valueTerm, &context);
+    int32ToReal(edge - count, &factor);
+    realMultiply(lb, &factor, &lowerTerm, &context);
+    int32ToReal(-edge, &factor);
+    realMultiply(hb, &factor, &upperTerm, &context);
+
+    for(int32_t first = 0; first < 2; first++) {
+      for(int32_t candidate = first + 1; candidate < 3; candidate++) {
+        if(realCompareAbsGreaterThan(terms[candidate], terms[first])) {
+          const real_t *temporary = terms[first];
+          terms[first] = terms[candidate];
+          terms[candidate] = temporary;
+        }
       }
-      else {
-        regHisto = INVALID_VARIABLE;
-      }
     }
-    if(regHisto != INVALID_VARIABLE) {
-      real34Matrix_t histo;
-      linkToRealMatrixRegister(regHisto, &histo);
-      rows = histo.header.matrixRows;
-      cols = histo.header.matrixColumns;
-      if(rows == 0) {           // matrixRows is a 12-bit field: >= 4096 rows wrap to 0, making (rows-1) index far out of bounds
-        displayCalcErrorMessage(ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX, ERR_REGISTER_LINE);
-        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-          sprintf(errorMessage, "HISTO row count wrapped the 12-bit matrixRows field");
-          moreInfoOnError("In function initHistoMatrix:", errorMessage, NULL, NULL);
-        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-        return false;
-      }
-      realToReal34(s,       &histo.matrixElements[(rows-1) * cols    ]);
-      real34SetZero(&histo.matrixElements[(rows-1) * cols + 1]);
-      //printf(">>>>>HISTO rows=%d  cols=%d  ",rows, cols);
-      //printReal34ToConsole(&histo.matrixElements[(rows-1) * cols    ],"X:","  ");
-      //printReal34ToConsole(&histo.matrixElements[(rows-1) * cols +1 ],"Y:","  \n");
+    realAdd(terms[0], terms[1], &difference, &context);
+    realAdd(&difference, terms[2], &difference, &context);
+    return realIsZero(&difference) ? 0 : realIsNegative(&difference) ? -1 : 1;
+  }
+
+
+  static void histogramMidpoint(int32_t bin, int32_t count, const real_t *lb, const real_t *hb, real_t *midpoint) {
+    real_t factor, denominator;
+
+    if(realCompareEqual(lb, hb)) {
+      realCopy(lb, midpoint);
+      return;
     }
-    else {
-      displayCalcErrorMessage(ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX, ERR_REGISTER_LINE); // Invalid input data type for this operation
-      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-        sprintf(errorMessage, "additional matrix line not added; rows = %i", rows);
-        moreInfoOnError("In function initHistoMatrix:", errorMessage, NULL, NULL);
-      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-    }
-    return regHisto != INVALID_VARIABLE;
+    int32ToReal(2 * count - 2 * bin - 1, &factor);
+    realMultiply(&factor, lb, midpoint, &ctxtReal39);
+    int32ToReal(2 * bin + 1, &factor);
+    realFMA(&factor, hb, midpoint, midpoint, &ctxtReal39);
+    int32ToReal(2 * count, &denominator);
+    realDivide(midpoint, &denominator, midpoint, &ctxtReal39);
   }
 
 
 static void convertStatsMatrixToHistoMatrix(uint16_t statsVariableToHistogram);
 
 void fnSetLoBin(uint16_t unusedButMandatoryParameter) {
-    real_t x;
+    real_t x, hb;
+    real34_t candidate;
 
     if(histElementXorY == -1) {
       return;
@@ -862,12 +888,19 @@ void fnSetLoBin(uint16_t unusedButMandatoryParameter) {
       return;
     }
 
-    realToReal34(&x, &loBinR);
+    realToReal34(&x, &candidate);
+    real34ToReal(&candidate, &x);
+    real34ToReal(&hiBinR, &hb);
+    if(!histogramBoundsAreValid(&x, &hb)) {
+      return;
+    }
+    real34Copy(&candidate, &loBinR);
     convertStatsMatrixToHistoMatrix(histElementXorY == 1 ? ITM_Y : histElementXorY == 0 ? ITM_X : -1);
 }
 
 void fnSetHiBin(uint16_t unusedButMandatoryParameter) {
-    real_t x;
+    real_t x, lb;
+    real34_t candidate;
 
     if(histElementXorY == -1) {
       return;
@@ -877,13 +910,20 @@ void fnSetHiBin(uint16_t unusedButMandatoryParameter) {
       return;
     }
 
-    realToReal34(&x, &hiBinR);
+    realToReal34(&x, &candidate);
+    real34ToReal(&candidate, &x);
+    real34ToReal(&loBinR, &lb);
+    if(!histogramBoundsAreValid(&lb, &x)) {
+      return;
+    }
+    real34Copy(&candidate, &hiBinR);
     convertStatsMatrixToHistoMatrix(histElementXorY == 1 ? ITM_Y : histElementXorY == 0 ? ITM_X : -1);
 }
 
 
 void fnSetNBins(uint16_t unusedButMandatoryParameter) {
     real_t x;
+    int32_t count;
 
     if(histElementXorY == -1) {
       return;
@@ -893,6 +933,9 @@ void fnSetNBins(uint16_t unusedButMandatoryParameter) {
       return;
     }
 
+    if(!histogramBinCount(&x, &count)) {
+      return;
+    }
     realToReal34(&x, &nBins);
     convertStatsMatrixToHistoMatrix(histElementXorY == 1 ? ITM_Y : histElementXorY == 0 ? ITM_X : -1);
 }
@@ -901,7 +944,7 @@ void fnSetNBins(uint16_t unusedButMandatoryParameter) {
 
 void fnConvertStatsToHisto(uint16_t statsVariableToHistogram) {
     uint16_t rows;
-    real_t lb, hb, nb, nn;
+    real_t nb, nn;
 
     if(statMx[0] != 'S') {
       restoreStats();                            //any stats operation restores the stats matrix (HNORM retargets statMx and the sums at "HISTO")
@@ -922,8 +965,6 @@ void fnConvertStatsToHisto(uint16_t statsVariableToHistogram) {
           return;
         }
 
-      real34ToReal(&loBinR, &lb);
-      real34ToReal(&hiBinR, &hb);
       realCopy(SIGMA_N, &nn);
       realSquareRoot(&nn, &nb, &ctxtReal39);
       realToIntegralValue(&nb, &nb, DEC_ROUND_CEILING, &ctxtReal39);  //number of bins are defaulted to square root of data points  nb = CEIL (sqrt(SIGMA_N))
@@ -948,9 +989,10 @@ void fnConvertStatsToHisto(uint16_t statsVariableToHistogram) {
 //Histogram bin limits are:
 // data points larger than loBinR (inclusive) and smaller than hiBinR (exclusive), except the right most bin right hand limit is inclusive)
 static void convertStatsMatrixToHistoMatrix(uint16_t statsVariableToHistogram) {
-    real_t ii, lb, hb, nb, bw;
+    real_t lb, hb, nb;
     uint16_t i = 0;
     uint16_t j = 0;
+    int32_t NN;
 
     if(!checkMinimumDataPoints(const_3)) {
       return;
@@ -964,75 +1006,48 @@ static void convertStatsMatrixToHistoMatrix(uint16_t statsVariableToHistogram) {
       return;
     }
 
+    real34ToReal(&loBinR, &lb);
+    real34ToReal(&hiBinR, &hb);
+    real34ToReal(&nBins , &nb);
+    if(!histogramBoundsAreValid(&lb, &hb) || !histogramBinCount(&nb, &NN)) {
+      return;
+    }
+
     calcRegister_t regHisto = fnClHisto(false);                       //clear and connect to HISTO matrix
     calcRegister_t regStats = findNamedVariable(statMx);              //connect to STATS only after fnClHisto: allocating "HISTO" can shift the STATS register index
 
     if(isStatsMatrix(&i, statMx) && regStats != INVALID_VARIABLE && regHisto != INVALID_VARIABLE) {
-
-      real34ToReal(&loBinR, &lb);
-      real34ToReal(&hiBinR, &hb);
-      real34ToReal(&nBins , &nb);
-      int32_t NN = real34ToInt32(&nBins);
-      realSubtract(&hb, &lb, &bw, &ctxtReal39);
-      realDivide(&bw, &nb, &bw, &ctxtReal39);
 
       real34Matrix_t stats;
       real34Matrix_t histo;
       linkToRealMatrixRegister(regStats, &stats);
       const uint16_t rows = stats.header.matrixRows, cols = stats.header.matrixColumns;
       if(cols == 2) {
-        bool_t histoBuilt = true;
+        bool_t histoBuilt = redimMatrixRegister(regHisto, NN, 2, ITM_M_DIM);
 
-        for(i = 0; i < NN; i++) {
-          int32ToReal(i, &ii);
-          realAdd(&ii, const_1on2, &ii, &ctxtReal39);
-          realMultiply(&ii, &bw, &ii, &ctxtReal39);
-          realAdd(&ii, &lb, &ii, &ctxtReal39);                      //bin midpoint
-          //printRealToConsole(&ii, "midpoint ", " \n");
-          if(!initHistoMatrix(&ii)) {                               // append failed (RAM full): stop before the populate loop writes past HISTO
-            histoBuilt = false;
-            break;
-          }
+        if(histoBuilt) {
           linkToRealMatrixRegister(regHisto, &histo);
-          //#if defined(PC_BUILD)
-          //  printf("Histo Matrix init: %d ",i);
-          //  printReal34ToConsole(&histo.matrixElements[(i) * histo.header.matrixColumns    ],"X:","  ");
-          //  printReal34ToConsole(&histo.matrixElements[(i) * histo.header.matrixColumns +1 ],"Y:","  \n");
-          //#endif // PC_BUILD
-        }
-
-        if(histoBuilt && isStatsMatrix(&i, statMx) && isHistoMatrix(&i, "HISTO")) {
-          linkToRealMatrixRegister(regStats, &stats);          //every initHistoMatrix append above reallocates the pool and can move the STATS data
+          for(i = 0; i < NN; i++) {
+            real_t midpoint;
+            histogramMidpoint(i, NN, &lb, &hb, &midpoint);
+            realToReal34(&midpoint, &histo.matrixElements[i * histo.header.matrixColumns]);
+            real34SetZero(&histo.matrixElements[i * histo.header.matrixColumns + 1]);
+          }
+          linkToRealMatrixRegister(regStats, &stats);          //redimMatrixRegister can move the STATS data
           for(i = 0; i < rows; i++) {
-            //printf("n=%d ^^^^ i=%d ", n, i);
-            for(j = 0; j < NN; j++) {
-              real_t t, tl, th;
-              real34ToReal(&stats.matrixElements[i * cols + histElementXorY], &t);  //from X or Y, depending
-              //bin edges from loBin + j*bw, last high edge hiBin exactly: points equal to the limits fall inside
-              int32ToReal(j, &tl);
-              realMultiply(&tl, &bw, &tl, &ctxtReal39);
-              realAdd(&tl, &lb, &tl, &ctxtReal39);           //get the bin x low, exact at j == 0
-              if(j == NN - 1) {
-                realCopy(&hb, &th);                          //get the last bin x hi: hiBin itself
-              }
-              else {
-                realAdd(&tl, &bw, &th, &ctxtReal39);         //get the bin x hi
-              }
-              if( (j <  NN - 1 && realCompareLessThan(&t, &th) && realCompareGreaterEqual(&t, &tl)) ||
-                  (j == NN - 1 && realCompareLessEqual(&t, &th) && realCompareGreaterEqual(&t, &tl)) )  {
-                real34Add(&histo.matrixElements[j * histo.header.matrixColumns + 1], const34_1, &histo.matrixElements[j * histo.header.matrixColumns + 1]);
-                #if defined(PC_BUILD) && defined(HISTDEBUG)
-                  printf("Stats element %d in bin no %d, lying between: ", i, j);
-                  printRealToConsole(&tl, "low (inclusive):", " and ");
-                  if(j == NN - 1) {
-                    printRealToConsole(&th, "hi (inclusive):", "\n");
+            real_t t;
+            real34ToReal(&stats.matrixElements[i * cols + histElementXorY], &t);  //from X or Y, depending
+            if(realCompareGreaterEqual(&t, &lb) && realCompareLessEqual(&t, &hb)) {
+              j = NN - 1;
+              if(!realCompareEqual(&lb, &hb)) {
+                for(int32_t edge = 1; edge < NN; edge++) {
+                  if(compareHistoValueToEdge(&t, edge, NN, &lb, &hb) < 0) {
+                    j = edge - 1;
+                    break;
                   }
-                  else {
-                    printRealToConsole(&th, "hi (exclusive):", "\n");
-                  }
-                #endif // PC_BUILD && HISTDEBUG
-                break;
+                }
               }
+              real34Add(&histo.matrixElements[j * histo.header.matrixColumns + 1], const34_1, &histo.matrixElements[j * histo.header.matrixColumns + 1]);
             }
           }
           //#if defined(PC_BUILD)

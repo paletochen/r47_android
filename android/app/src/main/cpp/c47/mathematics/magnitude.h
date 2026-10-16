@@ -8,6 +8,6 @@
   #define MAGNITUDE_H
 
   void fnMagnitude   (uint16_t unusedButMandatoryParameter);
-  void complexMagnitude(const real_t *a, const real_t *b, real_t *c, realContext_t *realContext);
-  void complexMagnitude2(const real_t *a, const real_t *b, real_t *c, realContext_t *realContext);
+  void complexMagnitude(const cplx_t *a, real_t *c, realContext_t *realContext);
+  void complexMagnitude2(const cplx_t *a, real_t *c, realContext_t *realContext);
 #endif // !MAGNITUDE_H

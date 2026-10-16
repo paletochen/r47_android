@@ -111,26 +111,53 @@ void fnOpMod(uint16_t mode) {
 
 
 static void parseReal(calcRegister_t regist, longInteger_t longIntVal, int32_t *exponent) {
-  real_t r;
+  uint8_t bcd[DECQUAD_Pmax];
+  int32_t sign;
 
-  real34ToReal(REGISTER_REAL34_DATA(regist), &r);
-
-  if(r.exponent < 0) {
-    *exponent = -r.exponent;
-    r.exponent = 0;
-  }
   longIntegerInit(longIntVal);
-  convertRealToLongInteger(&r, longIntVal, DEC_ROUND_FLOOR);
+  *exponent = 0;
+  if(real34IsSpecial(REGISTER_REAL34_DATA(regist))) {
+    return;
+  }
+
+  sign = real34GetCoefficient(REGISTER_REAL34_DATA(regist), bcd);
+  *exponent = -real34GetExponent(REGISTER_REAL34_DATA(regist));
+  uInt32ToLongInteger(bcd[0], longIntVal);
+  for(int i=1; i<DECQUAD_Pmax; i++) {
+    longIntegerMultiplyUInt(longIntVal, 10, longIntVal);
+    longIntegerAddUInt(longIntVal, bcd[i], longIntVal);
+  }
+  if(sign) {
+    longIntegerChangeSign(longIntVal);
+  }
 }
 
 
 static void toRealResult(longInteger_t longIntVal, int32_t exponent) {
   real_t r;
+  longInteger_t shortened, divisor, remainder;
+  const int32_t digits = (int32_t)longIntegerBase10Digits(longIntVal);
+  const int32_t discardedDigits = max(digits - ctxtReal39.digits - 3, 0);
 
-  convertLongIntegerToReal(longIntVal, &r, &ctxtReal75);
-  r.exponent -= exponent;
-  reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-  convertRealToReal34ResultRegister(&r, REGISTER_X);
+  longIntegerInit(shortened);
+  longIntegerInit(divisor);
+  longIntegerInit(remainder);
+  if(discardedDigits > 0) {
+    longIntegerPowerUIntUInt(10u, discardedDigits, divisor);
+    longIntegerDivideQuotientRemainder(longIntVal, divisor, shortened, remainder);
+    if(!longIntegerIsZero(remainder) && longIntegerModuloUInt(shortened, 10u) == 0u) {
+      longIntegerAddUInt(shortened, 1u, shortened);
+    }
+  }
+  else {
+    longIntegerCopy(longIntVal, shortened);
+  }
+  convertLongIntegerToReal(shortened, &r, &ctxtReal39);
+  r.exponent += discardedDigits - exponent;
+  convertRealToResultRegister(&r, REGISTER_X, amNone);
+  longIntegerFree(shortened);
+  longIntegerFree(divisor);
+  longIntegerFree(remainder);
 
 }
 
@@ -138,10 +165,12 @@ static void toRealResult(longInteger_t longIntVal, int32_t exponent) {
 // Adapted from WP34s integer-mode function to long integer
 void longInteger_mulmod(const longInteger_t a, int32_t exp_a, const longInteger_t b, int32_t exp_b, const longInteger_t c, int32_t exp_c, longInteger_t res, int32_t *exp_res) {
   longInteger_t x, y, aa, bb, cc;
+  const int32_t productExponent = exp_a + exp_b;
+  const int32_t resultExponent = max(productExponent, exp_c);
   int32_t i;
 
   if(exp_res) {
-    *exp_res = exp_a + exp_b;
+    *exp_res = resultExponent;
   }
 
   longIntegerInit(x);
@@ -152,16 +181,17 @@ void longInteger_mulmod(const longInteger_t a, int32_t exp_a, const longInteger_
 
   longIntegerCopy(a, aa);
   longIntegerCopy(c, cc);
-  for(i = 0; i < (exp_c - exp_b - exp_a); ++i) {
+  for(i = 0; i < resultExponent - productExponent; ++i) {
     longIntegerMultiplyUInt(aa, 10, aa);
+    longIntegerModulo(aa, cc, aa);
   }
-  for(i = 0; i < (exp_a + exp_b - exp_c); ++i) {
+  for(i = 0; i < resultExponent - exp_c; ++i) {
     longIntegerMultiplyUInt(cc, 10, cc);
   }
 
   longIntegerSetZero(x);
   longIntegerModulo(aa, cc, y);
-  longIntegerCopy(b, bb);
+  longIntegerModulo(b, cc, bb);
 
   while(longIntegerCompareInt(bb, 0) > 0) {
     if(longIntegerIsOdd(bb)) {
@@ -253,7 +283,7 @@ void opModLonILonIReal(uint16_t mode) {
   if((mode == OPMOD_POWER) || (getRegisterAngularMode(REGISTER_X) != amNone)) {
     opModError(mode);
   }
-  else if(realCompareGreaterThan(&xx, const_1) && longIntegerIsPositive(y) && longIntegerIsPositive(z)) {
+  else if(!realIsSpecial(&xx) && realCompareGreaterThan(&xx, const_1) && longIntegerIsPositive(y) && longIntegerIsPositive(z)) {
     longInteger_mulmod(z, 0, y, 0, x, exp_x, x, &exponent);
     toRealResult(x, exponent);
   }
@@ -329,7 +359,7 @@ void opModLonIRealReal(uint16_t mode) {
   if((mode == OPMOD_POWER) || (getRegisterAngularMode(REGISTER_Y) != amNone) || (getRegisterAngularMode(REGISTER_X) != amNone)) {
     opModError(mode);
   }
-  else if(realCompareGreaterThan(&xx, const_1) && longIntegerIsPositive(y) && longIntegerIsPositive(z)) {
+  else if(!realIsSpecial(&xx) && realCompareGreaterThan(&xx, const_1) && longIntegerIsPositive(y) && longIntegerIsPositive(z)) {
     longInteger_mulmod(z, 0, y, exp_y, x, exp_x, x, &exponent);
     toRealResult(x, exponent);
   }
@@ -467,7 +497,7 @@ void opModRealLonIReal(uint16_t mode) {
   if((mode == OPMOD_POWER) || (getRegisterAngularMode(REGISTER_Z) != amNone) || (getRegisterAngularMode(REGISTER_X) != amNone)) {
     opModError(mode);
   }
-  else if(realCompareGreaterThan(&xx, const_1) && longIntegerIsPositive(y) && longIntegerIsPositive(z)) {
+  else if(!realIsSpecial(&xx) && realCompareGreaterThan(&xx, const_1) && longIntegerIsPositive(y) && longIntegerIsPositive(z)) {
     longInteger_mulmod(z, exp_z, y, 0, x, exp_x, x, &exponent);
     toRealResult(x, exponent);
   }
@@ -533,16 +563,26 @@ void opModRealRealShoI(uint16_t mode) {
 
 void opModRealRealReal(uint16_t mode) {
   real_t x, y, z;
+  longInteger_t xInt, yInt, zInt;
+  int32_t exp_x, exp_y, exp_z, exponent;
+  bool_t finite;
+
   real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &x);
   real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &y);
   real34ToReal(REGISTER_REAL34_DATA(REGISTER_Z), &z);
+  finite = !realIsSpecial(&x) && !realIsSpecial(&y) && !realIsSpecial(&z);
   if((mode == OPMOD_POWER) || (getRegisterAngularMode(REGISTER_Z) != amNone) || (getRegisterAngularMode(REGISTER_Y) != amNone) || (getRegisterAngularMode(REGISTER_X) != amNone)) {
     opModError(mode);
   }
-  else if(realCompareGreaterThan(&x, const_1) && realCompareGreaterThan(&y, const_0) && realCompareGreaterThan(&z, const_0)) {
-    realMultiply(&z, &y, &z, &ctxtReal75);
-    WP34S_Mod(&z, &x, &x, &ctxtReal75);
-    convertRealToReal34ResultRegister(&x, REGISTER_X);
+  else if(finite && realCompareGreaterThan(&x, const_1) && realCompareGreaterThan(&y, const_0) && realCompareGreaterThan(&z, const_0)) {
+    parseReal(REGISTER_X, xInt, &exp_x);
+    parseReal(REGISTER_Y, yInt, &exp_y);
+    parseReal(REGISTER_Z, zInt, &exp_z);
+    longInteger_mulmod(zInt, exp_z, yInt, exp_y, xInt, exp_x, xInt, &exponent);
+    toRealResult(xInt, exponent);
+    longIntegerFree(xInt);
+    longIntegerFree(yInt);
+    longIntegerFree(zInt);
   }
   else {
     opModOutOfDomain(mode);

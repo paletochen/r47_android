@@ -130,16 +130,6 @@
    */
   int ioEof(void);
 
-  /**
-   * Delete the given file.
-   * The file should not be open.
-   *
-   * \param[in] path file to delete
-   * \param[out] errorNumber error code given by the platform if there's an error
-   * \return FILE_OK if delete succeeded, or FILE_ERROR if not
-   */
-  int ioFileRemove(ioFilePath_t path, uint32_t *errorNumber);
-
    /**
    * Callback function for Save State File selected file.
    * Called from the DMCP file_selection_screen() dialog.

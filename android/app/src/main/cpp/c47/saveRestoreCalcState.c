@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: Copyright The WP43 and C47 Authors
 
 #include "c47.h"
-#include <locale.h>
 
 #if !defined(OPTION_DATAFILE)                                                 // stubs for .d47 register/variable/flag export & import (real code below): EXPstk/ltr/nrg/reg, EXPFLn, IMPORTr
   void fnSaveStackRegisters   (uint16_t unusedButMandatoryParameter) {}
@@ -367,18 +366,6 @@ static uint32_t toUint32(const char *str) {
   return strtoul(str, NULL, 10);
 }
 
-// Floating point conversion function: accepts '.' or ',' in the file regardless of the locale, so config files written under one region setting load correctly under another
-float stringToFloat(const char *str) {
-  char buf[48];
-  const char radix = *localeconv()->decimal_point;
-  uint32_t i = 0;
-  while(str[i] != 0 && i < sizeof(buf) - 1) {
-    buf[i] = (str[i] == '.' || str[i] == ',') ? radix : str[i];
-    i++;
-  }
-  buf[i] = 0;
-  return strtof(buf, NULL);
-}
 // Lettered-register names for registers FIRST_LETTERED_REGISTER..LAST_SPARE_REGISTER (100..125), in register-number order:
 //   100=X 101=Y 102=Z 103=T 104=A 105=B 106=C 107=D 108=L 109=I 110=J 111=K 112=M 113=N 114=P 115=Q 116=R 117=S 118=E 119=F 120=G 121=H 122=O 123=U 124=V 125=W
 static const char registerLetters[] = "XYZTABCDLIJKMNPQRSEFGHOUVW";
@@ -974,9 +961,9 @@ void fnSaveSystemFlags(uint16_t unusedButMandatoryParameter) {
 static void doSave(uint16_t saveType);
 
   void fnSaveAuto(uint16_t unusedButMandatoryParameter) {
-  #if defined(DMCP_BUILD) || defined(ANDROID_BUILD)
+  #if defined(DMCP_BUILD)
     doSave(autoSave);
-  #endif // DMCP_BUILD || ANDROID_BUILD
+  #endif // DMCP_BUILD
   }
 
 
@@ -1278,6 +1265,9 @@ void doSave(uint16_t saveType) {
         sprintf(tmpString, "firstGregorianDay\n%"          PRIu32 "\n",     firstGregorianDay);            save(tmpString, strlen(tmpString));
         sprintf(tmpString, "denMax\n%"                     PRIu32 "\n",     denMax);                       save(tmpString, strlen(tmpString));
         sprintf(tmpString, "graMod\n%"                     PRIu8  "\n",     graMod);                       save(tmpString, strlen(tmpString));
+        #if defined(OPTION_ATEXT_FONTS)
+          sprintf(tmpString, "graFont\n%"                    PRIu8  "\n",     graFont);                      save(tmpString, strlen(tmpString));
+        #endif // OPTION_ATEXT_FONTS
         sprintf(tmpString, "longPressFactor\n%"            PRId16 "\n",     longPressFactor);              save(tmpString, strlen(tmpString));
         sprintf(tmpString, "doublePressFactor\n%"          PRId16 "\n",     doublePressFactor);            save(tmpString, strlen(tmpString));
         sprintf(tmpString, "lastDenominator\n%"            PRIu32 "\n",     lastDenominator);              save(tmpString, strlen(tmpString));
@@ -1325,11 +1315,6 @@ void doSave(uint16_t saveType) {
         sprintf(tmpString, "amortP1\n%"                    PRIu16 "\n",     amortP1);                      save(tmpString, strlen(tmpString));
         sprintf(tmpString, "amortP2\n%"                    PRIu16 "\n",     amortP2);                      save(tmpString, strlen(tmpString));
         sprintf(tmpString, "lrChosen\n%"                   PRIu16 "\n",     lrChosen);                     save(tmpString, strlen(tmpString));
-        char floatString[32];
-        sci_fmt(floatString, sizeof(floatString), graph_dx);
-        sprintf(tmpString, "graph_dx\n"                    "%s"   "\n",     floatString);                  save(tmpString, strlen(tmpString));
-        sci_fmt(floatString, sizeof(floatString), graph_dy);
-        sprintf(tmpString, "graph_dy\n"                    "%s"   "\n",     floatString);                  save(tmpString, strlen(tmpString));
         sprintf(tmpString, "roundedTicks\n%"               PRIu8  "\n",     (uint8_t)roundedTicks);        save(tmpString, strlen(tmpString));
         sprintf(tmpString, "PLOT_AXIS\n%"                  PRIu8  "\n",     (uint8_t)PLOT_AXIS);           save(tmpString, strlen(tmpString));
         sprintf(tmpString, "PLOT_ZMY\n%"                   PRIu8  "\n",     PLOT_ZMY);                     save(tmpString, strlen(tmpString));
@@ -1479,18 +1464,42 @@ int64_t stringToInt64(const char *str) {
 
   #define STANDARDISED_COMPLEX_LENGTH 200  // one size for standardiseComplex()'s buffers and for every caller's output buffer
 
+  /**
+   * Find the imaginary-unit marker in a complex text value. `Infinity` is a
+   * valid decimal token and contains lower-case `i` characters which are not
+   * separators.
+   */
+  static const char *findComplexImaginaryMarker(const char *text) {
+    const char *p = text;
+
+    while((p = strchr(p, 'i')) != NULL) {
+      const char *word = p;
+      while(word > text && ((word[-1] >= 'A' && word[-1] <= 'Z') || (word[-1] >= 'a' && word[-1] <= 'z'))) {
+        word--;
+      }
+      if((strncmp(word, "Infinity", 8) == 0 || strncmp(word, "infinity", 8) == 0) &&
+         !((word[8] >= 'A' && word[8] <= 'Z') || (word[8] >= 'a' && word[8] <= 'z'))) {
+        p++;
+        continue;
+      }
+      return p;
+    }
+    return NULL;
+  }
+
   // Function to standardize new input to the old state file format, any new complex, into the old "re im" form.
   // Accepts (3-i4) | 3-i4 | +3+i4 | -3-i4 | (+3+i4) | (-3-i4) | 3 -4 | 3 4 | -2.5 1e3 | -2.5e-3+i4 | (-2.5e-3-i4) | i4 | (i4) |
   //         ( 3 - i4 ) | (1.5e2-i2.5e-3) | 0+i0 | -7+i0 | (3 -i4) | 3 -i4 | +3 +i4 | -3 -i4 | ( 3 - i 4 ) | +3 + i4 | 3 - i 4 | (-2.5e-3 - i 4)
   //         (parentheses optional, leading sign optional)
-  // as well as the state file form  "3 -4"  (backward compatibility). Form and free white space is enabled by 'i' (which can never occur in a real number string).
+  // as well as the state file form  "3 -4"  (backward compatibility). Form and free white space is enabled by an imaginary-unit 'i'; the lower-case 'i'
+  // characters within Infinity remain part of that decimal token.
   // 'dest' must be STANDARDISED_COMPLEX_LENGTH bytes: the caller's buffer and the work buffer below are one size, and the length check
   // at the head of the function is what keeps every write inside both of them.
   static void standardiseComplex(const char *src, char *dest) {
     char work[STANDARDISED_COMPLEX_LENGTH];
     char *w = work;
-    char *iPos;
-    bool_t isIform = (strchr(src, 'i') != NULL);
+    const char *iPos;
+    bool_t isIform = (findComplexImaginaryMarker(src) != NULL);
 
     // A data file line is up to TMP_STR_LENGTH bytes and lands here unmeasured, while a complex this calculator can hold is far shorter: a real34 carries
     // 34 significant digits, so the widest legal element - both parts signed, with a radix mark and a four digit exponent - is well under 100 bytes. An
@@ -1529,7 +1538,11 @@ int64_t stringToInt64(const char *str) {
       return;
     }
 
-    iPos = strchr(work, 'i');
+    iPos = findComplexImaginaryMarker(work);
+    if(iPos == NULL) {                                                          // malformed whitespace may have joined text into one decimal token
+      strcpy(dest, work);
+      return;
+    }
     if(iPos == work) {
       sprintf(dest, "0 +%s", iPos + 1);                                          // leading 'i' (e.g. "i4" meaning 0+i4): real part is zero
       return;
@@ -1537,7 +1550,7 @@ int64_t stringToInt64(const char *str) {
 
     {
       char imSign = *(iPos - 1);                                                 // the character right before 'i' is the imaginary sign
-      char *imMag = iPos + 1;                                                    // the imaginary magnitude follows the 'i'
+      const char *imMag = iPos + 1;                                              // the imaginary magnitude follows the 'i'
       size_t realLen = (size_t)(iPos - 1 - work);                                // the real part is everything before that sign
       char realStr[STANDARDISED_COMPLEX_LENGTH];
 
@@ -2794,10 +2807,16 @@ int64_t stringToInt64(const char *str) {
           }
           else if(strcmp(aimBuffer, "graMod") == 0) {
             graMod = toUint8(tmpString);
-            if(graMod > 3) {
+            if(graMod > 4) {
               graMod = 0;
             }
           }
+          #if defined(OPTION_ATEXT_FONTS)
+            else if(strcmp(aimBuffer, "graFont") == 0) {
+              graFont = toUint8(tmpString);
+              graFontCheck();
+            }
+          #endif // OPTION_ATEXT_FONTS
           else if(strcmp(aimBuffer, "longPressFactor") == 0) {
             longPressFactor = toInt16(tmpString);
             if(longPressFactor < -6000 || longPressFactor > 5000) {
@@ -3002,8 +3021,6 @@ int64_t stringToInt64(const char *str) {
           else if(strcmp(aimBuffer, "amortP1"                     ) == 0) { amortP1               = toUint16(tmpString);}
           else if(strcmp(aimBuffer, "amortP2"                     ) == 0) { amortP2               = toUint16(tmpString);}
           else if(strcmp(aimBuffer, "lrChosen"                    ) == 0) { lrChosen              = toUint16(tmpString);}
-          else if(strcmp(aimBuffer, "graph_dx"                    ) == 0) { graph_dx              = stringToFloat(tmpString); }
-          else if(strcmp(aimBuffer, "graph_dy"                    ) == 0) { graph_dy              = stringToFloat(tmpString); }
           else if(strcmp(aimBuffer, "roundedTicks"                ) == 0) { roundedTicks          = toUint8(tmpString) != 0; }
           else if(strcmp(aimBuffer, "PLOT_AXIS"                   ) == 0) { PLOT_AXIS             = toUint8(tmpString) != 0; }
           else if(strcmp(aimBuffer, "PLOT_ZMY"                    ) == 0) { PLOT_ZMY              = toUint8(tmpString); }
@@ -3481,34 +3498,8 @@ void fnDeleteBackup(uint16_t confirmation) {
         displayCalcErrorMessage(ERROR_IO, ERR_REGISTER_LINE);
       }
       sys_disk_write_enable(0);
-    #elif defined(ANDROID_BUILD)
-      extern int ioFileRemove(ioFilePath_t path, uint32_t *errorNumber);
-      uint32_t err1 = 0;
-      uint32_t err2 = 0;
-      int r1 = ioFileRemove(ioPathManualSave, &err1);
-      int r2 = ioFileRemove(ioPathAutoSave, &err2);
-      if(r1 != FILE_OK || r2 != FILE_OK) {
-        if(err1 != ENOENT && err2 != ENOENT && err1 != 0 && err2 != 0) {
-          displayCalcErrorMessage(ERROR_IO, ERR_REGISTER_LINE);
-          #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-            sprintf(errorMessage, "removing the backup failed with error code %d/%d", err1, err2);
-            moreInfoOnError("In function fnDeleteBackup:", errorMessage, NULL, NULL);
-          #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-        }
-      }
-    #else // !DMCP_BUILD && !ANDROID_BUILD
+    #else // !DMCP_BUILD
       int result = remove(SAVE_DIR "/" SAVE_FILE);
-      if(result == -1) {
-        int e = errno;
-        if(e != ENOENT) {
-          displayCalcErrorMessage(ERROR_IO, ERR_REGISTER_LINE);
-          #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-            sprintf(errorMessage, "removing the backup failed with error code %d", e);
-            moreInfoOnError("In function fnDeleteBackup:", errorMessage, NULL, NULL);
-          #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-        }
-      }
-      result = remove(SAVE_DIR "/" AUTO_SAVE_FILE);
       if(result == -1) {
         int e = errno;
         if(e != ENOENT) {
@@ -3522,4 +3513,3 @@ void fnDeleteBackup(uint16_t confirmation) {
     #endif // DMCP_BUILD
   }
 }
-

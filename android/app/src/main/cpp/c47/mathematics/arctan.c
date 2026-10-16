@@ -32,6 +32,14 @@ static void arctanReal(void) {
       return;
     }
   }
+  else if(currentAngularMode == amRadian && !realIsZero(&x) && realGetExponent(&x) < -18) {   // arctan x = x - x³/3 to 72 digits, below |x| by less than half a unit at 34 digits
+    WP34S_TinyOddSeries(&x, const_3, false, &x, &ctxtReal75);
+  }
+  else if(currentAngularMode != amRadian && realCompareAbsGreaterThan(&x, const_1)) {   // ±90° less arctan(1/x): the right angle is exact outside radians
+    realDivide(const_1, &x, &x, &ctxtReal39);
+    C47_WP34S_Atan(&x, &x, &ctxtReal39);
+    rightAngleLessRadians(&x, realIsNegative(&x));
+  }
   else {
     C47_WP34S_Atan(&x, &x, &ctxtReal39);
     convertAngleFromTo(&x, amRadian, currentAngularMode, &ctxtReal39);
@@ -42,53 +50,70 @@ static void arctanReal(void) {
 
 
 static void arctanCplx(void) {
-  real_t xReal, xImag, rReal, rImag;
+  cplx_t x, r;
 
-  if(!getRegisterAsComplex(REGISTER_X, &xReal, &xImag)) {
+  if(!getRegisterAsComplex(REGISTER_X, &x)) {
     return;
   }
 
-  ArctanComplex(&xReal, &xImag, &rReal, &rImag, &ctxtReal39);
+  ArctanComplex(&x, &r, &ctxtReal39);
 
-  convertComplexToResultRegister(&rReal, &rImag, REGISTER_X);
+  convertComplexToResultRegister(&r, REGISTER_X);
 }
 
-uint8_t ArctanComplex(real_t *xReal, real_t *xImag, real_t *rReal, real_t *rImag, realContext_t *realContext) {
-  real_t a, b, numer, denom;
+uint8_t ArctanComplex(cplx_t *x, cplx_t *r, realContext_t *realContext) {
+  real_t aSquared, denominator, numerator;
+  cplx_t w;
 
-  realCopy(xReal, &a);
-  realCopy(xImag, &b);
+  realCopy(&x->Real, &w.Real);
+  realCopy(&x->Imag, &w.Imag);
 
-  // arctan(z) = i/2 . ln((1 - iz) / (1 + iz))
+  if(realIsNaN(&w.Real) || realIsNaN(&w.Imag)) {
+    realSetNaN(&r->Real);
+    realSetNaN(&r->Imag);
+    return ERROR_NONE;
+  }
 
-  // calculate (1 - iz) / (1 + iz)  with z = a + bi
+  if(realIsInfinite(&w.Real) || realIsInfinite(&w.Imag)) {
+    C47_WP34S_Atan2(const_1, const_0, &r->Real, realContext);
+    if(realIsNegative(&w.Real)) {
+      realSetNegativeSign(&r->Real);
+    }
+    realSetZero(&r->Imag);
+    if(realIsNegative(&w.Imag)) {
+      realSetNegativeSign(&r->Imag);
+    }
+    return ERROR_NONE;
+  }
 
-  // 1 - (a + bi)i      1 - (a² + b²)             - 2a
-  // -------------  =  ----------------  +  ---------------- i
-  // 1 + (a + bi)i     a² + b² - 2b + 1     a² + b² - 2b + 1
+  // Re(atan(a+bi)) = atan2(2a, (1-b)(1+b)-a²)/2.
+  realSubtract(const_1, &w.Imag, &denominator, realContext);
+  realAdd(const_1, &w.Imag, &numerator, realContext);
+  realMultiply(&denominator, &numerator, &denominator, realContext);
+  realMinus(&w.Real, &numerator, realContext);
+  realFMA(&numerator, &w.Real, &denominator, &denominator, realContext);
+  realMultiply(&w.Real, const_2, &numerator, realContext);
+  C47_WP34S_Atan2(&numerator, &denominator, &r->Real, realContext);
+  realMultiply(&r->Real, const_1on2, &r->Real, realContext);
 
-  realMultiply(&a, &a, &denom, realContext);         // denom = a²
-  realFMA(&b, &b, &denom, &denom, realContext);   // denom = a² + b²
-  realSubtract(const_1, &denom, &numer, realContext);         // numer = 1 - (a² + b²)
-  realChangeSign(&b);                                              // b = -b
-  realFMA(&b, const_2, &denom, &denom, realContext);     // denom = a² + b² - 2b
-  realAdd(&denom, const_1, &denom, realContext);             // denom = a² + b² - 2b + 1
-  realMultiply(&a, const_2, &b, realContext);                // imag part = 2a
-  realChangeSign(&b);                                             // imag part = -2a
-  realDivide(&numer, &denom, &a, realContext);      // real part = numer / denom
-  realDivide(&b, &denom, &b, realContext);          // imag part = -2a / denom
-
-  // calculate ln((1 - iz) / (1 + iz))
-  realRectangularToPolar(&a, &b, &a, &b, realContext);
-  WP34S_Ln(&a, &a, realContext);
-
-  // arctan(z) = i/2 . ln((1 - iz) / (1 + iz))
-  realMultiply(&a, const_1on2, &a, realContext);
-  realMultiply(&b, const_1on2, &b, realContext);
-  realChangeSign(&b);
-
-  realCopy(&b, rReal);
-  realCopy(&a, rImag);
+  // Use a positive ln1p argument on either side of the real axis:
+  // Im(atan(a+bi)) = sign(b)/4 * ln(1 + 4|b|/(a²+(|b|-1)²)).
+  realMultiply(&w.Real, &w.Real, &aSquared, realContext);
+  if(realIsNegative(&w.Imag)) {
+    realAdd(&w.Imag, const_1, &denominator, realContext);
+    realMultiply(&w.Imag, const__4, &numerator, realContext);
+  } else {
+    realSubtract(&w.Imag, const_1, &denominator, realContext);
+    realMultiply(&w.Imag, const_4, &numerator, realContext);
+  }
+  realFMA(&denominator, &denominator, &aSquared, &denominator, realContext);
+  realDivide(&numerator, &denominator, &numerator, realContext);
+  WP34S_Ln1P(&numerator, &r->Imag, realContext);
+  realMultiply(&r->Imag, const_1on2, &r->Imag, realContext);
+  realMultiply(&r->Imag, const_1on2, &r->Imag, realContext);
+  if(realIsNegative(&w.Imag)) {
+    realSetNegativeSign(&r->Imag);
+  }
 
   return ERROR_NONE;
 }

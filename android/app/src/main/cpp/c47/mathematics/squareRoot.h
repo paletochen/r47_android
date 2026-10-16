@@ -8,8 +8,10 @@
   #define SQUAREROOT_H
 
   void fnSquareRoot(uint16_t unusedButMandatoryParameter);
-  void sqrtComplex (const real_t *real, const real_t *imag, real_t *resReal, real_t *resImag, realContext_t *realContext);
-//  void sqrtComplex159(const real_t *zReal, const real_t *zImag, real_t *resReal, real_t *resImag, realContext_t *realContext);
+  void sqrtComplex (const cplx_t *z, cplx_t *res, realContext_t *realContext);
+  #if defined(OPTION_SQUARE_159) || defined(OPTION_CUBIC_159) || defined(OPTION_EIGEN_159)
+    void sqrtComplex159(const cplx159_t *z, cplx159_t *res, realContext_t *realContext);
+  #endif // OPTION_SQUARE_159 || OPTION_CUBIC_159 || OPTION_EIGEN_159
   void rootLonI    (int32_t n);
 
 #endif // !SQUAREROOT_H

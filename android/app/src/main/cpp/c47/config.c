@@ -814,6 +814,13 @@ void fnSetRoundingModeRegist(uint16_t regist) {
 // 5: ceiling: ⌈x⌉ rounds towards + ∞.
 // 6: floor: ⌊x⌋ rounds towards – ∞.
 
+// roundingModeTable[RM_HALF_EVEN] = roundingModeTable[0] = DEC_ROUND_HALF_EVEN   = 3  ½E  : 0.5 rounds to next
+// roundingModeTable[RM_HALF_UP  ] = roundingModeTable[1] = DEC_ROUND_HALF_UP     = 2  ½up : 0.5 rounds up
+// roundingModeTable[RM_HALF_DOWN] = roundingModeTable[2] = DEC_ROUND_HALF_DOWN   = 4  ½↓  : 0.5 rounds down
+// roundingModeTable[RM_UP       ] = roundingModeTable[3] = DEC_ROUND_UP          = 1  ←0→ : rounds away from 0
+// roundingModeTable[RM_DOWN     ] = roundingModeTable[4] = DEC_ROUND_DOWN        = 5  →0← : rounds towards 0
+// roundingModeTable[RM_CEIL     ] = roundingModeTable[5] = DEC_ROUND_CEILING     = 0  ⌈x⌉ : rounds towards + ∞
+// roundingModeTable[RM_FLOOR    ] = roundingModeTable[6] = DEC_ROUND_FLOOR       = 6  ⌊x⌋ : rounds towards – ∞
 
 
 // "enum rounding" does not match with the specification of WP 43s rounding mode.
@@ -931,14 +938,14 @@ void fnBatteryVoltage(uint16_t unusedButMandatoryParameter) {
     int32ToReal(3100, &value);
   #endif // PC_BUILD
 
-  #if defined(DMCP_BUILD) || defined(ANDROID_BUILD)
+  #if defined(DMCP_BUILD)
 //    int32ToReal(get_vbat(), &value);
     int tmpVbat = get_vbat();
     if(tmpVbat < vbatVIntegrated) {
       vbatVIntegrated = tmpVbat;             // Use BATT# outside the sampling schedule to pull the intgrator down. Any opportunity to keep it down in addition to the schedule
     }
     int32ToReal(tmpVbat, &value);
-  #endif // DMCP_BUILD || ANDROID_BUILD
+  #endif // DMCP_BUILD
 
   value.exponent -= 3; // value = value / 1000
   convertRealToResultRegister(&value, REGISTER_X, amNone);   // the actual reading, lifted to Y by the integrator push below
@@ -949,9 +956,9 @@ void fnBatteryVoltage(uint16_t unusedButMandatoryParameter) {
     int32ToReal(3100, &value);
   #endif // PC_BUILD
 
-  #if defined(DMCP_BUILD) || defined(ANDROID_BUILD)
+  #if defined(DMCP_BUILD)
     int32ToReal(vbatVIntegrated, &value);    // after the pull-down above this equals the previous min(reading, integrator) result
-  #endif // DMCP_BUILD || ANDROID_BUILD
+  #endif // DMCP_BUILD
 
   temporaryInformation = TI_BATTV;
   value.exponent -= 3; // value = value / 1000
@@ -1527,17 +1534,7 @@ void addTestPrograms(void) {
   #else // !DMCP_BUILD
     FILE *testPgms;
 
-    #if defined(ANDROID_BUILD)
-      extern const char *get_android_base_path(void);
-      char testPgmsPath[1024];
-      snprintf(testPgmsPath, sizeof(testPgmsPath), "%s/testPgms.bin", get_android_base_path());
-      testPgms = fopen(testPgmsPath, "rb");
-      if(testPgms == NULL) {
-        testPgms = fopen("res/testPgms/testPgms.bin", "rb");
-      }
-    #else
-      testPgms = fopen("res/testPgms/testPgms.bin", "rb");
-    #endif
+    testPgms = fopen("res/testPgms/testPgms.bin", "rb");
     if(testPgms == NULL) {
       printf("Cannot open file res/testPgms/testPgms.bin\n");
       *(beginOfProgramMemory)     = 255; // .END.
@@ -1809,9 +1806,6 @@ TO_QSPI const nstr2 msg2[] = {
 
 
 void fnReset(uint16_t confirmation) {
-  #if defined(ANDROID_BUILD)
-    loadTestPrograms = true;
-  #endif
   doFnReset(confirmation, doNotLoadAutoSav);
 }
 

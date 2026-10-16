@@ -20,7 +20,7 @@ void logicalOpResult(bool_t res, uint32_t xtype, uint32_t ytype) {
     const real_t *rres = res ? const_1 : const_0;
 
     if(xtype == dtComplex34 || ytype == dtComplex34) {
-      convertComplexToResultRegister(rres, const_0, REGISTER_X);
+      convertComplexPartsToResultRegister(rres, const_0, REGISTER_X);
     }
     else {
       convertRealToResultRegister(rres, REGISTER_X, amNone);
@@ -35,15 +35,15 @@ void logicalOpResult(bool_t res, uint32_t xtype, uint32_t ytype) {
  *  [3] x=1 y=1
  */
 void dyadicLogicalOp(const unsigned char table[4]) {
-  real_t xr, xc, yr, yc;
+  cplx_t cx, cy;
   bool_t x, y, res;
 
-  if(!getRegisterAsComplex(REGISTER_X, &xr, &xc) || !getRegisterAsComplex(REGISTER_Y, &yr, &yc)) {
+  if(!getRegisterAsComplex(REGISTER_X, &cx) || !getRegisterAsComplex(REGISTER_Y, &cy)) {
     return;
   }
 
-  x = !realIsZero(&xr) || !realIsZero(&xc);
-  y = !realIsZero(&yr) || !realIsZero(&yc);
+  x = !realIsZero(&cx.Real) || !realIsZero(&cx.Imag);
+  y = !realIsZero(&cy.Real) || !realIsZero(&cy.Imag);
 
   res = table[(x ? 1 : 0) + (y ? 2 : 0)] != 0;
   logicalOpResult(res, getRegisterDataType(REGISTER_X), getRegisterDataType(REGISTER_Y));

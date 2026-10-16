@@ -85,36 +85,22 @@ void incDecLonI(uint16_t regist, uint8_t flag) {
 
 
 void incDecReal(uint16_t regist, uint8_t flag) {
-  real_t r;
-
-  real34ToReal(REGISTER_REAL34_DATA(regist), &r);
-  (flag == INC_FLAG) ? realAdd(&r, const_1, &r, &ctxtReal39) : realSubtract(&r, const_1, &r, &ctxtReal39);
-
-  realToReal34(&r, REGISTER_REAL34_DATA(regist));
+  (flag == INC_FLAG) ? real34Add(REGISTER_REAL34_DATA(regist), const34_1, REGISTER_REAL34_DATA(regist))
+                     : real34Subtract(REGISTER_REAL34_DATA(regist), const34_1, REGISTER_REAL34_DATA(regist));
 }
 
 
 
 void incDecCplx(uint16_t regist, uint8_t flag) {
-  real_t r_real;
-
-  real34ToReal(REGISTER_REAL34_DATA(regist), &r_real);
-
-  (flag == INC_FLAG) ? realAdd(&r_real, const_1, &r_real, &ctxtReal39) : realSubtract(&r_real, const_1, &r_real, &ctxtReal39);
-
-  realToReal34(&r_real, REGISTER_REAL34_DATA(regist));
+  (flag == INC_FLAG) ? real34Add(REGISTER_REAL34_DATA(regist), const34_1, REGISTER_REAL34_DATA(regist))
+                     : real34Subtract(REGISTER_REAL34_DATA(regist), const34_1, REGISTER_REAL34_DATA(regist));
 }
 
 
 
 void incDecTime(uint16_t regist, uint8_t flag) {
-  real_t r;
-
-  real34ToReal(REGISTER_REAL34_DATA(regist), &r); // "count hours", value in seconds; step by 1 h = 3600 s to match DSZ/ISZ
-
-  (flag == INC_FLAG) ? realAdd(&r, const_3600, &r, &ctxtReal39) : realSubtract(&r, const_3600, &r, &ctxtReal39);
-
-  realToReal34(&r, REGISTER_REAL34_DATA(regist));
+  (flag == INC_FLAG) ? real34Add(REGISTER_REAL34_DATA(regist), const34_3600, REGISTER_REAL34_DATA(regist))
+                     : real34Subtract(REGISTER_REAL34_DATA(regist), const34_3600, REGISTER_REAL34_DATA(regist));
 }
 
 

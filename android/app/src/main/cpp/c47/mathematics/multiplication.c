@@ -23,6 +23,18 @@ TO_QSPI void (* const multiplication[NUMBER_OF_DATA_TYPES_FOR_CALCULATIONS][NUMB
 };
 
 
+static void multiplyLongIntegerMatrixElement(calcRegister_t integerRegister, const real_t *integer, real34_t *element) {
+  if(!multiplyLongIntegerReal34(integerRegister, element, element)) {
+    real_t value;
+
+    real34ToReal(element, &value);
+    realMultiply(integer, &value, &value, &ctxtReal39);
+    roundToSignificantDigits(&value, &value, significantDigits == 0 ? 34 : significantDigits, &ctxtReal39);
+    realToReal34(&value, element);
+  }
+}
+
+
 
 /********************************************//**
  * \brief Data type error in multiplication
@@ -60,46 +72,47 @@ void fnMultiply(uint16_t unusedButMandatoryParameter) {
 
 
 
-void mulComplexi(const real_t *inReal, const real_t *inImag, real_t *productReal, real_t *productImag) {
+void mulComplexi(const cplx_t *in, cplx_t *product) {
   real_t tmpI;
 
-  realCopy(inImag, &tmpI);
+  realCopy(&in->Imag, &tmpI);
   realChangeSign(&tmpI);
-  realCopy(inReal, productImag);
-  realCopy(&tmpI, productReal);
+  realCopy(&in->Real, &product->Imag);
+  realCopy(&tmpI, &product->Real);
 }
 
 
-void mulComplexComplex75(const real_t *factor1Real, const real_t *factor1Imag, const real_t *factor2Real, const real_t *factor2Imag, real_t *productReal, real_t *productImag, realContext_t *realContext) {
+void mulComplexComplex(const cplx_t *factor1, const cplx_t *factor2, cplx_t *product, realContext_t *realContext) {
   real_t a, b, c, d, p, t;
   bool_t aIsZero, bIsZero, cIsZero, dIsZero, aIsInfinite, bIsInfinite, cIsInfinite, dIsInfinite;
+  bool_t infiniteResult = false;
 
-  realCopy(factor1Real, &a);
+  realCopy(&factor1->Real, &a);
   aIsZero = realIsZero(&a);
   aIsInfinite = realIsInfinite(&a);
 
-  realCopy(factor1Imag, &b);
+  realCopy(&factor1->Imag, &b);
   bIsZero = realIsZero(&b);
   bIsInfinite = realIsInfinite(&b);
 
-  realCopy(factor2Real, &c);
+  realCopy(&factor2->Real, &c);
   cIsZero = realIsZero(&c);
   cIsInfinite = realIsInfinite(&c);
 
-  realCopy(factor2Imag, &d);
+  realCopy(&factor2->Imag, &d);
   dIsZero = realIsZero(&d);
   dIsInfinite = realIsInfinite(&d);
 
   if(   realIsNaN(&a) || realIsNaN(&b) || realIsNaN(&c) || realIsNaN(&d)
      || (aIsZero && bIsZero && (cIsInfinite || dIsInfinite))
      || (cIsZero && dIsZero && (aIsInfinite || bIsInfinite))) {
-    realSetNaN(productReal);
-    realSetNaN(productImag);
+    realSetNaN(&product->Real);
+    realSetNaN(&product->Imag);
     return;
   }
 
   if((aIsInfinite || bIsInfinite) && (cIsInfinite || dIsInfinite)) { // perform multiplication in polar form
-    setInfiniteComplexAngle((getInfiniteComplexAngle(&a, &b) + getInfiniteComplexAngle(&c, &d)) % 8, productReal, productImag);
+    setInfiniteComplexAngle((getInfiniteComplexAngle(factor1) + getInfiniteComplexAngle(factor2)) % 8, product);
   }
   // Not sure the following lines are needed
   //else if(aIsInfinite || bIsInfinite || cIsInfinite || dIsInfinite) {
@@ -110,21 +123,71 @@ void mulComplexComplex75(const real_t *factor1Real, const real_t *factor1Imag, c
   //  realPolarToRectangular(&a, &b, productReal, productImag, realContext);
   //}
   else { // perform multiplication in rectangular form using numerically stable approach
+    if(aIsInfinite || bIsInfinite) {
+      if(aIsInfinite) {
+        int32ToReal(realIsNegative(&a) ? -1 : 1, &a);
+      }
+      else {
+        realSetZero(&a);
+      }
+      if(bIsInfinite) {
+        int32ToReal(realIsNegative(&b) ? -1 : 1, &b);
+      }
+      else {
+        realSetZero(&b);
+      }
+      infiniteResult = true;
+    }
+    else if(cIsInfinite || dIsInfinite) {
+      if(cIsInfinite) {
+        int32ToReal(realIsNegative(&c) ? -1 : 1, &c);
+      }
+      else {
+        realSetZero(&c);
+      }
+      if(dIsInfinite) {
+        int32ToReal(realIsNegative(&d) ? -1 : 1, &d);
+      }
+      else {
+        realSetZero(&d);
+      }
+      infiniteResult = true;
+    }
+
     // real part
     realMultiply(&a, &c, &p, realContext);                  // RN(ac)
     realChangeSign(&b);
     realFMA(&b, &d, &p, &t, realContext);                   // RN(p - bd)
     realChangeSign(&b);
     realChangeSign(&p);
-    realFMA(&a, &c, &p, productReal, realContext);          // RN(ac - p)
-    realAdd(productReal, &t, productReal, realContext);     // RN(RN(p - bd) + RN(ac - p))
+    realFMA(&a, &c, &p, &product->Real, realContext);       // RN(ac - p)
+    realAdd(&product->Real, &t, &product->Real, realContext);  // RN(RN(p - bd) + RN(ac - p))
 
     // imaginary part
     realMultiply(&a, &d, &p, realContext);                  // RN(ad)
     realFMA(&b, &c, &p, &t, realContext);                   // RN(bc + p)
     realChangeSign(&p);
-    realFMA(&a, &d, &p, productImag, realContext);          // RN(ad - p)
-    realAdd(productImag, &t, productImag, realContext);     // RN(RN(bc + p) + RN(ad - p))
+    realFMA(&a, &d, &p, &product->Imag, realContext);       // RN(ad - p)
+    realAdd(&product->Imag, &t, &product->Imag, realContext);  // RN(RN(bc + p) + RN(ad - p))
+
+    if(infiniteResult) {
+      if(!realIsZero(&product->Real)) {
+        if(realIsNegative(&product->Real)) {
+          realSetMinusInfinity(&product->Real);
+        }
+        else {
+          realSetPlusInfinity(&product->Real);
+        }
+      }
+      if(!realIsZero(&product->Imag)) {
+        if(realIsNegative(&product->Imag)) {
+          realSetMinusInfinity(&product->Imag);
+        }
+        else {
+          realSetPlusInfinity(&product->Imag);
+        }
+      }
+    }
   }
 }
 
@@ -132,7 +195,7 @@ void mulComplexComplex75(const real_t *factor1Real, const real_t *factor1Imag, c
 #if defined(OPTION_CUBIC_159) || defined(OPTION_SQUARE_159) || defined(OPTION_EIGEN_159)
 // This re-write is needed as the mixing of decNumber types cannot deal with the real_t temporary variable withinn mulComplexComplex().
 // The 159 series is needed for 39 digit precision in cuberoots and the cubic formula solver
-void mulComplexComplex159(const real_t *factor1Real, const real_t *factor1Imag, const real_t *factor2Real, const real_t *factor2Imag, real_t *productReal, real_t *productImag, realContext_t *realContext) {
+void mulComplexComplex159(const cplx159_t *factor1, const cplx159_t *factor2, cplx159_t *product, realContext_t *realContext) {
   REAL_T_PTR(a, 159);
   REAL_T_PTR(b, 159);
   REAL_T_PTR(c, 159);
@@ -146,38 +209,29 @@ void mulComplexComplex159(const real_t *factor1Real, const real_t *factor1Imag, 
   realSetZero(d);
   realSetZero(p);
   realSetZero(t);
-  realCopy(factor1Real, a);
-  realCopy(factor1Imag, b);
-  realCopy(factor2Real, c);
-  realCopy(factor2Imag, d);
+  realCopy(&factor1->Real, a);
+  realCopy(&factor1->Imag, b);
+  realCopy(&factor2->Real, c);
+  realCopy(&factor2->Imag, d);
 
   // Real part: ac - bd
   realMultiply(a, c, p, realContext);
   realChangeSign(b);
-  realFMA(b, d, p, productReal, realContext);
+  realFMA(b, d, p, &product->Real, realContext);
   realChangeSign(b);
 
   // Imaginary part: ad + bc
   realMultiply(a, d, p, realContext);
-  realFMA(b, c, p, productImag, realContext);
+  realFMA(b, c, p, &product->Imag, realContext);
+}
+
+
+// mulComplexReal for 159 digit values in a cplx159_t
+void mulComplexReal159(const cplx159_t *factor1, const real_t *factor2, cplx159_t *product, realContext_t *realContext) {
+  realMultiply(&factor1->Real, factor2, &product->Real, realContext);
+  realMultiply(&factor1->Imag, factor2, &product->Imag, realContext);
 }
 #endif //OPTION_CUBIC_159 || OPTION_SQUARE_159 || OPTION_EIGEN_159
-
-
-void mulComplexComplex(const real_t *factor1Real, const real_t *factor1Imag, const real_t *factor2Real, const real_t *factor2Imag, real_t *productReal, real_t *productImag, realContext_t *realContext) {
-  if(realContext->digits <= 75) {
-    mulComplexComplex75(factor1Real, factor1Imag, factor2Real, factor2Imag, productReal, productImag, realContext);
-#if defined(OPTION_CUBIC_159) || defined(OPTION_SQUARE_159) || defined(OPTION_EIGEN_159)
-  }
-  else if(realContext->digits <= 159) {
-    mulComplexComplex159(factor1Real, factor1Imag, factor2Real, factor2Imag, productReal, productImag, realContext);
-#endif //OPTION_CUBIC_159) || OPTION_SQUARE_159 || OPTION_EIGEN_159
-  }
-  else {
-    sprintf(errorMessage, "Exceed digits :mulComplexComplex: %d", (int)(realContext->digits));
-    displayBugScreen(errorMessage);
-  }
-}
 
 
 
@@ -240,9 +294,9 @@ void mulComplexComplex(const real_t *factor1Real, const real_t *factor1Imag, con
 
 
 
-void mulComplexReal(const real_t *factor1Real, const real_t *factor1Imag, const real_t *factor2, real_t *productReal, real_t *productImag, realContext_t *realContext) {
-  realMultiply(factor1Real, factor2, productReal, realContext);
-  realMultiply(factor1Imag, factor2, productImag, realContext);
+void mulComplexReal(const cplx_t *factor1, const real_t *factor2, cplx_t *product, realContext_t *realContext) {
+  realMultiply(&factor1->Real, factor2, &product->Real, realContext);
+  realMultiply(&factor1->Imag, factor2, &product->Imag, realContext);
 }
 
 /******************************************************************************************************************************************************************************************/
@@ -315,14 +369,14 @@ void mulTimeLonI(void) {
  * \return void
  ***********************************************/
 void mulLonIRema(void) {
-  real34Matrix_t matrix, res;
+  real34Matrix_t matrix;
   real_t y;
 
   convertLongIntegerRegisterToReal(REGISTER_Y, &y, &ctxtReal39);
   linkToRealMatrixRegister(REGISTER_X, &matrix);
-  _multiplyRealMatrix(&matrix, &y, &res, &ctxtReal39);
-  convertReal34MatrixToReal34MatrixRegister(&res, REGISTER_X);
-  realMatrixFree(&res);
+  for(int32_t i = 0; i < matrix.header.matrixColumns * matrix.header.matrixRows; ++i) {
+    multiplyLongIntegerMatrixElement(REGISTER_Y, &y, &matrix.matrixElements[i]);
+  }
 }
 
 
@@ -334,14 +388,15 @@ void mulLonIRema(void) {
  * \return void
  ***********************************************/
 void mulRemaLonI(void) {
-  real34Matrix_t matrix, res;
+  real34Matrix_t matrix;
   real_t x;
 
   convertLongIntegerRegisterToReal(REGISTER_X, &x, &ctxtReal39);
   linkToRealMatrixRegister(REGISTER_Y, &matrix);
-  _multiplyRealMatrix(&matrix, &x, &res, &ctxtReal39);
-  convertReal34MatrixToReal34MatrixRegister(&res, REGISTER_X);
-  realMatrixFree(&res);
+  for(int32_t i = 0; i < matrix.header.matrixColumns * matrix.header.matrixRows; ++i) {
+    multiplyLongIntegerMatrixElement(REGISTER_X, &x, &matrix.matrixElements[i]);
+  }
+  fnSwapXY(NOPARAM);
 }
 
 
@@ -353,14 +408,15 @@ void mulRemaLonI(void) {
  * \return void
  ***********************************************/
 void mulLonICxma(void) {
-  complex34Matrix_t matrix, res;
+  complex34Matrix_t matrix;
   real_t y;
 
   convertLongIntegerRegisterToReal(REGISTER_Y, &y, &ctxtReal39);
   linkToComplexMatrixRegister(REGISTER_X, &matrix);
-  _multiplyComplexMatrix(&matrix, &y, const_0, &res, &ctxtReal39);
-  convertComplex34MatrixToComplex34MatrixRegister(&res, REGISTER_X);
-  complexMatrixFree(&res);
+  for(int32_t i = 0; i < matrix.header.matrixColumns * matrix.header.matrixRows; ++i) {
+    multiplyLongIntegerMatrixElement(REGISTER_Y, &y, VARIABLE_REAL34_DATA(&matrix.matrixElements[i]));
+    multiplyLongIntegerMatrixElement(REGISTER_Y, &y, VARIABLE_IMAG34_DATA(&matrix.matrixElements[i]));
+  }
 }
 
 
@@ -372,14 +428,16 @@ void mulLonICxma(void) {
  * \return void
  ***********************************************/
 void mulCxmaLonI(void) {
-  complex34Matrix_t matrix, res;
-  real_t y;
+  complex34Matrix_t matrix;
+  real_t x;
 
-  convertLongIntegerRegisterToReal(REGISTER_X, &y, &ctxtReal39);
+  convertLongIntegerRegisterToReal(REGISTER_X, &x, &ctxtReal39);
   linkToComplexMatrixRegister(REGISTER_Y, &matrix);
-  _multiplyComplexMatrix(&matrix, &y, const_0, &res, &ctxtReal39);
-  convertComplex34MatrixToComplex34MatrixRegister(&res, REGISTER_X);
-  complexMatrixFree(&res);
+  for(int32_t i = 0; i < matrix.header.matrixColumns * matrix.header.matrixRows; ++i) {
+    multiplyLongIntegerMatrixElement(REGISTER_X, &x, VARIABLE_REAL34_DATA(&matrix.matrixElements[i]));
+    multiplyLongIntegerMatrixElement(REGISTER_X, &x, VARIABLE_IMAG34_DATA(&matrix.matrixElements[i]));
+  }
+  fnSwapXY(NOPARAM);
 }
 
 
@@ -437,23 +495,7 @@ void mulShoILonI(void) {
  * \return void
  ***********************************************/
 void mulLonIReal(void) {
-  real_t y, x;
-  angularMode_t xAngularMode;
-
-  convertLongIntegerRegisterToReal(REGISTER_Y, &y, &ctxtReal39);
-  real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &x);
-  xAngularMode = getRegisterAngularMode(REGISTER_X);
-
-  if(xAngularMode == amNone) {
-    realMultiply(&y, &x, &x, &ctxtReal39);
-    convertRealToReal34ResultRegister(&x, REGISTER_X);
-  }
-  else {
-    convertAngleFromTo(&x, xAngularMode, currentAngularMode, &ctxtReal39);
-    realMultiply(&y, &x, &x, &ctxtReal39);
-    convertRealToReal34ResultRegister(&x, REGISTER_X);
-    setRegisterAngularMode(REGISTER_X, currentAngularMode);
-  }
+  lonIRealOp(mulFastLonIReal, realMultiplyOp);
 }
 
 
@@ -465,24 +507,7 @@ void mulLonIReal(void) {
  * \return void
  ***********************************************/
 void mulRealLonI(void) {
-  real_t y, x;
-  angularMode_t yAngularMode;
-
-  real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &y);
-  yAngularMode = getRegisterAngularMode(REGISTER_Y);
-  convertLongIntegerRegisterToReal(REGISTER_X, &x, &ctxtReal39);
-  reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-
-  if(yAngularMode == amNone) {
-    realMultiply(&y, &x, &x, &ctxtReal39);
-    convertRealToReal34ResultRegister(&x, REGISTER_X);
-  }
-  else {
-    convertAngleFromTo(&y, yAngularMode, currentAngularMode, &ctxtReal39);
-    realMultiply(&y, &x, &x, &ctxtReal39);
-    convertRealToReal34ResultRegister(&x, REGISTER_X);
-    setRegisterAngularMode(REGISTER_X, currentAngularMode);
-  }
+  realLonIOp(mulFastLonIReal, realMultiplyOp);
 }
 
 
@@ -494,16 +519,23 @@ void mulRealLonI(void) {
  * \return void
  ***********************************************/
 void mulLonICplx(void) {
-  real_t a, c, d;
+  real_t a;
+  cplx_t x;
+  real34_t real, imag;
 
-  convertLongIntegerRegisterToReal(REGISTER_Y, &a, &ctxtReal39);
-  real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &c);
-  real34ToReal(REGISTER_IMAG34_DATA(REGISTER_X), &d);
-
-  realMultiply(&c, &a, &c, &ctxtReal39);
-  realMultiply(&d, &a, &d, &ctxtReal39);
-
-  convertComplexToResultRegister(&c, &d, REGISTER_X);
+  if(multiplyLongIntegerReal34(REGISTER_Y, REGISTER_REAL34_DATA(REGISTER_X), &real) &&
+     multiplyLongIntegerReal34(REGISTER_Y, REGISTER_IMAG34_DATA(REGISTER_X), &imag)) {
+    real34Copy(&real, REGISTER_REAL34_DATA(REGISTER_X));
+    real34Copy(&imag, REGISTER_IMAG34_DATA(REGISTER_X));
+  }
+  else {
+    convertLongIntegerRegisterToReal(REGISTER_Y, &a, &ctxtReal39);
+    real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &x.Real);
+    real34ToReal(REGISTER_IMAG34_DATA(REGISTER_X), &x.Imag);
+    realMultiply(&x.Real, &a, &x.Real, &ctxtReal39);
+    realMultiply(&x.Imag, &a, &x.Imag, &ctxtReal39);
+    convertComplexToResultRegister(&x, REGISTER_X);
+  }
 }
 
 
@@ -515,17 +547,23 @@ void mulLonICplx(void) {
  * \return void
  ***********************************************/
 void mulCplxLonI(void) {
-  real_t a, b, c;
+  real_t c;
+  cplx_t y;
+  real34_t real, imag;
 
-  real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &a);
-  real34ToReal(REGISTER_IMAG34_DATA(REGISTER_Y), &b);
-  convertLongIntegerRegisterToReal(REGISTER_X, &c, &ctxtReal39);
-
-  realMultiply(&a, &c, &a, &ctxtReal39);
-  realMultiply(&b, &c, &b, &ctxtReal39);
-
-  reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
-  convertComplexToResultRegister(&a, &b, REGISTER_X);
+  if(multiplyLongIntegerReal34(REGISTER_X, REGISTER_REAL34_DATA(REGISTER_Y), &real) &&
+     multiplyLongIntegerReal34(REGISTER_X, REGISTER_IMAG34_DATA(REGISTER_Y), &imag)) {
+    convertReal34ToComplex34Register(&real, &imag, REGISTER_X);
+  }
+  else {
+    real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &y.Real);
+    real34ToReal(REGISTER_IMAG34_DATA(REGISTER_Y), &y.Imag);
+    convertLongIntegerRegisterToReal(REGISTER_X, &c, &ctxtReal39);
+    realMultiply(&y.Real, &c, &y.Real, &ctxtReal39);
+    realMultiply(&y.Imag, &c, &y.Imag, &ctxtReal39);
+    reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
+    convertComplexToResultRegister(&y, REGISTER_X);
+  }
 }
 
 
@@ -701,14 +739,8 @@ void mulCxmaRema(void) {
  * \return void
  ***********************************************/
 void mulRemaShoI(void) {
-  real34Matrix_t matrix, res;
-  real_t x;
-
-  convertShortIntegerRegisterToReal(REGISTER_X, &x, &ctxtReal39);
-  linkToRealMatrixRegister(REGISTER_Y, &matrix);
-  _multiplyRealMatrix(&matrix, &x, &res, &ctxtReal39);
-  convertReal34MatrixToReal34MatrixRegister(&res, REGISTER_X);
-  realMatrixFree(&res);
+  convertShortIntegerRegisterToReal34Register(REGISTER_X, REGISTER_X);
+  mulRemaReal();
 }
 
 
@@ -720,15 +752,8 @@ void mulRemaShoI(void) {
  * \return void
  ***********************************************/
 void mulShoIRema(void) {
-  real34Matrix_t matrix, res;
-  real_t y;
-
-  convertShortIntegerRegisterToReal(REGISTER_Y, &y, &ctxtReal39);
-
-  linkToRealMatrixRegister(REGISTER_X, &matrix);
-  _multiplyRealMatrix(&matrix, &y, &res, &ctxtReal39);
-  convertReal34MatrixToReal34MatrixRegister(&res, REGISTER_X);
-  realMatrixFree(&res);
+  convertShortIntegerRegisterToReal34Register(REGISTER_Y, REGISTER_Y);
+  mulRealRema();
 }
 
 
@@ -956,18 +981,19 @@ void mulShoIShoI(void) {
  * \return void
  ***********************************************/
 void mulShoIReal(void) {
-  real_t y, x;
   angularMode_t xAngularMode;
 
-  convertShortIntegerRegisterToReal(REGISTER_Y, &y, &ctxtReal39);
-  real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &x);
   xAngularMode = getRegisterAngularMode(REGISTER_X);
 
   if(xAngularMode == amNone) {
-    realMultiply(&y, &x, &x, &ctxtReal39);
-    convertRealToReal34ResultRegister(&x, REGISTER_X);
+    convertShortIntegerRegisterToReal34Register(REGISTER_Y, REGISTER_Y);
+    real34Multiply(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X));
   }
   else {
+    real_t y, x;
+
+    convertShortIntegerRegisterToReal(REGISTER_Y, &y, &ctxtReal39);
+    real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &x);
     convertAngleFromTo(&x, xAngularMode, currentAngularMode, &ctxtReal39);
     realMultiply(&y, &x, &x, &ctxtReal39);
     convertRealToReal34ResultRegister(&x, REGISTER_X);
@@ -984,19 +1010,20 @@ void mulShoIReal(void) {
  * \return void
  ***********************************************/
 void mulRealShoI(void) {
-  real_t y, x;
   angularMode_t yAngularMode;
 
-  real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &y);
   yAngularMode = getRegisterAngularMode(REGISTER_Y);
-  convertShortIntegerRegisterToReal(REGISTER_X, &x, &ctxtReal39);
-  reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
 
   if(yAngularMode == amNone) {
-    realMultiply(&y, &x, &x, &ctxtReal39);
-    convertRealToReal34ResultRegister(&x, REGISTER_X);
+    convertShortIntegerRegisterToReal34Register(REGISTER_X, REGISTER_X);
+    real34Multiply(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X));
   }
   else {
+    real_t y, x;
+
+    real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &y);
+    convertShortIntegerRegisterToReal(REGISTER_X, &x, &ctxtReal39);
+    reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
     convertAngleFromTo(&y, yAngularMode, currentAngularMode, &ctxtReal39);
     realMultiply(&y, &x, &x, &ctxtReal39);
     convertRealToReal34ResultRegister(&x, REGISTER_X);
@@ -1030,8 +1057,7 @@ void mulCplxShoI(void) {
   convertShortIntegerRegisterToReal34Register(REGISTER_X, REGISTER_X);
   real34Multiply(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_Y)); // real part
   real34Multiply(REGISTER_IMAG34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X), REGISTER_IMAG34_DATA(REGISTER_Y)); // imaginary part
-  reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
-  complex34Copy(REGISTER_COMPLEX34_DATA(REGISTER_Y), REGISTER_COMPLEX34_DATA(REGISTER_X));
+  convertReal34ToComplex34Register(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_IMAG34_DATA(REGISTER_Y), REGISTER_X);
 }
 
 
@@ -1097,8 +1123,7 @@ void mulRealCplx(void) {
 void mulCplxReal(void) {
   real34Multiply(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_Y)); // real part
   real34Multiply(REGISTER_IMAG34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X), REGISTER_IMAG34_DATA(REGISTER_Y)); // imaginary part
-  reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
-  complex34Copy(REGISTER_COMPLEX34_DATA(REGISTER_Y), REGISTER_COMPLEX34_DATA(REGISTER_X)); // imaginary part
+  convertReal34ToComplex34Register(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_IMAG34_DATA(REGISTER_Y), REGISTER_X); // imaginary part
 }
 
 
@@ -1114,14 +1139,14 @@ void mulCplxReal(void) {
  * \return void
  ***********************************************/
 void mulCplxCplx(void) {
-  real_t yReal, yImag, xReal, xImag;
+  cplx_t y, x;
 
-  real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &yReal);
-  real34ToReal(REGISTER_IMAG34_DATA(REGISTER_Y), &yImag);
-  real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &xReal);
-  real34ToReal(REGISTER_IMAG34_DATA(REGISTER_X), &xImag);
+  real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &y.Real);
+  real34ToReal(REGISTER_IMAG34_DATA(REGISTER_Y), &y.Imag);
+  real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &x.Real);
+  real34ToReal(REGISTER_IMAG34_DATA(REGISTER_X), &x.Imag);
 
-  mulComplexComplex(&yReal, &yImag, &xReal, &xImag, &xReal, &xImag, &ctxtReal39);
+  mulComplexComplex(&y, &x, &x, &ctxtReal39);
 
-  convertComplexToResultRegister(&xReal, &xImag, REGISTER_X);
+  convertComplexToResultRegister(&x, REGISTER_X);
 }

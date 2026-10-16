@@ -661,26 +661,21 @@ void mimEnter(bool_t commit) {
 #if defined(OPTION_VECTOR_EDIT)
         if(isMatrixVector(rows, cols)) {
           if(isMatrix2dVectorPOL(rows, cols, tag)) {
-            real_t magnitude, theta;
+            cplx_t z;
             int ang = (tag & 0x07) == amNone ? currentAngularMode : (tag & 0x07);
-            real34ToReal(&openMatrixMIMPointer.realMatrix.matrixElements[0], &magnitude);
-            real34ToReal(&openMatrixMIMPointer.realMatrix.matrixElements[1], &theta);
-            realRectangularToPolar(&magnitude, &theta, &magnitude, &theta, &ctxtReal39); // theta in radian
-            convertAngleFromTo(&theta, amRadian, ang, &ctxtReal39);
+            real34ToReal(&openMatrixMIMPointer.realMatrix.matrixElements[0], &z.Real);
+            real34ToReal(&openMatrixMIMPointer.realMatrix.matrixElements[1], &z.Imag);
+            realRectangularToPolar(&z, &z.Mag, &z.Arg, &ctxtReal39);                     // theta in radian
+            convertAngleFromTo(&z.Arg, amRadian, ang, &ctxtReal39);
             if(col == 0) {
-              real34ToReal(&real34tmp, &magnitude);
+              real34ToReal(&real34tmp, &z.Mag);
             }
             if(col == 1) {
-              real34ToReal(&real34tmp, &theta);
+              real34ToReal(&real34tmp, &z.Arg);
             }
-            convertAngleFromTo(&theta, ang, amRadian, &ctxtReal39);
-            if(realCompareLessThan(&magnitude, const_0)) {
-              realSetPositiveSign(&magnitude);
-              realAdd(&theta, const_pi, &theta, &ctxtReal39);
-            }
-            realPolarToRectangular(&magnitude, &theta, &magnitude, &theta, &ctxtReal39); // theta in radian
-            realToReal34(&magnitude, &openMatrixMIMPointer.realMatrix.matrixElements[0]);
-            realToReal34(&theta,     &openMatrixMIMPointer.realMatrix.matrixElements[1]);
+            realPolarToRectangularInUnit(&z.Mag, &z.Arg, ang, &z, &ctxtReal39);
+            realToReal34(&z.Real, &openMatrixMIMPointer.realMatrix.matrixElements[0]);
+            realToReal34(&z.Imag, &openMatrixMIMPointer.realMatrix.matrixElements[1]);
           }
           else if(isMatrix3dVectorSPH(rows, cols, tag)) {
 //add code for SPH editing           //
@@ -861,7 +856,7 @@ void mimAddNumber(int16_t item) {
             realCopy(const39_piOn2, &theta);
             convertAngleFromTo(&theta, amRadian, currentAngularMode, &ctxtReal39);
             real34SetOne(VARIABLE_REAL34_DATA(elm));
-            real34Copy(&theta, VARIABLE_IMAG34_DATA(elm));
+            realToReal34(&theta, VARIABLE_IMAG34_DATA(elm));
           }
           else {
             real34SetZero(VARIABLE_REAL34_DATA(elm));
@@ -933,13 +928,10 @@ void mimRunFunction(int16_t func, uint16_t param) {
     real34SetZero(&im);
   }
   if(isComplex) {
-    reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
-    real34Copy(&re, REGISTER_REAL34_DATA(REGISTER_X));
-    real34Copy(&im, REGISTER_IMAG34_DATA(REGISTER_X));
+    convertReal34ToComplex34Register(&re, &im, REGISTER_X);
   }
   else {
-    reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-    real34Copy(&re, REGISTER_REAL34_DATA(REGISTER_X));
+    convertReal34ToReal34Register(&re, REGISTER_X);
   }
 
   saveForUndo();                                                           //an error in the editor destroys the undo buffer, re-store the stack
@@ -954,13 +946,10 @@ void mimRunFunction(int16_t func, uint16_t param) {
     case ITM_XTHROOT: {
       dyadic = true;
       if(isComplex) {
-        reallocateRegister(REGISTER_Y, dtComplex34, 0, amNone);
-        real34Copy(&re1, REGISTER_REAL34_DATA(REGISTER_Y));
-        real34Copy(&im1, REGISTER_IMAG34_DATA(REGISTER_Y));
+        convertReal34ToComplex34Register(&re1, &im1, REGISTER_Y);
       }
       else {
-        reallocateRegister(REGISTER_Y, dtReal34, 0, amNone);
-        real34Copy(&re1, REGISTER_REAL34_DATA(REGISTER_Y));
+        convertReal34ToReal34Register(&re1, REGISTER_Y);
       }
       break;
     }
@@ -2223,13 +2212,13 @@ smallFont:
     for(int j = 0; j < maxCols + (rightEllipsis ? 1 : 0); j++) {
       real34_t re, im;
       if(polarMode){
-        real_t x, y;
-        real34ToReal(VARIABLE_REAL34_DATA(&matrix->matrixElements[(i+sRow)*cols+j+sCol]), &x);
-        real34ToReal(VARIABLE_IMAG34_DATA(&matrix->matrixElements[(i+sRow)*cols+j+sCol]), &y);
-        realRectangularToPolar(&x, &y, &x, &y, &ctxtReal39);
-        convertAngleFromTo(&y, amRadian, angleMode, &ctxtReal39);
-        realToReal34(&x, &re);
-        realToReal34(&y, &im);
+        cplx_t z;
+        real34ToReal(VARIABLE_REAL34_DATA(&matrix->matrixElements[(i+sRow)*cols+j+sCol]), &z.Real);
+        real34ToReal(VARIABLE_IMAG34_DATA(&matrix->matrixElements[(i+sRow)*cols+j+sCol]), &z.Imag);
+        realRectangularToPolar(&z, &z.Mag, &z.Arg, &ctxtReal39);
+        convertAngleFromTo(&z.Arg, amRadian, angleMode, &ctxtReal39);
+        realToReal34(&z.Mag, &re);
+        realToReal34(&z.Arg, &im);
       }
       else { // rectangular mode
         real34Copy(VARIABLE_REAL34_DATA(&matrix->matrixElements[(i+sRow)*cols+j+sCol]), &re);
@@ -2388,13 +2377,13 @@ int16_t getComplexMatrixColumnWidths(const complex34Matrix_t *matrix, int16_t pr
         complex34_t c34Val;
         complex34Copy(&matrix->matrixElements[(i+sRow)*actualCols+j+sCol], &c34Val);
         if(polarMode) {
-          real_t x, y;
-          real34ToReal(VARIABLE_REAL34_DATA(&c34Val), &x);
-          real34ToReal(VARIABLE_IMAG34_DATA(&c34Val), &y);
-          realRectangularToPolar(&x, &y, &x, &y, &ctxtReal39);
-          convertAngleFromTo(&y, amRadian, angleMode, &ctxtReal39);
-          realToReal34(&x, VARIABLE_REAL34_DATA(&c34Val));
-          realToReal34(&y, VARIABLE_IMAG34_DATA(&c34Val));
+          cplx_t z;
+          real34ToReal(VARIABLE_REAL34_DATA(&c34Val), &z.Real);
+          real34ToReal(VARIABLE_IMAG34_DATA(&c34Val), &z.Imag);
+          realRectangularToPolar(&z, &z.Mag, &z.Arg, &ctxtReal39);
+          convertAngleFromTo(&z.Arg, amRadian, angleMode, &ctxtReal39);
+          realToReal34(&z.Mag, VARIABLE_REAL34_DATA(&c34Val));
+          realToReal34(&z.Arg, VARIABLE_IMAG34_DATA(&c34Val));
         }
 
         // Measure the real part

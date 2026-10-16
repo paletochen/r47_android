@@ -19,4 +19,7 @@
   void WP34S_Cdf_Poisson         (const real_t *x, const real_t *lambda, real_t *res, realContext_t *realContext);
   void WP34S_Cdf_Poisson2        (const real_t *x, const real_t *lambda, real_t *res, realContext_t *realContext);
   void WP34S_Qf_Poisson          (const real_t *x, const real_t *lambda, real_t *res, realContext_t *realContext);
+  #if defined(OPTION_DIST_POISS)
+  bool_t poissonCheckDomain(bool_t registersValid, real_t *x, real_t *first, real_t *second, real_t *third, uint16_t parameter);
+  #endif // OPTION_DIST_POISS
 #endif // !POISSON_H

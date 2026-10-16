@@ -8,21 +8,34 @@
 #include "c47.h"
 
 static void wPosReal(void) {
-  real_t x, res, resi;
+  real_t x;
+  cplx_t res;
 
   if(!getRegisterAsReal(REGISTER_X, &x)) {
     return;
   }
 
-  realCopy(const39_1oneE, &res);
-  realSetNegativeSign(&res);
-  if(realCompareGreaterEqual(&x, &res)) {
-    WP34S_LambertW(&x, &res, false, &ctxtReal39);
-    convertRealToResultRegister(&res, REGISTER_X, amNone);
+  if(realIsInfinite(&x) && !getSystemFlag(FLAG_SPCRES)) {
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+      moreInfoOnError("In function wPosReal:", "cannot use " STD_PLUS_MINUS STD_INFINITY " as X input of W when flag SPCRES is not set", NULL, NULL);
+    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+    return;
+  }
+
+  realCopy(const39_1oneE, &res.Real);
+  realSetNegativeSign(&res.Real);
+  if(realIsNaN(&x) || realCompareGreaterEqual(&x, &res.Real)) {
+    WP34S_LambertW(&x, &res.Real, false, &ctxtReal75);
+    convertRealToResultRegister(&res.Real, REGISTER_X, amNone);
   }
   else if(getSystemFlag(FLAG_CPXRES)) {
-    WP34S_ComplexLambertW(&x, const_0, &res, &resi, &ctxtReal39);
-    convertComplexToResultRegister(&res, &resi, REGISTER_X);
+    cplx_t z;
+
+    realCopy(&x, &z.Real);
+    realSetZero(&z.Imag);
+    WP34S_ComplexLambertW(&z, &res, &ctxtReal75);
+    convertComplexToResultRegister(&res, REGISTER_X);
   }
   else {
     displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
@@ -33,14 +46,22 @@ static void wPosReal(void) {
 }
 
 static void wPosCplx(void) {
-  real_t xr, xi, resr, resi;
+  cplx_t x, res;
 
-  if(!getRegisterAsComplex(REGISTER_X, &xr, &xi)) {
+  if(!getRegisterAsComplex(REGISTER_X, &x)) {
     return;
   }
 
-  WP34S_ComplexLambertW(&xr, &xi, &resr, &resi, &ctxtReal39);
-  convertComplexToResultRegister(&resr, &resi, REGISTER_X);
+  if((realIsInfinite(&x.Real) || realIsInfinite(&x.Imag)) && !getSystemFlag(FLAG_SPCRES)) {
+    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+      moreInfoOnError("In function wPosCplx:", "cannot use " STD_PLUS_MINUS STD_INFINITY " as X input of W when flag SPCRES is not set", NULL, NULL);
+    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+    return;
+  }
+
+  WP34S_ComplexLambertW(&x, &res, &ctxtReal75);
+  convertComplexToResultRegister(&res, REGISTER_X);
 }
 
 /********************************************//**

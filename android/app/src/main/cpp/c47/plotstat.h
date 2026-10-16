@@ -33,8 +33,6 @@ extern  uint8_t  plotStatScale;
 extern  int8_t   plotmode;    //VECTOR or SCATTER
 extern  double   tick_int_x;
 extern  double   tick_int_y;
-extern  int16_t  graph_dx;
-extern  int16_t  graph_dy;
 extern  uint32_t xzero;
 extern  uint32_t yzero;
 

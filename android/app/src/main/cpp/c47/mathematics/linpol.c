@@ -7,6 +7,67 @@
 
 #include "c47.h"
 
+static bool_t linpolExactEndpoint(calcRegister_t regist, real_t *result, realContext_t *realContext) {
+  int32_t exponent;
+  longInteger_t coefficient;
+
+  if(getRegisterDataType(regist) == dtReal34) {
+    real34ToReal(REGISTER_REAL34_DATA(regist), result);
+    return true;
+  }
+  if(!convertRegisterToScaledLongInteger(regist, coefficient, &exponent)) {
+    return false;
+  }
+  convertScaledLongIntegerToReal(coefficient, exponent, result, realContext);
+  longIntegerFree(coefficient);
+  return true;
+}
+
+
+
+static bool_t linpolExactRegisters(const real_t *pReal, real_t *result) {
+  int32_t aExponent, bExponent, pExponent, differenceExponent, productExponent, resultExponent;
+  longInteger_t a, b, p, difference, product, exactResult;
+  realContext_t resultContext = ctxtReal34;
+
+  if(significantDigits > 0 && significantDigits < 34) {
+    resultContext.digits = significantDigits;
+  }
+  if(realIsZero(pReal)) {
+    return linpolExactEndpoint(REGISTER_Z, result, &resultContext);
+  }
+  if(realCompareEqual(pReal, const_1)) {
+    return linpolExactEndpoint(REGISTER_Y, result, &resultContext);
+  }
+
+  if(!convertRegisterToScaledLongInteger(REGISTER_Z, a, &aExponent)) {
+    return false;
+  }
+  if(!convertRegisterToScaledLongInteger(REGISTER_Y, b, &bExponent)) {
+    longIntegerFree(a);
+    return false;
+  }
+  if(!convertRegisterToScaledLongInteger(REGISTER_X, p, &pExponent)) {
+    longIntegerFree(b);
+    longIntegerFree(a);
+    return false;
+  }
+
+  addSubtractScaledLongIntegers(b, bExponent, a, aExponent, true, difference, &differenceExponent);
+  longIntegerInit(product);
+  longIntegerMultiplyUnbounded(p, difference, product);
+  productExponent = pExponent + differenceExponent;
+  addSubtractScaledLongIntegers(a, aExponent, product, productExponent, false, exactResult, &resultExponent);
+  convertScaledLongIntegerToReal(exactResult, resultExponent, result, &resultContext);
+  longIntegerFree(exactResult);
+  longIntegerFree(product);
+  longIntegerFree(difference);
+  longIntegerFree(p);
+  longIntegerFree(b);
+  longIntegerFree(a);
+  return true;
+}
+
 /*
  * Linear interpolation between a and b by an amount p.
  * p = 0 returns a, p = 1 returns b.
@@ -22,24 +83,44 @@ void linpol(const real_t *a, const real_t *b, const real_t *p, real_t *res) {
   if(realIsNaN(a) || realIsNaN(b) || realIsNaN(p) || realIsInfinite(p)) {
     realSetNaN(res);
   }
-  else if(realIsInfinite(a)) {
-    if(realIsInfinite(b)) {    // both infinite, either NaN or one of them
-      if(realIsNegative(a) == realIsNegative(b)) {
-        realCopy(a, res);
+  else if(realIsZero(p)) {
+    realCopy(a, res);
+  }
+  else if(realCompareEqual(p, const_1)) {
+    realCopy(b, res);
+  }
+  else if(realCompareEqual(a, b)) {
+    realCopy(a, res);
+  }
+  else if(realIsInfinite(a) || realIsInfinite(b)) {
+    bool_t aNegative, bNegative;
+
+    realSubtract(const_1, p, &x, &ctxtReal75);
+    aNegative = realIsNegative(a) != realIsNegative(&x);
+    bNegative = realIsNegative(b) != realIsNegative(p);
+    if(realIsInfinite(a) && realIsInfinite(b)) {
+      if(aNegative != bNegative) {
+        realSetNaN(res);
       }
       else {
-        realSetNaN(res);
+        realSetPlusInfinity(res);
+        if(aNegative) {
+          realChangeSign(res);
+        }
+      }
+    }
+    else if(realIsInfinite(a)) {
+      realCopy(a, res);
+      if(realIsNegative(&x)) {
+        realChangeSign(res);
       }
     }
     else {
-      realCopy(a, res);         // a only is infinite, return a
+      realCopy(b, res);
+      if(realIsNegative(p)) {
+        realChangeSign(res);
+      }
     }
-  }
-  else if(realIsInfinite(b)) {
-    realCopy(b, res);           // b only is infinite, return b
-  }
-  else if(realCompareEqual(a, b)) {
-    realCopy(a, res);           // both same, return one
   }
   else if(realIsNegative(a) != realIsNegative(b)) {
     /* a * b < 0, use linpol = (1 - p) * a + p * b */
@@ -68,15 +149,18 @@ void linpol(const real_t *a, const real_t *b, const real_t *p, real_t *res) {
  * \return void
  ***********************************************/
 void fnLINPOL(uint16_t unusedButMandatoryParameter) {
-  real_t aReal, bReal, aImag, bImag, p, rReal, rImag;
+  real_t p;
+  cplx_t a, b, r;
+  real_t exactResult;
   bool_t realCoefs = true;
-  uint32_t dataTypeY, dataTypeZ;
+  uint32_t dataTypeX, dataTypeY, dataTypeZ;
   uint16_t dataTagY, dataTagZ;
 
-  realSetZero(&aImag);
-  realSetZero(&bImag);
+  realSetZero(&a.Imag);
+  realSetZero(&b.Imag);
 
-  switch(getRegisterDataType(REGISTER_X)) {
+  dataTypeX = getRegisterDataType(REGISTER_X);
+  switch(dataTypeX) {
     case dtReal34: {
       real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &p);
       break;
@@ -117,37 +201,37 @@ void fnLINPOL(uint16_t unusedButMandatoryParameter) {
 
   switch(dataTypeY) {
     case dtLongInteger: {
-      convertLongIntegerRegisterToReal(REGISTER_Y, &bReal, &ctxtReal75);
+      convertLongIntegerRegisterToReal(REGISTER_Y, &b.Real, &ctxtReal75);
       break;
     }
 
     case dtShortInteger: {
-      convertShortIntegerRegisterToReal(REGISTER_Y, &bReal, &ctxtReal39);
+      convertShortIntegerRegisterToReal(REGISTER_Y, &b.Real, &ctxtReal39);
       break;
     }
 
     case dtReal34: {
-      real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &bReal);
+      real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &b.Real);
       dataTagY = getRegisterAngularMode(REGISTER_Y);
      break;
     }
 
     case dtTime: {
       convertTimeRegisterToReal34Register(REGISTER_Y, REGISTER_Y);
-      real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &bReal);
+      real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &b.Real);
       break;
     }
 
     case dtDate: {
       // convertDateRegisterToReal34Register is not appropriate here
       internalDateToJulianDay(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_Y));
-      real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &bReal);
+      real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &b.Real);
       break;
     }
 
     case dtComplex34: {
-      real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &bReal);
-      real34ToReal(REGISTER_IMAG34_DATA(REGISTER_Y), &bImag);
+      real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &b.Real);
+      real34ToReal(REGISTER_IMAG34_DATA(REGISTER_Y), &b.Imag);
       realCoefs = false;
       break;
     }
@@ -164,37 +248,37 @@ void fnLINPOL(uint16_t unusedButMandatoryParameter) {
 
   switch(dataTypeZ) {
     case dtLongInteger: {
-      convertLongIntegerRegisterToReal(REGISTER_Z, &aReal, &ctxtReal75);
+      convertLongIntegerRegisterToReal(REGISTER_Z, &a.Real, &ctxtReal75);
       break;
     }
 
     case dtShortInteger: {
-      convertShortIntegerRegisterToReal(REGISTER_Z, &aReal, &ctxtReal39);
+      convertShortIntegerRegisterToReal(REGISTER_Z, &a.Real, &ctxtReal39);
       break;
     }
 
     case dtReal34: {
-      real34ToReal(REGISTER_REAL34_DATA(REGISTER_Z), &aReal);
+      real34ToReal(REGISTER_REAL34_DATA(REGISTER_Z), &a.Real);
       dataTagZ = getRegisterAngularMode(REGISTER_Z);
       break;
     }
 
     case dtTime: {
       convertTimeRegisterToReal34Register(REGISTER_Z, REGISTER_Z);
-      real34ToReal(REGISTER_REAL34_DATA(REGISTER_Z), &aReal);
+      real34ToReal(REGISTER_REAL34_DATA(REGISTER_Z), &a.Real);
       break;
     }
 
     case dtDate: {
       // convertDateRegisterToReal34Register is not appropriate here
       internalDateToJulianDay(REGISTER_REAL34_DATA(REGISTER_Z), REGISTER_REAL34_DATA(REGISTER_Z));
-      real34ToReal(REGISTER_REAL34_DATA(REGISTER_Z), &aReal);
+      real34ToReal(REGISTER_REAL34_DATA(REGISTER_Z), &a.Real);
       break;
     }
 
     case dtComplex34: {
-      real34ToReal(REGISTER_REAL34_DATA(REGISTER_Z), &aReal);
-      real34ToReal(REGISTER_IMAG34_DATA(REGISTER_Z), &aImag);
+      real34ToReal(REGISTER_REAL34_DATA(REGISTER_Z), &a.Real);
+      real34ToReal(REGISTER_IMAG34_DATA(REGISTER_Z), &a.Imag);
       realCoefs = false;
       break;
     }
@@ -209,6 +293,12 @@ void fnLINPOL(uint16_t unusedButMandatoryParameter) {
     }
   }
 
+  const bool_t exactInterpolation = realCoefs
+                                    && (dataTypeX == dtLongInteger || dataTypeY == dtLongInteger || dataTypeZ == dtLongInteger)
+                                    && (dataTypeY == dtLongInteger || dataTypeY == dtShortInteger || (dataTypeY == dtReal34 && !isYangle))
+                                    && (dataTypeZ == dtLongInteger || dataTypeZ == dtShortInteger || (dataTypeZ == dtReal34 && !isZangle))
+                                    && linpolExactRegisters(&p, &exactResult);
+
   if(!saveLastX()) {
     return;
   }
@@ -217,16 +307,18 @@ void fnLINPOL(uint16_t unusedButMandatoryParameter) {
   fnDrop(NOPARAM);
   fnDrop(NOPARAM);
 
-  linpol(&aReal, &bReal, &p, &rReal);
+  if(!exactInterpolation) {
+    linpol(&a.Real, &b.Real, &p, &r.Real);
+  }
   if(realCoefs) {
     if(dataTypeY == dtTime) {
       reallocateRegister(REGISTER_X, dtReal34, 0, amNone);      // use standard Real type for time, to change to Time below
-      convertRealToReal34ResultRegister(&rReal, REGISTER_X);
+      convertRealToReal34ResultRegister(&r.Real, REGISTER_X);
       convertReal34RegisterToTimeRegister(REGISTER_X, REGISTER_X);
     }
     else if(dataTypeY == dtDate) {
       reallocateRegister(REGISTER_X, dtDate, 0, amNone);
-      realToReal34(&rReal, REGISTER_REAL34_DATA(REGISTER_X));
+      realToReal34(&r.Real, REGISTER_REAL34_DATA(REGISTER_X));
       real34ToIntegralValue(REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X), DEC_ROUND_CEILING);
       julianDayToInternalDate(REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X));
     }
@@ -243,12 +335,17 @@ void fnLINPOL(uint16_t unusedButMandatoryParameter) {
         dataTagY = amNone;
       }
       reallocateRegister(REGISTER_X, dtReal34, 0, dataTagY);   // use the type and tag of b (Y)
-      convertRealToReal34ResultRegister(&rReal, REGISTER_X);
+      if(exactInterpolation) {
+        convertRealToReal34ResultRegister(&exactResult, REGISTER_X);
+      }
+      else {
+        convertRealToReal34ResultRegister(&r.Real, REGISTER_X);
+      }
     }
   }
   else {
-    linpol(&aImag, &bImag, &p, &rImag);
+    linpol(&a.Imag, &b.Imag, &p, &r.Imag);
     reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
-    convertComplexToResultRegister(&rReal, &rImag, REGISTER_X);
+    convertComplexToResultRegister(&r, REGISTER_X);
   }
 }

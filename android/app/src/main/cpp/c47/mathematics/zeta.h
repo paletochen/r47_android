@@ -8,5 +8,5 @@
   #define ZETA_H
 
   void fnZeta     (uint16_t unusedButMandatoryParameter);
-  void ComplexZeta(const real_t *xReal, const real_t *xImag, real_t *resReal, real_t *resImag, realContext_t *realContext);
+  void ComplexZeta(const cplx_t *x, cplx_t *res, realContext_t *realContext);
 #endif // !ZETA_H

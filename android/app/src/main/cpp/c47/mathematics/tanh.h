@@ -9,5 +9,5 @@
 
   void fnTanh   (uint16_t unusedButMandatoryParameter);
 
-  uint8_t TanhComplex(const real_t *xReal, const real_t *xImag, real_t *rReal, real_t *rImag, realContext_t *realContext);
+  uint8_t TanhComplex(const cplx_t *x, cplx_t *r, realContext_t *realContext);
 #endif // !TANH_H

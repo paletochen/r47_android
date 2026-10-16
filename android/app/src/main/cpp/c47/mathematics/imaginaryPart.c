@@ -27,16 +27,16 @@ static void imagPartCxma(void) {
 }
 
 static void imagPartCplx(void) {
-  real_t zReal, zImag;
+  real34_t imaginary;
 
-  if(getRegisterAsComplex(REGISTER_X, &zReal, &zImag)) {
-    convertRealToResultRegister(&zImag, REGISTER_X, amNone);
-  }
+  real34Copy(REGISTER_IMAG34_DATA(REGISTER_X), &imaginary);
+  convertReal34ToReal34Register(&imaginary, REGISTER_X);
 }
 
 
 static void imagPartReal(void) {
-  convertRealToResultRegister(const_0, REGISTER_X, amNone);
+  reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
+  real34SetZero(REGISTER_REAL34_DATA(REGISTER_X));
 }
 
 /********************************************//**
@@ -50,6 +50,7 @@ void fnImaginaryPart(uint16_t unusedButMandatoryParameter) {
   if(getRegisterDataType(REGISTER_X) == dtComplex34Matrix) {
     if(saveLastX()) {
       imagPartCxma();
+      adjustResult(REGISTER_X, false, true, REGISTER_X, -1, -1);
     }
   }
   else {

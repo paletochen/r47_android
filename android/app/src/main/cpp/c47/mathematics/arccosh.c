@@ -8,40 +8,110 @@
 #include "c47.h"
 
 static void arccoshCplx(void) {
-  real_t a, b, real, imag;
+  cplx_t x, shifted, r;
+  REAL_T_PTR(delta, 39);
+  REAL_T_PTR(magnitude1, 39);
+  REAL_T_PTR(magnitude2, 39);
+  REAL_T_PTR(temp1, 39);
+  REAL_T_PTR(temp2, 39);
 
-  if(!getRegisterAsComplex(REGISTER_X, &a, &b)) {
+  if(!getRegisterAsComplex(REGISTER_X, &x)) {
     return;
   }
 
-  // arccosh(z) = ln(z + sqrt(z² - 1))
-  // calculate z²   real part
-  realMultiply(&b, &b, &real, &ctxtReal39);
-  realChangeSign(&real);
-  realFMA(&a, &a, &real, &real, &ctxtReal39);
+  if(realIsNaN(&x.Real) || realIsNaN(&x.Imag)) {
+    realSetNaN(&r.Real);
+    realSetNaN(&r.Imag);
+  }
+  else if(realIsInfinite(&x.Real) || realIsInfinite(&x.Imag)) {
+    const bool_t negativeBranch = (!realIsZero(&x.Real) && realIsNegative(&x.Real)) || (realIsZero(&x.Real) && realIsNegative(&x.Imag));
 
-  // calculate z²   imaginary part
-  realMultiply(&a, &b, &imag, &ctxtReal39);
-  realMultiply(&imag, const_2, &imag, &ctxtReal39);
+    realSetPlusInfinity(&r.Real);
+    if(negativeBranch) {
+      realSetNegativeSign(&r.Real);
+    }
 
-  // calculate z² - 1
-  realSubtract(&real, const_1, &real, &ctxtReal39);
+    realCopy(realIsInfinite(&x.Real) ? const_1 : const_0, temp1);
+    if(realIsNegative(&x.Real)) {
+      realSetNegativeSign(temp1);
+    }
+    realCopy(realIsInfinite(&x.Imag) ? const_1 : const_0, temp2);
+    if(realIsNegative(&x.Imag) != negativeBranch) {
+      realSetNegativeSign(temp2);
+    }
+    if(realIsZero(&x.Imag)) {
+      realSetPositiveSign(temp2);
+    }
+    C47_WP34S_Atan2(temp2, temp1, &r.Imag, &ctxtReal39);
+  }
+  else if(realIsZero(&x.Imag)) {
+    realCopyAbs(&x.Real, temp1);
+    if(realCompareGreaterThan(temp1, const_1)) {
+      realArcosh(temp1, &r.Real, &ctxtReal39);
+      if(realIsNegative(&x.Real)) {
+        realSetNegativeSign(&r.Real);
+        realCopy(const39_pi, &r.Imag);
+      }
+      else {
+        realSetZero(&r.Imag);
+      }
+    }
+    else {
+      realSetZero(&r.Real);
+      realSubtract(const_1, &x.Real, temp1, &ctxtReal39);
+      realAdd(const_1, &x.Real, temp2, &ctxtReal39);
+      realMultiply(temp1, temp2, temp1, &ctxtReal39);
+      realSquareRoot(temp1, temp1, &ctxtReal39);
+      C47_WP34S_Atan2(temp1, &x.Real, &r.Imag, &ctxtReal39);
+    }
+  }
+  else {
+    const bool_t negativeBranch = (!realIsZero(&x.Real) && realIsNegative(&x.Real)) || (realIsZero(&x.Real) && realIsNegative(&x.Imag));
 
-  // calculate sqrt(z² - 1)
-  realRectangularToPolar(&real, &imag, &real, &imag, &ctxtReal39);
-  realSquareRoot(&real, &real, &ctxtReal39);
-  realMultiply(&imag, const_1on2, &imag, &ctxtReal39);
-  realPolarToRectangular(&real, &imag, &real, &imag, &ctxtReal39);
+    // delta = (|z + 1| + |z - 1|) / 2 - 1. Rationalised distance increments preserve delta when its addition to one would round away.
+    realCopy(&x.Imag, &shifted.Imag);
+    realAdd(&x.Real, const_1, &shifted.Real, &ctxtReal39);
+    complexMagnitude(&shifted, magnitude1, &ctxtReal39);
+    realCopyAbs(&shifted.Real, temp1);
+    realAdd(magnitude1, temp1, magnitude1, &ctxtReal39);
 
-  // calculate z + sqrt(z² - 1)
-  realAdd(&a, &real, &real, &ctxtReal39);
-  realAdd(&b, &imag, &imag, &ctxtReal39);
+    realSubtract(&x.Real, const_1, &shifted.Real, &ctxtReal39);
+    complexMagnitude(&shifted, magnitude2, &ctxtReal39);
+    realCopyAbs(&shifted.Real, temp1);
+    realAdd(magnitude2, temp1, magnitude2, &ctxtReal39);
 
-  // calculate ln(z + sqtr(z² - 1))
-  realRectangularToPolar(&real, &imag, &a, &b, &ctxtReal39);
-  WP34S_Ln(&a, &a, &ctxtReal39);
+    realMultiply(&x.Imag, &x.Imag, delta, &ctxtReal39);
+    realDivide(delta, magnitude1, temp1, &ctxtReal39);
+    realDivide(delta, magnitude2, temp2, &ctxtReal39);
+    realAdd(temp1, temp2, delta, &ctxtReal39);
+    realMultiply(delta, const_1on2, delta, &ctxtReal39);
 
-  convertComplexToResultRegister(&a, &b, REGISTER_X);
+    realCopyAbs(&x.Real, temp1);
+    if(realCompareGreaterThan(temp1, const_1)) {
+      realSubtract(temp1, const_1, temp1, &ctxtReal39);
+      realAdd(delta, temp1, delta, &ctxtReal39);
+    }
+
+    realAdd(delta, const_2, temp1, &ctxtReal39);
+    realMultiply(delta, temp1, temp1, &ctxtReal39);
+    realSquareRoot(temp1, temp1, &ctxtReal39);
+    realAdd(delta, temp1, &r.Real, &ctxtReal39);
+    WP34S_Ln1P(&r.Real, &r.Real, &ctxtReal39);
+    if(negativeBranch) {
+      realSetNegativeSign(&r.Real);
+    }
+
+    // Scale cos(v) = a / (1 + delta) and sin(v) = sign(real) b / sqrt(delta(delta + 2)) by their positive common denominator for atan2.
+    realAdd(delta, const_1, temp2, &ctxtReal39);
+    realMultiply(&x.Imag, temp2, temp2, &ctxtReal39);
+    if(negativeBranch) {
+      realChangeSign(temp2);
+    }
+    realMultiply(&x.Real, temp1, temp1, &ctxtReal39);
+    C47_WP34S_Atan2(temp2, temp1, &r.Imag, &ctxtReal39);
+  }
+
+  convertComplexToResultRegister(&r, REGISTER_X);
 }
 
 
@@ -70,7 +140,7 @@ static void arccoshReal(void) {
     }
   }
   else {
-    realArcosh(&x, &x, &ctxtReal75);
+    realArcosh(&x, &x, &ctxtReal39);
   }
 
   convertRealToResultRegister(r, REGISTER_X, amNone);
@@ -79,14 +149,15 @@ static void arccoshReal(void) {
 
 
 void realArcosh(const real_t *x, real_t *res, realContext_t *realContext) {
-  real_t xSquared;
+  real_t delta, root;
 
-  // arccosh(x) = ln(x + sqrt(x² - 1))
-  realMultiply(x, x, &xSquared, realContext);
-  realSubtract(&xSquared, const_1, &xSquared, realContext);
-  realSquareRoot(&xSquared, &xSquared, realContext);
-  realAdd(&xSquared, x, res, realContext);
-  WP34S_Ln(res, res, realContext);
+  // arccosh(x) = ln1p((x - 1) + sqrt((x - 1)(x + 1)))
+  realSubtract(x, const_1, &delta, realContext);
+  realAdd(x, const_1, &root, realContext);
+  realMultiply(&delta, &root, &root, realContext);
+  realSquareRoot(&root, &root, realContext);
+  realAdd(&delta, &root, res, realContext);
+  WP34S_Ln1P(res, res, realContext);
 }
 
 

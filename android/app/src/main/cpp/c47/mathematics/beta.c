@@ -11,11 +11,8 @@
   void fnBeta(uint16_t unusedButMandatoryParameter) {;}
 
 #else //OPTION_ZETA_BETA
-static bool_t complexBeta(real_t *xReal, real_t *xImag, real_t *yReal, real_t *yImag, real_t *rReal, real_t *rImag, realContext_t *realContext) {
-  // Beta(x, y) := Gamma(x) * Gamma(y) / Gamma(x+y)
-  real_t tReal, tImag;
-
-  if(realCompareLessEqual(xReal, const_0)) {
+static bool_t complexBeta(cplx_t *x, cplx_t *y, cplx_t *r, realContext_t *realContext) {
+  if(realCompareLessEqual(&x->Real, const_0)) {
     displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "cannot calculate Beta of (%s, %s) with Re(x)<=0", getRegisterDataTypeName(REGISTER_Y, true, false), getRegisterDataTypeName(REGISTER_X, true, false));
@@ -23,7 +20,7 @@ static bool_t complexBeta(real_t *xReal, real_t *xImag, real_t *yReal, real_t *y
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
     return false;
   }
-  else if(realCompareLessEqual(yReal, const_0)) {
+  else if(realCompareLessEqual(&y->Real, const_0)) {
     displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "cannot calculate Beta of (%s, %s with Re(y)<=0", getRegisterDataTypeName(REGISTER_Y, true, false), getRegisterDataTypeName(REGISTER_X, true, false));
@@ -32,18 +29,22 @@ static bool_t complexBeta(real_t *xReal, real_t *xImag, real_t *yReal, real_t *y
     return false;
   }
 
-  WP34S_ComplexGamma(xReal, xImag, &tReal, &tImag, realContext);              // t = Gamma(x)
-  WP34S_ComplexGamma(yReal, yImag, rReal, rImag, realContext);                // r = Gamma(y)
+  if(realIsSpecial(&x->Real) || realIsSpecial(&x->Imag) || realIsSpecial(&y->Real) || realIsSpecial(&y->Imag)) {
+    if(getSystemFlag(FLAG_SPCRES) && realIsZero(&x->Imag) && realIsZero(&y->Imag) &&
+       !realIsNaN(&x->Real) && !realIsNaN(&y->Real) && (realIsInfinite(&x->Real) || realIsInfinite(&y->Real))) {
+      realSetZero(&r->Real);
+      realSetZero(&r->Imag);
+      return true;
+    }
+    realSetNaN(&r->Real);
+    realSetNaN(&r->Imag);
+  }
+  else {
+    C47_LnBetaPositiveComplex(x, y, r);
+    expComplex(r, r, realContext);
+  }
 
-  mulComplexComplex(rReal, rImag, &tReal, &tImag, rReal, rImag, realContext); // r = Gamma(x) * Gamma(y)
-
-  realAdd(xReal, yReal, &tReal, realContext);                             // t = x + y
-  realAdd(xImag, yImag, &tImag, realContext);
-
-  WP34S_ComplexGamma(&tReal, &tImag, &tReal, &tImag, realContext);            // t = Gamma(x + y);
-  divComplexComplex(rReal, rImag, &tReal, &tImag, rReal, rImag, realContext); // r = Gamma(x) * Gamma(y) / Gamma(x + y);
-
-  if(realIsNaN(rImag) || realIsNaN(rReal)) {
+  if(realIsNaN(&r->Imag) || realIsNaN(&r->Real)) {
     displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "cannot calculate Beta of (%s, %s) out of range", getRegisterDataTypeName(REGISTER_Y, true, false), getRegisterDataTypeName(REGISTER_X, true, false));
@@ -55,8 +56,7 @@ static bool_t complexBeta(real_t *xReal, real_t *xImag, real_t *yReal, real_t *y
   return true;
 }
 
-static bool_t realBeta(real_t *x, real_t *y, real_t *r, realContext_t *realContext) {
-  // Beta(x, y) := Gamma(x) * Gamma(y) / Gamma(x+y)
+static bool_t realBeta(real_t *x, real_t *y, real_t *r) {
   real_t tReal;
 
   if(realCompareLessEqual(x, const_0)) {
@@ -76,15 +76,20 @@ static bool_t realBeta(real_t *x, real_t *y, real_t *r, realContext_t *realConte
     return false;
   }
 
-  WP34S_Gamma(x, &tReal, realContext);              // t = Gamma(x)
-  WP34S_Gamma(y, r, realContext);                // r = Gamma(y)
-
-  realMultiply(r, &tReal, r, realContext); // r = Gamma(x) * Gamma(y)
-
-  realAdd(x, y, &tReal, realContext);                             // t = x + y
-
-  WP34S_Gamma(&tReal, &tReal, realContext);            // t = Gamma(x + y);
-  realDivide(r, &tReal, r, realContext); // r = Gamma(x) * Gamma(y) / Gamma(x + y);
+  if(realIsNaN(x) || realIsNaN(y)) {
+    realSetNaN(r);
+  }
+  else if(realIsInfinite(x) || realIsInfinite(y)) {
+    if(getSystemFlag(FLAG_SPCRES)) {
+      realSetZero(r);
+      return true;
+    }
+    realSetNaN(r);
+  }
+  else {
+    C47_LnBetaPositiveReal(x, y, &tReal);
+    realExp(&tReal, r, &ctxtReal75);
+  }
 
   if(realIsNaN(r)) {
     displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
@@ -100,14 +105,14 @@ static bool_t realBeta(real_t *x, real_t *y, real_t *r, realContext_t *realConte
 
 
 static void betaComplex(void) {
-  real_t xReal, xImag, yReal, yImag, rReal, rImag;
+  cplx_t x, y, r;
 
-  if(!getRegisterAsComplex(REGISTER_X, &xReal, &xImag) || !getRegisterAsComplex(REGISTER_Y, &yReal, &yImag)) {
+  if(!getRegisterAsComplex(REGISTER_X, &x) || !getRegisterAsComplex(REGISTER_Y, &y)) {
     return;
   }
 
-  if(complexBeta(&xReal, &xImag, &yReal, &yImag, &rReal, &rImag, &ctxtReal75)) {
-    convertComplexToResultRegister(&rReal, &rImag, REGISTER_X);
+  if(complexBeta(&x, &y, &r, &ctxtReal75)) {
+    convertComplexToResultRegister(&r, REGISTER_X);
   }
 }
 
@@ -119,7 +124,7 @@ static void betaReal(void) {
     return;
   }
 
-  if(realBeta(&x, &y, &r, &ctxtReal39)) {
+  if(realBeta(&x, &y, &r)) {
     convertRealToResultRegister(&r, REGISTER_X, amNone);
   }
 }

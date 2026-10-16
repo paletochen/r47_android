@@ -79,7 +79,8 @@ static void incDecAndCompare(uint16_t regist, uint16_t mode) {
           real34SetNegativeSign(&step);
         }
         real34Add(REGISTER_REAL34_DATA(regist), &step, REGISTER_REAL34_DATA(regist));
-        registerCmp(regist, TEMP_REGISTER_1, &compared);
+        real34Compare(REGISTER_REAL34_DATA(regist), REGISTER_REAL34_DATA(TEMP_REGISTER_1), REGISTER_REAL34_DATA(TEMP_REGISTER_1));
+        compared = real34IsZero(REGISTER_REAL34_DATA(TEMP_REGISTER_1)) ? 0 : real34IsPositive(REGISTER_REAL34_DATA(TEMP_REGISTER_1)) ? 1 : -1;
         if(real34IsNegative(REGISTER_REAL34_DATA(regist))) {
           real34SetNegativeSign(&fp);
         }
@@ -90,11 +91,8 @@ static void incDecAndCompare(uint16_t regist, uint16_t mode) {
     }
     case dtTime: {
       if((mode & 2) == 2) {  // DSZ / ISZ : count by whole hours (similar /3600 used by MAX/MIN and compares =?)
-        real_t v;
-        real34ToReal(REGISTER_REAL34_DATA(regist), &v);                                                                     // seconds
-        (mode >> 2) == DEC_FLAG ? realSubtract(&v, const_3600, &v, &ctxtReal39) : realAdd(&v, const_3600, &v, &ctxtReal39); // step = 1 hour = 3600 s
-        realToReal34(&v, REGISTER_REAL34_DATA(regist));
-        compared = realCompareAbsLessThan(&v, const_3600) ? 0 : 1;                                                          // |time| < 1h -> treat as zero
+        incDecTime(regist, mode >> 2);
+        compared = real34CompareAbsLessThan(REGISTER_REAL34_DATA(regist), const34_3600) ? 0 : 1;  // |time| < 1h -> treat as zero
         break;
       }
       goto invalidType;      // ISG/DSE/ISE/DSL ccccccc.fffii counter format has no meaning for Time

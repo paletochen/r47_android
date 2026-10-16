@@ -12,10 +12,11 @@
   void fnLogisticR     (uint16_t unusedButMandatoryParameter);
   void fnLogisticI     (uint16_t unusedButMandatoryParameter);
 
-  #if defined(OPTION_DIST_B)
+  #if defined(OPTION_DIST_LOGIS)
+  bool_t logisticCheckDomain(bool_t registersValid, real_t *x, real_t *first, real_t *second, real_t *third, uint16_t parameter);
   void WP34S_Pdf_Logit (const real_t *x, const real_t *mu, const real_t *s, real_t *res, realContext_t *realContext);
   void WP34S_Cdfu_Logit(const real_t *x, const real_t *mu, const real_t *s, real_t *res, realContext_t *realContext);
   void WP34S_Cdf_Logit (const real_t *x, const real_t *mu, const real_t *s, real_t *res, realContext_t *realContext);
   void WP34S_Qf_Logit  (const real_t *x, const real_t *mu, const real_t *s, real_t *res, realContext_t *realContext);
-  #endif // OPTION_DIST_B
+  #endif // OPTION_DIST_LOGIS
 #endif // !LOGISTIC_H

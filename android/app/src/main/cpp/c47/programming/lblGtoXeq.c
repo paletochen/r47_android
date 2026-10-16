@@ -618,8 +618,7 @@ static void _putLiteral(uint8_t *literalAddress) {
       xcopy(&realLiteral, literalAddress, REAL34_SIZE_IN_BYTES);
       liftStack();
       setSystemFlag(FLAG_ASLIFT);
-      reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-      real34Copy(&realLiteral, REGISTER_REAL34_DATA(REGISTER_X));
+      convertReal34ToReal34Register(&realLiteral, REGISTER_X);
       break;
       }
 

@@ -23,6 +23,23 @@ TO_QSPI void (* const division[NUMBER_OF_DATA_TYPES_FOR_CALCULATIONS][NUMBER_OF_
 };
 
 
+static void divideLongIntegerMatrixElement(calcRegister_t integerRegister, const real_t *integer, bool_t integerFirst, real34_t *element) {
+  if(!divideLongIntegerReal34(integerRegister, element, integerFirst, element)) {
+    real_t value;
+
+    real34ToReal(element, &value);
+    if(integerFirst) {
+      realDivide(integer, &value, &value, &ctxtReal39);
+    }
+    else {
+      realDivide(&value, integer, &value, &ctxtReal39);
+    }
+    roundToSignificantDigits(&value, &value, significantDigits == 0 ? 34 : significantDigits, &ctxtReal39);
+    realToReal34(&value, element);
+  }
+}
+
+
 
 /********************************************//**
  * \brief Data type error in division
@@ -58,28 +75,28 @@ void fnDivide(uint16_t unusedButMandatoryParameter) {
 
 
 
-void divComplexComplex75(const real_t *numerReal, const real_t *numerImag, const real_t *denomReal, const real_t *denomImag, real_t *quotientReal, real_t *quotientImag, realContext_t *realContext) {
+void divComplexComplex(const cplx_t *numer, const cplx_t *denom, cplx_t *quotient, realContext_t *realContext) {
   real_t realNumer, realDenom, a, b, c, d;
 
-  realCopy(numerReal, &a);
-  realCopy(numerImag, &b);
-  realCopy(denomReal, &c);
-  realCopy(denomImag, &d);
+  realCopy(&numer->Real, &a);
+  realCopy(&numer->Imag, &b);
+  realCopy(&denom->Real, &c);
+  realCopy(&denom->Imag, &d);
 
   if(realIsNaN(&a) || realIsNaN(&b) || realIsNaN(&c) || realIsNaN(&d)) {
-    realSetNaN(quotientReal);
-    realSetNaN(quotientImag);
+    realSetNaN(&quotient->Real);
+    realSetNaN(&quotient->Imag);
     return;
   }
 
   if(realIsInfinite(&c) || realIsInfinite(&d)) {
     if(realIsInfinite(&a) || realIsInfinite(&b)) {
-      realSetNaN(quotientReal);
-      realSetNaN(quotientImag);
+      realSetNaN(&quotient->Real);
+      realSetNaN(&quotient->Imag);
     }
     else {
-      realSetZero(quotientReal);
-      realSetZero(quotientImag);
+      realSetZero(&quotient->Real);
+      realSetZero(&quotient->Imag);
     }
     return;
   }
@@ -100,18 +117,18 @@ void divComplexComplex75(const real_t *numerReal, const real_t *numerImag, const
   // real part
   realMultiply(&a, &c, &realNumer, realContext);                 // realNumer = a*c
   realFMA(&b, &d, &realNumer, &realNumer, realContext);          // realNumer = a*c + b*d
-  realDivide(&realNumer, &realDenom, quotientReal, realContext); // realPart = (a*c + b*d) / (c² + d²) = realNumer / realDenom
+  realDivide(&realNumer, &realDenom, &quotient->Real, realContext); // realPart = (a*c + b*d) / (c² + d²) = realNumer / realDenom
 
   // imaginary part
   realMultiply(&b, &c, &realNumer, realContext);                 // realNumer = b*c
   realChangeSign(&a);                                            // a = -a
   realFMA(&a, &d, &realNumer, &realNumer, realContext);          // realNumer = b*c - a*d
-  realDivide(&realNumer, &realDenom, quotientImag, realContext); // imagPart = (b*c - a*d) / (c² + d²) = realNumer / realDenom
+  realDivide(&realNumer, &realDenom, &quotient->Imag, realContext); // imagPart = (b*c - a*d) / (c² + d²) = realNumer / realDenom
 
 }
 
 #if defined(OPTION_CUBIC_159) || defined(OPTION_SQUARE_159) || defined(OPTION_EIGEN_159)
-void divComplexComplex159(const real_t *numerReal, const real_t *numerImag, const real_t *denomReal, const real_t *denomImag, real_t *quotientReal, real_t *quotientImag, realContext_t *realContext) {
+void divComplexComplex159(const cplx159_t *numer, const cplx159_t *denom, cplx159_t *quotient, realContext_t *realContext) {
   REAL_T_PTR(realNumer, 159);
   REAL_T_PTR(realDenom, 159);
   REAL_T_PTR(a, 159);
@@ -126,25 +143,25 @@ void divComplexComplex159(const real_t *numerReal, const real_t *numerImag, cons
   realSetZero(c);
   realSetZero(d);
 
-  realCopy(numerReal, a);
-  realCopy(numerImag, b);
-  realCopy(denomReal, c);
-  realCopy(denomImag, d);
+  realCopy(&numer->Real, a);
+  realCopy(&numer->Imag, b);
+  realCopy(&denom->Real, c);
+  realCopy(&denom->Imag, d);
 
   if(realIsNaN(a) || realIsNaN(b) || realIsNaN(c) || realIsNaN(d)) {
-    realSetNaN(quotientReal);
-    realSetNaN(quotientImag);
+    realSetNaN(&quotient->Real);
+    realSetNaN(&quotient->Imag);
     return;
   }
 
   if(realIsInfinite(c) || realIsInfinite(d)) {
     if(realIsInfinite(a) || realIsInfinite(b)) {
-      realSetNaN(quotientReal);
-      realSetNaN(quotientImag);
+      realSetNaN(&quotient->Real);
+      realSetNaN(&quotient->Imag);
     }
     else {
-      realSetZero(quotientReal);
-      realSetZero(quotientImag);
+      realSetZero(&quotient->Real);
+      realSetZero(&quotient->Imag);
     }
     return;
   }
@@ -163,51 +180,42 @@ void divComplexComplex159(const real_t *numerReal, const real_t *numerImag, cons
   // Real part: (a*c + b*d) / (c² + d²)
   realMultiply(a, c, realNumer, realContext);
   realFMA(b, d, realNumer, realNumer, realContext);
-  realDivide(realNumer, realDenom, quotientReal, realContext);
+  realDivide(realNumer, realDenom, &quotient->Real, realContext);
 
   // Imaginary part: (b*c - a*d) / (c² + d²)
   realMultiply(b, c, realNumer, realContext);
   realChangeSign(a);
   realFMA(a, d, realNumer, realNumer, realContext);
-  realDivide(realNumer, realDenom, quotientImag, realContext);
+  realDivide(realNumer, realDenom, &quotient->Imag, realContext);
+}
+
+
+// divComplexReal for 159 digit values in a cplx159_t
+void divComplexReal159(const cplx159_t *numer, const real_t *denom, cplx159_t *quotient, realContext_t *realContext) {
+  realDivide(&numer->Real, denom, &quotient->Real, realContext);
+  realDivide(&numer->Imag, denom, &quotient->Imag, realContext);
 }
 #endif //OPTION_CUBIC_159 || OPTION_SQUARE_159 || OPTION_EIGEN_159
 
 
-void divComplexComplex(const real_t *numerReal, const real_t *numerImag, const real_t *denomReal, const real_t *denomImag, real_t *quotientReal, real_t *quotientImag, realContext_t *realContext) {
-  if(realContext->digits <= 75) {
-    divComplexComplex75(numerReal, numerImag, denomReal, denomImag, quotientReal, quotientImag, realContext);
-  #if defined(OPTION_CUBIC_159) || defined(OPTION_SQUARE_159) || defined(OPTION_EIGEN_159)
-  }
-  else if(realContext->digits <= 159) {
-    divComplexComplex159(numerReal, numerImag, denomReal, denomImag, quotientReal, quotientImag, realContext);
-  #endif //OPTION_CUBIC_159 || OPTION_SQUARE_159 || OPTION_EIGEN_159
-  }
-  else {
-    sprintf(errorMessage, "Exceed digits :divComplexComplex: %d", (int)realContext->digits);
-    displayBugScreen(errorMessage);
-  }
-}
 
 
-
-
-void divRealComplex(const real_t *numerReal, const real_t *denomReal, const real_t *denomImag, real_t *quotientReal, real_t *quotientImag, realContext_t *realContext) {
+void divRealComplex(const real_t *numerReal, const cplx_t *denomCplx, cplx_t *quotient, realContext_t *realContext) {
   real_t a, c, d, denom;
 
   realCopy(numerReal, &a);
-  realCopy(denomReal, &c);
-  realCopy(denomImag, &d);
+  realCopy(&denomCplx->Real, &c);
+  realCopy(&denomCplx->Imag, &d);
 
   if(realIsNaN(&a) || realIsNaN(&c) || realIsNaN(&d)) {
-    realSetNaN(quotientReal);
-    realSetNaN(quotientImag);
+    realSetNaN(&quotient->Real);
+    realSetNaN(&quotient->Imag);
     return;
   }
 
   if(realIsInfinite(&c) || realIsInfinite(&d)) {
-    realSetZero(quotientReal);
-    realSetZero(quotientImag);
+    realSetZero(&quotient->Real);
+    realSetZero(&quotient->Imag);
     return;
   }
 
@@ -215,18 +223,18 @@ void divRealComplex(const real_t *numerReal, const real_t *denomReal, const real
   realFMA(&d, &d, &denom, &denom, realContext); // c² + d²
 
   // real part
-  realMultiply(&a, &c, quotientReal, realContext);             // numer = a*c
-  realDivide(quotientReal, &denom, quotientReal, realContext); // realPart  = (a*c) / (c² + d²) = numer / denom
+  realMultiply(&a, &c, &quotient->Real, realContext);          // numer = a*c
+  realDivide(&quotient->Real, &denom, &quotient->Real, realContext); // realPart  = (a*c) / (c² + d²) = numer / denom
 
   // imaginary part
   realChangeSign(&a);                                          // a = -a
-  realMultiply(&a, &d, quotientImag, realContext);             // numer = -a*d
-  realDivide(quotientImag, &denom, quotientImag, realContext); // imagPart  = -(a*d) / (c² + d²) = numer / denom
+  realMultiply(&a, &d, &quotient->Imag, realContext);          // numer = -a*d
+  realDivide(&quotient->Imag, &denom, &quotient->Imag, realContext); // imagPart  = -(a*d) / (c² + d²) = numer / denom
 }
 
-void divComplexReal(const real_t *numerReal, const real_t *numerImag, const real_t *denom, real_t *quotientReal, real_t *quotientImag, realContext_t *realContext) {
-  realDivide(numerReal, denom, quotientReal, realContext);
-  realDivide(numerImag, denom, quotientImag, realContext);
+void divComplexReal(const cplx_t *numer, const real_t *denom, cplx_t *quotient, realContext_t *realContext) {
+  realDivide(&numer->Real, denom, &quotient->Real, realContext);
+  realDivide(&numer->Imag, denom, &quotient->Imag, realContext);
 }
 
 
@@ -265,14 +273,11 @@ void divLonILonI(void) {
       convertLongIntegerToLongIntegerRegister(quotient, REGISTER_X);
     }
     else {
-      real_t xIc, yIc;
+      real34_t result;
 
-      convertLongIntegerRegisterToReal(REGISTER_Y, &yIc, &ctxtReal39);
-      convertLongIntegerRegisterToReal(REGISTER_X, &xIc, &ctxtReal39);
-      reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-
-      realDivide(&yIc, &xIc, &xIc, &ctxtReal39);
-      convertRealToReal34ResultRegister(&xIc, REGISTER_X);
+      if(divideRegisterValuesToReal34(REGISTER_Y, REGISTER_X, &result)) {
+        convertReal34ToReal34Register(&result, REGISTER_X);
+      }
     }
 
     longIntegerFree(quotient);
@@ -353,25 +358,24 @@ void divShoILonI(void) {
  ***********************************************/
 void divLonIReal(void) {
   real_t y, x;
+  real34_t result;
 
   setRegisterAngularMode(REGISTER_X, amNone);
   convertLongIntegerRegisterToReal(REGISTER_Y, &y, &ctxtReal39);
 
   if(real34IsZero(REGISTER_REAL34_DATA(REGISTER_X))) {
-    if(realIsZero(&y)) {
-      if(getSystemFlag(FLAG_SPCRES)) {
-        convertRealToReal34ResultRegister(const_NaN, REGISTER_X);
-      }
-      else {
+    if(getSystemFlag(FLAG_SPCRES)) {
+      real34_t numerator;
+
+      realToReal34(&y, &numerator);
+      real34Divide(&numerator, REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X));
+    }
+    else {
+      if(realIsZero(&y)) {
         displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function divLonIReal:", "cannot divide 0 by 0", NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      }
-    }
-    else {
-      if(getSystemFlag(FLAG_SPCRES)) {
-        realToReal34((realIsPositive(&y) ? const_plusInfinity : const_minusInfinity), REGISTER_REAL34_DATA(REGISTER_X));
       }
       else {
         displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
@@ -383,9 +387,14 @@ void divLonIReal(void) {
   }
 
   else {
-    real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &x);
-    realDivide(&y, &x, &x, &ctxtReal39);
-    convertRealToReal34ResultRegister(&x, REGISTER_X);
+    if(!divideRegisterValuesToReal34(REGISTER_Y, REGISTER_X, &result)) {
+      real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &x);
+      realDivide(&y, &x, &x, &ctxtReal39);
+      convertRealToReal34ResultRegister(&x, REGISTER_X);
+    }
+    else {
+      real34Copy(&result, REGISTER_REAL34_DATA(REGISTER_X));
+    }
   }
 }
 
@@ -399,26 +408,22 @@ void divLonIReal(void) {
  ***********************************************/
 void divRealLonI(void) {
   real_t y, x;
+  real34_t result;
   angularMode_t yAngularMode;
 
   convertLongIntegerRegisterToReal(REGISTER_X, &x, &ctxtReal39);
-  reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
 
   if(realIsZero(&x)) {
-    if(real34IsZero(REGISTER_REAL34_DATA(REGISTER_Y))) {
-      if(getSystemFlag(FLAG_SPCRES)) {
-        convertRealToReal34ResultRegister(const_NaN, REGISTER_X);
-      }
-      else {
+    reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
+    if(getSystemFlag(FLAG_SPCRES)) {
+      real34Divide(REGISTER_REAL34_DATA(REGISTER_Y), const34_0, REGISTER_REAL34_DATA(REGISTER_X));
+    }
+    else {
+      if(real34IsZero(REGISTER_REAL34_DATA(REGISTER_Y))) {
         displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function divRealLonI:", "cannot divide 0 by 0", NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      }
-    }
-    else {
-      if(getSystemFlag(FLAG_SPCRES)) {
-        realToReal34((real34IsPositive(REGISTER_REAL34_DATA(REGISTER_Y)) ? const_plusInfinity : const_minusInfinity), REGISTER_REAL34_DATA(REGISTER_X));
       }
       else {
         displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
@@ -430,14 +435,22 @@ void divRealLonI(void) {
   }
 
   else {
-    real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &y);
     yAngularMode = getRegisterAngularMode(REGISTER_Y);
 
     if(yAngularMode == amNone) {
-      realDivide(&y, &x, &x, &ctxtReal39);
-      convertRealToReal34ResultRegister(&x, REGISTER_X);
+      if(divideRegisterValuesToReal34(REGISTER_Y, REGISTER_X, &result)) {
+        convertReal34ToReal34Register(&result, REGISTER_X);
+      }
+      else {
+        real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &y);
+        reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
+        realDivide(&y, &x, &x, &ctxtReal39);
+        convertRealToReal34ResultRegister(&x, REGISTER_X);
+      }
     }
     else {
+      real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &y);
+      reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
       convertAngleFromTo(&y, yAngularMode, currentAngularMode, &ctxtReal39);
       realDivide(&y, &x, &x, &ctxtReal39);
       convertRealToReal34ResultRegister(&x, REGISTER_X);
@@ -455,15 +468,16 @@ void divRealLonI(void) {
  * \return void
  ***********************************************/
 void divLonICplx(void) {
-  real_t y, xReal, xImag;
+  real_t y;
+  cplx_t x;
 
   convertLongIntegerRegisterToReal(REGISTER_Y, &y, &ctxtReal39);
-  real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &xReal);
-  real34ToReal(REGISTER_IMAG34_DATA(REGISTER_X), &xImag);
+  real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &x.Real);
+  real34ToReal(REGISTER_IMAG34_DATA(REGISTER_X), &x.Imag);
 
-  divRealComplex(&y, &xReal, &xImag, &xReal, &xImag, &ctxtReal39);
+  divRealComplex(&y, &x, &x, &ctxtReal39);
 
-  convertComplexToResultRegister(&xReal, &xImag, REGISTER_X);
+  convertComplexToResultRegister(&x, REGISTER_X);
 }
 
 
@@ -475,17 +489,18 @@ void divLonICplx(void) {
  * \return void
  ***********************************************/
 void divCplxLonI(void) {
-  real_t a, b, c;
+  real_t c;
+  cplx_t y;
 
-  real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &a);
-  real34ToReal(REGISTER_IMAG34_DATA(REGISTER_Y), &b);
+  real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &y.Real);
+  real34ToReal(REGISTER_IMAG34_DATA(REGISTER_Y), &y.Imag);
   convertLongIntegerRegisterToReal(REGISTER_X, &c, &ctxtReal39);
 
-  realDivide(&a, &c, &a, &ctxtReal39);
-  realDivide(&b, &c, &b, &ctxtReal39);
+  realDivide(&y.Real, &c, &y.Real, &ctxtReal39);
+  realDivide(&y.Imag, &c, &y.Imag, &ctxtReal39);
 
   reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
-  convertComplexToResultRegister(&a, &b, REGISTER_X);
+  convertComplexToResultRegister(&y, REGISTER_X);
 }
 
 
@@ -741,7 +756,7 @@ void divTimeTime(void) {
  * \return void
  ***********************************************/
 void divRemaLonI(void) {
-  real34Matrix_t matrix, res;
+  real34Matrix_t matrix;
   real_t x;
 
   convertLongIntegerRegisterToReal(REGISTER_X, &x, &ctxtReal39);
@@ -754,9 +769,10 @@ void divRemaLonI(void) {
 
   else {
     linkToRealMatrixRegister(REGISTER_Y, &matrix);
-    _divideRealMatrix(&matrix, &x, &res, &ctxtReal39);
-    convertReal34MatrixToReal34MatrixRegister(&res, REGISTER_X);
-    realMatrixFree(&res);
+    for(int32_t i = 0; i < matrix.header.matrixColumns * matrix.header.matrixRows; ++i) {
+      divideLongIntegerMatrixElement(REGISTER_X, &x, false, &matrix.matrixElements[i]);
+    }
+    fnSwapXY(NOPARAM);
   }
 }
 
@@ -769,7 +785,7 @@ void divRemaLonI(void) {
  * \return void
  ***********************************************/
 void divLonIRema(void) {
-  real34Matrix_t matrix, res;
+  real34Matrix_t matrix;
   real_t y;
   bool_t divZeroOccurs = false;
 
@@ -795,9 +811,9 @@ void divLonIRema(void) {
   }
 
   else {
-    _divideByRealMatrix(&y, &matrix, &res, &ctxtReal39);
-    convertReal34MatrixToReal34MatrixRegister(&res, REGISTER_X);
-    realMatrixFree(&res);
+    for(int32_t i = 0; i < matrix.header.matrixColumns * matrix.header.matrixRows; ++i) {
+      divideLongIntegerMatrixElement(REGISTER_Y, &y, true, &matrix.matrixElements[i]);
+    }
   }
 }
 
@@ -865,23 +881,8 @@ void divRemaCxma(void) {
  * \return void
  ***********************************************/
 void divRemaShoI(void) {
-  real34Matrix_t matrix, res;
-  real_t x;
-
-  convertShortIntegerRegisterToReal(REGISTER_X, &x, &ctxtReal39);
-  if(!getSystemFlag(FLAG_SPCRES) && realIsZero(&x)) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
-    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      moreInfoOnError("In function divRemaShoI:", "cannot divide by 0", NULL, NULL);
-    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-  }
-
-  else {
-    linkToRealMatrixRegister(REGISTER_Y, &matrix);
-    _divideRealMatrix(&matrix, &x, &res, &ctxtReal39);
-    convertReal34MatrixToReal34MatrixRegister(&res, REGISTER_X);
-    realMatrixFree(&res);
-  }
+  convertShortIntegerRegisterToReal34Register(REGISTER_X, REGISTER_X);
+  divRemaReal();
 }
 
 
@@ -893,36 +894,8 @@ void divRemaShoI(void) {
  * \return void
  ***********************************************/
 void divShoIRema(void) {
-  real34Matrix_t matrix, res;
-  real_t y;
-  bool_t divZeroOccurs = false;
-
-  convertShortIntegerRegisterToReal(REGISTER_Y, &y, &ctxtReal39);
-  linkToRealMatrixRegister(REGISTER_X, &matrix);
-  if(!getSystemFlag(FLAG_SPCRES)) {
-    const uint16_t rows = matrix.header.matrixRows;
-    const uint16_t cols = matrix.header.matrixColumns;
-    int32_t i;
-
-    for(i = 0; i < cols * rows; ++i) {
-      if(real34IsZero(&matrix.matrixElements[i])) {
-        divZeroOccurs = true;
-      }
-    }
-  }
-
-  if(divZeroOccurs) {
-    displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
-    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      moreInfoOnError("In function divShoIRema:", "cannot divide by 0", NULL, NULL);
-    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-  }
-
-  else {
-    _divideByRealMatrix(&y, &matrix, &res, &ctxtReal39);
-    convertReal34MatrixToReal34MatrixRegister(&res, REGISTER_X);
-    realMatrixFree(&res);
-  }
+  convertShortIntegerRegisterToReal34Register(REGISTER_Y, REGISTER_Y);
+  divRealRema();
 }
 
 
@@ -1003,11 +976,15 @@ void divRealRema(void) {
  * \return void
  ***********************************************/
 void divRemaCplx(void) {
+  complex34Matrix_t matrix;
+
   convertReal34MatrixRegisterToComplex34MatrixRegister(REGISTER_Y, REGISTER_Y);
   if(lastErrorCode != 0) {
     return;
   }
-  divCxmaCplx();
+  linkToComplexMatrixRegister(REGISTER_Y, &matrix);
+  divideComplexMatrix(&matrix, REGISTER_REAL34_DATA(REGISTER_X), REGISTER_IMAG34_DATA(REGISTER_X), &matrix);
+  convertComplex34MatrixToComplex34MatrixRegister(&matrix, REGISTER_X);
 }
 
 
@@ -1019,11 +996,14 @@ void divRemaCplx(void) {
  * \return void
  ***********************************************/
 void divCplxRema(void) {
+  complex34Matrix_t matrix;
+
   convertReal34MatrixRegisterToComplex34MatrixRegister(REGISTER_X, REGISTER_X);
   if(lastErrorCode != 0) {
     return;
   }
-  divCplxCxma();
+  linkToComplexMatrixRegister(REGISTER_X, &matrix);
+  divideByComplexMatrix(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_IMAG34_DATA(REGISTER_Y), &matrix, &matrix);
 }
 
 
@@ -1040,11 +1020,12 @@ void divCplxRema(void) {
  ***********************************************/
 void divCxmaLonI(void) {
   complex34Matrix_t matrix, res;
-  real_t x;
+  cplx_t x;
 
-  convertLongIntegerRegisterToReal(REGISTER_X, &x, &ctxtReal39);
+  convertLongIntegerRegisterToReal(REGISTER_X, &x.Real, &ctxtReal39);
+  realSetZero(&x.Imag);
   linkToComplexMatrixRegister(REGISTER_Y, &matrix);
-  _divideComplexMatrix(&matrix, &x, const_0, &res, &ctxtReal39);
+  _divideComplexMatrix(&matrix, &x, &res, &ctxtReal39);
   convertComplex34MatrixToComplex34MatrixRegister(&res, REGISTER_X);
   complexMatrixFree(&res);
 }
@@ -1059,11 +1040,12 @@ void divCxmaLonI(void) {
  ***********************************************/
 void divLonICxma(void) {
   complex34Matrix_t matrix, res;
-  real_t y;
+  cplx_t y;
 
-  convertLongIntegerRegisterToReal(REGISTER_Y, &y, &ctxtReal39);
+  convertLongIntegerRegisterToReal(REGISTER_Y, &y.Real, &ctxtReal39);
+  realSetZero(&y.Imag);
   linkToComplexMatrixRegister(REGISTER_X, &matrix);
-  _divideByComplexMatrix(&y, const_0, &matrix, &res, &ctxtReal39);
+  _divideByComplexMatrix(&y, &matrix, &res, &ctxtReal39);
   convertComplex34MatrixToComplex34MatrixRegister(&res, REGISTER_X);
   complexMatrixFree(&res);
 }
@@ -1198,8 +1180,12 @@ void divRealCxma(void) {
  ***********************************************/
 void divCxmaCplx(void) {
   complex34Matrix_t matrix;
+  cplx_t x;
+
   linkToComplexMatrixRegister(REGISTER_Y, &matrix);
-  divideComplexMatrix(&matrix, REGISTER_REAL34_DATA(REGISTER_X), REGISTER_IMAG34_DATA(REGISTER_X), &matrix);
+  real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &x.Real);
+  real34ToReal(REGISTER_IMAG34_DATA(REGISTER_X), &x.Imag);
+  _divideComplexMatrix(&matrix, &x, &matrix, &ctxtReal75);
   convertComplex34MatrixToComplex34MatrixRegister(&matrix, REGISTER_X);
 }
 
@@ -1213,8 +1199,12 @@ void divCxmaCplx(void) {
  ***********************************************/
 void divCplxCxma(void) {
   complex34Matrix_t matrix;
+  cplx_t y;
+
   linkToComplexMatrixRegister(REGISTER_X, &matrix);
-  divideByComplexMatrix(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_IMAG34_DATA(REGISTER_Y), &matrix, &matrix);
+  real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &y.Real);
+  real34ToReal(REGISTER_IMAG34_DATA(REGISTER_Y), &y.Imag);
+  _divideByComplexMatrix(&y, &matrix, &matrix, &ctxtReal75);
 }
 
 
@@ -1255,26 +1245,24 @@ void divShoIShoI(void) {
  * \return void
  ***********************************************/
 void divShoIReal(void) {
-  real_t y, x;
+  real_t y;
 
   setRegisterAngularMode(REGISTER_X, amNone);
   convertShortIntegerRegisterToReal(REGISTER_Y, &y, &ctxtReal39);
 
   if(real34IsZero(REGISTER_REAL34_DATA(REGISTER_X))) {
-    if(realIsZero(&y)) {
-      if(getSystemFlag(FLAG_SPCRES)) {
-        convertRealToReal34ResultRegister(const_NaN, REGISTER_X);
-      }
-      else {
+    if(getSystemFlag(FLAG_SPCRES)) {
+      real34_t numerator;
+
+      realToReal34(&y, &numerator);
+      real34Divide(&numerator, REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X));
+    }
+    else {
+      if(realIsZero(&y)) {
         displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function divShoIReal:", "cannot divide 0 by 0", NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      }
-    }
-    else {
-      if(getSystemFlag(FLAG_SPCRES)) {
-        realToReal34((realIsPositive(&y) ? const_plusInfinity : const_minusInfinity), REGISTER_REAL34_DATA(REGISTER_X));
       }
       else {
         displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
@@ -1286,9 +1274,8 @@ void divShoIReal(void) {
   }
 
   else {
-    real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &x);
-    realDivide(&y, &x, &x, &ctxtReal39);
-    convertRealToReal34ResultRegister(&x, REGISTER_X);
+    convertShortIntegerRegisterToReal34Register(REGISTER_Y, REGISTER_Y);
+    real34Divide(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X));
   }
 }
 
@@ -1302,26 +1289,34 @@ void divShoIReal(void) {
  ***********************************************/
 void divRealShoI(void) {
   real_t y, x;
+  uint64_t shortIntegerValue;
+  int16_t shortIntegerSign;
+  bool_t negativeZero;
   angularMode_t yAngularMode;
 
+  convertShortIntegerRegisterToUInt64(REGISTER_X, &shortIntegerSign, &shortIntegerValue);
+  negativeZero = shortIntegerSign && shortIntegerValue == 0;
   convertShortIntegerRegisterToReal(REGISTER_X, &x, &ctxtReal39);
-  reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
 
-  if(realIsZero(&x)) {
-    if(real34IsZero(REGISTER_REAL34_DATA(REGISTER_Y))) {
-      if(getSystemFlag(FLAG_SPCRES)) {
-        convertRealToReal34ResultRegister(const_NaN, REGISTER_X);
+  if(shortIntegerValue == 0) {
+    if(getSystemFlag(FLAG_SPCRES)) {
+      real34_t denominator;
+
+      realToReal34(&x, &denominator);
+      real34SetPositiveSign(&denominator);
+      reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
+      real34Divide(REGISTER_REAL34_DATA(REGISTER_Y), &denominator, REGISTER_REAL34_DATA(REGISTER_X));
+      if(negativeZero && !real34IsNaN(REGISTER_REAL34_DATA(REGISTER_X))) {
+        real34ChangeSign(REGISTER_REAL34_DATA(REGISTER_X));
       }
-      else {
+    }
+    else {
+      reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
+      if(real34IsZero(REGISTER_REAL34_DATA(REGISTER_Y))) {
         displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function divRealShoI:", "cannot divide 0 by 0", NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      }
-    }
-    else {
-      if(getSystemFlag(FLAG_SPCRES)) {
-        realToReal34((real34IsPositive(REGISTER_REAL34_DATA(REGISTER_Y)) ? const_plusInfinity : const_minusInfinity), REGISTER_REAL34_DATA(REGISTER_X));
       }
       else {
         displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
@@ -1333,14 +1328,15 @@ void divRealShoI(void) {
   }
 
   else {
-    real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &y);
     yAngularMode = getRegisterAngularMode(REGISTER_Y);
 
     if(yAngularMode == amNone) {
-      realDivide(&y, &x, &x, &ctxtReal39);
-      convertRealToReal34ResultRegister(&x, REGISTER_X);
+      convertShortIntegerRegisterToReal34Register(REGISTER_X, REGISTER_X);
+      real34Divide(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X));
     }
     else {
+      real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &y);
+      reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
       convertAngleFromTo(&y, yAngularMode, currentAngularMode, &ctxtReal39);
       realDivide(&y, &x, &x, &ctxtReal39);
       convertRealToReal34ResultRegister(&x, REGISTER_X);
@@ -1358,15 +1354,16 @@ void divRealShoI(void) {
  * \return void
  ***********************************************/
 void divShoICplx(void) {
-  real_t y, xReal, xImag;
+  real_t y;
+  cplx_t x;
 
   convertShortIntegerRegisterToReal(REGISTER_Y, &y, &ctxtReal39);
-  real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &xReal);
-  real34ToReal(REGISTER_IMAG34_DATA(REGISTER_X), &xImag);
+  real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &x.Real);
+  real34ToReal(REGISTER_IMAG34_DATA(REGISTER_X), &x.Imag);
 
-  divRealComplex(&y, &xReal, &xImag, &xReal, &xImag, &ctxtReal39);
+  divRealComplex(&y, &x, &x, &ctxtReal39);
 
-  convertComplexToResultRegister(&xReal, &xImag, REGISTER_X);
+  convertComplexToResultRegister(&x, REGISTER_X);
 }
 
 
@@ -1381,8 +1378,7 @@ void divCplxShoI(void) {
   convertShortIntegerRegisterToReal34Register(REGISTER_X, REGISTER_X);
   real34Divide(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_Y)); // real part
   real34Divide(REGISTER_IMAG34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X), REGISTER_IMAG34_DATA(REGISTER_Y)); // imaginary part
-  reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
-  complex34Copy(REGISTER_COMPLEX34_DATA(REGISTER_Y), REGISTER_COMPLEX34_DATA(REGISTER_X));
+  convertReal34ToComplex34Register(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_IMAG34_DATA(REGISTER_Y), REGISTER_X);
 }
 
 
@@ -1398,21 +1394,21 @@ void divCplxShoI(void) {
  * \return void
  ***********************************************/
 void divRealReal(void) {
-  if(real34IsZero(REGISTER_REAL34_DATA(REGISTER_Y)) && real34IsZero(REGISTER_REAL34_DATA(REGISTER_X))) {
+  angularMode_t yAngularMode, xAngularMode;
+
+  yAngularMode = getRegisterAngularMode(REGISTER_Y);
+  xAngularMode = getRegisterAngularMode(REGISTER_X);
+
+  if(real34IsZero(REGISTER_REAL34_DATA(REGISTER_X))) {
     if(getSystemFlag(FLAG_SPCRES)) {
-      convertRealToReal34ResultRegister(const_NaN, REGISTER_X);
+      real34Divide(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X));
+      setRegisterAngularMode(REGISTER_X, yAngularMode != amNone && xAngularMode == amNone ? currentAngularMode : amNone);
     }
-    else {
+    else if(real34IsZero(REGISTER_REAL34_DATA(REGISTER_Y))) {
       displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         moreInfoOnError("In function divRealReal:", "cannot divide 0 by 0", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-    }
-  }
-
-  else if(real34IsZero(REGISTER_REAL34_DATA(REGISTER_X))) {
-    if(getSystemFlag(FLAG_SPCRES)) {
-      realToReal34((real34IsPositive(REGISTER_REAL34_DATA(REGISTER_Y)) ? const_plusInfinity : const_minusInfinity), REGISTER_REAL34_DATA(REGISTER_X));
     }
     else {
       displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
@@ -1423,12 +1419,7 @@ void divRealReal(void) {
   }
 
   else {
-
-
     real_t y, x;
-    angularMode_t yAngularMode, xAngularMode;
-    yAngularMode = getRegisterAngularMode(REGISTER_Y);
-    xAngularMode = getRegisterAngularMode(REGISTER_X);
 
     if(yAngularMode == amNone) { // real / (real or angle)
       real34Divide(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X));
@@ -1463,15 +1454,16 @@ void divRealReal(void) {
  * \return void
  ***********************************************/
 void divRealCplx(void) {
-  real_t y, xReal, xImag;
+  real_t y;
+  cplx_t x;
 
   real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &y);
-  real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &xReal);
-  real34ToReal(REGISTER_IMAG34_DATA(REGISTER_X), &xImag);
+  real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &x.Real);
+  real34ToReal(REGISTER_IMAG34_DATA(REGISTER_X), &x.Imag);
 
-  divRealComplex(&y, &xReal, &xImag, &xReal, &xImag, &ctxtReal39);
+  divRealComplex(&y, &x, &x, &ctxtReal39);
 
-  convertComplexToResultRegister(&xReal, &xImag, REGISTER_X);
+  convertComplexToResultRegister(&x, REGISTER_X);
 }
 
 
@@ -1485,8 +1477,7 @@ void divRealCplx(void) {
 void divCplxReal(void) {
   real34Divide(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_Y)); // real part
   real34Divide(REGISTER_IMAG34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X), REGISTER_IMAG34_DATA(REGISTER_Y)); // imaginary part
-  reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
-  complex34Copy(REGISTER_COMPLEX34_DATA(REGISTER_Y), REGISTER_COMPLEX34_DATA(REGISTER_X));
+  convertReal34ToComplex34Register(REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_IMAG34_DATA(REGISTER_Y), REGISTER_X);
 }
 
 
@@ -1502,14 +1493,14 @@ void divCplxReal(void) {
  * \return void
  ***********************************************/
 void divCplxCplx(void) {
-  real_t yReal, yImag, xReal, xImag;
+  cplx_t y, x;
 
-  real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &yReal);
-  real34ToReal(REGISTER_IMAG34_DATA(REGISTER_Y), &yImag);
-  real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &xReal);
-  real34ToReal(REGISTER_IMAG34_DATA(REGISTER_X), &xImag);
+  real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &y.Real);
+  real34ToReal(REGISTER_IMAG34_DATA(REGISTER_Y), &y.Imag);
+  real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &x.Real);
+  real34ToReal(REGISTER_IMAG34_DATA(REGISTER_X), &x.Imag);
 
-  divComplexComplex(&yReal, &yImag, &xReal, &xImag, &xReal, &xImag, &ctxtReal39);
+  divComplexComplex(&y, &x, &x, &ctxtReal75);
 
-  convertComplexToResultRegister(&xReal, &xImag, REGISTER_X);
+  convertComplexToResultRegister(&x, REGISTER_X);
 }

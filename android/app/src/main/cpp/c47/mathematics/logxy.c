@@ -8,13 +8,15 @@
 #include "c47.h"
 
 
-static void logXYComplex(const real_t *xReal, const real_t *xImag, const real_t *yReal, const real_t *yImag, real_t *rReal, real_t *rImag, realContext_t *realContext) {
-  real_t lnxReal, lnxImag;
+static void logXYComplex(const cplx_t *x,
+                         const cplx_t *y,
+                         cplx_t *r) {
+  cplx_t lnx;
 
-  // lnComplex handle the case where y = 0+i0.
-  lnComplex(yReal, yImag, rReal, rImag, realContext);                             //   r = Ln(y)
-  lnComplex(xReal, xImag, &lnxReal, &lnxImag, realContext);                       // lnx = Ln(x)
-  divComplexComplex(rReal, rImag, &lnxReal, &lnxImag, rReal, rImag, realContext); // r = Ln(y) / Ln(x)
+  // lnComplexDirect handles the case where y = 0+i0.
+  lnComplexDirect(y, r);                           //   r = Ln(y)
+  lnComplexDirect(x, &lnx);                        // lnx = Ln(x)
+  divComplexComplex(r, &lnx, r, &ctxtReal75);
 }
 
 #define COMPLEX_IS_ZERO(real, imag) (realIsZero(real) && (imag==NULL || realIsZero(imag)))
@@ -59,7 +61,7 @@ static bool_t checkArgs(const real_t *xReal, const real_t *xImag, const real_t *
 }
 
 static void logxy(const real_t *xReal, const real_t *yReal, realContext_t *realContext) {
-  real_t rReal, rImag;
+  cplx_t x, r;
 
   /*
    * Log(0, 0) = +Inf
@@ -68,15 +70,19 @@ static void logxy(const real_t *xReal, const real_t *yReal, realContext_t *realC
    */
   if(checkArgs(xReal, NULL, yReal, NULL)) {
     if(realIsNegative(xReal) || realIsNegative(yReal)) {
-      logXYComplex(xReal, const_0, yReal, const_0, &rReal, &rImag, realContext);
+      realCopy(xReal, &x.Real);
+      realSetZero(&x.Imag);
+      realCopy(yReal, &r.Real);
+      realSetZero(&r.Imag);
+      logXYComplex(&x, &r, &r);
 
-      if(!realIsZero(&rImag)) {
+      if(!realIsZero(&r.Imag)) {
         if(getFlag(FLAG_CPXRES)) {
-          convertComplexToResultRegister(&rReal, &rImag, REGISTER_X);
+          convertComplexToResultRegister(&r, REGISTER_X);
           return;
         }
         else if(getFlag(FLAG_SPCRES)) {
-          realSetNaN(&rReal);
+          realSetNaN(&r.Real);
         }
         else {
           displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
@@ -86,9 +92,9 @@ static void logxy(const real_t *xReal, const real_t *yReal, realContext_t *realC
       }
     }
     else {
-      WP34S_Logxy(yReal, xReal, &rReal, realContext);
+      WP34S_Logxy(yReal, xReal, &r.Real, realContext);
     }
-    convertRealToResultRegister(&rReal, REGISTER_X, amNone);
+    convertRealToResultRegister(&r.Real, REGISTER_X, amNone);
   }
 }
 
@@ -145,14 +151,14 @@ static void logXYReal(void) {
 }
 
 static void logXYCplx(void) {
-  real_t xReal, xImag, yReal, yImag, rReal, rImag;
+  cplx_t x, y, r;
 
-  if(   !getRegisterAsComplex(REGISTER_Y, &yReal, &yImag) || !getRegisterAsComplex(REGISTER_X, &xReal, &xImag)) {
+  if(   !getRegisterAsComplex(REGISTER_Y, &y) || !getRegisterAsComplex(REGISTER_X, &x)) {
     return;
   }
-  if(checkArgs(&xReal, &xImag, &yReal, &yImag)) {
-    logXYComplex(&xReal, &xImag, &yReal, &yImag, &rReal, &rImag, &ctxtReal39);
-    convertComplexToResultRegister(&rReal, &rImag, REGISTER_X);
+  if(checkArgs(&x.Real, &x.Imag, &y.Real, &y.Imag)) {
+    logXYComplex(&x, &y, &r);
+    convertComplexToResultRegister(&r, REGISTER_X);
   }
 }
 

@@ -21,7 +21,7 @@ engine loop.
 - `WorkDirectory`: stores the persisted tree URI and resolves the `STATE`,
   `PROGRAMS`, `SAVFILES`, and `SCREENS` subfolders.
 - `DisplayActionController`: owns display long-press actions such as copy X
-  register, paste number, and entry into Picture-in-Picture.
+  register, paste to X register, and entry into Picture-in-Picture.
 - `ReplicaOverlay` and `ReplicaKeypadLayout`: host the shell chrome modes, the
   normalized shared keypad touch grid, LCD projection, the classic
   `r47_texture` image-backed shell, the full scene-driven key views used by

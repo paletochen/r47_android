@@ -229,7 +229,7 @@ static void formatRegisterString(calcRegister_t regist, char *result, size_t max
       break;
   }
 
-  if(dataType != dtReal34Matrix && dataType != dtComplex34Matrix) {
+  if(dataType != dtReal34Matrix && dataType != dtComplex34Matrix && dataType != dtString) {
     ascii_clean(coreBuf);
     trimTrailingRadix(coreBuf);
   } else {

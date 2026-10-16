@@ -238,6 +238,7 @@ void clampShortIntegerRegistersToWordSize(void) {
 
 
 
+
 void *getRegisterDataPointer(calcRegister_t regist) {
   if(regist <= LAST_GLOBAL_REGISTER) { // Global register
     return TO_PCMEMPTR(globalRegister[regist].pointerToRegisterData);
@@ -1416,6 +1417,21 @@ static void adjustRealRegister(calcRegister_t reg, real34_t *val) {
   }
 }
 
+/********************************************//**
+ * \brief round one stored Real34 result to the selected significant digits; unchanged when SDIGS is 0 or 34
+ *
+ * \param[in,out] val stored Real34 result
+ * \return void
+ ***********************************************/
+void roundReal34ResultToSignificantDigits(real34_t *val) {
+  if(significantDigits > 0 && significantDigits < 34) {
+    real_t tmp;
+    real34ToReal(val, &tmp);
+    roundToSignificantDigits(&tmp, &tmp, significantDigits, &ctxtReal34);
+    realToReal34(&tmp, val);
+  }
+}
+
 void adjustResult(calcRegister_t res, bool_t dropY, bool_t setCpxRes, calcRegister_t op1, calcRegister_t op2, calcRegister_t op3) {
   uint32_t resultDataType;
   bool_t oneArgumentIsComplex = false;
@@ -1433,6 +1449,46 @@ void adjustResult(calcRegister_t res, bool_t dropY, bool_t setCpxRes, calcRegist
   }
 
   resultDataType = getRegisterDataType(res);
+
+  // Round before checking the public result so an infinity created by SDIGS takes the same special-result route as an infinity created by the function.
+  if(lastErrorCode == 0 && significantDigits > 0 && significantDigits < 34) {
+    switch(resultDataType) {
+      case dtReal34: {
+        roundReal34ResultToSignificantDigits(REGISTER_REAL34_DATA(res));
+        break;
+      }
+
+      case dtComplex34: {
+        roundReal34ResultToSignificantDigits(REGISTER_REAL34_DATA(res));
+        roundReal34ResultToSignificantDigits(REGISTER_IMAG34_DATA(res));
+        break;
+      }
+
+      case dtReal34Matrix: {
+        real34Matrix_t matrix;
+        linkToRealMatrixRegister(res, &matrix);
+        for(uint32_t i = 0; i < matrix.header.matrixRows * matrix.header.matrixColumns; i++) {
+          roundReal34ResultToSignificantDigits(VARIABLE_REAL34_DATA(&matrix.matrixElements[i]));
+        }
+        break;
+      }
+
+      case dtComplex34Matrix: {
+        complex34Matrix_t matrix;
+        linkToComplexMatrixRegister(res, &matrix);
+        for(uint32_t i = 0; i < matrix.header.matrixRows * matrix.header.matrixColumns; i++) {
+          roundReal34ResultToSignificantDigits(VARIABLE_REAL34_DATA(&matrix.matrixElements[i]));
+          roundReal34ResultToSignificantDigits(VARIABLE_IMAG34_DATA(&matrix.matrixElements[i]));
+        }
+        break;
+      }
+
+      default: {
+        break;
+      }
+    }
+  }
+
   if(getSystemFlag(FLAG_SPCRES) == false && lastErrorCode == 0) {
     switch(resultDataType) {
       case dtReal34:
@@ -1497,55 +1553,6 @@ void adjustResult(calcRegister_t res, bool_t dropY, bool_t setCpxRes, calcRegist
   // FLAG_CPXRES is one of the refreshStateFlags, so setSystemFlag draws the whole softmenu again for its marker: the flag is written only where it changes
   if(setCpxRes && oneArgumentIsComplex && resultDataType != dtString && !getSystemFlag(FLAG_CPXRES)) {
     fnSetFlag(FLAG_CPXRES);
-  }
-
-  // Round the register value
-  switch(resultDataType) {
-    real_t tmp;
-
-    case dtReal34: {
-      if(significantDigits == 0 || significantDigits >= 34) {
-        break;
-      }
-
-      real34ToReal(REGISTER_REAL34_DATA(res), &tmp);
-      convertRealToReal34ResultRegister(&tmp, res);
-      break;
-    }
-
-    case dtComplex34: {
-      if(significantDigits == 0 || significantDigits >= 34) {
-        break;
-      }
-
-      real34ToReal(REGISTER_REAL34_DATA(res), &tmp);
-      convertRealToReal34ResultRegister(&tmp, res);
-      real34ToReal(REGISTER_IMAG34_DATA(res), &tmp);
-      convertRealToImag34ResultRegister(&tmp, res);
-      break;
-    }
-
-    case dtReal34Matrix: {
-      if(significantDigits == 0 || significantDigits >= 34) {
-        break;
-      }
-
-      rsdRema(significantDigits);
-      break;
-    }
-
-    case dtComplex34Matrix: {
-      if(significantDigits == 0 || significantDigits >= 34) {
-        break;
-      }
-
-      rsdCxma(significantDigits);
-      break;
-    }
-
-    default: {
-      break;
-    }
   }
 
   if(dropY) {
@@ -1630,6 +1637,20 @@ void copySourceRegisterToDestRegister(calcRegister_t sourceRegister, calcRegiste
 
 
 
+/********************************************//**
+ * \brief Tests a numeric indirect-register parameter against the allocated public ranges
+ *
+ * \param[in] value  Public register number or internal named-variable number
+ * \return true if the number identifies an available register
+ ***********************************************/
+static bool_t isValidIndirectRegisterParam(int16_t value) {
+  return (value >= FIRST_GLOBAL_REGISTER_IN_KS_CODE && value <= LAST_GLOBAL_REGISTER_IN_KS_CODE)
+      || (value >= FIRST_LOCAL_REGISTER_IN_KS_CODE && value < FIRST_LOCAL_REGISTER_IN_KS_CODE + currentNumberOfLocalRegisters)
+      || (value >= FIRST_STAT_REGISTER_IN_KS_CODE && value <= LAST_SPARE_REGISTERS_IN_KS_CODE)
+      || (value >= FIRST_NAMED_VARIABLE && value < FIRST_NAMED_VARIABLE + numberOfNamedVariables);
+}
+
+
 int16_t indirectAddressing(calcRegister_t regist, uint16_t parameterType, int16_t minValue, int16_t maxValue, bool_t tryAllocate) {
   int16_t value;
   bool_t isValidAlpha = false;
@@ -1673,18 +1694,19 @@ int16_t indirectAddressing(calcRegister_t regist, uint16_t parameterType, int16_
 
   else if(getRegisterDataType(regist) == dtReal34 && parameterType != INDPM_MENU) {
     real34_t maxValue34plusOne;
+    real34_t *parameter = REGISTER_REAL34_DATA(regist);
 
     int32ToReal34(maxValue+1, &maxValue34plusOne);
-    if(real34CompareLessThan(REGISTER_REAL34_DATA(regist), const34_0) || real34CompareGreaterEqual(REGISTER_REAL34_DATA(regist), &maxValue34plusOne)) {
+    if(real34IsSpecial(parameter) || real34CompareLessThan(parameter, const34_0) || real34CompareGreaterEqual(parameter, &maxValue34plusOne)) {
       displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-        real34ToString(REGISTER_REAL34_DATA(regist), errorMessage);
+        real34ToString(parameter, errorMessage);
         sprintf(tmpString, "register %" PRId16 " = %s:", regist, errorMessage);
         moreInfoOnError("In function indirectAddressing:", tmpString, "this value is negative or too big!", NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
       return FAILED_INDIRECTION;
     }
-    value = real34ToInt32(REGISTER_REAL34_DATA(regist));
+    value = real34ToInt32(parameter);
   }
 
   else if(getRegisterDataType(regist) == dtLongInteger && parameterType != INDPM_MENU) {
@@ -1773,7 +1795,7 @@ int16_t indirectAddressing(calcRegister_t regist, uint16_t parameterType, int16_
     return FAILED_INDIRECTION;
   }
 
-  if(minValue <= value && (value <= maxValue || isValidAlpha)) {
+  if(minValue <= value && (value <= maxValue || isValidAlpha) && (parameterType != INDPM_REGISTER || isValidAlpha || isValidIndirectRegisterParam(value))) {
     if(parameterType == INDPM_REGISTER) {
       if(value <= LAST_SPARE_REGISTERS_IN_KS_CODE) { // Global register from 00 to 99, Lettered register from X to W, or Local register from .00 to .98
         value = regKStoC(value);
@@ -2133,7 +2155,7 @@ void reallocateRegister(calcRegister_t regist, uint32_t dataType, uint16_t dataS
     default: ;
   }
 
-  uint32_t dataSizeWithDataLenBlocks = dataSizeWithoutDataLenBlocks;
+  uint16_t dataSizeWithDataLenBlocks = dataSizeWithoutDataLenBlocks;
 
   //printf("reallocateRegister: %d to %s tag=%u (%u bytes excluding maxSize) begin\n", regist, getDataTypeName(dataType, false, false), tag, dataSizeWithoutDataLenBlocks);
   if(dataType == dtString) {
@@ -2147,14 +2169,6 @@ void reallocateRegister(calcRegister_t regist, uint32_t dataType, uint16_t dataS
       dataSizeWithoutDataLenBlocks = ((dataSizeWithoutDataLenBlocks / TO_BLOCKS(LIMB_SIZE)) + 1) * TO_BLOCKS(LIMB_SIZE);
     }
     dataSizeWithDataLenBlocks = dataSizeWithoutDataLenBlocks + TO_BLOCKS(sizeof(strLgIntHeader_t));
-  }
-  if (dataSizeWithDataLenBlocks > 65535) {
-    #if defined(PC_BUILD)
-      printf("DEBUG: reallocateRegister size limit exceeded: %u blocks (dataType=%u, regist=%u)\n", dataSizeWithDataLenBlocks, dataType, regist);
-      fflush(stdout);
-    #endif
-    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
-    return;
   }
 
   if(getRegisterDataType(regist) != dataType || ((getRegisterDataType(regist) == dtString || getRegisterDataType(regist) == dtLongInteger || getRegisterDataType(regist) == dtReal34Matrix || getRegisterDataType(regist) == dtComplex34Matrix) && getRegisterMaxDataLengthInBlocks(regist) != dataSizeWithoutDataLenBlocks)) {
@@ -2170,7 +2184,7 @@ void reallocateRegister(calcRegister_t regist, uint32_t dataType, uint16_t dataS
 
     if(!isMemoryBlockAvailable(dataSizeWithDataLenBlocks, 2, 0.1f)) {
       #if defined(PC_BUILD)
-        printf("In function reallocateRegister: required %" PRIu32 " blocks for register #%" PRId16 " but no data blocks with enough size are available!\n", dataSizeWithoutDataLenBlocks, regist);
+        printf("In function reallocateRegister: required %" PRIu16 " blocks for register #%" PRId16 " but no data blocks with enough size are available!\n", dataSizeWithoutDataLenBlocks, regist);
         fflush(stdout);
       #endif // PC_BUILD
       displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
@@ -2272,6 +2286,39 @@ bool_t saveLastX(void) {
 }
 
 
+/********************************************//**
+ * \brief Validates a public register range and expands a zero count
+ *
+ * \param[in]     first   Public register number
+ * \param[in,out] number  Range count
+ * \return true if the range is within one public register-number band
+ ***********************************************/
+static bool_t getRegParamRange(uint16_t first, uint16_t *number) {
+  uint16_t end;
+
+  if(first < REGISTER_X_IN_KS_CODE) {
+    end = REGISTER_X_IN_KS_CODE;
+  }
+  else if(first <= LAST_LETTERED_REGISTER_IN_KS_CODE) {
+    end = LAST_LETTERED_REGISTER_IN_KS_CODE + 1;
+  }
+  else if(first >= FIRST_LOCAL_REGISTER_IN_KS_CODE && first < FIRST_LOCAL_REGISTER_IN_KS_CODE + currentNumberOfLocalRegisters) {
+    end = FIRST_LOCAL_REGISTER_IN_KS_CODE + currentNumberOfLocalRegisters;
+  }
+  else if(first >= FIRST_STAT_REGISTER_IN_KS_CODE && first <= LAST_SPARE_REGISTERS_IN_KS_CODE) {
+    end = LAST_SPARE_REGISTERS_IN_KS_CODE + 1;
+  }
+  else {
+    return false;
+  }
+
+  if(*number == 0) {
+    *number = end - first;
+  }
+  return first + *number <= end;
+}
+
+
 uint8_t getRegParam(bool_t *f, uint16_t *s, uint16_t *n, uint16_t *d) {
   real_t x, p;
 
@@ -2308,56 +2355,15 @@ uint8_t getRegParam(bool_t *f, uint16_t *s, uint16_t *n, uint16_t *d) {
       *d = realToInt32C47(&p, NULL);
     }
 
-    if(*s < REGISTER_X) { // global numbered registers
-      if(*s + *n >= REGISTER_X) {
-        return ERROR_OUT_OF_RANGE;
-      }
-      else if(*n == 0) {
-        *n = REGISTER_X - *s;
-      }
+    if(!getRegParamRange(*s, n)) {
+      return ERROR_OUT_OF_RANGE;
     }
-    else if(*s < FIRST_LOCAL_REGISTER) { // stack and global lettered registers (XYZT ABCD LIJK)
-      if(*s + *n >= FIRST_LOCAL_REGISTER) {
-        return ERROR_OUT_OF_RANGE;
-      }
-      else if(*n == 0) {
-        *n = FIRST_LOCAL_REGISTER - *s;
-      }
-    }
-    else if(*s < FIRST_LOCAL_REGISTER + currentNumberOfLocalRegisters) { // local registers
-      if(*s + *n >= FIRST_LOCAL_REGISTER + currentNumberOfLocalRegisters) {
-        return ERROR_OUT_OF_RANGE;
-      }
-      else if(f && *f) {
-        return ERROR_OUT_OF_RANGE;
-      }
-      else if(*n == 0) {
-        *n = FIRST_LOCAL_REGISTER + currentNumberOfLocalRegisters - *s;
-      }
-    }
-    else {
+    if(f && *f && *s >= FIRST_LOCAL_REGISTER_IN_KS_CODE && *s <= LAST_LOCAL_REGISTER_IN_KS_CODE) {
       return ERROR_OUT_OF_RANGE;
     }
 
-    if(d) {
-      if(*d < REGISTER_X) { // global numbered registers
-        if(*d + *n >= REGISTER_X) {
-          return ERROR_OUT_OF_RANGE;
-        }
-      }
-      else if(*d < FIRST_LOCAL_REGISTER) { // stack and global lettered registers (XYZT ABCD LIJK)
-        if(*d + *n >= FIRST_LOCAL_REGISTER) {
-          return ERROR_OUT_OF_RANGE;
-        }
-      }
-      else if(*d < FIRST_LOCAL_REGISTER + currentNumberOfLocalRegisters) { // local registers
-        if(*d + *n >= FIRST_LOCAL_REGISTER + currentNumberOfLocalRegisters) {
-          return ERROR_OUT_OF_RANGE;
-        }
-      }
-      else {
-        return ERROR_OUT_OF_RANGE;
-      }
+    if(d && !getRegParamRange(*d, n)) {
+      return ERROR_OUT_OF_RANGE;
     }
     // Convert KeyStroke register numbers from the user to the internal C register number (eg. 112 for R.00 to 7000)
     *s = regKStoC(*s);
@@ -2573,4 +2579,3 @@ bool_t isFunctionAllowingNewVariable(uint16_t op) {
       return false;
   }
 }
-

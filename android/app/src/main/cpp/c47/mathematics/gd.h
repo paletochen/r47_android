@@ -11,8 +11,8 @@
   void fnInvGd(uint16_t unusedButMandatoryParameter);
 
   uint8_t GudermannianReal(const real_t *x, real_t *res, realContext_t *realContext);
-  uint8_t GudermannianComplex(const real_t *xReal, const real_t *xImag, real_t *resReal, real_t *resImag, realContext_t *realContext);
+  uint8_t GudermannianComplex(const cplx_t *x, cplx_t *res, realContext_t *realContext);
 
   uint8_t InverseGudermannianReal(const real_t *x, real_t *res, realContext_t *realContext);
-  uint8_t InverseGudermannianComplex(const real_t *xReal, const real_t *xImag, real_t *resReal, real_t *resImag, realContext_t *realContext);
+  uint8_t InverseGudermannianComplex(const cplx_t *x, cplx_t *res, realContext_t *realContext);
 #endif // !GD_H

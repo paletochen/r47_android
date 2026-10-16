@@ -8,6 +8,7 @@
   #define IDIV_H
 
   void fnIDiv(uint16_t unusedButMandatoryParameter);
+  bool_t integerDivideFiniteRegisters(bool_t returnRemainder);
 
   #if (EXTRA_INFO_ON_CALC_ERROR == 1)
     void idivError(void);

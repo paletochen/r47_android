@@ -7,6 +7,56 @@
 
 #include "c47.h"
 
+
+/********************************************//**
+ * \brief Evaluates the regularised incomplete beta for Real34 inputs.
+ ***********************************************/
+static bool_t ixyzEvaluate(const real_t *x, const real_t *a, const real_t *b, real_t *res) {
+#if defined(OPTION_DIST_F)
+  REAL_T_PTR(complement, 75);
+  REAL_T_PTR(logComplement, 75);
+  REAL_T_PTR(logit, 75);
+  REAL_T_PTR(lower, 75);
+  REAL_T_PTR(upper, 75);
+  realContext_t *realContext = &ctxtReal51;
+  real_t largeThreshold;
+
+  realSetOne(&largeThreshold);
+  largeThreshold.exponent = 5;
+  if(realCompareGreaterEqual(a, &largeThreshold) && realCompareGreaterEqual(b, &largeThreshold)) {
+    realContext = &ctxtReal75;
+  }
+  if(realIsZero(x)) {
+    realSetZero(res);
+    return true;
+  }
+  if(realCompareEqual(x, const_1)) {
+    realSetOne(res);
+    return true;
+  }
+
+  realSubtract(const_1, x, complement, realContext);
+  WP34S_Ln(x, logit, realContext);
+  WP34S_Ln(complement, logComplement, realContext);
+  realSubtract(logit, logComplement, logit, realContext);
+  if(!distributionBetaPair(a, b, x, complement, logit, lower, upper, realContext)) {
+    return false;
+  }
+  if(realIsZero(lower)) {
+    realNextToward(lower, const_1, lower, realContext);
+  }
+  else if(realCompareEqual(lower, const_1)) {
+    realNextToward(lower, const_0, lower, realContext);
+  }
+  realCopy(lower, res);
+  return true;
+#else
+  WP34S_betai(b, a, x, res, &ctxtReal75);
+  return !realIsNaN(res);
+#endif // OPTION_DIST_F
+}
+
+
 void fnIxyz(uint16_t unusedButMandatoryParameter) {
   real_t x, a, b, val;
 
@@ -15,10 +65,11 @@ void fnIxyz(uint16_t unusedButMandatoryParameter) {
   }
 
   if(getRegisterAsReal(REGISTER_X, &x) && getRegisterAsReal(REGISTER_Y, &a) && getRegisterAsReal(REGISTER_Z, &b)) {
-    if(realCompareGreaterEqual(&x, const_0) && realCompareLessEqual(&x, const_1) && realCompareGreaterThan(&a, const_0) && realCompareGreaterThan(&b, const_0)) {
-      WP34S_betai(&b, &a, &x, &val, &ctxtReal39);
-      reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-      convertRealToReal34ResultRegister(&val, REGISTER_X);
+    if(!realIsSpecial(&x) && !realIsSpecial(&a) && !realIsSpecial(&b) &&
+       realCompareGreaterEqual(&x, const_0) && realCompareLessEqual(&x, const_1) &&
+       realCompareGreaterThan(&a, const_0) && realCompareGreaterThan(&b, const_0) &&
+       ixyzEvaluate(&x, &a, &b, &val)) {
+      convertRealToResultRegister(&val, REGISTER_X, amNone);
       fnDropY(NOPARAM);
       if(lastErrorCode == ERROR_NONE) {
         fnDropY(NOPARAM);

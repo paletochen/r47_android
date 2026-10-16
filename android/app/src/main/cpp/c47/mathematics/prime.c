@@ -674,7 +674,7 @@ void longIntegerSumPowers(longInteger_t base, longInteger_t exponent, uint32_t k
  */
 static void _doFnEvPFacts     (uint16_t param) {
   #if defined(OPTION_PRIME)
-    real_t factorR, factorI, baseR, expR, prodR, prodI;
+    cplx_t factorZ, baseZ, expZ, prodZ;
 
     //parameter X required for k
     int32_t pwr = param;
@@ -682,10 +682,15 @@ static void _doFnEvPFacts     (uint16_t param) {
     longInteger_t currentNumber;
     if(param == M_SIGMA_k) {
       if(getRegisterDataType(REGISTER_X) == dtReal34) { //Allow decimals to be rounded down, to be able to get the next prime despite being decimal input;
+        bool_t conversionError;
+
         if(!getRegisterAsReal(REGISTER_X, &x)) {
           goto abort;
         }
-        pwr = realToInt32C47(&x, NULL);
+        pwr = realToInt32C47(&x, &conversionError);
+        if(conversionError || pwr > 3321 || pwr < 0) {
+          goto abort;
+        }
         fnDrop(NOPARAM);
       }
       else {
@@ -716,7 +721,7 @@ static void _doFnEvPFacts     (uint16_t param) {
         longIntegerInit(factor);
         longIntegerInit(tmp_prod);
         uInt32ToLongInteger(1u, prod);
-        realSetOne(&prodR);
+        realSetOne(&prodZ.Real);
         #define sumTypeInteger 0
         #define sumTypeReal    1
         #define sumTypeComplex 2
@@ -744,23 +749,25 @@ static void _doFnEvPFacts     (uint16_t param) {
           }
           else {
             if(sumType == sumTypeInteger) {
-              convertLongIntegerToReal(prod, &prodR, &ctxtReal39);
+              convertLongIntegerToReal(prod, &prodZ.Real, &ctxtReal39);
               sumType = sumTypeReal;
             }
-            real34ToReal(&matrix.matrixElements[j], &baseR);
-            real34ToReal(&matrix.matrixElements[cols+j], &expR);
-            if(!(realIsNegative(&baseR) && !realIsAnInteger(&expR)) && sumType == sumTypeReal) {
-              PowerReal(&baseR, &expR, &factorR, &ctxtReal39);
-              realMultiply(&prodR, &factorR, &prodR, &ctxtReal39);
+            real34ToReal(&matrix.matrixElements[j], &baseZ.Real);
+            real34ToReal(&matrix.matrixElements[cols+j], &expZ.Real);
+            if(!(realIsNegative(&baseZ.Real) && !realIsAnInteger(&expZ.Real)) && sumType == sumTypeReal) {
+              PowerReal(&baseZ.Real, &expZ.Real, &factorZ.Real, &ctxtReal39);
+              realMultiply(&prodZ.Real, &factorZ.Real, &prodZ.Real, &ctxtReal39);
             }
             else if(getFlag(FLAG_CPXRES)) {
               if(sumType == sumTypeReal) {
-                realSetZero(&prodI);
+                realSetZero(&prodZ.Imag);
                 sumType = sumTypeComplex;
               }
               if(sumType == sumTypeComplex) {
-                PowerComplex(&baseR, const_0, &expR, const_0, &factorR, &factorI, &ctxtReal39);
-                mulComplexComplex(&prodR, &prodI, &factorR, &factorI, &prodR, &prodI, &ctxtReal39);
+                realSetZero(&baseZ.Imag);
+                realSetZero(&expZ.Imag);
+                PowerComplex(&baseZ, &expZ, &factorZ, &ctxtReal39);
+                mulComplexComplex(&prodZ, &factorZ, &prodZ, &ctxtReal39);
               }
             }
             else {
@@ -782,11 +789,11 @@ static void _doFnEvPFacts     (uint16_t param) {
             break;
           }
           case sumTypeReal: {
-            convertRealToResultRegister(&prodR, REGISTER_X, amNone);
+            convertRealToResultRegister(&prodZ.Real, REGISTER_X, amNone);
             break;
           }
           case sumTypeComplex: {
-            convertComplexToResultRegister(&prodR, &prodI, REGISTER_X);
+            convertComplexToResultRegister(&prodZ, REGISTER_X);
             break;
           }
           default: break;

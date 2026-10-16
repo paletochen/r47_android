@@ -8,7 +8,6 @@
 #include "c47.h"
 
 void fnUlp(uint16_t unusedButMandatoryParameter) {
-  real34_t x34;
   longInteger_t lgInt;
 
   if(!saveLastX()) {
@@ -33,20 +32,26 @@ void fnUlp(uint16_t unusedButMandatoryParameter) {
     }
 
     case dtReal34: {
+      real_t ulp;
+      int32_t exponent;
+
       if(real34IsInfinite(REGISTER_REAL34_DATA(REGISTER_X))) {
         displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
         #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           moreInfoOnError("In function fnUlp:", "cannot use ±∞ input of ULP?", NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+        return;
       }
 
-      real34NextPlus(REGISTER_REAL34_DATA(REGISTER_X), &x34);
-      if(real34IsInfinite(&x34)) {
-        real34NextMinus(REGISTER_REAL34_DATA(REGISTER_X), &x34);
-        real34Subtract(REGISTER_REAL34_DATA(REGISTER_X), &x34, REGISTER_REAL34_DATA(REGISTER_X));
-      }
-      else {
-        real34Subtract(&x34, REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X));
+      if(!real34IsNaN(REGISTER_REAL34_DATA(REGISTER_X))) {
+        real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &ulp);
+        exponent = realIsZero(&ulp) ? DECQUAD_Emin - DECQUAD_Pmax + 1 : ulp.exponent + ulp.digits - DECQUAD_Pmax;
+        if(exponent < DECQUAD_Emin - DECQUAD_Pmax + 1) {
+          exponent = DECQUAD_Emin - DECQUAD_Pmax + 1;
+        }
+        realSetOne(&ulp);
+        ulp.exponent = exponent;
+        convertRealToReal34ResultRegister(&ulp, REGISTER_X);
       }
 
       setRegisterAngularMode(REGISTER_X, amNone);

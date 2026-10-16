@@ -13,7 +13,16 @@ static int statsRealCompare(const void *v1, const void *v2)
   const real_t *r2 = (const real_t *)v2;
   real_t compare;
 
-  realCompare(r1, r2, &compare, &ctxtReal75);
+  // Give qsort a strict ordering when statistical data contain NaNs.
+  if(realIsNaN(r1)) {
+    return realIsNaN(r2) ? 0 : 1;
+  }
+  if(realIsNaN(r2)) {
+    return -1;
+  }
+
+  // Both operands came from Real34 matrix elements, so comparison is exact at p34.
+  realCompare(r1, r2, &compare, &ctxtReal34);
 
   if(realIsZero(&compare)) {
     return 0;
@@ -31,6 +40,11 @@ static int statsRealCompare(const void *v1, const void *v2)
 static void computePercentileSorted(real_t *data, uint16_t n, const real_t *p, real_t *percentile) {
   real_t d, t;
   int k;
+
+  if(realIsNaN(p)) {
+    realSetNaN(percentile);
+    return;
+  }
 
   uInt32ToReal(n + 1, &d);
   realMultiply(&d, p, &t, &ctxtReal39);
@@ -277,4 +291,3 @@ void fnPercentileXY(uint16_t unusedButMandatoryParameter) {
   fnDrop(NOPARAM);
   doStatsOperation(&computePercentileUnsorted, const_1, &p, TI_PCTILEX_PCTILEY);
 }
-

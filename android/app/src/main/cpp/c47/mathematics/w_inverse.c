@@ -19,14 +19,14 @@ static void wInvReal(void) {
 }
 
 static void wInvCplx(void) {
-  real_t xr, xi, resr, resi;
+  cplx_t x, res;
 
-  if(!getRegisterAsComplex(REGISTER_X, &xr, &xi)) {
+  if(!getRegisterAsComplex(REGISTER_X, &x)) {
     return;
   }
 
-  WP34S_InverseComplexW(&xr, &xi, &resr, &resi, &ctxtReal39);
-  convertComplexToResultRegister(&resr, &resi, REGISTER_X);
+  WP34S_InverseComplexW(&x, &res, &ctxtReal75);
+  convertComplexToResultRegister(&res, REGISTER_X);
 }
 
 /********************************************//**

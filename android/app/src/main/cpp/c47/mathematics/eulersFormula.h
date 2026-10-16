@@ -9,6 +9,6 @@
 #define EULERSFORMULA_H
 
 void fnEulersFormula(uint16_t unusedButMandatoryParameter);
-void eulersFormula(const real_t *inReal, const real_t *inImag, real_t *outReal, real_t *outImag, realContext_t *ctxt);
+void eulersFormula(const cplx_t *in, cplx_t *out, realContext_t *ctxt);
 
 #endif // !EULERSFORMULA_H

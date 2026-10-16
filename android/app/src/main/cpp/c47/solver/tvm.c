@@ -905,8 +905,7 @@ void fnTvmVar(uint16_t variable) {
                 printReal34ToConsole(&resY, "  solver results: resY:", "\n");
                 printReal34ToConsole(&resX, "  solver results: resX:", "\n");
               #endif //PC_BUILD
-              reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-              real34Copy(&resX, REGISTER_REAL34_DATA(REGISTER_X));
+              convertReal34ToReal34Register(&resX, REGISTER_X);
               temporaryInformation = TI_SOLVER_VARIABLE;
               thereIsSomethingToUndo = false;
               break;

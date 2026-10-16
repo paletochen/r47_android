@@ -10,14 +10,43 @@
 
 
 
-void lnComplex(const real_t *real, const real_t *imag, real_t *lnReal, real_t *lnImag, realContext_t *realContext) {
-  if(realIsZero(real) && realIsZero(imag)) {
-    realSetMinusInfinity(lnReal);
-    realSetZero(lnImag);
+void lnComplex(const cplx_t *z, cplx_t *ln, realContext_t *realContext) {
+  if(realIsZero(&z->Real) && realIsZero(&z->Imag)) {
+    realSetMinusInfinity(&ln->Real);
+    realSetZero(&ln->Imag);
   }
   else {
-    realRectangularToPolar(real, imag, lnReal, lnImag, realContext);
-    WP34S_Ln(lnReal, lnReal, realContext);
+    realRectangularToPolar(z, &ln->Mag, &ln->Arg, realContext);
+    WP34S_Ln(&ln->Mag, &ln->Real, realContext);
+  }
+}
+
+
+void lnComplexDirect(const cplx_t *z, cplx_t *ln) {
+  cplx_t w;
+
+  realCopy(&z->Real, &w.Real);
+  realCopy(&z->Imag, &w.Imag);
+  realRectangularToPolar(&w, &ln->Mag, &ln->Arg, &ctxtReal39);
+  if(realCompareGreaterThan(&ln->Mag, const_1on2) && realCompareLessThan(&ln->Mag, const_2)) {
+    realContext_t nearUnitContext = ctxtReal75;
+    if(realCompareAbsLessThan(&w.Real, &w.Imag)) {
+      realSubtract(&w.Imag, const_1, &ln->Real, &nearUnitContext);
+      realAdd(&w.Imag, const_1, &w.Imag, &nearUnitContext);
+      realMultiply(&ln->Real, &w.Imag, &ln->Real, &nearUnitContext);
+      realFMA(&w.Real, &w.Real, &ln->Real, &ln->Real, &nearUnitContext);
+    }
+    else {
+      realSubtract(&w.Real, const_1, &ln->Real, &nearUnitContext);
+      realAdd(&w.Real, const_1, &w.Real, &nearUnitContext);
+      realMultiply(&ln->Real, &w.Real, &ln->Real, &nearUnitContext);
+      realFMA(&w.Imag, &w.Imag, &ln->Real, &ln->Real, &nearUnitContext);
+    }
+    WP34S_Ln1P(&ln->Real, &ln->Real, &nearUnitContext);
+    realMultiply(&ln->Real, const_1on2, &ln->Real, &nearUnitContext);
+  }
+  else {
+    WP34S_Ln(&ln->Mag, &ln->Real, &ctxtReal39);
   }
 }
 
@@ -60,7 +89,7 @@ void lnReal(void) {
       realSetPlusInfinity(&x);
     }
     else if(getFlag(FLAG_CPXRES)) {
-      convertComplexToResultRegister(const_plusInfinity, const39_pi, REGISTER_X);
+      convertComplexPartsToResultRegister(const_plusInfinity, const39_pi, REGISTER_X);
       return;
     }
     else {
@@ -74,7 +103,7 @@ void lnReal(void) {
     else if(getFlag(FLAG_CPXRES)) {
       realSetPositiveSign(&x);
       WP34S_Ln(&x, &x, &ctxtReal39);
-      convertComplexToResultRegister(&x, const39_pi, REGISTER_X);
+      convertComplexPartsToResultRegister(&x, const39_pi, REGISTER_X);
       return;
     }
     else if(getSystemFlag(FLAG_SPCRES)) {
@@ -93,13 +122,14 @@ void lnReal(void) {
 
 
 void lnCplx(void) {
-    real_t xReal, xImag;
+  cplx_t x;
+  cplx_t result;
 
-  if(!getRegisterAsComplex(REGISTER_X, &xReal, &xImag)) {
+  if(!getRegisterAsComplex(REGISTER_X, &x)) {
     return;
   }
 
-  if(realIsZero(&xReal) && realIsZero(&xImag) && !getSystemFlag(FLAG_SPCRES)) {
+  if(realIsZero(&x.Real) && realIsZero(&x.Imag) && !getSystemFlag(FLAG_SPCRES)) {
     displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       moreInfoOnError("In function lnCplx:", "cannot calculate Ln(0)", NULL, NULL);
@@ -107,8 +137,8 @@ void lnCplx(void) {
     return;
   }
 
-  lnComplex(&xReal, &xImag, &xReal, &xImag, &ctxtReal39);   // Ln(0) gives -inf + 0i in there
-  convertComplexToResultRegister(&xReal, &xImag, REGISTER_X);
+  lnComplexDirect(&x, &result);
+  convertComplexToResultRegister(&result, REGISTER_X);
 }
 
 

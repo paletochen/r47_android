@@ -27,17 +27,24 @@ static void realPartCxma(void) {
 
 
 static void realPartCplx(void) {
-  real_t a, b;
+  real34_t real;
 
-  if(getRegisterAsComplex(REGISTER_X, &a, &b)) {
-    convertRealToResultRegister(&a, REGISTER_X, amNone);
-  }
+  real34Copy(REGISTER_REAL34_DATA(REGISTER_X), &real);
+  convertReal34ToReal34Register(&real, REGISTER_X);
 }
 
 
 static void realPartReal(void) {
   real_t x;
 
+  if(getRegisterDataType(REGISTER_X) == dtReal34) {
+    setRegisterAngularMode(REGISTER_X, amNone);
+    return;
+  }
+  if(getRegisterDataType(REGISTER_X) == dtLongInteger && (significantDigits == 0 || significantDigits == 34)) {
+    convertLongIntegerRegisterToReal34Register(REGISTER_X, REGISTER_X);
+    return;
+  }
   if(getRegisterAsReal(REGISTER_X, &x)) {
     convertRealToResultRegister(&x, REGISTER_X, amNone);
   }
@@ -55,6 +62,7 @@ void fnRealPart(uint16_t unusedButMandatoryParameter) {
   if(getRegisterDataType(REGISTER_X) == dtComplex34Matrix) {
     if(saveLastX()) {
       realPartCxma();
+      adjustResult(REGISTER_X, false, true, REGISTER_X, -1, -1);
     }
   }
   else {

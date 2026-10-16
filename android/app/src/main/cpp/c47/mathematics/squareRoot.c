@@ -17,78 +17,11 @@ static void sqrtShoI(void) {
     reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
     realSetPositiveSign(&a);
     realSquareRoot(&a, &a, &ctxtReal39);
-    convertComplexToResultRegister(const_0, &a, REGISTER_X);
+    convertComplexPartsToResultRegister(const_0, &a, REGISTER_X);
   }
   else {
     *(REGISTER_SHORT_INTEGER_DATA(REGISTER_X)) = WP34S_intSqrt(*(REGISTER_SHORT_INTEGER_DATA(REGISTER_X)));
   }
-}
-
-
-
-/********************************************//**
- * \brief The exact square root of x rounded once by RM to 34 digits
- *
- * r is the square root decNumber rounds correctly at 39 digits, so the rounding by RM of r to 34 digits is the answer or one of its two 34-digit neighbours.
- * Exact squares at 75 digits decide which: a 34-digit square has 68 digits, a midpoint's square 70. A midpoint's square ends in 25 and has more than 34 digits,
- * so it is never x and no tie is reached.
- *
- * \param[in]     x const real_t* a positive real of 34 digits, or a long integer of at most 75 digits that is not a square
- * \param[in,out] r real_t*       the root at 39 digits, replaced by the root at 34 digits
- * \return void
- ***********************************************/
-static void sqrtRoundedOnce(const real_t *x, real_t *r) {
-  real34_t c34, lo34, hi34;
-  real_t c, lo, hi, sq;
-
-  realToReal34(r, &c34);                                                        // by RM
-  real34NextMinus(&c34, &lo34);
-  real34NextPlus(&c34, &hi34);
-  real34ToReal(&c34, &c);
-  real34ToReal(&lo34, &lo);
-  real34ToReal(&hi34, &hi);
-
-  if(roundingMode == RM_DOWN || roundingMode == RM_FLOOR) {                     // the largest c with c² <= x
-    realMultiply(&c, &c, &sq, &ctxtReal75);
-    if(realCompareGreaterThan(&sq, x)) {
-      realCopy(&lo, &c);
-    }
-    else {
-      realMultiply(&hi, &hi, &sq, &ctxtReal75);
-      if(!realCompareGreaterThan(&sq, x)) {
-        realCopy(&hi, &c);
-      }
-    }
-  }
-  else if(roundingMode == RM_UP || roundingMode == RM_CEIL) {                   // the smallest c with c² >= x
-    realMultiply(&c, &c, &sq, &ctxtReal75);
-    if(realCompareLessThan(&sq, x)) {
-      realCopy(&hi, &c);
-    }
-    else {
-      realMultiply(&lo, &lo, &sq, &ctxtReal75);
-      if(!realCompareLessThan(&sq, x)) {
-        realCopy(&lo, &c);
-      }
-    }
-  }
-  else {                                                                        // the neighbour nearest the root, on the side of its midpoint
-    realAdd(&lo, &c, &sq, &ctxtReal75);
-    realMultiply(&sq, const_1on2, &sq, &ctxtReal75);
-    realMultiply(&sq, &sq, &sq, &ctxtReal75);
-    if(realCompareGreaterThan(&sq, x)) {
-      realCopy(&lo, &c);
-    }
-    else {
-      realAdd(&c, &hi, &sq, &ctxtReal75);
-      realMultiply(&sq, const_1on2, &sq, &ctxtReal75);
-      realMultiply(&sq, &sq, &sq, &ctxtReal75);
-      if(realCompareLessThan(&sq, x)) {
-        realCopy(&hi, &c);
-      }
-    }
-  }
-  realCopy(&c, r);
 }
 
 
@@ -108,19 +41,23 @@ static void sqrtReal(void) {
     return;
   }
 
-  if(realIsPositive(&a) || realIsZero(&a)) {                                    // a zero of either sign is the real 0
-    real_t x;
-    realCopy(&a, &x);
-    realSquareRoot(&a, &a, &ctxtReal39);
-    if(!realIsZero(&a) && !realIsSpecial(&a)) {
-      sqrtRoundedOnce(&x, &a);
+  if(realIsZero(&a)) {
+    convertRealToResultRegister(&a, REGISTER_X, amNone);
+  }
+  else if(realIsPositive(&a)) {
+    real34_t root;
+
+    if(rootRegisterToReal34(REGISTER_X, 2u, true, &root)) {
+      convertReal34ToReal34Register(&root, REGISTER_X);
+      return;
     }
+    realSquareRoot(&a, &a, &ctxtReal39);
     convertRealToResultRegister(&a, REGISTER_X, amNone);
   }
   else if(getFlag(FLAG_CPXRES)) {
     realSetPositiveSign(&a);
     realSquareRoot(&a, &a, &ctxtReal39);
-    convertComplexToResultRegister(const_0, &a, REGISTER_X);
+    convertComplexPartsToResultRegister(const_0, &a, REGISTER_X);
   }
   else {
     displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
@@ -136,6 +73,7 @@ static void sqrtReal(void) {
 //input in X, output in X
 void rootLonI(int32_t n) {
   longInteger_t lgInt, rem, root;
+  real34_t roundedRoot;
 
   if(!getRegisterAsLongInt(REGISTER_X, lgInt, NULL)) {
     goto end;
@@ -151,20 +89,25 @@ void rootLonI(int32_t n) {
       longIntegerFree(root);
       goto end;
     }
-    if(n == 2 && longIntegerBase10Digits(lgInt) > 75) {   // the root has 38 digits or more and is not an integer: 10·⌊√x⌋ + 5 rounds by RM to the digits √x rounds to
-      real_t a;
-
-      longIntegerMultiplyUInt(root, 10, root);
-      longIntegerAddUInt(root, 5, root);
-      convertLongIntegerToReal(root, &a, &ctxtReal34);
-      realDivide(&a, const_10, &a, &ctxtReal34);
-      convertRealToResultRegister(&a, REGISTER_X, amNone);
-      longIntegerFree(rem);
-      longIntegerFree(root);
-      goto end;
-    }
     longIntegerFree(rem);
     longIntegerFree(root);
+  }
+  if(n == 2 && longIntegerIsNegative(lgInt) && getFlag(FLAG_CPXRES)) {
+    longInteger_t magnitude;
+
+    longIntegerInit(magnitude);
+    longIntegerCopy(lgInt, magnitude);
+    longIntegerSetPositiveSign(magnitude);
+    const bool_t exactRoot = rootLongIntegerToReal34(magnitude, 2u, &roundedRoot);
+    longIntegerFree(magnitude);
+    if(exactRoot) {
+      convertReal34ToComplex34Register(const34_0, &roundedRoot, REGISTER_X);
+      goto end;
+    }
+  }
+  if(rootLongIntegerToReal34(lgInt, n, &roundedRoot)) {
+    convertReal34ToReal34Register(&roundedRoot, REGISTER_X);
+    goto end;
   }
   //fall through to Real calculation with errors
   if(n == 2) {
@@ -198,31 +141,59 @@ static  void sqrtLonI(void) {
 
 
 static void sqrtCplx(void) {
-  real_t a, b;
+  cplx_t a;
 
-  if(getRegisterAsComplex(REGISTER_X, &a, &b)) {
-    sqrtComplex(&a, &b, &a, &b, &ctxtReal39);
-    convertComplexToResultRegister(&a, &b, REGISTER_X);
+  if(getRegisterAsComplex(REGISTER_X, &a)) {
+    sqrtComplex(&a, &a, &ctxtReal39);
+    convertComplexToResultRegister(&a, REGISTER_X);
   }
 }
 
 
 
-void sqrtComplex75(const real_t *real, const real_t *imag, real_t *resReal, real_t *resImag, realContext_t *realContext) {
-  if(realIsZero(imag) && realIsNegative(real)) {
-    realMinus(real, resImag, realContext);
-    realSquareRoot(resImag, resImag, realContext);
-    realSetZero(resReal);
+void sqrtComplex(const cplx_t *z, cplx_t *res, realContext_t *realContext) {
+  if(realIsZero(&z->Imag) && realIsNegative(&z->Real)) {
+    realMinus(&z->Real, &res->Imag, realContext);
+    realSquareRoot(&res->Imag, &res->Imag, realContext);
+    realSetZero(&res->Real);
   }
-  else if(realIsZero(imag)) {
-    realSquareRoot(real, resReal, realContext);
-    realSetZero(resImag);
+  else if(realIsZero(&z->Imag)) {
+    realSquareRoot(&z->Real, &res->Real, realContext);
+    realSetZero(&res->Imag);
+  }
+  else if(realIsInfinite(&z->Imag)) {  // whatever the real part, NaN included
+    realCopyAbs(&z->Imag, &res->Real);
+    realCopy(&z->Imag, &res->Imag);
   }
   else {
-    realRectangularToPolar(real, imag, resReal, resImag, realContext);
-    realSquareRoot(resReal, resReal, realContext);
-    realMultiply(resImag, const_1on2, resImag, realContext);
-    realPolarToRectangular(resReal, resImag, resReal, resImag, realContext);
+    // t = sqrt((|x| + |z|) / 2) adds two terms of one sign, so no digits cancel, next to the negative real axis included. The other part is y / 2t: the root is
+    // t + i y/2t for x >= 0, and |y|/2t + i t with the sign of y for x < 0. A NaN part comes out as NaN + i NaN.
+    real_t t, u;
+    const bool_t imagNegative = realIsNegative(&z->Imag);
+    if(realIsInfinite(&z->Real) && !realIsNaN(&z->Imag)) {  // t is infinite and y / 2t is 0: the formula gives the same, with zeros at the smallest exponent
+      realCopyAbs(&z->Real, &t);
+      realSetZero(&u);
+    }
+    else {
+      complexMagnitude(z, &t, realContext);
+      realCopyAbs(&z->Real, &u);
+      realAdd(&u, &t, &t, realContext);
+      realDivideBy2(&t, realContext);
+      realSquareRoot(&t, &t, realContext);
+      realDivide(&z->Imag, &t, &u, realContext);
+      realDivideBy2(&u, realContext);
+    }
+    if(realIsNegative(&z->Real)) {
+      realCopyAbs(&u, &res->Real);
+      realCopy(&t, &res->Imag);
+      if(imagNegative) {
+        realSetNegativeSign(&res->Imag);
+      }
+    }
+    else {
+      realCopy(&t, &res->Real);
+      realCopy(&u, &res->Imag);
+    }
   }
 }
 
@@ -235,7 +206,7 @@ void sqrtComplex75(const real_t *real, const real_t *imag, real_t *resReal, real
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------
 //
 // Complex square root using Newton-Raphson: x_{n+1} = (x_n + z/x_n) / 2
-void sqrtComplex159(const real_t *zReal, const real_t *zImag, real_t *resReal, real_t *resImag, realContext_t *realContext) {
+void sqrtComplex159(const cplx159_t *z, cplx159_t *res, realContext_t *realContext) {
   REAL_T_PTR(xr, 159);
   REAL_T_PTR(xi, 159);
   REAL_T_PTR(zr, 159);
@@ -259,12 +230,12 @@ void sqrtComplex159(const real_t *zReal, const real_t *zImag, real_t *resReal, r
   realSetZero(mag);
 
   // Copy inputs
-  realCopy(zReal, zr);
-  realCopy(zImag, zi);
+  realCopy(&z->Real, zr);
+  realCopy(&z->Imag, zi);
 
   if(realIsZero(zr) && realIsZero(zi)) {
-    realSetZero(resReal);
-    realSetZero(resImag);
+    realSetZero(&res->Real);
+    realSetZero(&res->Imag);
     return;
   }
 
@@ -276,12 +247,20 @@ void sqrtComplex159(const real_t *zReal, const real_t *zImag, real_t *resReal, r
   realSquareRoot(mag, mag, realContext);
 
   // Initial guess: xr = sqrt((mag + zr)/2), xi = sign(zi)*sqrt((mag - zr)/2)
+  // With zi zero or below the precision of zr, mag rounds to one unit below |zr| and one radicand to a negative value. It starts at zero instead, and the first
+  // Newton step forms that part.
   realAdd(mag, zr, temp1, realContext);
   realDivideBy2(temp1, realContext);
+  if(realIsNegative(temp1)) {
+    realSetZero(temp1);
+  }
   realSquareRoot(temp1, xr, realContext);
 
   realSubtract(mag, zr, temp2, realContext);
   realDivideBy2(temp2, realContext);
+  if(realIsNegative(temp2)) {
+    realSetZero(temp2);
+  }
   realSquareRoot(temp2, xi, realContext);
   if(realIsNegative(zi)) {
     realChangeSign(xi);
@@ -317,26 +296,10 @@ void sqrtComplex159(const real_t *zReal, const real_t *zImag, real_t *resReal, r
     realDivideBy2(xi, realContext);
   }
 
-  realCopy(xr, resReal);
-  realCopy(xi, resImag);
+  realCopy(xr, &res->Real);
+  realCopy(xi, &res->Imag);
 }
 #endif //OPTION_SQUARE_159 || OPTION_CUBIC_159 || OPTION_EIGEN_159
-
-
-void sqrtComplex(const real_t *real, const real_t *imag, real_t *resReal, real_t *resImag, realContext_t *realContext) {
-  if(realContext->digits <= 75) {
-    sqrtComplex75(real, imag, resReal, resImag, realContext);
-#if defined(OPTION_SQUARE_159) ||defined(OPTION_CUBIC_159) || defined(OPTION_EIGEN_159)
-  }
-  else if(realContext->digits <= 159) {
-    sqrtComplex159(real, imag, resReal, resImag, realContext);
-#endif //OPTION_SQUARE_159 || OPTION_CUBIC_159) || OPTION_EIGEN_159
-  }
-  else {
-    sprintf(errorMessage, "Exceed digits :sqrtComplex: %d", (int)(realContext->digits));
-    displayBugScreen(errorMessage);
-  }
-}
 
 
 

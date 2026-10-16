@@ -96,7 +96,7 @@ void fnToPolar2(uint16_t unusedButMandatoryParameter) {
 static void fnToPolar(uint16_t unusedButMandatoryParameter) {
   uint32_t dataTypeX, dataTypeY;
   calcRegister_t REG_X, REG_Y;
-  real_t x, y;
+  cplx_t z;
 
   if(getSystemFlag(FLAG_HPRP)) {
     REG_X = REGISTER_X;
@@ -117,11 +117,11 @@ static void fnToPolar(uint16_t unusedButMandatoryParameter) {
 
     switch(dataTypeX) {
       case dtLongInteger: {
-        convertLongIntegerRegisterToReal(REG_X, &x, &ctxtReal39);
+        convertLongIntegerRegisterToReal(REG_X, &z.Real, &ctxtReal39);
         break;
       }
       case dtReal34: {
-        real34ToReal(REGISTER_REAL34_DATA(REG_X), &x);
+        real34ToReal(REGISTER_REAL34_DATA(REG_X), &z.Real);
         break;
       }
       default: {
@@ -132,11 +132,11 @@ static void fnToPolar(uint16_t unusedButMandatoryParameter) {
 
     switch(dataTypeY) {
       case dtLongInteger: {
-        convertLongIntegerRegisterToReal(REG_Y, &y, &ctxtReal39);
+        convertLongIntegerRegisterToReal(REG_Y, &z.Imag, &ctxtReal39);
         break;
       }
       case dtReal34: {
-        real34ToReal(REGISTER_REAL34_DATA(REG_Y), &y);
+        real34ToReal(REGISTER_REAL34_DATA(REG_Y), &z.Imag);
         break;
       }
       default: {
@@ -145,13 +145,13 @@ static void fnToPolar(uint16_t unusedButMandatoryParameter) {
       }
     }
 
-    realRectangularToPolar(&x, &y, &x, &y, &ctxtReal39);
-    convertAngleFromTo(&y, amRadian, currentAngularMode, &ctxtReal39);
+    realRectangularToPolar(&z, &z.Mag, &z.Arg, &ctxtReal39);
+    convertAngleFromTo(&z.Arg, amRadian, currentAngularMode, &ctxtReal39);
 
     reallocateRegister(REG_X, dtReal34, 0, amNone);              //original
     reallocateRegister(REG_Y, dtReal34, 0, currentAngularMode);
-    convertRealToReal34ResultRegister(&x, REG_X);
-    convertRealToReal34ResultRegister(&y, REG_Y);
+    convertRealToReal34ResultRegister(&z.Mag, REG_X);
+    convertRealToReal34ResultRegister(&z.Arg, REG_Y);
 
     if(getSystemFlag(FLAG_HPRP)) {
       temporaryInformation = TI_RADIUS_THETA;
@@ -173,15 +173,15 @@ static void fnToPolar(uint16_t unusedButMandatoryParameter) {
 
 // The theta34 output angle is in radian
 void real34RectangularToPolar(const real34_t *real34, const real34_t *imag34, real34_t *magnitude34, real34_t *theta34) {
-  real_t real, imag, magnitude, theta;
+  cplx_t z;
 
-  real34ToReal(real34, &real);
-  real34ToReal(imag34, &imag);
+  real34ToReal(real34, &z.Real);
+  real34ToReal(imag34, &z.Imag);
 
-  realRectangularToPolar(&real, &imag, &magnitude, &theta, &ctxtReal39); // theta in radian
+  realRectangularToPolar(&z, &z.Mag, &z.Arg, &ctxtReal39);               // theta in radian
 
-  realToReal34(&magnitude, magnitude34);
-  realToReal34(&theta, theta34);
+  realToReal34(&z.Mag, magnitude34);
+  realToReal34(&z.Arg, theta34);
 }
 
 
@@ -193,16 +193,16 @@ static bool_t rectKeyEqual(const real_t *a, const real_t *b) {
 
 // Cached wrapper for realRectangularToPolar. Cache is caller-owned (rectToPolarCache_t) and must be passed by pointer. The caller creates it as { .valid = false },
 // in a scope that covers all the calls that share it. Inputs are copied before the call to prevent aliasing if the underlying function overwrites its input pointers.
-void realRectangularToPolarCached(const real_t *real, const real_t *imag, real_t *magnitude, real_t *theta, realContext_t *realContext, rectToPolarCache_t *cache) {
+void realRectangularToPolarCached(const cplx_t *z, real_t *magnitude, real_t *theta, realContext_t *realContext, rectToPolarCache_t *cache) {
   #if defined(CACHE_DEBUG)
     print_caller("realRectangularToPolarCached");
     printf("   Context:%d\n",realContext->digits);
   #endif // CACHE_DEBUG
-  real_t localReal, localImag;
-  realCopy(real, &localReal);
-  realCopy(imag, &localImag);
+  cplx_t local;
+  realCopy(&z->Real, &local.Real);
+  realCopy(&z->Imag, &local.Imag);
 
-  if(cache->valid && realContext->digits == cache->digits && (int32_t)realContext->round == cache->round && rectKeyEqual(&cache->real, &localReal) && rectKeyEqual(&cache->imag, &localImag)) {
+  if(cache->valid && realContext->digits == cache->digits && (int32_t)realContext->round == cache->round && rectKeyEqual(&cache->real, &local.Real) && rectKeyEqual(&cache->imag, &local.Imag)) {
     realCopy(&cache->mag,   magnitude);
     realCopy(&cache->theta, theta);
     #if defined(CACHE_DEBUG)
@@ -211,13 +211,13 @@ void realRectangularToPolarCached(const real_t *real, const real_t *imag, real_t
     return;
   }
 
-  realCopy(&localReal, &cache->real);
-  realCopy(&localImag, &cache->imag);
+  realCopy(&local.Real, &cache->real);
+  realCopy(&local.Imag, &cache->imag);
   cache->digits = realContext->digits;
   cache->round  = (int32_t)realContext->round;
   cache->valid  = false;
 
-  realRectangularToPolar(&localReal, &localImag, magnitude, theta, realContext);
+  realRectangularToPolar(&local, magnitude, theta, realContext);
 
   if(!realIsSpecial(magnitude) && !realIsSpecial(theta)) {
     realCopy(magnitude, &cache->mag);
@@ -229,7 +229,7 @@ void realRectangularToPolarCached(const real_t *real, const real_t *imag, real_t
 }
 
 
-void realRectangularToPolar(const real_t *real, const real_t *imag, real_t *magnitude, real_t *theta, realContext_t *realContext) { // theta is in ]-pi, pi]
+void realRectangularToPolar(const cplx_t *z, real_t *magnitude, real_t *theta, realContext_t *realContext) {                        // theta is in ]-pi, pi]
   ///////////////////////////////////////////
   //
   //    a > 0  and  b > 0
@@ -240,7 +240,7 @@ void realRectangularToPolar(const real_t *real, const real_t *imag, real_t *magn
   //  |NaN |any |NaN     |NaN         |   1
   //  |any |NaN |NaN     |NaN         |   2
   //  |-∞  |-∞  |∞       |-3π/4       |   3
-  //  |-∞  |-b  |∞       |π           |   4
+  //  |-∞  |-b  |∞       |-π          |   4
   //  |-∞  |0   |∞       |π           |   5
   //  |-∞  |+b  |∞       |π           |   6
   //  |-∞  |+∞  |∞       |3π/4        |   7
@@ -260,15 +260,15 @@ void realRectangularToPolar(const real_t *real, const real_t *imag, real_t *magn
   //  |+a  |+b  |√(a²+b²)|atan2(+b,+a)|  21
   //  |+a  |+∞  |∞       |π/2         |  22
   //  |+∞  |-∞  |∞       |-π/4        |  23
-  //  |+∞  |-b  |∞       |0           |  24
+  //  |+∞  |-b  |∞       |-0          |  24
   //  |+∞  |0   |∞       |0           |  25
   //  |+∞  |+b  |∞       |0           |  26
   //  |+∞  |+∞  |∞       |π/4         |  27
 
   real_t re, im;
 
-  realCopy(real, &re);
-  realCopy(imag, &im);
+  realCopy(&z->Real, &re);
+  realCopy(&z->Imag, &im);
 
   // Testing NaNs
   if(realIsNaN(&re) || realIsNaN(&im)) {
@@ -291,7 +291,7 @@ void realRectangularToPolar(const real_t *real, const real_t *imag, real_t *magn
       //  | Re | Im | ρ      | θ          |
       //  +----+----+--------+------------+
       //  |+∞  |-∞  |∞       |-π/4        |  23
-      //  |+∞  |-b  |∞       |0           |  24
+      //  |+∞  |-b  |∞       |-0          |  24
       //  |+∞  |0   |∞       |0           |  25
       //  |+∞  |+b  |∞       |0           |  26
       //  |+∞  |+∞  |∞       |π/4         |  27
@@ -304,6 +304,9 @@ void realRectangularToPolar(const real_t *real, const real_t *imag, real_t *magn
       }
       else { // re = +inf  im ≠ infinite
         realSetZero(theta);
+        if(!realIsZero(&im) && realIsNegative(&im)) {
+          realSetNegativeSign(theta);
+        }
       }
     }
     else { // re = -inf
@@ -311,7 +314,7 @@ void realRectangularToPolar(const real_t *real, const real_t *imag, real_t *magn
       //  | Re | Im | ρ      | θ          |
       //  +----+----+--------+------------+
       //  |-∞  |-∞  |∞       |-3π/4       |   3
-      //  |-∞  |-b  |∞       |π           |   4
+      //  |-∞  |-b  |∞       |-π          |   4
       //  |-∞  |0   |∞       |π           |   5
       //  |-∞  |+b  |∞       |π           |   6
       //  |-∞  |+∞  |∞       |3π/4        |   7
@@ -324,6 +327,9 @@ void realRectangularToPolar(const real_t *real, const real_t *imag, real_t *magn
       }
       else { // re = -inf  im ≠ infinite
         realCopy(const39_pi, theta);
+        if(!realIsZero(&im) && realIsNegative(&im)) {
+          realSetNegativeSign(theta);
+        }
       }
     }
 

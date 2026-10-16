@@ -53,6 +53,30 @@ static void gammaReal(void) {
 
 
 
+/**
+ * ln|Gamma(x)| at 75 digits for a negative x that is not an integer; returns whether Gamma(x) is negative. Where it is, ln|Gamma(x)| is lnGamma(x + 1) - ln(-x),
+ * since Gamma(x + 1) = x Gamma(x) is then positive. Next to the zeros of ln|Gamma| on the negative axis the terms of the reflection cancel, so all of it is at 75 digits.
+ */
+static bool_t lnAbsGammaNegative(const real_t *x, real_t *res) {
+  real_t xin, t;
+
+  realCopy(x, &xin);
+  realMinus(&xin, &t, &ctxtReal75);
+  WP34S_Mod(&t, const_2, &t, &ctxtReal75);
+  if(realCompareGreaterThan(&t, const_1)) {
+    WP34S_LnGamma(&xin, res, &ctxtReal75);
+    return false;
+  }
+  realAdd(&xin, const_1, &t, &ctxtReal75);
+  WP34S_LnGamma(&t, res, &ctxtReal75);
+  realMinus(&xin, &t, &ctxtReal75);
+  WP34S_Ln(&t, &t, &ctxtReal75);
+  realSubtract(res, &t, res, &ctxtReal75);
+  return true;
+}
+
+
+
 static void lnGammaReal(void) {
   real_t xReal, xImag;
 
@@ -67,22 +91,16 @@ static void lnGammaReal(void) {
 
   if(realCompareLessEqual(&xReal, const_0)) { // x <= 0
     // x is negative and not an integer
-    realMinus(&xReal, &xImag, &ctxtReal39); // x.imag is used as a temp variable here
-    WP34S_Mod(&xImag, const_2, &xImag, &ctxtReal39);
-    if(realCompareGreaterThan(&xImag, const_1)) { // the result is a real
-      WP34S_LnGamma(&xReal, &xReal, &ctxtReal39);
+    realCopy(&xReal, &xImag); // x.imag is used as a temp variable here
+    if(!lnAbsGammaNegative(&xImag, &xReal)) { // the result is a real
       convertRealToReal34ResultRegister(&xReal, REGISTER_X);
     }
     else { // the result is a complex
       if(getFlag(FLAG_CPXRES)) { // We can calculate a complex
-        real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &xImag);
         reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
-        WP34S_Gamma(&xReal, &xReal, &ctxtReal39);
-        realSetPositiveSign(&xReal);
-        WP34S_Ln(&xReal, &xReal, &ctxtReal39);
         realToIntegralValue(&xImag, &xImag, DEC_ROUND_FLOOR, &ctxtReal39);
         realMultiply(&xImag, const39_pi, &xImag, &ctxtReal39);
-        convertComplexToResultRegister(&xReal, &xImag, REGISTER_X);
+        convertComplexPartsToResultRegister(&xReal, &xImag, REGISTER_X);
       }
       else { // Domain error
         displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
@@ -102,13 +120,13 @@ end:
 
 
 static void gammaCplx(void) {
-  real_t zReal, zImag;
+  cplx_t z;
 
-  if(!getRegisterAsComplex(REGISTER_X, &zReal, &zImag)) {
+  if(!getRegisterAsComplex(REGISTER_X, &z)) {
     return;
   }
-  WP34S_ComplexGamma(&zReal, &zImag, &zReal, &zImag, &ctxtReal39);
-  convertComplexToResultRegister(&zReal, &zImag, REGISTER_X);
+  WP34S_ComplexGamma(&z, &z, &ctxtReal39);
+  convertComplexToResultRegister(&z, REGISTER_X);
 }
 
 
@@ -124,49 +142,56 @@ static void gammaCplx(void) {
 // large enough for the truncated series to be accurate their total stays orders of
 // magnitude below the ~pi decision margin, and for small |z| the divergent tail
 // grows past pi (~6000 at z = 0.1i) and corrupts the winding choice.
-static void complexLnGamma_Stirling(const real_t *xReal, const real_t *xImag, real_t *rReal, real_t *rImag, realContext_t *realContext) {
-  real_t tReal;
+static void complexLnGamma_Stirling(const cplx_t *x, cplx_t *r, realContext_t *realContext) {
+  cplx_t t;
 
-  lnComplex(xReal, xImag, rReal, rImag, realContext);
-  realSubtract(xReal, const_1on2, &tReal, realContext);
-  mulComplexComplex(&tReal, xImag, rReal, rImag, rReal, rImag, realContext);
+  lnComplex(x, r, realContext);
+  realSubtract(&x->Real, const_1on2, &t.Real, realContext);
+  realCopy(&x->Imag, &t.Imag);
+  mulComplexComplex(&t, r, r, realContext);
 
-  realSubtract(rReal, xReal, rReal, realContext);
-  realSubtract(rImag, xImag, rImag, realContext);
+  realSubtract(&r->Real, &x->Real, &r->Real, realContext);
+  realSubtract(&r->Imag, &x->Imag, &r->Imag, realContext);
 
-  realAdd(rReal, const39_ln2piOn2, rReal, realContext);
+  realAdd(&r->Real, const39_ln2piOn2, &r->Real, realContext);
 }
 
 
 
-void complexLnGamma(const real_t *xReal, const real_t *xImag, real_t *rReal, real_t *rImag, realContext_t *realContext) {
-  if(realIsZero(xImag)) {
-    WP34S_LnGamma(xReal, rReal, realContext);
-    realCopy(realIsNaN(rReal) ? const_NaN : const_0, rImag);
+void complexLnGamma(const cplx_t *x, cplx_t *r, realContext_t *realContext) {
+  if(realIsZero(&x->Imag) && realIsNegative(&x->Real) && !realIsAnInteger(&x->Real)) {
+    // On the cut along the negative axis, the value from above: ln|Gamma(x)| + i pi floor(x)
+    realToIntegralValue(&x->Real, &r->Imag, DEC_ROUND_FLOOR, realContext);
+    realMultiply(&r->Imag, const75_pi, &r->Imag, realContext);
+    lnAbsGammaNegative(&x->Real, &r->Real);
+  }
+  else if(realIsZero(&x->Imag)) {
+    WP34S_LnGamma(&x->Real, &r->Real, realContext);
+    realCopy(realIsNaN(&r->Real) ? const_NaN : const_0, &r->Imag);
   }
   else {
-    real_t zReal, zImag, tImag;
-    realCopy(xReal, &zReal);
-    realCopy(xImag, &zImag);
-    complexLnGamma_Stirling(&zReal, &zImag, rReal, &tImag, &ctxtReal39);
-    WP34S_ComplexLnGamma(&zReal, &zImag, rReal, rImag, &ctxtReal39);
-    realSubtract(&tImag, rImag, &tImag, &ctxtReal39);
-    realDivide(&tImag, const39_2pi, &tImag, &ctxtReal39);
-    realToIntegralValue(&tImag, &tImag, DEC_ROUND_HALF_EVEN, &ctxtReal39);
-    realFMA(const39_2pi, &tImag, rImag, rImag, &ctxtReal39);
+    cplx_t z, t;
+    realCopy(&x->Real, &z.Real);
+    realCopy(&x->Imag, &z.Imag);
+    complexLnGamma_Stirling(&z, &t, &ctxtReal39);
+    WP34S_ComplexLnGamma(&z, r, &ctxtReal39);
+    realSubtract(&t.Imag, &r->Imag, &t.Imag, &ctxtReal39);
+    realDivide(&t.Imag, const39_2pi, &t.Imag, &ctxtReal39);
+    realToIntegralValue(&t.Imag, &t.Imag, DEC_ROUND_HALF_EVEN, &ctxtReal39);
+    realFMA(const39_2pi, &t.Imag, &r->Imag, &r->Imag, &ctxtReal39);
   }
 }
 
 
 
 static void lnGammaCplx(void) {
-  real_t zReal, zImag, rReal, rImag;
+  cplx_t z, r;
 
-  if(!getRegisterAsComplex(REGISTER_X, &zReal, &zImag)) {
+  if(!getRegisterAsComplex(REGISTER_X, &z)) {
     return;
   }
-  complexLnGamma(&zReal, &zImag, &rReal, &rImag, &ctxtReal39);
-  convertComplexToResultRegister(&rReal, &rImag, REGISTER_X);
+  complexLnGamma(&z, &r, &ctxtReal39);
+  convertComplexToResultRegister(&r, REGISTER_X);
 }
 
 

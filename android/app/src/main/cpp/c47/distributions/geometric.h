@@ -18,4 +18,7 @@
   void WP34S_Qf_Geom          (const real_t *x, const real_t *p0, real_t *res, realContext_t *realContext);
 
   void WP34S_qf_discrete_final(uint16_t dist, const real_t *r, const real_t *p, const real_t *i, const real_t *j, const real_t *k, real_t *res, realContext_t *realContext);
+  #if defined(OPTION_DIST_GEOM)
+  bool_t geometricCheckDomain(bool_t registersValid, real_t *x, real_t *first, real_t *second, real_t *third, uint16_t parameter);
+  #endif // OPTION_DIST_GEOM
 #endif // !GEOMETRIC_H

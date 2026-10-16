@@ -8,8 +8,7 @@
     const int16_t j = getJRegisterAsInt(true);
 
     liftStack();
-    reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
-    real34Copy(&matrix->matrixElements[i * matrix->header.matrixColumns + j], REGISTER_REAL34_DATA(REGISTER_X));
+    convertReal34ToReal34Register(&matrix->matrixElements[i * matrix->header.matrixColumns + j], REGISTER_X);
     return false;
   }
 
@@ -418,8 +417,7 @@ static void _elementToRegister(uint16_t ix, calcRegister_t r) {               //
   else {
     real34_t v;
     real34Copy(REGISTER_REAL34_MATRIX_ELEMENTS(REGISTER_X) + ix - 1, &v);
-    reallocateRegister(r, dtReal34, REAL34_SIZE_IN_BLOCKS, amNone);
-    real34Copy(&v, REGISTER_REAL34_DATA(r));
+    convertReal34ToReal34Register(&v, r);
   }
 }
 
@@ -459,7 +457,7 @@ void _fnRecallElement(bool_t stepForward) {
   }
   else {
     callByIndexedMatrix(recallElementReal, recallElementComplex);
-    if(stepForward) {
+    if(stepForward && lastErrorCode == ERROR_NONE) {
       fnIncDecJ(INC_FLAG);
     }
   }

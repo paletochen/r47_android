@@ -377,6 +377,27 @@ void convertAngle34FromTo(real34_t *angle34, angularMode_t fromAngularMode, angu
 
 
 
+/********************************************//**
+ * \brief Replaces an angle in radians with the right angle less that angle, both in the current angular mode
+ *
+ * \param[in,out] angle angle in radians, returned as ±90° less the angle in the current angular mode
+ * \param[in] negative true for -90°
+ * \return void
+ ***********************************************/
+void rightAngleLessRadians(real_t *angle, bool_t negative) {
+  real_t rightAngle;
+
+  realCopy(const_90, &rightAngle);
+  if(negative) {
+    realSetNegativeSign(&rightAngle);
+  }
+  convertAngleFromTo(&rightAngle, amDegree, currentAngularMode, &ctxtReal39);
+  convertAngleFromTo(angle, amRadian, currentAngularMode, &ctxtReal39);
+  realSubtract(&rightAngle, angle, angle, &ctxtReal39);
+}
+
+
+
 void convertAngleFromTo(real_t *angle, angularMode_t fromAngularMode, angularMode_t toAngularMode, realContext_t *realContext) {
   if(fromAngularMode == amNone) {
     fromAngularMode = currentAngularMode;
@@ -555,48 +576,148 @@ void checkDms34(real34_t *angle34Dms) {
 
 
 
-uint32_t getInfiniteComplexAngle(real_t *x, real_t *y) {
-  if(!realIsInfinite(x)) {
-    return 2 + 4*realIsNegative(y); // 2 -> 90°    6 -> -90° or 270°
+uint32_t getInfiniteComplexAngle(const cplx_t *z) {
+  if(!realIsInfinite(&z->Real)) {
+    return 2 + 4*realIsNegative(&z->Imag); // 2 -> 90°    6 -> -90° or 270°
   }
 
-  if(!realIsInfinite(y)) {
-    return 4*realIsNegative(x);     // 0 -> 0°     4 -> -180° or 180°
+  if(!realIsInfinite(&z->Imag)) {
+    return 4*realIsNegative(&z->Real);  // 0 -> 0°     4 -> -180° or 180°
   }
 
   // At this point, x and y are infinite
-  if(realIsPositive(x)) {
-    return 1 + 6*realIsNegative(y); // 1 -> 45°    7 -> -45° or 315°
+  if(realIsPositive(&z->Real)) {
+    return 1 + 6*realIsNegative(&z->Imag); // 1 -> 45°    7 -> -45° or 315°
   }
 
   // At this point, x is negative
-  return 3 + 2*realIsNegative(y);   // 3 -> 135°   5 -> -135° or 225°
+  return 3 + 2*realIsNegative(&z->Imag);  // 3 -> 135°   5 -> -135° or 225°
 }
 
 
 
-void setInfiniteComplexAngle(uint32_t angle, real_t *x, real_t *y) {
+void setInfiniteComplexAngle(uint32_t angle, cplx_t *z) {
   switch(angle) {
     case 3:
     case 4:
-    case 5: realSetMinusInfinity(x); break;
+    case 5: realSetMinusInfinity(&z->Real); break;
 
     case 2:
-    case 6: realSetZero(x);          break;
+    case 6: realSetZero(&z->Real);          break;
 
-    default:realSetPlusInfinity(x);
+    default:realSetPlusInfinity(&z->Real);
   }
 
   switch(angle) {
     case 5:
     case 6:
-    case 7: realSetMinusInfinity(y); break;
+    case 7: realSetMinusInfinity(&z->Imag); break;
 
     case 0:
-    case 4: realSetZero(y);          break;
+    case 4: realSetZero(&z->Imag);          break;
 
-    default:realSetPlusInfinity(y);
+    default:realSetPlusInfinity(&z->Imag);
   }
+}
+
+
+
+/********************************************//**
+ * \brief Converts a real from DMS to DEG
+ *
+ * \param[in] angleDms Angle in ddd.mm.ss format
+ * \param[out] angleDec Angle in decimal degrees
+ * \param[in] realContext Arithmetic context
+ * \return void
+ ***********************************************/
+void realFromDmsToDeg(const real_t *angleDms, real_t *angleDec, realContext_t *realContext) {
+  real_t angle, degrees, minutes, seconds;
+  bool_t negative = realIsNegative(angleDms);
+
+  if(realIsSpecial(angleDms)) {
+    realCopy(angleDms, angleDec);
+    return;
+  }
+
+  realCopy(angleDms, &angle);
+  realSetPositiveSign(&angle);
+
+  realToIntegralValue(&angle, &degrees, DEC_ROUND_DOWN, realContext);
+
+  realSubtract(&angle, &degrees, &angle, realContext);
+  angle.exponent += 2; // angle = angle * 100
+
+  realToIntegralValue(&angle, &minutes, DEC_ROUND_DOWN, realContext);
+
+  realSubtract(&angle, &minutes, &angle, realContext);
+  realMultiply(&angle, const_100, &seconds, realContext);
+
+  if(realCompareGreaterEqual(&seconds, const_60)) {
+    realSubtract(&seconds, const_60, &seconds, realContext);
+    realAdd(&minutes, const_1, &minutes, realContext);
+  }
+
+  if(realCompareGreaterEqual(&minutes, const_60)) {
+    realSubtract(&minutes, const_60, &minutes, realContext);
+    realAdd(&degrees, const_1, &degrees, realContext);
+  }
+
+  realDivide(&minutes, const_60,   &minutes, realContext);
+  realDivide(&seconds, const_3600, &seconds, realContext);
+
+  realAdd(&degrees, &minutes, &angle, realContext);
+  realAdd(&angle,   &seconds, &angle, realContext);
+
+  if(negative) {
+    realSetNegativeSign(&angle);
+  }
+
+  realCopy(&angle, angleDec);
+}
+
+
+
+/********************************************//**
+ * \brief Converts a real from DEG to DMS
+ *
+ * \param[in] angleDec Angle in decimal degrees
+ * \param[out] angleDms Angle in ddd.mm.ss format
+ * \param[in] realContext Arithmetic context
+ * \return void
+ ***********************************************/
+void realFromDegToDms(const real_t *angleDec, real_t *angleDms, realContext_t *realContext) {
+  real_t angle, degrees, minutes, seconds;
+  bool_t negative = realIsNegative(angleDec);
+
+  if(realIsSpecial(angleDec)) {
+    realCopy(angleDec, angleDms);
+    return;
+  }
+
+  realCopy(angleDec, &angle);
+  realSetPositiveSign(&angle);
+
+  realToIntegralValue(&angle, &degrees, DEC_ROUND_DOWN, realContext);
+
+  realSubtract(&angle, &degrees, &angle, realContext);
+  realMultiply(&angle, const_60, &angle, realContext);
+
+  realToIntegralValue(&angle, &minutes, DEC_ROUND_DOWN, realContext);
+
+  realSubtract(&angle, &minutes, &angle, realContext);
+  realMultiply(&angle, const_60, &seconds, realContext);
+
+  minutes.exponent -= 2; // minutes = minutes / 100
+  seconds.exponent -= 4; // seconds = seconds / 10000
+
+  realAdd(&degrees, &minutes, &angle, realContext);
+  realAdd(&angle,   &seconds, &angle, realContext);
+
+  if(negative) {
+    realSetNegativeSign(&angle);
+  }
+
+  realCopy(&angle, angleDms);
 }
 
 
@@ -609,42 +730,11 @@ void setInfiniteComplexAngle(uint32_t angle, real_t *x, real_t *y) {
  * \return void
  ***********************************************/
 void real34FromDmsToDeg(const real34_t *angleDms, real34_t *angleDec) {
-  real_t angle, degrees, minutes, seconds;
+  real_t angle;
 
   real34ToReal(angleDms, &angle);
-  realSetPositiveSign(&angle);
-
   decContextClearStatus(&ctxtReal34, DEC_Invalid_operation);
-  realToIntegralValue(&angle, &degrees, DEC_ROUND_DOWN, &ctxtReal39);
-
-  realSubtract(&angle, &degrees, &angle, &ctxtReal39);
-  angle.exponent += 2; // angle = angle * 100
-
-  realToIntegralValue(&angle, &minutes, DEC_ROUND_DOWN, &ctxtReal39);
-
-  realSubtract(&angle, &minutes, &angle, &ctxtReal39);
-  realMultiply(&angle, const_100, &seconds, &ctxtReal39);
-
-  if(realCompareGreaterEqual(&seconds, const_60)) {
-    realSubtract(&seconds, const_60, &seconds, &ctxtReal39);
-    realAdd(&minutes, const_1, &minutes, &ctxtReal39);
-  }
-
-  if(realCompareGreaterEqual(&minutes, const_60)) {
-    realSubtract(&minutes, const_60, &minutes, &ctxtReal39);
-    realAdd(&degrees, const_1, &degrees, &ctxtReal39);
-  }
-
-  realDivide(&minutes, const_60,   &minutes, &ctxtReal39);
-  realDivide(&seconds, const_3600, &seconds, &ctxtReal39);
-
-  realAdd(&degrees, &minutes, &angle, &ctxtReal39);
-  realAdd(&angle,   &seconds, &angle, &ctxtReal39);
-
-  if(real34IsNegative(angleDms)) {
-    realSetNegativeSign(&angle);
-  }
-
+  realFromDmsToDeg(&angle, &angle, &ctxtReal39);
   realToReal34(&angle, angleDec);
 }
 
@@ -658,31 +748,10 @@ void real34FromDmsToDeg(const real34_t *angleDms, real34_t *angleDec) {
  * \return void
  ***********************************************/
 void real34FromDegToDms(const real34_t *angleDec, real34_t *angleDms) {
-  real_t angle, degrees, minutes, seconds;
+  real_t angle;
 
   real34ToReal(angleDec, &angle);
-  realSetPositiveSign(&angle);
-
-  realToIntegralValue(&angle, &degrees, DEC_ROUND_DOWN, &ctxtReal39);
-
-  realSubtract(&angle, &degrees, &angle, &ctxtReal39);
-  realMultiply(&angle, const_60, &angle, &ctxtReal39);
-
-  realToIntegralValue(&angle, &minutes, DEC_ROUND_DOWN, &ctxtReal39);
-
-  realSubtract(&angle, &minutes, &angle, &ctxtReal39);
-  realMultiply(&angle, const_60, &seconds, &ctxtReal39);
-
-  minutes.exponent -= 2; // minutes = minutes / 100
-  seconds.exponent -= 4; // seconds = seconds / 10000
-
-  realAdd(&degrees, &minutes, &angle, &ctxtReal39);
-  realAdd(&angle,   &seconds, &angle, &ctxtReal39);
-
-  if(real34IsNegative(angleDec)) {
-    realSetNegativeSign(&angle);
-  }
-
+  realFromDegToDms(&angle, &angle, &ctxtReal39);
   realToReal34(&angle, angleDms);
 
   checkDms34(angleDms);

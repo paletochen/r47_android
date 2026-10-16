@@ -8,38 +8,27 @@
 
 #include "c47.h"
 
-void sincpiComplex(const real_t *real, const real_t *imag, real_t *resReal, real_t *resImag, realContext_t *realContext) {
+void sincpiComplex(const cplx_t *z, cplx_t *res, realContext_t *realContext) {
   // sin(a + ib) = sin(a)*cosh(b) + i*cos(a)*sinh(b)
   // sinc(a + ib) = sin(a + ib) / (a + ib), for the allowable conditions
-  real_t rr, ii, rmdr;
+  cplx_t x;
+  const real_t *pi = realContext->digits > 39 ? const75_pi : const39_pi;
 
-  realCopy(real, &rr);
-  realCopy(imag, &ii);
-  realDivideRemainder(&rr, const_1, &rmdr, realContext);
+  realCopy(&z->Real, &x.Real);
+  realCopy(&z->Imag, &x.Imag);
 
-  if(realIsZero(&rr) && realIsZero(&ii)) {
-    realSetOne(resReal);
-    realSetZero(resImag);
+  if(realIsZero(&x.Real) && realIsZero(&x.Imag)) {
+    realSetOne(&res->Real);
+    realSetZero(&res->Imag);
   }
-  else if(realIsZero(&rmdr) && realIsZero(&ii)) {
-    realSetZero(resReal);
-    realSetZero(resImag);
+  else if(!realIsSpecial(&x.Real) && realIsAnInteger(&x.Real) && realIsZero(&x.Imag)) {
+    realSetZero(&res->Real);
+    realSetZero(&res->Imag);
   }
   else {
-    real_t sina, cosa, sinhb, coshb, sinR, sinImag;
-
-    realMultiply(&rr, const39_pi, &rr, realContext);
-    realMultiply(&ii, const39_pi, &ii, realContext);
-
-    C47_WP34S_Cvt2RadSinCosTan(&rr, amRadian, &sina, &cosa, NULL, realContext);
-    WP34S_SinhCosh(&ii, &sinhb, &coshb, realContext);
-
-    realMultiply(&sina, &coshb, resReal, realContext);
-    realMultiply(&cosa, &sinhb, resImag, realContext);
-
-    realCopy(resReal, &sinR);
-    realCopy(resImag, &sinImag);
-    divComplexComplex(&sinR, &sinImag, &rr, &ii, resReal, resImag, realContext);
+    realMultiply(&x.Real, pi, &x.Real, realContext);
+    realMultiply(&x.Imag, pi, &x.Imag, realContext);
+    sincComplex(&x, res, realContext);
   }
 }
 
@@ -78,9 +67,14 @@ static void sincpiReal(void) {
       if(xAngularMode != amNone) {
         convertAngleFromTo(&x, xAngularMode, amRadian, &ctxtReal75);
       }
-      realMultiply(&x, const39_pi, &x, &ctxtReal75);   //This pi is to convert sincpi to sinc for all input, regardless
-      C47_WP34S_Cvt2RadSinCosTan(&x, amRadian, &sine, NULL, NULL, &ctxtReal75);
-      realDivide(&sine, &x, &x, &ctxtReal75);
+      if(realIsAnInteger(&x)) {
+        r = const_0;
+      }
+      else {
+        realMultiply(&x, const75_pi, &x, &ctxtReal75);   //This pi is to convert sincpi to sinc for all input, regardless
+        C47_WP34S_Cvt2RadSinCosTan(&x, amRadian, &sine, NULL, NULL, &ctxtReal75);
+        realDivide(&sine, &x, &x, &ctxtReal75);
+      }
     }
   }
   convertRealToResultRegister(r, REGISTER_X, amNone);
@@ -88,15 +82,15 @@ static void sincpiReal(void) {
 
 
 static void sincpiCplx(void) {
-  real_t zReal, zImag;
+  cplx_t z;
 
-  if(!getRegisterAsComplex(REGISTER_X, &zReal, &zImag)) {
+  if(!getRegisterAsComplex(REGISTER_X, &z)) {
     return;
   }
 
-  sincpiComplex(&zReal, &zImag, &zReal, &zImag, &ctxtReal39);
+  sincpiComplex(&z, &z, &ctxtReal75);
 
-  convertComplexToResultRegister(&zReal, &zImag, REGISTER_X);
+  convertComplexToResultRegister(&z, REGISTER_X);
 }
 
 

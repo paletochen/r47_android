@@ -8,5 +8,6 @@
   #define LN_H
 
   void fnLn   (uint16_t unusedButMandatoryParameter);
-  void lnComplex(const real_t *real, const real_t *imag, real_t *lnReal, real_t *lnImag, realContext_t *realContext);
+  void lnComplex(const cplx_t *z, cplx_t *ln, realContext_t *realContext);
+  void lnComplexDirect(const cplx_t *z, cplx_t *ln);
 #endif // !LN_H

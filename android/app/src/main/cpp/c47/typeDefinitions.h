@@ -13,13 +13,26 @@ typedef bool bool_t;
 
 /**
  * combined complex type, used in complex solver, and elec, and more new functions/conversions
+ * Mag and Arg name the same storage as Real and Imag while the value is in polar form
  */
 typedef struct {
-      real_t Real;
-      real_t Imag;
+      union { real_t Real; real_t Mag; };
+      union { real_t Imag; real_t Arg; };
 } cplx_t;
 
-#define CPLX(x) &(x).Real, &(x).Imag
+/**
+ * complex type with 159 digits of room in each part, for the 159 digit paths of SLVC, SLVQ and EIGEN
+ */
+typedef struct {
+  union {
+    real_t   Real;
+    uint32_t RealStorage[REAL_SIZE_IN_BYTES(159) / 4];
+  };
+  union {
+    real_t   Imag;
+    uint32_t ImagStorage[REAL_SIZE_IN_BYTES(159) / 4];
+  };
+} cplx159_t;
 
 
 /**

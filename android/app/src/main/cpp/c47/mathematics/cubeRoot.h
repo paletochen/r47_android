@@ -9,8 +9,10 @@
 
   void fnCubeRoot(uint16_t unusedButMandatoryParameter);
 
-  void curtComplex(const real_t *real, const real_t *imag, real_t *resReal, real_t *resImag, realContext_t *realContext);
-//  void curtComplex159(const real_t *zReal, const real_t *zImag, real_t *resReal, real_t *resImag, realContext_t *realContext);
+  void curtComplex(const cplx_t *z, cplx_t *res, realContext_t *realContext);
+  #if defined(OPTION_CUBIC_159) || defined(OPTION_EIGEN_159)
+    void curtComplex159(const cplx159_t *z, cplx159_t *res, realContext_t *realContext);
+  #endif // OPTION_CUBIC_159 || OPTION_EIGEN_159
   void curtReal   (void);
 
 #endif // !CUBEROOT_H

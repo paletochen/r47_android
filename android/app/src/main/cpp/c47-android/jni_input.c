@@ -873,39 +873,95 @@ JNIEXPORT void JNICALL
 Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
     JNIEnv *env, jobject thiz, jstring text) {
   (void)thiz;
-  if (!ram || isCoreBlockingForIo) {
+  if(!ram || isCoreBlockingForIo) {
     return;
   }
 
   const char *rawText = (*env)->GetStringUTFChars(env, text, 0);
-  if (!rawText) {
+  if(!rawText) {
     return;
   }
 
+  // Trim leading/trailing whitespace from rawText
+  const char *rawStart = rawText;
+  while(*rawStart == ' ' || *rawStart == '\t' || *rawStart == '\r' || *rawStart == '\n') {
+    rawStart++;
+  }
+  size_t rawTrimLen = strlen(rawStart);
+  while(rawTrimLen > 0 && (rawStart[rawTrimLen - 1] == ' ' || rawStart[rawTrimLen - 1] == '\t' ||
+                           rawStart[rawTrimLen - 1] == '\r' || rawStart[rawTrimLen - 1] == '\n')) {
+    rawTrimLen--;
+  }
+
+  if(rawTrimLen == 0) {
+    (*env)->ReleaseStringUTFChars(env, text, rawText);
+    return;
+  }
+
+  // 1. Explicitly quoted string ("..." or '...'): strip enclosing quotes and paste directly as String
+  if(rawTrimLen >= 2 && ((rawStart[0] == '"' && rawStart[rawTrimLen - 1] == '"') ||
+                         (rawStart[0] == '\'' && rawStart[rawTrimLen - 1] == '\''))) {
+    char *quotedStr = (char *)malloc(rawTrimLen);
+    if(quotedStr) {
+      memcpy(quotedStr, rawStart + 1, rawTrimLen - 2);
+      quotedStr[rawTrimLen - 2] = '\0';
+
+      pthread_mutex_lock(&screenMutex);
+      if(calcMode == CM_NORMAL && getSystemFlag(FLAG_ASLIFT)) {
+        liftStack();
+      }
+      restoreRegister(REGISTER_X, "Stri", quotedStr);
+      setSystemFlag(FLAG_ASLIFT);
+
+      extern bool_t reDraw;
+      extern gboolean refreshLcd(gpointer unusedData);
+      reDraw = true;
+      screenUpdatingMode = SCRUPD_AUTO;
+      refreshScreen(1);
+      refreshLcd(NULL);
+      lcd_refresh();
+      pthread_mutex_unlock(&screenMutex);
+
+      free(quotedStr);
+    }
+    (*env)->ReleaseStringUTFChars(env, text, rawText);
+    return;
+  }
+
+  // Save copy of unquoted trimmed input for string fallback (preserving spaces/punctuation)
+  char *origTrimmed = (char *)malloc(rawTrimLen + 1);
+  if(!origTrimmed) {
+    (*env)->ReleaseStringUTFChars(env, text, rawText);
+    return;
+  }
+  memcpy(origTrimmed, rawStart, rawTrimLen);
+  origTrimmed[rawTrimLen] = '\0';
+
   size_t rawLen = strlen(rawText);
   char *buf = (char *)malloc(rawLen * 2 + 64);
-  if (!buf) {
+  if(!buf) {
+    free(origTrimmed);
     (*env)->ReleaseStringUTFChars(env, text, rawText);
     return;
   }
 
   size_t len = 0;
   const char *p = rawText;
-  while (*p) {
+  while(*p) {
     unsigned char c = (unsigned char)*p;
-    if (c == 0xC2 && (unsigned char)*(p + 1) == 0xB0) {
+    if(c == 0xC2 && (unsigned char)*(p + 1) == 0xB0) {
       buf[len++] = ':';
       buf[len++] = 'D';
       buf[len++] = 'E';
       buf[len++] = 'G';
       p += 2;
-    } else if (c == 0x80 && (unsigned char)*(p + 1) == 0xB0) {
+    } else if(c == 0x80 && (unsigned char)*(p + 1) == 0xB0) {
       buf[len++] = ':';
       buf[len++] = 'D';
       buf[len++] = 'E';
       buf[len++] = 'G';
       p += 2;
-    } else if (c == 0xAC && (unsigned char)*(p + 1) == 0x66) { // STD_SUP_pir
+    } else if(c == 0xAC && (unsigned char)*(p + 1) == 0x66) { // STD_SUP_pir
       buf[len++] = ':';
       buf[len++] = 'M';
       buf[len++] = 'U';
@@ -914,7 +970,7 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
       buf[len++] = 'P';
       buf[len++] = 'I';
       p += 2;
-    } else if (c == 0x83 && (unsigned char)*(p + 1) == 0xC0) { // STD_pi
+    } else if(c == 0x83 && (unsigned char)*(p + 1) == 0xC0) { // STD_pi
       buf[len++] = ':';
       buf[len++] = 'M';
       buf[len++] = 'U';
@@ -923,14 +979,14 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
       buf[len++] = 'P';
       buf[len++] = 'I';
       p += 2;
-      if (*p == 'r' || *p == 'R') {
+      if(*p == 'r' || *p == 'R') {
         p++;
       }
-    } else if (c == 0xE2 && (unsigned char)*(p + 1) == 0x80 && ((unsigned char)*(p + 2) >= 0x80 && (unsigned char)*(p + 2) <= 0x8B)) {
+    } else if(c == 0xE2 && (unsigned char)*(p + 1) == 0x80 && ((unsigned char)*(p + 2) >= 0x80 && (unsigned char)*(p + 2) <= 0x8B)) {
       // UTF-8 U+2000..U+200B (punctuation spaces, thin space, hair space, zero-width space)
       buf[len++] = ' ';
       p += 3;
-    } else if (c == 0xC2 && (unsigned char)*(p + 1) == 0xA0) {
+    } else if(c == 0xC2 && (unsigned char)*(p + 1) == 0xA0) {
       // UTF-8 U+00A0 (non-breaking space)
       buf[len++] = ' ';
       p += 2;
@@ -942,24 +998,46 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
   (*env)->ReleaseStringUTFChars(env, text, rawText);
 
   char *s = buf;
-  while (*s == ' ' || *s == '\t' || *s == '\r' || *s == '\n') {
+  while(*s == ' ' || *s == '\t' || *s == '\r' || *s == '\n') {
     s++;
   }
   char *e = s + strlen(s);
-  while (e > s && (*(e - 1) == ' ' || *(e - 1) == '\t' || *(e - 1) == '\r' || *(e - 1) == '\n')) {
+  while(e > s && (*(e - 1) == ' ' || *(e - 1) == '\t' || *(e - 1) == '\r' || *(e - 1) == '\n')) {
     *(--e) = '\0';
   }
-  if (!*s) {
+  if(!*s) {
+    free(origTrimmed);
     free(buf);
     return;
   }
 
-  if (tryPasteMatrix(s)) {
+  // Strip leading register identifier (e.g. "X = ..." or "X=...")
+  if((s[0] == 'X' || s[0] == 'x') && (s[1] == '=' || (s[1] == ' ' && s[2] == '='))) {
+    char *afterEq = strchr(s, '=');
+    if(afterEq) {
+      s = afterEq + 1;
+      while(*s == ' ' || *s == '\t') {
+        s++;
+      }
+    }
+    char *origAfterEq = strchr(origTrimmed, '=');
+    if(origAfterEq) {
+      char *newOrig = origAfterEq + 1;
+      while(*newOrig == ' ' || *newOrig == '\t') {
+        newOrig++;
+      }
+      memmove(origTrimmed, newOrig, strlen(newOrig) + 1);
+    }
+  }
+
+  if(tryPasteMatrix(s)) {
+    free(origTrimmed);
     free(buf);
     return;
   }
 
-  if (tryPasteComplex(s)) {
+  if(tryPasteComplex(s)) {
+    free(origTrimmed);
     free(buf);
     return;
   }
@@ -975,66 +1053,69 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
   char *multpiTag = strstr(s, ":MULTPI");
 
   char *piUtf8 = strstr(s, "\xcf\x80");     // UTF-8 lowercase pi 'π'
-  if (!piUtf8) {
+  if(!piUtf8) {
     piUtf8 = strstr(s, "\xce\xa0");         // UTF-8 uppercase pi 'Π'
   }
 
-  if (multpiTag) {
+  if(multpiTag) {
     strcpy(typeTag, "Real:MULTPI");
     *multpiTag = '\0';
-  } else if (piUtf8) {
+  } else if(piUtf8) {
     strcpy(typeTag, "Real:MULTPI");
     *piUtf8 = '\0';
-  } else if (degTag) {
+  } else if(degTag) {
     strcpy(typeTag, "Real:DEG");
     *degTag = '\0';
-  } else if (radTag) {
+  } else if(radTag) {
     strcpy(typeTag, "Real:RAD");
     *radTag = '\0';
-  } else if (gradTag) {
+  } else if(gradTag) {
     strcpy(typeTag, "Real:GRAD");
     *gradTag = '\0';
   } else {
     size_t slen = strlen(s);
-    if (slen >= 3 && strcasecmp(s + slen - 3, "pir") == 0) {
+    if(slen >= 3 && strcasecmp(s + slen - 3, "pir") == 0) {
       strcpy(typeTag, "Real:MULTPI");
       s[slen - 3] = '\0';
-    } else if (slen >= 2 && strcasecmp(s + slen - 2, "pi") == 0) {
+    } else if(slen >= 2 && strcasecmp(s + slen - 2, "pi") == 0) {
       strcpy(typeTag, "Real:MULTPI");
       s[slen - 2] = '\0';
-    } else if (slen >= 3 && strcasecmp(s + slen - 3, "deg") == 0) {
+    } else if(slen >= 3 && strcasecmp(s + slen - 3, "deg") == 0) {
       strcpy(typeTag, "Real:DEG");
       s[slen - 3] = '\0';
-    } else if (slen >= 3 && strcasecmp(s + slen - 3, "rad") == 0) {
+    } else if(slen >= 3 && strcasecmp(s + slen - 3, "rad") == 0) {
       strcpy(typeTag, "Real:RAD");
       s[slen - 3] = '\0';
-    } else if (slen >= 4 && strcasecmp(s + slen - 4, "grad") == 0) {
+    } else if(slen >= 4 && strcasecmp(s + slen - 4, "grad") == 0) {
       strcpy(typeTag, "Real:GRAD");
       s[slen - 4] = '\0';
-    } else if (slen >= 1 && (s[slen - 1] == 'r' || s[slen - 1] == 'R')) {
+    } else if(slen >= 2 && (s[slen - 1] == 'r' || s[slen - 1] == 'R') &&
+              (isdigit((unsigned char)s[slen - 2]) || s[slen - 2] == '.' || s[slen - 2] == ',')) {
       strcpy(typeTag, "Real:RAD");
       s[slen - 1] = '\0';
-    } else if (slen >= 1 && (s[slen - 1] == 'g' || s[slen - 1] == 'G')) {
+    } else if(slen >= 2 && (s[slen - 1] == 'g' || s[slen - 1] == 'G') &&
+              (isdigit((unsigned char)s[slen - 2]) || s[slen - 2] == '.' || s[slen - 2] == ',')) {
       strcpy(typeTag, "Real:GRAD");
       s[slen - 1] = '\0';
-    } else if (slen >= 1 && (s[slen - 1] == 'd' || s[slen - 1] == 'D')) {
+    } else if(slen >= 2 && (s[slen - 1] == 'd' || s[slen - 1] == 'D') &&
+              (isdigit((unsigned char)s[slen - 2]) || s[slen - 2] == '.' || s[slen - 2] == ',')) {
       strcpy(typeTag, "Real:DEG");
       s[slen - 1] = '\0';
     }
   }
 
-  if (strcmp(typeTag, "Real:MULTPI") == 0) {
+  if(strcmp(typeTag, "Real:MULTPI") == 0) {
     char *end = s + strlen(s);
-    while (end > s && (*(end - 1) == ' ' || *(end - 1) == '\t' || *(end - 1) == '*')) {
+    while(end > s && (*(end - 1) == ' ' || *(end - 1) == '\t' || *(end - 1) == '*')) {
       *(--end) = '\0';
     }
-    while (*s == ' ' || *s == '\t') {
+    while(*s == ' ' || *s == '\t') {
       s++;
     }
-    if (*s == '\0' || strcmp(s, "+") == 0) {
+    if(*s == '\0' || strcmp(s, "+") == 0) {
       strcpy(multpiDefaultBuf, "1.");
       s = multpiDefaultBuf;
-    } else if (strcmp(s, "-") == 0) {
+    } else if(strcmp(s, "-") == 0) {
       strcpy(multpiDefaultBuf, "-1.");
       s = multpiDefaultBuf;
     }
@@ -1042,32 +1123,34 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
 
   char timeSecBuf[64];
   char dateFmtBuf[64];
+  bool_t isTime = false;
+  bool_t isDate = false;
 
-  if (strchr(s, ':')) {
+  if(strchr(s, ':')) {
     bool_t isNeg = false;
     char *pTime = s;
-    if (*pTime == '-') {
+    if(*pTime == '-') {
       isNeg = true;
       pTime++;
-    } else if (*pTime == '+') {
+    } else if(*pTime == '+') {
       pTime++;
     }
 
     char *firstColon = strchr(pTime, ':');
-    if (firstColon) {
+    if(firstColon) {
       char *secondColon = strchr(firstColon + 1, ':');
       char part1[32], part2[32], part3[32];
 
       size_t l1 = firstColon - pTime;
-      if (l1 >= sizeof(part1)) {
+      if(l1 >= sizeof(part1)) {
         l1 = sizeof(part1) - 1;
       }
       strncpy(part1, pTime, l1);
       part1[l1] = '\0';
 
-      if (secondColon) {
+      if(secondColon) {
         size_t l2 = secondColon - (firstColon + 1);
-        if (l2 >= sizeof(part2)) {
+        if(l2 >= sizeof(part2)) {
           l2 = sizeof(part2) - 1;
         }
         strncpy(part2, firstColon + 1, l2);
@@ -1083,84 +1166,87 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
 
       // Trim any whitespace inside extracted parts and remove internal spaces
       char *t1 = part1;
-      while (*t1 == ' ' || *t1 == '\t') {
+      while(*t1 == ' ' || *t1 == '\t') {
         t1++;
       }
       char *te1 = t1 + strlen(t1);
-      while (te1 > t1 && (*(te1 - 1) == ' ' || *(te1 - 1) == '\t')) {
+      while(te1 > t1 && (*(te1 - 1) == ' ' || *(te1 - 1) == '\t')) {
         *(--te1) = '\0';
       }
       char cleanP1[32], cleanP2[32], cleanP3[32];
       char *w = cleanP1;
-      for (char *r = t1; *r; r++) {
-        if (*r != ' ' && *r != '\t') {
+      for(char *r = t1; *r; r++) {
+        if(*r != ' ' && *r != '\t') {
           *w++ = *r;
         }
       }
       *w = '\0';
 
       char *t2 = part2;
-      while (*t2 == ' ' || *t2 == '\t') {
+      while(*t2 == ' ' || *t2 == '\t') {
         t2++;
       }
       char *te2 = t2 + strlen(t2);
-      while (te2 > t2 && (*(te2 - 1) == ' ' || *(te2 - 1) == '\t')) {
+      while(te2 > t2 && (*(te2 - 1) == ' ' || *(te2 - 1) == '\t')) {
         *(--te2) = '\0';
       }
       w = cleanP2;
-      for (char *r = t2; *r; r++) {
-        if (*r != ' ' && *r != '\t') {
+      for(char *r = t2; *r; r++) {
+        if(*r != ' ' && *r != '\t') {
           *w++ = *r;
         }
       }
       *w = '\0';
 
       char *t3 = part3;
-      while (*t3 == ' ' || *t3 == '\t') {
+      while(*t3 == ' ' || *t3 == '\t') {
         t3++;
       }
       char *te3 = t3 + strlen(t3);
-      while (te3 > t3 && (*(te3 - 1) == ' ' || *(te3 - 1) == '\t')) {
+      while(te3 > t3 && (*(te3 - 1) == ' ' || *(te3 - 1) == '\t')) {
         *(--te3) = '\0';
       }
       w = cleanP3;
-      for (char *r = t3; *r; r++) {
-        if (*r != ' ' && *r != '\t') {
+      for(char *r = t3; *r; r++) {
+        if(*r != ' ' && *r != '\t') {
           *w++ = *r;
         }
       }
       *w = '\0';
 
-      real34_t rH, rM, rS, totalSec;
-      stringToReal34(cleanP1, &rH);
-      stringToReal34(cleanP2, &rM);
-      stringToReal34(cleanP3, &rS);
+      if(cleanP1[0] && cleanP2[0] && cleanP3[0]) {
+        real34_t rH, rM, rS, totalSec;
+        stringToReal34(cleanP1, &rH);
+        stringToReal34(cleanP2, &rM);
+        stringToReal34(cleanP3, &rS);
 
-      if (!real34IsNaN(&rH) && !real34IsNaN(&rM) && !real34IsNaN(&rS)) {
-        real34Multiply(&rH, const34_3600, &totalSec);
-        real34Multiply(&rM, const34_60, &rM);
-        real34Add(&totalSec, &rM, &totalSec);
-        real34Add(&totalSec, &rS, &totalSec);
-        if (isNeg) {
-          real34SetNegativeSign(&totalSec);
+        if(!real34IsNaN(&rH) && !real34IsNaN(&rM) && !real34IsNaN(&rS)) {
+          real34Multiply(&rH, const34_3600, &totalSec);
+          real34Multiply(&rM, const34_60, &rM);
+          real34Add(&totalSec, &rM, &totalSec);
+          real34Add(&totalSec, &rS, &totalSec);
+          if(isNeg) {
+            real34SetNegativeSign(&totalSec);
+          }
+          real34ToString(&totalSec, timeSecBuf);
+          strcpy(typeTag, "Time");
+          s = timeSecBuf;
+          isTime = true;
         }
-        real34ToString(&totalSec, timeSecBuf);
-        strcpy(typeTag, "Time");
-        s = timeSecBuf;
       }
     }
-  } else if (strchr(s, '-') || strchr(s, '/')) {
+  } else if(strchr(s, '-') || strchr(s, '/')) {
     char sep = strchr(s, '-') ? '-' : '/';
     char *p1 = s;
     char *firstSep = strchr(p1, sep);
     char *secondSep = firstSep ? strchr(firstSep + 1, sep) : NULL;
 
-    if (firstSep && secondSep) {
+    if(firstSep && secondSep) {
       char part1[32], part2[32], part3[32];
       size_t l1 = firstSep - p1;
       size_t l2 = secondSep - (firstSep + 1);
 
-      if (l1 < sizeof(part1) && l2 < sizeof(part2)) {
+      if(l1 < sizeof(part1) && l2 < sizeof(part2)) {
         strncpy(part1, p1, l1);
         part1[l1] = '\0';
         strncpy(part2, firstSep + 1, l2);
@@ -1168,44 +1254,52 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
         strncpy(part3, secondSep + 1, sizeof(part3) - 1);
         part3[sizeof(part3) - 1] = '\0';
 
-        uint32_t n1 = (uint32_t)strtoul(part1, NULL, 10);
-        uint32_t n2 = (uint32_t)strtoul(part2, NULL, 10);
-        uint32_t n3 = (uint32_t)strtoul(part3, NULL, 10);
+        char *endp1 = NULL, *endp2 = NULL, *endp3 = NULL;
+        uint32_t n1 = (uint32_t)strtoul(part1, &endp1, 10);
+        uint32_t n2 = (uint32_t)strtoul(part2, &endp2, 10);
+        uint32_t n3 = (uint32_t)strtoul(part3, &endp3, 10);
 
-        if (n1 > 31) {
-          // YYYY-MM-DD
-          snprintf(dateFmtBuf, sizeof(dateFmtBuf), "%u.%02u%02u", n1, n2, n3);
-          strcpy(typeTag, "DYMD");
-          s = dateFmtBuf;
-        } else if (n3 > 31) {
-          if (sep == '/' || getSystemFlag(FLAG_MDY)) {
-            // MM/DD/YYYY
-            snprintf(dateFmtBuf, sizeof(dateFmtBuf), "%u.%02u%04u", n1, n2, n3);
-            strcpy(typeTag, "DMDY");
+        if(endp1 && *endp1 == '\0' && endp2 && *endp2 == '\0' && endp3 && *endp3 == '\0') {
+          if(n1 > 31 && n2 >= 1 && n2 <= 12 && n3 >= 1 && n3 <= 31) {
+            // YYYY-MM-DD
+            snprintf(dateFmtBuf, sizeof(dateFmtBuf), "%u.%02u%02u", n1, n2, n3);
+            strcpy(typeTag, "DYMD");
             s = dateFmtBuf;
-          } else {
-            // DD.MM.YYYY
-            snprintf(dateFmtBuf, sizeof(dateFmtBuf), "%u.%02u%04u", n1, n2, n3);
-            strcpy(typeTag, "DDMY");
-            s = dateFmtBuf;
+            isDate = true;
+          } else if(n3 > 31) {
+            if(sep == '/' || getSystemFlag(FLAG_MDY)) {
+              // MM/DD/YYYY
+              snprintf(dateFmtBuf, sizeof(dateFmtBuf), "%u.%02u%04u", n1, n2, n3);
+              strcpy(typeTag, "DMDY");
+              s = dateFmtBuf;
+              isDate = true;
+            } else {
+              // DD.MM.YYYY
+              snprintf(dateFmtBuf, sizeof(dateFmtBuf), "%u.%02u%04u", n1, n2, n3);
+              strcpy(typeTag, "DDMY");
+              s = dateFmtBuf;
+              isDate = true;
+            }
           }
         }
       }
     }
   }
 
-  e = s + strlen(s);
-  while (e > s && (*(e - 1) == ' ' || *(e - 1) == '\t' || *(e - 1) == '.' || *(e - 1) == ',')) {
-    *(--e) = '\0';
-  }
+  bool_t isReal = false;
+  char cleanBuf[256];
 
-  // Sanitize Real numbers: strip any internal spaces (e.g. from digit grouping) and normalize radix
-  if (strncmp(typeTag, "Real", 4) == 0) {
-    char cleanBuf[256];
+  if(!isDate && !isTime) {
+    e = s + strlen(s);
+    while(e > s && (*(e - 1) == ' ' || *(e - 1) == '\t' || *(e - 1) == '.' || *(e - 1) == ',')) {
+      *(--e) = '\0';
+    }
+
+    // Sanitize Real numbers: strip any internal spaces (e.g. from digit grouping) and normalize radix
     char *r = s;
     char *w = cleanBuf;
-    while (*r && (size_t)(w - cleanBuf) < sizeof(cleanBuf) - 1) {
-      if (*r != ' ' && *r != '\t') {
+    while(*r && (size_t)(w - cleanBuf) < sizeof(cleanBuf) - 1) {
+      if(*r != ' ' && *r != '\t') {
         *w++ = *r;
       }
       r++;
@@ -1214,22 +1308,22 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
 
     char *lastDot = strrchr(cleanBuf, '.');
     char *lastComma = strrchr(cleanBuf, ',');
-    if (lastComma != NULL && lastDot == NULL) {
+    if(lastComma != NULL && lastDot == NULL) {
       // European format with comma as radix mark (e.g. "1234,56")
-      for (char *p = cleanBuf; *p; p++) {
-        if (*p == ',') {
-          *p = '.';
+      for(char *pClean = cleanBuf; *pClean; pClean++) {
+        if(*pClean == ',') {
+          *pClean = '.';
         }
       }
-    } else if (lastDot != NULL && lastComma != NULL) {
-      if (lastComma > lastDot) {
+    } else if(lastDot != NULL && lastComma != NULL) {
+      if(lastComma > lastDot) {
         // European format with thousand dots and comma radix (e.g. "1.234,56")
         char *src = cleanBuf;
         char *dst = cleanBuf;
-        while (*src) {
-          if (*src == '.') {
+        while(*src) {
+          if(*src == '.') {
             src++;
-          } else if (*src == ',') {
+          } else if(*src == ',') {
             *dst++ = '.';
             src++;
           } else {
@@ -1241,8 +1335,8 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
         // Standard format with thousand commas and dot radix (e.g. "1,234.56")
         char *src = cleanBuf;
         char *dst = cleanBuf;
-        while (*src) {
-          if (*src == ',') {
+        while(*src) {
+          if(*src == ',') {
             src++;
           } else {
             *dst++ = *src++;
@@ -1254,20 +1348,32 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
 
     // Re-trim any trailing radix marks from the cleaned string
     size_t clen = strlen(cleanBuf);
-    while (clen > 0 && (cleanBuf[clen - 1] == '.' || cleanBuf[clen - 1] == ',')) {
+    while(clen > 0 && (cleanBuf[clen - 1] == '.' || cleanBuf[clen - 1] == ',')) {
       cleanBuf[--clen] = '\0';
     }
 
-    strcpy(buf, cleanBuf);
-    s = buf;
+    if(cleanBuf[0] != '\0') {
+      real34_t testReal;
+      stringToReal34(cleanBuf, &testReal);
+      if(!real34IsNaN(&testReal)) {
+        isReal = true;
+      }
+    }
   }
 
   pthread_mutex_lock(&screenMutex);
-  if (calcMode == CM_NORMAL && getSystemFlag(FLAG_ASLIFT)) {
+  if(calcMode == CM_NORMAL && getSystemFlag(FLAG_ASLIFT)) {
     liftStack();
   }
 
-  restoreRegister(REGISTER_X, typeTag, s);
+  if(isDate || isTime) {
+    restoreRegister(REGISTER_X, typeTag, s);
+  } else if(isReal) {
+    restoreRegister(REGISTER_X, typeTag, cleanBuf);
+  } else {
+    restoreRegister(REGISTER_X, "Stri", origTrimmed);
+  }
+
   setSystemFlag(FLAG_ASLIFT);
 
   extern bool_t reDraw;
@@ -1279,5 +1385,6 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
   lcd_refresh();
   pthread_mutex_unlock(&screenMutex);
 
+  free(origTrimmed);
   free(buf);
 }

@@ -9,9 +9,9 @@
 
   void fnChangeSign(uint16_t unusedButMandatoryParameter);
 
-  static inline void chsComplex(real_t *aReal, real_t *aImag) {
-    realChangeSign(aReal);
-    realChangeSign(aImag);
+  static inline void chsComplex(cplx_t *a) {
+    realChangeSign(&a->Real);
+    realChangeSign(&a->Imag);
   }
 
   //      RegX

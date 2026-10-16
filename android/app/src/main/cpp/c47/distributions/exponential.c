@@ -7,107 +7,55 @@
 
 #include "c47.h"
 
-#if !defined(OPTION_DIST_B)
+#if !defined(OPTION_DIST_EXPON)
   void fnExponentialP  (uint16_t unusedButMandatoryParameter){}
   void fnExponentialL  (uint16_t unusedButMandatoryParameter){}
   void fnExponentialR  (uint16_t unusedButMandatoryParameter){}
   void fnExponentialI  (uint16_t unusedButMandatoryParameter){}
 
 #else
-  static bool_t checkParamExponential(real_t *x, real_t *i) {
-    if(!saveLastX()) {
+  bool_t exponentialCheckDomain(bool_t registersValid, real_t *x, real_t *i, real_t *unusedSecond, real_t *unusedThird, uint16_t unusedParameter) {
+    if(!registersValid) {
       return false;
     }
 
-    if(!getRegisterAsReal(REGISTER_X, x) || !getRegisterAsReal(REGISTER_R, i)) {
-      goto err;
+    if(realIsNaN(x)) {
+      if(!getSystemFlag(FLAG_SPCRES)) {
+        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+          moreInfoOnError("In function exponentialCheckDomain:", "x is NaN", NULL, NULL);
+        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+      }
+      return false;
     }
-
-    if(realIsNegative(x)) {
-      displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
-      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-        moreInfoOnError("In function checkParamExponential:", "cannot calculate for x < 0", NULL, NULL);
-      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      goto err;
-    }
-    else if(realIsZero(i) || realIsNegative(i)) {
+    else if(realIsSpecial(i) || realCompareLessEqual(i, const_0)) {
       displayDomainErrorMessage(ERROR_INVALID_DISTRIBUTION_PARAM, ERR_REGISTER_LINE);
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-        moreInfoOnError("In function checkParamExponential:", "cannot calculate for " STD_lambda " " STD_LESS_EQUAL " 0", NULL, NULL);
+        moreInfoOnError("In function exponentialCheckDomain:", "the parameter must be " STD_lambda " > 0", NULL, NULL);
       #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-      goto err;
+      return false;
     }
     return true;
-
-  err:
-    if(getSystemFlag(FLAG_SPCRES)) {
-      convertRealToResultRegister(const_NaN, REGISTER_X, amNone);
-    }
-    return false;
   }
 
 
   void fnExponentialP(uint16_t unusedButMandatoryParameter) {
-    real_t val, ans, dof;
-
-    if(checkParamExponential(&val, &dof)) {
-      WP34S_Pdf_Expon(&val, &dof, &ans, &ctxtReal39);
-      convertRealToResultRegister(&ans, REGISTER_X, amNone);
-      adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-    }
+    fnDistribution(DIST_EXPON * 4 + DIST_P);
   }
 
 
   void fnExponentialL(uint16_t unusedButMandatoryParameter) {
-    real_t val, ans, dof;
-
-    if(checkParamExponential(&val, &dof)) {
-      WP34S_Cdf_Expon(&val, &dof, &ans, &ctxtReal39);
-      convertRealToResultRegister(&ans, REGISTER_X, amNone);
-      adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-    }
+    fnDistribution(DIST_EXPON * 4 + DIST_L);
   }
 
 
   void fnExponentialR(uint16_t unusedButMandatoryParameter) {
-    real_t val, ans, dof;
-
-    if(checkParamExponential(&val, &dof)) {
-      WP34S_Cdfu_Expon(&val, &dof, &ans, &ctxtReal39);
-      convertRealToResultRegister(&ans, REGISTER_X, amNone);
-      adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-    }
+    fnDistribution(DIST_EXPON * 4 + DIST_R);
   }
 
 
   void fnExponentialI(uint16_t unusedButMandatoryParameter) {
-    real_t val, ans, dof;
-
-    if(checkParamExponential(&val, &dof)) {
-      if(realCompareLessEqual(&val, const_0) || realCompareGreaterEqual(&val, const_1)) {
-        displayDomainErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
-        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-          moreInfoOnError("In function fnExponentialI:", "the argument must be 0 < x < 1", NULL, NULL);
-        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-        if(getSystemFlag(FLAG_SPCRES)) {
-          convertRealToResultRegister(const_NaN, REGISTER_X, amNone);
-        }
-        return;
-      }
-      WP34S_Qf_Expon(&val, &dof, &ans, &ctxtReal39);
-      if(realIsNaN(&ans)) {
-        displayDomainErrorMessage(ERROR_NO_ROOT_FOUND, ERR_REGISTER_LINE);
-        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-          moreInfoOnError("In function fnExponentialI:", "WP34S_Qf_Expon did not converge", NULL, NULL);
-        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-        if(getSystemFlag(FLAG_SPCRES)) {
-          convertRealToResultRegister(const_NaN, REGISTER_X, amNone);
-        }
-        return;
-      }
-      convertRealToResultRegister(&ans, REGISTER_X, amNone);
-      adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
-    }
+    fnDistribution(DIST_EXPON * 4 + DIST_I);
   }
 
 
@@ -116,64 +64,101 @@
    * This functions are borrowed from the WP34S project
    ******************************************************/
 
+  /********************************************//**
+   * \brief Checks the exponential rate parameter.
+   ***********************************************/
   void WP34S_Pdf_Expon(const real_t *x, const real_t *lambda, real_t *res, realContext_t *realContext) {
-    if(realCompareLessEqual(x, const_0)) {
+    REAL_T_PTR(scaled, 75);
+    REAL_T_PTR(value, 75);
+
+    if(realIsNaN(x) || !WP34S_IsPositiveFinite(lambda)) {
+      realSetNaN(res);
+      return;
+    }
+    if(realCompareLessThan(x, const_0) || realIsInfinite(x)) {
       realSetZero(res);
       return;
     }
-    if(realIsSpecial(lambda)) {
-      realSetZero(res); /* Can only be infinite which has zero probability */
+    if(realIsZero(x)) {
+      realCopy(lambda, res);
       return;
     }
-    realMultiply(x, lambda, res, realContext);
-    realChangeSign(res);
-    realExp(res, res, realContext);
-    realMultiply(res, lambda, res, realContext);
+    realMultiply(x, lambda, scaled, realContext);
+    if(realCompareLessEqual(scaled, const_10000)) {
+      realMinus(scaled, value, realContext);
+      realExp(value, value, realContext);
+      if(realCompareEqual(value, const_1)) {
+        realNextToward(value, const_0, value, realContext);
+      }
+      realMultiply(value, lambda, res, realContext);
+    }
+    else {
+      WP34S_Ln(lambda, value, realContext);
+      realSubtract(value, scaled, value, realContext);
+      realExp(value, res, realContext);
+      WP34S_MarkPositive(res, realContext);
+    }
   }
 
   void WP34S_Cdfu_Expon(const real_t *x, const real_t *lambda, real_t *res, realContext_t *realContext) {
+    if(realIsNaN(x) || !WP34S_IsPositiveFinite(lambda)) {
+      realSetNaN(res);
+      return;
+    }
     if(realCompareLessEqual(x, const_0)) {
       realSetOne(res);
       return;
     }
-    if(realIsSpecial(lambda)) {
-      realSetPlusInfinity(res);
+    if(realIsInfinite(x)) {
+      realSetZero(res);
       return;
     }
     realMultiply(x, lambda, res, realContext);
-    if(realCompareLessThan(res, const_0)) {
-      realSetOne(res);
-      return;
-    }
     realChangeSign(res);
     realExp(res, res, realContext);
+    WP34S_MarkProbability(res, realContext);
   }
 
   void WP34S_Cdf_Expon(const real_t *x, const real_t *lambda, real_t *res, realContext_t *realContext) {
+    if(realIsNaN(x) || !WP34S_IsPositiveFinite(lambda)) {
+      realSetNaN(res);
+      return;
+    }
     if(realCompareLessEqual(x, const_0)) {
       realSetZero(res);
       return;
     }
-    if(realIsSpecial(lambda)) {
-      realSetPlusInfinity(res);
-      return;
-    }
-    realMultiply(x, lambda, res, realContext);
-    if(realCompareLessThan(res, const_0)) {
+    if(realIsInfinite(x)) {
       realSetOne(res);
       return;
     }
+    realMultiply(x, lambda, res, realContext);
     realChangeSign(res);
     WP34S_ExpM1(res, res, realContext);
     realChangeSign(res);
+    WP34S_MarkProbability(res, realContext);
   }
 
   void WP34S_Qf_Expon(const real_t *x, const real_t *lambda, real_t *res, realContext_t *realContext) {
-    real_t p;
+    REAL_T_PTR(p, 75);
 
-    realSubtract(const_0, x, &p, realContext), WP34S_Ln1P(&p, res, realContext);
-    realDivide(res, lambda, res, realContext);
-    realChangeSign(res);
+    if(realIsNaN(x) || !WP34S_IsPositiveFinite(lambda) || realCompareLessThan(x, const_0) || realCompareGreaterThan(x, const_1)) {
+      realSetNaN(res);
+      return;
+    }
+    if(realIsZero(x)) {
+      realSetZero(res);
+      return;
+    }
+    if(realCompareEqual(x, const_1)) {
+      realSetPlusInfinity(res);
+      return;
+    }
+    realMinus(x, p, realContext);
+    WP34S_Ln1P(p, p, realContext);
+    realChangeSign(p);
+    realDivide(p, lambda, res, realContext);
+    WP34S_MarkPositive(res, realContext);
   }
 
-#endif // !OPTION_DIST_B
+#endif // !OPTION_DIST_EXPON

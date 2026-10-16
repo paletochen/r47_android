@@ -51,12 +51,29 @@ void fnRoundi(uint16_t unusedButMandatoryParameter) {
 
 
 void roundiRema(void) {
-  elementwiseRema(roundiReal);
+  real34Matrix_t x;
+  uint32_t elements;
+
+  linkToRealMatrixRegister(REGISTER_X, &x);
+  elements = x.header.matrixRows * x.header.matrixColumns;
+
+  for(uint32_t i = 0; i < elements; i++) {
+    if(real34IsSpecial(x.matrixElements + i)) {
+      displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
+      return;
+    }
+  }
+
+  for(uint32_t i = 0; i < elements; i++) {
+    real34ToIntegralValue(x.matrixElements + i, x.matrixElements + i, DEC_ROUND_HALF_UP);
+  }
 }
 
 
 
 void roundiReal(void) {
+  longInteger_t rounded;
+
   if(real34IsNaN(REGISTER_REAL34_DATA(REGISTER_X))) {
     displayCalcErrorMessage(ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -73,14 +90,17 @@ void roundiReal(void) {
     return;
   }
 
-  int32_t exponent = real34GetExponent(REGISTER_REAL34_DATA(REGISTER_X));
-  if(exponent > (int32_t)(0.301029995663 * MAX_LONG_INTEGER_SIZE_IN_BITS)) {
-    displayCalcErrorMessage(!real34CompareLessThan(REGISTER_REAL34_DATA(REGISTER_X), const34_0) ? ERROR_OVERFLOW_PLUS_INF : ERROR_OVERFLOW_MINUS_INF, ERR_REGISTER_LINE);
+  convertReal34ToLongInteger(REGISTER_REAL34_DATA(REGISTER_X), rounded, DEC_ROUND_HALF_UP);
+  if(longIntegerBits(rounded) > MAX_LONG_INTEGER_SIZE_IN_BITS) {
+    displayCalcErrorMessage(real34IsNegative(REGISTER_REAL34_DATA(REGISTER_X)) ? ERROR_OVERFLOW_MINUS_INF : ERROR_OVERFLOW_PLUS_INF, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      sprintf(errorMessage, "Converting a real exponent of %" PRId32 " would result in a value exceeding %" PRId16 " bits!", exponent, (uint16_t)MAX_LONG_INTEGER_SIZE_IN_BITS);
+      sprintf(errorMessage, "The rounded integer needs %" PRIu32 " bits, exceeding the %" PRId16 " bit limit!", longIntegerBits(rounded), (uint16_t)MAX_LONG_INTEGER_SIZE_IN_BITS);
       moreInfoOnError("In function roundiReal:", errorMessage, "", "");
     #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+    longIntegerFree(rounded);
+    return;
   }
 
-  convertReal34ToLongIntegerRegister(REGISTER_REAL34_DATA(REGISTER_X), REGISTER_X, DEC_ROUND_HALF_UP);
+  convertLongIntegerToLongIntegerRegister(rounded, REGISTER_X);
+  longIntegerFree(rounded);
 }

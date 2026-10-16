@@ -233,20 +233,31 @@ void fnRaiseError(uint16_t errorCode) {
 
 
 void fnErrorMessage(uint16_t unusedButMandatoryParameter) {
-  real34_t r, maxErr;
+  real34_t maxErr;
+  uint32_t errorCode = 0;
   uInt32ToReal34(NUMBER_OF_ERROR_CODES, &maxErr);
 
   #pragma GCC diagnostic push
   #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
   switch(getRegisterDataType(REGISTER_X)) {
     case dtLongInteger: {
-      convertLongIntegerRegisterToReal34(REGISTER_X, &r);
+      longInteger_t value;
+
+      convertLongIntegerRegisterToLongInteger(REGISTER_X, value);
+      if(longIntegerCompareUInt(value, 1) >= 0 && longIntegerCompareUInt(value, NUMBER_OF_ERROR_CODES) < 0) {
+        longIntegerToUInt32(value, errorCode);
+      }
+      longIntegerFree(value);
       break;
     }
 
     case dtReal34:
       if(getRegisterAngularMode(REGISTER_X) == amNone) {
-        real34Copy(REGISTER_REAL34_DATA(REGISTER_X), &r);
+        const real34_t *value = REGISTER_REAL34_DATA(REGISTER_X);
+
+        if(real34CompareLessEqual(const34_1, value) && real34CompareLessThan(value, &maxErr)) {
+          errorCode = real34ToUInt32(value);
+        }
         break;
       }
       /* fallthrough */
@@ -263,8 +274,8 @@ void fnErrorMessage(uint16_t unusedButMandatoryParameter) {
   }
   #pragma GCC diagnostic pop
 
-  if(real34CompareLessEqual(const34_1, &r) && real34CompareLessThan(&r, &maxErr)) {
-    displayCalcErrorMessage((uint8_t)real34ToUInt32(&r), ERR_REGISTER_LINE);
+  if(errorCode != 0) {
+    displayCalcErrorMessage((uint8_t)errorCode, ERR_REGISTER_LINE);
   }
   else {
     displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
@@ -313,10 +324,9 @@ void displayCalcErrorMessage(uint8_t errorCode, calcRegister_t errMessageRegiste
 
 
 void displayDomainErrorMessage(uint8_t errorCode, calcRegister_t errMessageRegisterLine) {
-  const int running = programRunStop == PGM_RUNNING;
   const int spcres = getSystemFlag(FLAG_SPCRES);
 
-  if(!spcres || !running) {
+  if(!spcres) {
     displayCalcErrorMessage(errorCode, errMessageRegisterLine);
   }
   if(spcres) {

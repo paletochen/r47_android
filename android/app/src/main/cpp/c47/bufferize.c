@@ -1398,6 +1398,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
           strcat(aimBuffer, "3.141592653589793238462643383279503");
           reallyRunFunction(ITM_EXIT1, NOPARAM);
           setLastintegerBasetoZero();
+          return;  // NIM is closed and the value is on the stack, skip the buffer-to-display conversion
         }
         break;
       }
@@ -2324,20 +2325,16 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
 
     if((getSystemFlag(FLAG_POLAR) && !temporaryFlagRect) || temporaryFlagPolar) { // polar mode
       if(real34CompareEqual(dest_r, const34_0)) {
+        real34SetZero(dest_r);
         real34SetZero(dest_i);
       }
       else {
-        real_t magnitude, theta;
-        real34ToReal(dest_r, &magnitude);
-        real34ToReal(dest_i, &theta);
-        convertAngleFromTo(&theta, currentAngularMode, amRadian, &ctxtReal39);
-        if(realCompareLessThan(&magnitude, const_0)) {
-          realSetPositiveSign(&magnitude);
-          realAdd(&theta, const39_pi, &theta, &ctxtReal39);
-        }
-        realPolarToRectangular(&magnitude, &theta, &magnitude, &theta, &ctxtReal39); // theta in radian
-        realToReal34(&magnitude, dest_r);
-        realToReal34(&theta,     dest_i);
+        cplx_t z;
+        real34ToReal(dest_r, &z.Mag);
+        real34ToReal(dest_i, &z.Arg);
+        realPolarToRectangularInUnit(&z.Mag, &z.Arg, currentAngularMode, &z, &ctxtReal39);
+        realToReal34(&z.Real, dest_r);
+        realToReal34(&z.Imag, dest_i);
       }
       fnToPolar2(0);
     }

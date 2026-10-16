@@ -13,6 +13,25 @@ TO_QSPI void (* const Round[NUMBER_OF_DATA_TYPES_FOR_CALCULATIONS])(void) = {
             doNothing,   roundReal, roundCplx, roundTime, roundDate, roundError, roundRema, roundCxma,  doNothing,    roundError
 };
 
+static bool_t roundSpecial(const real34_t *x) {
+  uint16_t errorCode;
+
+  if(!real34IsSpecial(x)) {
+    return false;
+  }
+
+  if(!getSystemFlag(FLAG_SPCRES)) {
+    if(real34IsNaN(x)) {
+      errorCode = ERROR_ARG_EXCEEDS_FUNCTION_DOMAIN;
+    }
+    else {
+      errorCode = real34IsNegative(x) ? ERROR_OVERFLOW_MINUS_INF : ERROR_OVERFLOW_PLUS_INF;
+    }
+    displayCalcErrorMessage(errorCode, ERR_REGISTER_LINE);
+  }
+  return true;
+}
+
 
 
 /********************************************//**
@@ -51,70 +70,106 @@ void fnRound(uint16_t unusedButMandatoryParameter) {
 
 
 void roundTime(void) {
-  real34_t real34;
+  real_t real;
 
-  real34Copy(REGISTER_REAL34_DATA(REGISTER_X), &real34);
+  if(roundSpecial(REGISTER_REAL34_DATA(REGISTER_X))) {
+    return;
+  }
+
+  real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &real);
 
   switch(timeDisplayFormatDigits) {
     case 0: { // no rounding
-      break;
+      return;
     }
     case 1:
     case 2: { // round to minutes
-      real34Divide(&real34, const34_60, &real34);
-      real34ToIntegralValue(&real34, &real34, DEC_ROUND_DOWN);
-      real34Multiply(&real34, const34_60, &real34);
+      real_t sixty;
+      int32ToReal(60, &sixty);                                     // exponent 0: const_60 is stored as 6E+1, which gives the seconds exponent 1
+      realDivide(&real, const_60, &real, &ctxtReal39);
+      realToIntegralValue(&real, &real, DEC_ROUND_DOWN, &ctxtReal39);
+      realMultiply(&real, &sixty, &real, &ctxtReal39);
       break;
     }
     default: { // round to seconds, milliseconds, microseconds, ...
       // round to timeDisplayFormatDigits decimal places via scaleB (exponent shift)
       int32_t n = timeDisplayFormatDigits - 3;
-      real34_t shift;
-      int32ToReal34(n, &shift);
-      real34ScaleB(&real34, &shift, &real34);
-      real34ToIntegralValue(&real34, &real34, roundingModeTable[displayRoundingMode]);   // the last unit is rounded by DRM, as ROUND rounds a number
-      int32ToReal34(-n, &shift);
-      real34ScaleB(&real34, &shift, &real34);
+      real.exponent += n;
+      realToIntegralValue(&real, &real, roundingModeTable[displayRoundingMode], &ctxtReal39);   // the last unit is rounded by DRM, as ROUND rounds a number
+      real.exponent -= n;
     }
   }
 
-  real34Copy(&real34, REGISTER_REAL34_DATA(REGISTER_X));
+  realToReal34(&real, REGISTER_REAL34_DATA(REGISTER_X));
 }
 
 
 
 void roundDate(void) {
   // For the case accidentally added fractions of a day. It should not occur.
-  real34_t real34;
+  real_t real, offset;
 
-  real34Copy(REGISTER_REAL34_DATA(REGISTER_X), &real34);
+  if(roundSpecial(REGISTER_REAL34_DATA(REGISTER_X))) {
+    return;
+  }
 
-  real34Subtract(&real34, const34_43200, &real34);
-  real34Divide(&real34, const34_86400, &real34);
+  real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &real);
+  int32ToReal(43200, &offset);
 
-  real34ToIntegralValue(&real34, &real34, roundingModeTable[roundingMode]);
+  realSubtract(&real, &offset, &real, &ctxtReal39);
+  realDivide(&real, const_86400, &real, &ctxtReal39);
 
-  real34Multiply(&real34, const34_86400, &real34);
-  real34Add(&real34, const34_43200, &real34);
+  realToIntegralValue(&real, &real, roundingModeTable[roundingMode], &ctxtReal39);
 
-  real34Copy(&real34, REGISTER_REAL34_DATA(REGISTER_X));
+  realMultiply(&real, const_86400, &real, &ctxtReal39);
+  realAdd(&real, &offset, &real, &ctxtReal39);
+
+  realToReal34(&real, REGISTER_REAL34_DATA(REGISTER_X));
 }
 
 
 
 void roundRema(void) {
+  if(!getSystemFlag(FLAG_SPCRES)) {
+    real34Matrix_t x;
+    uint32_t elements;
+
+    linkToRealMatrixRegister(REGISTER_X, &x);
+    elements = x.header.matrixRows * x.header.matrixColumns;
+    for(uint32_t i = 0; i < elements; i++) {
+      if(roundSpecial(x.matrixElements + i)) {
+        return;
+      }
+    }
+  }
   elementwiseRema(roundReal);
 }
 
 
 
 void roundCxma(void) {
+  if(!getSystemFlag(FLAG_SPCRES)) {
+    complex34Matrix_t x;
+    uint32_t elements;
+
+    linkToComplexMatrixRegister(REGISTER_X, &x);
+    elements = x.header.matrixRows * x.header.matrixColumns;
+    for(uint32_t i = 0; i < elements; i++) {
+      if(roundSpecial(VARIABLE_REAL34_DATA(x.matrixElements + i)) || roundSpecial(VARIABLE_IMAG34_DATA(x.matrixElements + i))) {
+        return;
+      }
+    }
+  }
   elementwiseCxma(roundCplx);
 }
 
 
 
 void roundReal(void) {
+  if(roundSpecial(REGISTER_REAL34_DATA(REGISTER_X))) {
+    return;
+  }
+
   updateDisplayValueX = true;
   displayValueX[0] = 0;
   refreshRegisterLine(REGISTER_X);
@@ -122,17 +177,17 @@ void roundReal(void) {
 
   if(getSystemFlag(FLAG_FRACT)) {
     int16_t endOfIntegerPart, slashPos;
-    real34_t numerator, denominator;
+    real_t value, numerator, denominator;
 
     endOfIntegerPart = -1;
     if(getSystemFlag(FLAG_PROPFR) && strchr(displayValueX, ' ') != NULL) { // a b/c; below 1 the line shows d/c
       while(displayValueX[++endOfIntegerPart] != ' ') {
       }
       displayValueX[endOfIntegerPart] = 0;
-      stringToReal34(displayValueX, REGISTER_REAL34_DATA(REGISTER_X));
+      stringToReal(displayValueX, &value, &ctxtReal39);
     }
     else { // FT_IMPROPER d/c
-      real34SetZero(REGISTER_REAL34_DATA(REGISTER_X));
+      realSetZero(&value);
       if(displayValueX[0] == '-') {
         endOfIntegerPart = 0;                                            // the numerator starts after the minus sign
       }
@@ -142,16 +197,17 @@ void roundReal(void) {
     while(displayValueX[++slashPos] != '/') {
     }
     displayValueX[slashPos++] = 0;
-    int32ToReal34(stringToInt32(displayValueX + endOfIntegerPart), &numerator);
-    int32ToReal34(stringToInt32(displayValueX + slashPos), &denominator);
-    real34Multiply(REGISTER_REAL34_DATA(REGISTER_X), &denominator, REGISTER_REAL34_DATA(REGISTER_X));  // a b/c is (a c + b)/c: exact integers, divided once
+    int32ToReal(stringToInt32(displayValueX + endOfIntegerPart), &numerator);
+    int32ToReal(stringToInt32(displayValueX + slashPos), &denominator);
+    realMultiply(&value, &denominator, &value, &ctxtReal39);           // a b/c is (a c + b)/c: exact integers, divided once
     if(displayValueX[0] == '-') {
-      real34Subtract(REGISTER_REAL34_DATA(REGISTER_X), &numerator, REGISTER_REAL34_DATA(REGISTER_X));
+      realSubtract(&value, &numerator, &value, &ctxtReal39);
     }
     else {
-      real34Add(REGISTER_REAL34_DATA(REGISTER_X), &numerator, REGISTER_REAL34_DATA(REGISTER_X));
+      realAdd(&value, &numerator, &value, &ctxtReal39);
     }
-    real34Divide(REGISTER_REAL34_DATA(REGISTER_X), &denominator, REGISTER_REAL34_DATA(REGISTER_X));
+    realDivide(&value, &denominator, &value, &ctxtReal34);
+    realToReal34(&value, REGISTER_REAL34_DATA(REGISTER_X));
   }
   else {
     stringToReal34(displayValueX, REGISTER_REAL34_DATA(REGISTER_X));
@@ -163,6 +219,10 @@ void roundReal(void) {
 void roundCplx(void) {
   int32_t pos, posI;
   bool_t polar = false;
+
+  if(roundSpecial(REGISTER_REAL34_DATA(REGISTER_X)) || roundSpecial(REGISTER_IMAG34_DATA(REGISTER_X))) {
+    return;
+  }
 
   updateDisplayValueX = true;
   displayValueX[0] = 0;
@@ -193,14 +253,14 @@ void roundCplx(void) {
 
   displayValueX[posI++] = 0;
   if(polar) {
-    real_t magnitude, theta;
+    cplx_t z;
 
-    stringToReal(displayValueX,        &magnitude, &ctxtReal39);
-    stringToReal(displayValueX + posI, &theta,     &ctxtReal39);
-    convertAngleFromTo(&theta, getComplexRegisterAngularMode(REGISTER_X), amRadian, &ctxtReal39);   // the angle is shown in the unit of the register
-    realPolarToRectangular(&magnitude, &theta, &magnitude, &theta, &ctxtReal39);
-    realToReal34(&magnitude, REGISTER_REAL34_DATA(REGISTER_X));
-    realToReal34(&theta,     REGISTER_IMAG34_DATA(REGISTER_X));
+    stringToReal(displayValueX,        &z.Mag, &ctxtReal39);
+    stringToReal(displayValueX + posI, &z.Arg, &ctxtReal39);
+    convertAngleFromTo(&z.Arg, getComplexRegisterAngularMode(REGISTER_X), amRadian, &ctxtReal39);   // the angle is shown in the unit of the register
+    realPolarToRectangular(&z.Mag, &z.Arg, &z, &ctxtReal39);
+    realToReal34(&z.Real, REGISTER_REAL34_DATA(REGISTER_X));
+    realToReal34(&z.Imag, REGISTER_IMAG34_DATA(REGISTER_X));
   }
   else {
     stringToReal34(displayValueX,        REGISTER_REAL34_DATA(REGISTER_X));

@@ -25,16 +25,22 @@ static void crossReal(void) {
  * \return void
  ***********************************************/
 void crossCplx(void) {
-  real_t xReal, xImag, yReal, yImag;
-  real_t rReal, t;
+  cplx_t x, y;
+  real_t rReal, p, t;
 
-  if(!getRegisterAsComplex(REGISTER_X, &xReal, &xImag) || !getRegisterAsComplex(REGISTER_Y, &yReal, &yImag)) {
+  if(!getRegisterAsComplex(REGISTER_X, &x) || !getRegisterAsComplex(REGISTER_Y, &y)) {
     return;
   }
 
-  realMultiply(&xReal, &yImag, &t, &ctxtReal75);        // t = xReal * yImag
+  realMultiply(&x.Real, &y.Imag, &p, &ctxtReal39);      // p = RN(xReal * yImag)
+  realCopy(&p, &t);
   realChangeSign(&t);
-  realFMA(&yReal, &xImag, &t, &rReal, &ctxtReal39);     // r = yReal * xImag - t
+  realFMA(&y.Real, &x.Imag, &t, &rReal, &ctxtReal39);   // r = RN(yReal * xImag - p)
+  if(!realIsSpecial(&x.Real) && !realIsSpecial(&x.Imag) && !realIsSpecial(&y.Real) && !realIsSpecial(&y.Imag)) {
+    realFMA(&x.Real, &y.Imag, &t, &p, &ctxtReal39);     // p = xReal * yImag - RN(xReal * yImag)
+    realChangeSign(&p);
+    realAdd(&rReal, &p, &rReal, &ctxtReal39);            // add the product residual
+  }
   convertRealToResultRegister(&rReal, REGISTER_X, amNone);
 }
 

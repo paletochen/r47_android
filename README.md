@@ -61,7 +61,7 @@ Touch and hold anywhere on the calculator's LCD to open the native **Display & C
 ├─────────────────────────────────┤
 │  Copy X Register                │
 │  Copy All Registers             │
-│  Paste Number / Matrix          │
+│  Paste to X Register            │
 │  Enter PiP Mode                 │
 │  Cancel                         │
 └─────────────────────────────────┘
@@ -73,6 +73,7 @@ Touch and hold anywhere on the calculator's LCD to open the native **Display & C
   - **Complex Numbers**: Formatted in Cartesian or Polar coordinates (`3. + 4.i` or `5.∡53.130102...°`).
   - **Angle Multiples of $\pi$**: Copies cleanly as $\pi$-multiples (e.g. `2.πr` or `0.25π`).
   - **Date and Time**: Extracted directly as ISO strings (`2026-10-12` or `14:30:00`).
+  - **Strings**: Lossless alphanumeric and Unicode string copying without truncation.
   - **Arbitrary-Precision Long Integers & Short Integers**: Full decimal or radix-tagged string.
   - **Full Matrices**: Instead of a generic `[matrix]` placeholder, matrices are formatted with full dimensions and elements:
     ```
@@ -89,9 +90,10 @@ Touch and hold anywhere on the calculator's LCD to open the native **Display & C
   - Local registers (`R.00`...)
   - Statistical accumulation registers (`SR00` through `SR26`)
   Cleanly formatted with `<Register> = <Value>` lines, ready to paste straight into spreadsheets, Jupyter Notebooks, or engineering notes.
-- **Universal "Paste Number / Matrix"**:
+- **Universal "Paste to X Register"**:
   Pastes clipboard text directly into Register X with automatic stack lift:
   - **Scalars & Scientific Notation**: Handles negatives, mantissas, and exponents (e.g. `-1.2345e-12`).
+  - **Alphanumeric Strings**: Transparently ingests arbitrary strings and text (e.g. `"hello"`, `"Grüezi"`) into Register X as native string data (`dtString`) without producing `NaN`.
   - **Angular Units**: Automatically detects `:DEG`, `:RAD`, `:GRAD`, `°`, `deg`, `rad`, `grad`, `'r'`, and bare `π` / `2.πr`.
   - **Dates & Times**: Automatically converts `YYYY-MM-DD` or `HH:MM:SS` into native Date/Time registers.
   - **Matrix Ingestion**: Detects dimension headers (`X = 2x2` or `2x2`) followed by element rows, automatically reallocates Register X, and populates the matrix elements.

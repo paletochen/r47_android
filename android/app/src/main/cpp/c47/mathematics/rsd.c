@@ -145,7 +145,6 @@ void decimalDigitToSenary(bool_t pre_grouped, real_t *val, realContext_t *realCo
 
 void rsdTime(uint16_t digits) {
   real_t val;
-  int32_t i;
 
   updateDisplayValueX = true;
   displayValueX[0] = 0;
@@ -153,18 +152,11 @@ void rsdTime(uint16_t digits) {
   updateDisplayValueX = false;
 
   real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &val);
-
-  for(i = 0; i < 2; ++i){
-    val.exponent -= 1;
-    senaryDigitToDecimal(false, &val, &ctxtReal39);
-    val.exponent -= 1;
-  }
+  realDivide(&val, const_3600, &val, &ctxtReal39);
+  realFromDegToDms(&val, &val, &ctxtReal39);
   roundToSignificantDigits(&val, &val, digits, &ctxtReal39);
-  for(i = 0; i < 2; ++i){
-    val.exponent += 1;
-    decimalDigitToSenary(false, &val, &ctxtReal39);
-    val.exponent += 1;
-  }
+  realFromDmsToDeg(&val, &val, &ctxtReal39);
+  realMultiply(&val, const_3600, &val, &ctxtReal39);
 
   realToReal34(&val, REGISTER_REAL34_DATA(REGISTER_X));
 }
@@ -185,19 +177,17 @@ void rsdCxma(uint16_t digits) {
 
 void rsdReal(uint16_t digits) {
   real_t val;
-
-  if(getRegisterAngularMode(REGISTER_X) == amDMS) {
-    real34FromDegToDms(REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X));
-    checkDms34(REGISTER_REAL34_DATA(REGISTER_X));
-  }
+  bool_t dms = getRegisterAngularMode(REGISTER_X) == amDMS;
 
   real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &val);
-  roundToSignificantDigits(&val, &val, digits, &ctxtReal39);
-  convertRealToReal34ResultRegister(&val, REGISTER_X);
-
-  if(getRegisterAngularMode(REGISTER_X) == amDMS) {
-    real34FromDmsToDeg(REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X));
+  if(dms && !realIsSpecial(&val)) {
+    realFromDegToDms(&val, &val, &ctxtReal39);
   }
+  roundToSignificantDigits(&val, &val, digits, dms ? &ctxtReal39 : &ctxtReal34);
+  if(dms && !realIsSpecial(&val)) {
+    realFromDmsToDeg(&val, &val, &ctxtReal39);
+  }
+  convertRealToReal34ResultRegister(&val, REGISTER_X);
 }
 /*void rsdReal(uint16_t digits) {
   real_t val;
@@ -234,21 +224,21 @@ void rsdReal(uint16_t digits) {
 
 void rsdCplx(uint16_t digits) {
   if(getSystemFlag(FLAG_POLAR)) {
-    real_t magnitude, theta;
-    real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &magnitude);
-    real34ToReal(REGISTER_IMAG34_DATA(REGISTER_X), &theta);
-    realRectangularToPolar(&magnitude, &theta, &magnitude, &theta, &ctxtReal39);
-    roundToSignificantDigits(&magnitude, &magnitude, digits, &ctxtReal39);
-    roundToSignificantDigits(&theta,     &theta,     digits, &ctxtReal39);
-    realPolarToRectangular(&magnitude, &theta, &magnitude, &theta, &ctxtReal39);
-    convertComplexToResultRegister(&magnitude, &theta, REGISTER_X);
+    cplx_t z;
+    real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &z.Real);
+    real34ToReal(REGISTER_IMAG34_DATA(REGISTER_X), &z.Imag);
+    realRectangularToPolar(&z, &z.Mag, &z.Arg, &ctxtReal39);
+    roundToSignificantDigits(&z.Mag, &z.Mag, digits, &ctxtReal39);
+    roundToSignificantDigits(&z.Arg, &z.Arg, digits, &ctxtReal39);
+    realPolarToRectangular(&z.Mag, &z.Arg, &z, &ctxtReal39);
+    convertComplexToResultRegister(&z, REGISTER_X);
   }
   else {
-    real_t real, imaginary;
-    real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &real);
-    real34ToReal(REGISTER_IMAG34_DATA(REGISTER_X), &imaginary);
-    roundToSignificantDigits(&real,      &real,      digits, &ctxtReal39);
-    roundToSignificantDigits(&imaginary, &imaginary, digits, &ctxtReal39);
-    convertComplexToResultRegister(&real, &imaginary, REGISTER_X);
+    cplx_t z;
+    real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &z.Real);
+    real34ToReal(REGISTER_IMAG34_DATA(REGISTER_X), &z.Imag);
+    roundToSignificantDigits(&z.Real, &z.Real, digits, &ctxtReal34);
+    roundToSignificantDigits(&z.Imag, &z.Imag, digits, &ctxtReal34);
+    convertComplexToResultRegister(&z, REGISTER_X);
   }
 }

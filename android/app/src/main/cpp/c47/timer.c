@@ -388,13 +388,27 @@ void fnDecisecondTimerApp(uint16_t unusedButMandatoryParameter) {
 uint32_t remainingMsecCountdown = 0;
 
 
+/********************************************//**
+ * \brief Converts a non-negative finite decimal timer value to milliseconds.
+ *
+ * \param[in] re Decimal value to convert
+ * \param[in] mode Integral rounding mode
+ * \param[out] value32 Converted unsigned value
+ * \param[out] overflow Whether the input is outside the uint32 range
+ * \return void
+ ***********************************************/
 static void _realToUInt32(const real_t *re, enum rounding mode, uint32_t *value32, bool_t *overflow) {
-  uint8_t bcd[76], sign;
+  uint8_t bcd[76];
   real_t real;
   longInteger_t lgInt;
 
-  realToIntegralValue(re, &real, mode, &ctxtReal75);
-  sign = real.bits & 0x80;
+  if(realIsSpecial(re) || (realIsNegative(re) && !realIsZero(re))) {
+    *value32 = 0;
+    *overflow = true;
+    return;
+  }
+
+  realToIntegralValue(re, &real, mode, &ctxtReal39);
   realGetCoefficient(&real, bcd);
 
   longIntegerInit(lgInt);
@@ -414,12 +428,12 @@ static void _realToUInt32(const real_t *re, enum rounding mode, uint32_t *value3
 
   #if defined(OS32BIT) // 32 bit
     *value32 = (lgInt->_mp_size == 0 ? 0 : lgInt->_mp_d[0]);
-    if(sign || lgInt->_mp_size > 1) {
+    if(lgInt->_mp_size > 1) {
       *overflow = true;
     }
   #else // 64 bit
     *value32 = (lgInt->_mp_size == 0 ? 0 : lgInt->_mp_d[0] & 0x00000000ffffffffULL);
-    if(sign || lgInt->_mp_size > 1 || lgInt->_mp_d[0] & 0xffffffff00000000ULL) {
+    if(lgInt->_mp_size > 1 || lgInt->_mp_d[0] & 0xffffffff00000000ULL) {
       *overflow = true;
     }
   #endif // OS32BIT

@@ -426,8 +426,6 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     saveStateValue(&lrChosenUndo,                   sizeof(lrChosenUndo),                                        "lrChosenUndo",                   "uint16");
     saveStateValue(&lastPlotMode,                   sizeof(lastPlotMode),                                        "lastPlotMode",                   "uint16");
     saveStateValue(&plotSelection,                  sizeof(plotSelection),                                       "plotSelection",                  "uint16");
-    saveStateValue(&graph_dx,                       sizeof(graph_dx),                                            "graph_dx",                       "double");
-    saveStateValue(&graph_dy,                       sizeof(graph_dy),                                            "graph_dy",                       "double");
     saveStateValue(&roundedTicks,                   sizeof(roundedTicks),                                        "roundedTicks",                   "bool");
     saveStateValue(&PLOT_AXIS,                      sizeof(PLOT_AXIS),                                           "PLOT_AXIS",                      "bool");
     saveStateValue(&PLOT_ZMY,                       sizeof(PLOT_ZMY),                                            "PLOT_ZMY",                       "int8");
@@ -579,6 +577,9 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     saveStateValue(ram,                             TO_BYTES(RAM_SIZE_IN_BLOCKS),                                "ram",                            "hexDump");
 
     saveStateValue(&graMod,                         sizeof(graMod),                                              "graMod",                         "uint8");
+    #if defined(OPTION_ATEXT_FONTS)
+      saveStateValue(&graFont,                        sizeof(graFont),                                             "graFont",                        "uint8");
+    #endif // OPTION_ATEXT_FONTS
     saveStateValue(&longPressFactor,                sizeof(longPressFactor),                                     "longPressFactor",                "int16");
     saveStateValue(&doublePressFactor,              sizeof(doublePressFactor),                                   "doublePressFactor",              "int16");
 
@@ -702,11 +703,54 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     }
 
     else if(!strcmp(valueType, "real")) {
-      stringToReal(valuePtr, (real_t *)buffer, &ctxtReal39);
+      REAL_T_PTR(restored, 39);
+      realContext_t context = ctxtReal39;
+      const char *numericValue = valuePtr;
+
+      if(!strcmp(valuePtr, "9.9e9999999")) {
+        numericValue = "Infinity";
+      }
+      else if(!strcmp(valuePtr, "-9.9e9999999")) {
+        numericValue = "-Infinity";
+      }
+      context.status = 0;
+      stringToReal(numericValue, restored, &context);
+      if((context.status & (DEC_Conversion_syntax | DEC_Overflow | DEC_Underflow | DEC_Inexact)) == 0) {
+        realCopy(restored, (real_t *)buffer);
+      }
+      else {
+        printf("Invalid real value for parameter %s in file %s, using default\n", valueName, backupFileName);
+      }
     }
 
     else if(!strcmp(valueType, "real34")) {
-      stringToReal34(valuePtr, (real34_t *)buffer);
+      real34_t restored;
+      realContext_t savedReal34 = ctxtReal34;
+      realContext_t savedReal39 = ctxtReal39;
+      realContext_t savedReal51 = ctxtReal51;
+      realContext_t savedReal75 = ctxtReal75;
+      const char *numericValue = valuePtr;
+      uint32_t status;
+
+      if(!strcmp(valuePtr, "9.9e9999")) {
+        numericValue = "Infinity";
+      }
+      else if(!strcmp(valuePtr, "-9.9e9999")) {
+        numericValue = "-Infinity";
+      }
+      ctxtReal34.status = 0;
+      stringToReal34(numericValue, &restored);
+      status = ctxtReal34.status;
+      ctxtReal34 = savedReal34;
+      ctxtReal39 = savedReal39;
+      ctxtReal51 = savedReal51;
+      ctxtReal75 = savedReal75;
+      if((status & (DEC_Conversion_syntax | DEC_Overflow | DEC_Underflow | DEC_Inexact)) == 0) {
+        real34Copy(&restored, (real34_t *)buffer);
+      }
+      else {
+        printf("Invalid real34 value for parameter %s in file %s, using default\n", valueName, backupFileName);
+      }
     }
 
     else if(!strcmp(valueType, "bool")) {
@@ -946,6 +990,11 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
       real34SetZero(REGISTER_REAL34_DATA(RESERVED_VARIABLE_IP));     // Old GRAMOD slot now is i%: give it a real zero, then derive it from the restored I%/a
       tvmSyncIp(RESERVED_VARIABLE_IPONA);
     }
+    #if defined(OPTION_ATEXT_FONTS)
+      graFont = 20;
+      restoreStateValue(&graFont,                        sizeof(graFont),                                             "graFont",                        "uint8"); // a file without the key leaves 20, the standard font
+      graFontCheck();
+    #endif // OPTION_ATEXT_FONTS
     restoreStateValue(&longPressFactor,                sizeof(longPressFactor),                                     "longPressFactor",                "int16"); // a file without the key leaves 0, factor 1
     restoreStateValue(&doublePressFactor,              sizeof(doublePressFactor),                                   "doublePressFactor",              "int16");
     // The size argument is what stops the reader writing off the end, so it is the room the destination has, the way every other call here passes a sizeof().
@@ -1161,8 +1210,6 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     restoreStateValue(&PLOT_ZOOM,                      sizeof(PLOT_ZOOM),                                           "PLOT_ZOOM",                      "uint8");
     restoreStateValue(&plotmode,                       sizeof(plotmode),                                            "plotmode",                       "int8");
     if(backupVersion >= 1016) {
-      restoreStateValue(&graph_dx,                     sizeof(graph_dx),                                            "graph_dx",                       "double");
-      restoreStateValue(&graph_dy,                     sizeof(graph_dy),                                            "graph_dy",                       "double");
       restoreStateValue(&tick_int_x,                   sizeof(tick_int_x),                                          "tick_int_x",                     "double");
       restoreStateValue(&tick_int_y,                   sizeof(tick_int_y),                                          "tick_int_y",                     "double");
       restoreStateValue(x_min,                         REAL_SIZE_IN_BYTES(34),                                      "x_min",                          "real");
@@ -1171,8 +1218,6 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
       restoreStateValue(y_max,                         REAL_SIZE_IN_BYTES(34),                                      "y_max",                          "real");
     }
     else { //pre-1016 backups stored the graph settings as float: convert each once; the next save writes the new types
-      migrateFloatValue(&graph_dx,                     "graph_dx",                       "double");
-      migrateFloatValue(&graph_dy,                     "graph_dy",                       "double");
       migrateFloatValue(&tick_int_x,                   "tick_int_x",                     "double");
       migrateFloatValue(&tick_int_y,                   "tick_int_y",                     "double");
       migrateFloatValue(x_min,                         "x_min",                          "real");

@@ -12,6 +12,7 @@ void convergenceTolerence(real_t *tol);
 void fractionTolerence(real_t *tol);
 void irfractionTolerence(int32_t ii, real_t *tol);
 int32_t realGetExponentComp(const real_t *val);
+bool_t compareFiniteReal34LongIntegerRegisters(calcRegister_t first, calcRegister_t second, int32_t *comparison);
 
 bool_t  real34CompareAbsGreaterThan (const real34_t *number1, const real34_t *number2);
 bool_t  real34CompareAbsGreaterEqual(const real34_t *number1, const real34_t *number2);

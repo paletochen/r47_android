@@ -90,6 +90,45 @@ void longIntegerSubtract(longInteger_t opY, longInteger_t opX, longInteger_t res
 
 
 
+/********************************************//**
+ * \brief Divides two integer coefficients with decimal exponents
+ *
+ * \param[in] opY dividend coefficient
+ * \param[in] yExp dividend decimal exponent
+ * \param[in] opX divisor coefficient
+ * \param[in] xExp divisor decimal exponent
+ * \param[out] quotient integer quotient truncated towards zero
+ * \param[out] remainder integer remainder coefficient
+ * \param[out] remainderExp decimal exponent of the remainder
+ * \return void
+ ***********************************************/
+void longIntegerScaledDivide(longInteger_t opY, int32_t yExp, longInteger_t opX, int32_t xExp, longInteger_t quotient, longInteger_t remainder, int32_t *remainderExp) {
+  longInteger_t scaledY, scaledX, scale;
+
+  *remainderExp = min(yExp, xExp);
+  longIntegerInit(scaledY);
+  longIntegerInit(scaledX);
+  longIntegerInit(scale);
+  longIntegerCopy(opY, scaledY);
+  longIntegerCopy(opX, scaledX);
+
+  if(yExp > *remainderExp) {
+    longIntegerPowerUIntUInt(10u, (uint32_t)(yExp - *remainderExp), scale);
+    longIntegerMultiplyUnbounded(scaledY, scale, scaledY);
+  }
+  else if(xExp > *remainderExp) {
+    longIntegerPowerUIntUInt(10u, (uint32_t)(xExp - *remainderExp), scale);
+    longIntegerMultiplyUnbounded(scaledX, scale, scaledX);
+  }
+
+  longIntegerDivideQuotientRemainder(scaledY, scaledX, quotient, remainder);
+  longIntegerFree(scale);
+  longIntegerFree(scaledX);
+  longIntegerFree(scaledY);
+}
+
+
+
 
 
 
@@ -781,4 +820,3 @@ uint64_t WP34S_expmod(const uint64_t a, uint64_t b, const uint64_t c) {
   }
   return (x % c);
 }
-

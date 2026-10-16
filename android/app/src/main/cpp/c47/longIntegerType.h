@@ -83,6 +83,7 @@
   static inline int32_t           longIntegerProbabPrime(mpz_srcptr op)                                                                   {return mpz_probab_prime_p(op, MillerRabinReps);}
   static inline void              longIntegerFree(mpz_ptr op)                                                                             {mpz_clear(op);}
   static inline int32_t           longIntegerCompare(mpz_srcptr op1, mpz_srcptr op2)                                                      {return mpz_cmp(op1, op2);}
+  static inline int32_t           longIntegerCompareAbs(mpz_srcptr op1, mpz_srcptr op2)                                                   {return mpz_cmpabs(op1, op2);}
   static inline void              longIntegerDivide(mpz_srcptr op1, mpz_srcptr op2, mpz_ptr result)                                       {mpz_tdiv_q(result, op1, op2);}                       // op1/op2 => result*op2 + remainder == op1
   static inline void              longIntegerDivideQuotientRemainder(mpz_srcptr op1, mpz_srcptr op2, mpz_ptr quotient, mpz_ptr remainder) {mpz_tdiv_qr(quotient, remainder, op1, op2);}         // op1/op2 => quotient*op2 + remainder == op1
   static inline void              longIntegerDivideRemainder(mpz_srcptr op1, mpz_srcptr op2, mpz_ptr remainder)                           {mpz_tdiv_r(remainder, op1, op2);}
@@ -99,7 +100,10 @@
   static inline int32_t           longIntegerCompareInt(mpz_srcptr op, int32_t sint)                                                      {return mpz_cmp_si(op, sint);}
   static inline void              longIntegerAddUInt(mpz_srcptr op, uint32_t uint, mpz_ptr result)                                        {mpz_add_ui(result, op, uint);}
   static inline void              longIntegerSubtractUInt(mpz_srcptr op, uint32_t uint, mpz_ptr result)                                   {mpz_sub_ui(result, op, uint);}
+  static inline void              longIntegerAddUnbounded(mpz_srcptr op1, mpz_srcptr op2, mpz_ptr result)                                 {mpz_add(result, op1, op2);}
+  static inline void              longIntegerSubtractUnbounded(mpz_srcptr op1, mpz_srcptr op2, mpz_ptr result)                            {mpz_sub(result, op1, op2);}
   static inline void              longIntegerMultiplyUInt(mpz_srcptr op, uint32_t uint, mpz_ptr result)                                   {mpz_mul_ui(result, op, uint);}
+  static inline void              longIntegerMultiplyUnbounded(mpz_srcptr op1, mpz_srcptr op2, mpz_ptr result)                            {mpz_mul(result, op1, op2);}
   static inline uint32_t          longIntegerDivideRemainderUInt(mpz_srcptr op, uint32_t uint, mpz_ptr result, mpz_ptr remainder)         {return mpz_tdiv_qr_ui(remainder, result, op, uint);} // op/uint => result*uint + remainder == op
   static inline uint32_t          longIntegerDivideUInt(mpz_srcptr op, uint32_t uint, mpz_ptr result)                                     {return mpz_tdiv_q_ui(result, op, uint);}             // op/uint => result*uint + remainder == op; returns |remainder|
   static inline void              longIntegerPowerUIntUInt(uint32_t base, uint32_t exponent, mpz_ptr result)                              {mpz_ui_pow_ui(result, base, exponent);}              // result = base ^ exponent

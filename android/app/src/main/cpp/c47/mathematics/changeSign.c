@@ -24,37 +24,42 @@ void chsShoI(void) {
   *(REGISTER_SHORT_INTEGER_DATA(REGISTER_X)) = WP34S_intChs(*(REGISTER_SHORT_INTEGER_DATA(REGISTER_X)));
 }
 
-static void chsZeroCheck(real_t *a) {
-  realChangeSign(a);
-  if(realIsZero(a) && !getSystemFlag(FLAG_SPCRES)) {
-    realSetPositiveSign(a);
+static void chsZeroCheck(real34_t *a) {
+  real34ChangeSign(a);
+  if(real34IsZero(a) && !getSystemFlag(FLAG_SPCRES)) {
+    real34SetPositiveSign(a);
   }
 }
 
 void chsReal(void) {
-  real_t x;
-  angularMode_t mode = amNone;
-
-  if(!getRegisterAsReal(REGISTER_X, &x)) {
-    return;
-  }
-
-  if(getRegisterDataType(REGISTER_X) == dtReal34) {
-    mode = getRegisterAngularMode(REGISTER_X);
-  }
-
-  chsZeroCheck(&x);
-  convertRealToResultRegister(&x, REGISTER_X, mode);
+  chsZeroCheck(REGISTER_REAL34_DATA(REGISTER_X));
 }
 
 void chsCplx(void) {
-  real_t a, b;
+  chsZeroCheck(REGISTER_REAL34_DATA(REGISTER_X));
+  chsZeroCheck(REGISTER_IMAG34_DATA(REGISTER_X));
+  setRegisterTag(REGISTER_X, amNone);
+}
 
-  if(getRegisterAsComplex(REGISTER_X, &a, &b)) {
-    chsZeroCheck(&a);
-    chsZeroCheck(&b);
-    convertComplexToResultRegister(&a, &b, REGISTER_X);
+static void chsRema(void) {
+  real34Matrix_t matrix;
+
+  linkToRealMatrixRegister(REGISTER_X, &matrix);
+  for(uint16_t i = 0; i < matrix.header.matrixRows * matrix.header.matrixColumns; ++i) {
+    chsZeroCheck(&matrix.matrixElements[i]);
   }
+  setRegisterTag(REGISTER_X, amNone);
+}
+
+static void chsCxma(void) {
+  complex34Matrix_t matrix;
+
+  linkToComplexMatrixRegister(REGISTER_X, &matrix);
+  for(uint16_t i = 0; i < matrix.header.matrixRows * matrix.header.matrixColumns; ++i) {
+    chsZeroCheck(VARIABLE_REAL34_DATA(&matrix.matrixElements[i]));
+    chsZeroCheck(VARIABLE_IMAG34_DATA(&matrix.matrixElements[i]));
+  }
+  setRegisterTag(REGISTER_X, amNone);
 }
 
 /********************************************//**
@@ -66,11 +71,17 @@ void chsCplx(void) {
  ***********************************************/
 void fnChangeSign(uint16_t unusedButMandatoryParameter) {
   if(getRegisterDataType(REGISTER_X) == dtTime) {
-    real34_t *x = REGISTER_REAL34_DATA(REGISTER_X);
-    real34ChangeSign(x);
-    if(real34IsZero(x) && !getSystemFlag(FLAG_SPCRES)) {
-      real34SetPositiveSign(x);
-    }
+    chsZeroCheck(REGISTER_REAL34_DATA(REGISTER_X));
+    return;
+  }
+  if(getRegisterDataType(REGISTER_X) == dtReal34Matrix) {
+    chsRema();
+    adjustResult(REGISTER_X, false, true, REGISTER_X, -1, -1);
+    return;
+  }
+  if(getRegisterDataType(REGISTER_X) == dtComplex34Matrix) {
+    chsCxma();
+    adjustResult(REGISTER_X, false, true, REGISTER_X, -1, -1);
     return;
   }
 

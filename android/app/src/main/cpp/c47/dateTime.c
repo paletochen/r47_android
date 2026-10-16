@@ -329,7 +329,7 @@ uint32_t getJulianDayOfWeek(calcRegister_t regist) {
 }
 
 void checkDateRange(const real34_t *date34) {
-  if(real34CompareGreaterEqual(date34, const34_maxDate) || real34IsNegative(date34)) {
+  if(real34IsNaN(date34) || real34CompareGreaterEqual(date34, const34_maxDate) || real34IsNegative(date34)) {
     displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "value of date type is too large");
@@ -385,7 +385,7 @@ void checkTimeRange(const real34_t *time34) {
   real34_t t;
 
   real34CopyAbs(time34, &t);
-  if(real34CompareGreaterEqual(&t, const34_maxTime)) {
+  if(real34IsNaN(&t) || real34CompareGreaterEqual(&t, const34_maxTime)) {
     displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "value of time type is too large");
@@ -446,39 +446,52 @@ void fnJulianToDateTime(uint16_t unusedButMandatoryParameter) {
       break;
     }
     case dtReal34: {
-      liftStack(); // After a stack lift, X is a real 34 of random value
-      real34Add(REGISTER_REAL34_DATA(REGISTER_Y), const34_1on2, REGISTER_REAL34_DATA(REGISTER_Y));       //handle 0.5 offset
-      copySourceRegisterToDestRegister(REGISTER_Y, REGISTER_X);
-
-      //Get IP in Y
-      reallocateRegister(REGISTER_Y, dtDate, 0, amNone); // after this, content of Y is random
-      real34ToIntegralValue(REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_Y), DEC_ROUND_DOWN);
-
-      //Get FP in x
-      real_t y, x;
-      real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), &y);            // IP
-      real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &x);            // Org
-      realSubtract(&x, &y, &x, &ctxtReal39);                         // FP = Org - IP
-      realMultiply(&x, const_86400, &x, &ctxtReal39);                // (3600*24*(FP))          // round seconds
-      x.exponent += 3;                                               // x = x * 1000            // to 0.001s
-      realToIntegralValue(&x, &x, DEC_ROUND_HALF_UP, &ctxtReal39);   // round (3600*24*1000*(FP))
-      realDivide  (&x, const_86400, &x, &ctxtReal39);                // (round (3600*24*1000*(FP))) / (3600*24)
-      x.exponent -= 3;                                               // x = x / 1000
-      if(realCompareGreaterEqual(&x, const_1)) {                     // rounding to 0.001s reaches a full day: zero the time and carry one day into the date
-        realSetZero(&x);
-        real34Add(REGISTER_REAL34_DATA(REGISTER_Y), const34_1, REGISTER_REAL34_DATA(REGISTER_Y));
+      if(real34IsSpecial(REGISTER_REAL34_DATA(REGISTER_X))) {
+        displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+        return;
+      }
+      REAL_T_PTR(julian, 39);
+      REAL_T_PTR(integerPart, 39);
+      REAL_T_PTR(fraction, 39);
+      REAL_T_PTR(milliseconds, 39);
+      REAL_T_PTR(dayMilliseconds, 39);
+      liftStack();
+      real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), julian);
+      realToIntegralValue(julian, integerPart, DEC_ROUND_FLOOR, &ctxtReal39);
+      realSubtract(julian, integerPart, fraction, &ctxtReal39);
+      const bool_t beforeNoon = realCompareLessThan(fraction, const_1on2);
+      if(beforeNoon) {
+        realMultiply(fraction, const_86400, milliseconds, &ctxtReal39);
+      }
+      else {
+        realSubtract(fraction, const_1on2, fraction, &ctxtReal39);
+        realMultiply(fraction, const_86400, milliseconds, &ctxtReal39);
+        realAdd(integerPart, const_1, integerPart, &ctxtReal39);
+      }
+      realAdjustExponent(milliseconds, 3);
+      realToIntegralValue(milliseconds, milliseconds, DEC_ROUND_HALF_UP, &ctxtReal39);
+      if(beforeNoon) {
+        int32ToReal(43200000, dayMilliseconds);
+        realAdd(milliseconds, dayMilliseconds, milliseconds, &ctxtReal39);
+      }
+      int32ToReal(86400000, dayMilliseconds);
+      if(realCompareGreaterEqual(milliseconds, dayMilliseconds)) {
+        realSetZero(milliseconds);
+        realAdd(integerPart, const_1, integerPart, &ctxtReal39);
+      }
+      else {
+        realAdjustExponent(milliseconds, -3);
       }
 
       //Convert date to Y
-      julianDayToInternalDate(REGISTER_REAL34_DATA(REGISTER_Y), &date);
       reallocateRegister(REGISTER_Y, dtDate, 0, amNone);
+      realToReal34(integerPart, REGISTER_REAL34_DATA(REGISTER_Y));
+      julianDayToInternalDate(REGISTER_REAL34_DATA(REGISTER_Y), &date);
       real34Copy(&date, REGISTER_REAL34_DATA(REGISTER_Y));
 
       //Convert x to time to X
-      real_t tmp;
-      realMultiply(const_86400, &x, &tmp, &ctxtReal39);              // tmp is now seconds
       reallocateRegister(REGISTER_X, dtTime, 0, amNone);             // this must be in front of the next line, otherwise accuracy is gone
-      convertRealToReal34ResultRegister(&tmp, REGISTER_X);
+      convertRealToReal34ResultRegister(milliseconds, REGISTER_X);
       break;
     }
 
@@ -530,12 +543,19 @@ void fnDateTimeToJulian(uint16_t unusedButMandatoryParameter) {
 
   if(checkDateArgument(REGISTER_Y, &jd34) && getRegisterDataType(REGISTER_X) == dtTime) {
     {
+      REAL_T_PTR(julian, 39);
+      REAL_T_PTR(seconds, 39);
+      REAL_T_PTR(noon, 39);
       convertReal34ToLongIntegerRegister(&jd34, REGISTER_Y, DEC_ROUND_DOWN);                      //Y is truncated date in real
       convertLongIntegerRegisterToReal34Register(REGISTER_Y, REGISTER_Y);
-      timeToReal34(3);                                                                            //X is now Real seconds
-      real34Divide  (REGISTER_REAL34_DATA(REGISTER_X), const34_86400, REGISTER_REAL34_DATA(REGISTER_X));   //X is now in days
-      real34Add     (REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_Y), REGISTER_REAL34_DATA(REGISTER_X));
-      real34Subtract(REGISTER_REAL34_DATA(REGISTER_X), const34_1on2, REGISTER_REAL34_DATA(REGISTER_X));                      //handle 0.5 offset
+      real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), seconds);
+      reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
+      real34ToReal(const34_43200, noon);
+      realSubtract(seconds, noon, seconds, &ctxtReal39);
+      realDivide(seconds, const_86400, seconds, &ctxtReal39);
+      real34ToReal(REGISTER_REAL34_DATA(REGISTER_Y), julian);
+      realAdd(julian, seconds, julian, &ctxtReal39);
+      convertRealToReal34ResultRegister(julian, REGISTER_X);
       adjustResult(REGISTER_X, true, true, REGISTER_X, REGISTER_Y, -1);
     }
   }

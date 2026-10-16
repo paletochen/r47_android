@@ -17,7 +17,10 @@ static void swapReImCxma(void) {
     real34Copy(VARIABLE_REAL34_DATA(&cMat.matrixElements[i]), &tmp);
     real34Copy(VARIABLE_IMAG34_DATA(&cMat.matrixElements[i]), VARIABLE_REAL34_DATA(&cMat.matrixElements[i]));
     real34Copy(&tmp                                         , VARIABLE_IMAG34_DATA(&cMat.matrixElements[i]));
+    roundReal34ResultToSignificantDigits(VARIABLE_REAL34_DATA(&cMat.matrixElements[i]));
+    roundReal34ResultToSignificantDigits(VARIABLE_IMAG34_DATA(&cMat.matrixElements[i]));
   }
+  setRegisterTag(REGISTER_X, amNone);
 }
 
 static void swapReImRema(void) {
@@ -26,10 +29,14 @@ static void swapReImRema(void) {
 
   linkToRealMatrixRegister(REGISTER_X, &r);
   convertReal34MatrixToComplex34Matrix(&r, &c);
+  if(c.matrixElements == NULL) {
+    return;
+  }
 
   for(uint16_t i = 0; i < c.header.matrixRows * c.header.matrixColumns; ++i) {
     real34Copy(VARIABLE_REAL34_DATA(&c.matrixElements[i]), VARIABLE_IMAG34_DATA(&c.matrixElements[i]));
     real34SetZero(VARIABLE_REAL34_DATA(&c.matrixElements[i]));
+    roundReal34ResultToSignificantDigits(VARIABLE_IMAG34_DATA(&c.matrixElements[i]));
   }
 
   convertComplex34MatrixToComplex34MatrixRegister(&c, REGISTER_X);
@@ -44,7 +51,7 @@ static void swapReImRema(void) {
  * \return void
  ***********************************************/
 void fnSwapRealImaginary(uint16_t unusedButMandatoryParameter) {
-  real_t a, b;
+  cplx_t x;
   const uint32_t type = getRegisterDataType(REGISTER_X);
 
   if(!saveLastX()) {
@@ -57,11 +64,40 @@ void fnSwapRealImaginary(uint16_t unusedButMandatoryParameter) {
   else if(type == dtComplex34Matrix) {
     swapReImCxma();
   }
-  else {
-    if(!getRegisterAsComplex(REGISTER_X, &a, &b)) {
+  else if(type == dtComplex34) {
+    real34_t tmp;
+    real34Copy(REGISTER_REAL34_DATA(REGISTER_X), &tmp);
+    real34Copy(REGISTER_IMAG34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X));
+    real34Copy(&tmp, REGISTER_IMAG34_DATA(REGISTER_X));
+    roundReal34ResultToSignificantDigits(REGISTER_REAL34_DATA(REGISTER_X));
+    roundReal34ResultToSignificantDigits(REGISTER_IMAG34_DATA(REGISTER_X));
+    setRegisterTag(REGISTER_X, amNone);
+  }
+  else if(type == dtReal34) {
+    real34_t real;
+    real34Copy(REGISTER_REAL34_DATA(REGISTER_X), &real);
+    roundReal34ResultToSignificantDigits(&real);
+    reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
+    if(lastErrorCode == ERROR_RAM_FULL) {
       return;
     }
-    convertComplexToResultRegister(&b, &a, REGISTER_X);
+    real34SetZero(REGISTER_REAL34_DATA(REGISTER_X));
+    real34Copy(&real, REGISTER_IMAG34_DATA(REGISTER_X));
+  }
+  else if(type == dtLongInteger && (significantDigits == 0 || significantDigits == 34)) {
+    real34_t real;
+    convertLongIntegerRegisterToReal34(REGISTER_X, &real);
+    reallocateRegister(REGISTER_X, dtComplex34, 0, amNone);
+    if(lastErrorCode == ERROR_RAM_FULL) {
+      return;
+    }
+    real34SetZero(REGISTER_REAL34_DATA(REGISTER_X));
+    real34Copy(&real, REGISTER_IMAG34_DATA(REGISTER_X));
+  }
+  else {
+    if(!getRegisterAsComplex(REGISTER_X, &x)) {
+      return;
+    }
+    convertComplexPartsToResultRegister(&x.Imag, &x.Real, REGISTER_X);
   }
 }
-

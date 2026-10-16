@@ -9,5 +9,5 @@
   // Coded by JM, based on ln.h
 
   void fnLnP1   (uint16_t unusedButMandatoryParameter);
-  void lnP1Complex(const real_t *real, const real_t *imag, real_t *lnReal, real_t *lnImag, realContext_t *realContext);
+  void lnP1Complex(const cplx_t *z, cplx_t *ln, realContext_t *realContext);
 #endif // !LNPONE_H

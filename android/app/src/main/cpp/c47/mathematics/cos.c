@@ -7,16 +7,16 @@
 
 #include "c47.h"
 
-void cosComplex(const real_t *real, const real_t *imag, real_t *resReal, real_t *resImag, realContext_t *realContext) {
+void cosComplex(const cplx_t *z, cplx_t *res, realContext_t *realContext) {
   // cos(a + i b) = cos(a)*cosh(b) - i*sin(a)*sinh(b)
   real_t sina, cosa, sinhb, coshb;
 
-  C47_WP34S_Cvt2RadSinCosTan(real, amRadian, &sina, &cosa, NULL, realContext);
-  WP34S_SinhCosh(imag, &sinhb, &coshb, realContext);
+  C47_WP34S_Cvt2RadSinCosTan(&z->Real, amRadian, &sina, &cosa, NULL, realContext);
+  WP34S_SinhCosh(&z->Imag, &sinhb, &coshb, realContext);
 
-  realMultiply(&cosa, &coshb, resReal, realContext);
-  realMultiply(&sina, &sinhb, resImag, realContext);
-  realChangeSign(resImag);
+  multiplyTrigByHyperbolic(&cosa, &coshb, &res->Real, realContext);
+  multiplyTrigByHyperbolic(&sina, &sinhb, &res->Imag, realContext);
+  realChangeSign(&res->Imag);
 }
 
 

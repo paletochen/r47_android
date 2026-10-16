@@ -4,34 +4,23 @@ extern uint8_t calcModel;
 void setLastKeyCode(int key) {             // key = 10      setLastKeyCode = 10-6 +30 = 34 row 3, col 4
   if(1 <= key && key <= 43) {              // key = 27      setLastKeyCode = 27-22+60 = 65 row 6, col 5
     if(isR47FAM) {
-      switch(key) {
-        case 23: {
-          key = 18;                        // UP
-          break;
-        }
-        case 28: {
-          key = 23;                        // DOWN
-          break;
-        }
-        case 11: {
-          key = 28;                        // SHIFT
-          break;
-        }
-        case 18: {
-          key = 11;                        // COS
-          break;
-        }
-        case 16: {
-          key = 15;                        // +/-
-          break;
-        }
-        case 15: {
-          key = 16;                        // E
-          break;
-        }
-        default: {
-          break;
-        }
+      if(key == 23) {
+        key = 18;
+      }
+      else if(key == 28) {
+        key = 23;
+      }
+      else if(key == 11) {
+        key = 28;
+      }
+      else if(key == 18) {
+        key = 11;
+      }
+      else if(key == 16) {
+        key = 15;
+      }
+      else if(key == 15) {
+        key = 16;
       }
     }
     if(key <=  6) {                        // key = 28 EXIT setLastKeyCode = 28-27+70 = 71 row 7, col 1
