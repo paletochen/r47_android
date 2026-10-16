@@ -30,13 +30,12 @@ static size_t print_line_len = 0;
 static char pretty_line_buf[4096];
 static size_t pretty_line_len = 0;
 
-static void flushPrinterBuffer(void) {
-  if(print_line_len == 0) {
+static void appendToFile(int fileType, const char *fileName, const char *data, size_t len) {
+  if(!data || len == 0) {
     return;
   }
-
   FILE *f = NULL;
-  int directFd = openDirectDocumentFd(5 /* PRINT */, "printer_output.txt", "wa");
+  int directFd = openDirectDocumentFd(fileType, fileName, "wa");
   if(directFd >= 0) {
     f = fdopen(directFd, "a");
   }
@@ -48,20 +47,26 @@ static void flushPrinterBuffer(void) {
       snprintf(dir, sizeof(dir), "%s/PRINT", base_path);
       mkdir(dir, 0777);
       char path[1024];
-      snprintf(path, sizeof(path), "%s/PRINT/printer_output.txt", base_path);
+      snprintf(path, sizeof(path), "%s/PRINT/%s", base_path, fileName);
       f = fopen(path, "a");
     }
   }
 
   if(!f) {
-    LOGE("flushPrinterBuffer: Unable to open printer_output.txt");
-    print_line_len = 0;
+    LOGE("appendToFile: Unable to open %s", fileName);
     return;
   }
 
-  fwrite(print_line_buf, 1, print_line_len, f);
+  fwrite(data, 1, len, f);
   fflush(f);
   fclose(f);
+}
+
+static void flushPrinterBuffer(void) {
+  if(print_line_len == 0) {
+    return;
+  }
+  appendToFile(5 /* PRINT */, "printer_output.txt", print_line_buf, print_line_len);
   print_line_len = 0;
 }
 
@@ -69,34 +74,8 @@ static void flushPrettyBuffer(void) {
   if(pretty_line_len == 0) {
     return;
   }
-
-  FILE *f = NULL;
-  int directFd = openDirectDocumentFd(5 /* PRINT */, "prettyprinter_output.txt", "wa");
-  if(directFd >= 0) {
-    f = fdopen(directFd, "a");
-  }
-
-  if(!f) {
-    const char *base_path = get_android_base_path();
-    if(base_path && base_path[0]) {
-      char dir[1024];
-      snprintf(dir, sizeof(dir), "%s/PRINT", base_path);
-      mkdir(dir, 0777);
-      char path[1024];
-      snprintf(path, sizeof(path), "%s/PRINT/prettyprinter_output.txt", base_path);
-      f = fopen(path, "a");
-    }
-  }
-
-  if(!f) {
-    LOGE("flushPrettyBuffer: Unable to open prettyprinter_output.txt");
-    pretty_line_len = 0;
-    return;
-  }
-
-  fwrite(pretty_line_buf, 1, pretty_line_len, f);
-  fflush(f);
-  fclose(f);
+  appendToFile(5 /* PRINT */, "prettyprinter_output.txt", pretty_line_buf, pretty_line_len);
+  appendToFile(5 /* PRINT */, "prettyprint_output.txt", pretty_line_buf, pretty_line_len);
   pretty_line_len = 0;
 }
 
