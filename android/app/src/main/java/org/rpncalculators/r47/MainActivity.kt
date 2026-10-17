@@ -429,6 +429,9 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             sendSimFuncNative = ::sendSimFuncNative,
             sendSimKeyNative = ::sendSimKeyNative,
             enterPiP = ::enterPiP,
+            isProgramModeNative = ::isProgramModeNative,
+            copyProgramNative = ::copyProgramNative,
+            pasteProgramNative = ::pasteProgramNative,
         )
         
         factoryResetController = FactoryResetController(
@@ -732,6 +735,9 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     private external fun getXRegisterNative(): String
     private external fun getAllRegistersNative(): String
     private external fun pasteTextNative(text: String)
+    private external fun isProgramModeNative(): Boolean
+    private external fun copyProgramNative(): String
+    private external fun pasteProgramNative(codeText: String): String?
     private external fun getDisplayPixels(pixels: IntArray)
     private external fun setLcdColors(text: Int, bg: Int)
     

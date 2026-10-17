@@ -25,6 +25,9 @@ internal class DisplayActionController(
     private val sendSimFuncNative: (Int) -> Unit,
     private val sendSimKeyNative: (String, Boolean, Boolean) -> Unit,
     private val enterPiP: () -> Unit,
+    private val isProgramModeNative: () -> Boolean = { false },
+    private val copyProgramNative: () -> String = { "" },
+    private val pasteProgramNative: (String) -> String? = { null },
 ) {
     companion object {
         private const val TAG = "R47DisplayActions"
@@ -141,18 +144,90 @@ internal class DisplayActionController(
     }
 
     private fun showDisplayActionsDialog() {
-        MaterialAlertDialogBuilder(context)
-            .setTitle("Display & Clipboard")
-            .setItems(arrayOf("Copy X Register", "Copy All Registers", "Paste to X Register", "Enter PiP Mode")) { _, which ->
-                when (which) {
-                    0 -> copyXToClipboard()
-                    1 -> copyAllRegistersToClipboard()
-                    2 -> pasteFromClipboard()
-                    3 -> enterPiP()
+        val isPem = isProgramModeNative()
+        if (isPem) {
+            MaterialAlertDialogBuilder(context)
+                .setTitle("Program Entry Mode")
+                .setItems(arrayOf("Copy full program", "Paste & replace existing program", "Enter PiP Mode")) { _, which ->
+                    when (which) {
+                        0 -> copyProgramToClipboard()
+                        1 -> pasteProgramFromClipboard()
+                        2 -> enterPiP()
+                    }
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        } else {
+            MaterialAlertDialogBuilder(context)
+                .setTitle("Display & Clipboard")
+                .setItems(arrayOf("Copy X Register", "Copy All Registers", "Paste to X Register", "Enter PiP Mode")) { _, which ->
+                    when (which) {
+                        0 -> copyXToClipboard()
+                        1 -> copyAllRegistersToClipboard()
+                        2 -> pasteFromClipboard()
+                        3 -> enterPiP()
+                    }
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+    }
+
+    private fun copyProgramToClipboard() {
+        offerCoreTask(
+            Runnable {
+                try {
+                    val programText = copyProgramNative()
+                    mainHandler.post {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clip = ClipData.newPlainText("R47 Program", programText)
+                        clipboard.setPrimaryClip(clip)
+                        val lineCount = if (programText.isBlank()) 0 else programText.lines().count { it.isNotBlank() }
+                        android.widget.Toast.makeText(
+                            context,
+                            "Copied program ($lineCount steps)",
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                } catch (error: Exception) {
+                    Log.e(TAG, "Copy program error", error)
                 }
             }
-            .setNegativeButton("Cancel", null)
-            .show()
+        )
+    }
+
+    private fun pasteProgramFromClipboard() {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val item = clipboard.primaryClip?.getItemAt(0)
+        val text = item?.text?.toString() ?: run {
+            android.widget.Toast.makeText(context, "Clipboard is empty", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        offerCoreTask(
+            Runnable {
+                try {
+                    val err = pasteProgramNative(text)
+                    mainHandler.post {
+                        if (err != null) {
+                            MaterialAlertDialogBuilder(context)
+                                .setTitle("Paste Program Error")
+                                .setMessage(err)
+                                .setPositiveButton("OK", null)
+                                .show()
+                        } else {
+                            android.widget.Toast.makeText(
+                                context,
+                                "Program pasted successfully",
+                                android.widget.Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                    }
+                } catch (error: Exception) {
+                    Log.e(TAG, "Paste program error", error)
+                }
+            }
+        )
     }
 
     private fun copyXToClipboard() {

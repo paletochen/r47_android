@@ -1388,3 +1388,33 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
   free(origTrimmed);
   free(buf);
 }
+
+JNIEXPORT jstring JNICALL
+Java_org_rpncalculators_r47_MainActivity_pasteProgramNative(
+    JNIEnv *env, jobject thiz, jstring codeTextObj) {
+  (void)thiz;
+  if(!ram || isCoreBlockingForIo) {
+    return (*env)->NewStringUTF(env, "Calculator is not ready");
+  }
+  if(codeTextObj == NULL) {
+    return (*env)->NewStringUTF(env, "Empty program text");
+  }
+
+  const char *codeText = (*env)->GetStringUTFChars(env, codeTextObj, NULL);
+  if(codeText == NULL) {
+    return (*env)->NewStringUTF(env, "Failed to read input text");
+  }
+
+  pthread_mutex_lock(&screenMutex);
+  char *err = parseAndPasteProgram(codeText);
+  pthread_mutex_unlock(&screenMutex);
+
+  (*env)->ReleaseStringUTFChars(env, codeTextObj, codeText);
+
+  if(err == NULL) {
+    return NULL;
+  }
+  jstring res = (*env)->NewStringUTF(env, err);
+  free(err);
+  return res;
+}

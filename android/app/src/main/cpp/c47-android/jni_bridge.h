@@ -113,6 +113,20 @@ Java_org_rpncalculators_r47_MainActivity_getXRegisterNative(JNIEnv *env,
 JNIEXPORT jstring JNICALL
 Java_org_rpncalculators_r47_MainActivity_getAllRegistersNative(JNIEnv *env,
                                                                jobject thiz);
+JNIEXPORT jboolean JNICALL
+Java_org_rpncalculators_r47_MainActivity_isProgramModeNative(JNIEnv *env,
+                                                            jobject thiz);
+JNIEXPORT jstring JNICALL
+Java_org_rpncalculators_r47_MainActivity_copyProgramNative(JNIEnv *env,
+                                                          jobject thiz);
+JNIEXPORT jstring JNICALL
+Java_org_rpncalculators_r47_MainActivity_pasteProgramNative(JNIEnv *env,
+                                                           jobject thiz,
+                                                           jstring codeTextObj);
+bool isProgramMode(void);
+char *getCurrentProgramString(void);
+char *parseAndPasteProgram(const char *codeText);
+const char *stripProgramLinePrefix(const char *line);
 JNIEXPORT void JNICALL
 Java_org_rpncalculators_r47_MainActivity_getDisplayPixels(JNIEnv *env,
                                                           jobject thiz,

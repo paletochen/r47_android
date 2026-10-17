@@ -8,6 +8,12 @@
 
 #include "c47.h"
 
+#if defined(ANDROID_BUILD)
+  #include <android/log.h>
+  #define LOG_TAG "R47Native"
+  #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+#endif
+
 // Drop stale interrupt keys at top-level program start (a leftover key prior to pgm run can trip us). 1 = on, 0 = off.
 #define CLEAR_KEYS_ON_PGM_START 0
 
@@ -380,6 +386,9 @@ static void _executeWithIndirectVariable(uint8_t *stringAddress, uint16_t op) {
   }
   else {
     displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE);
+    #if defined(ANDROID_BUILD)
+      LOGE("ERROR_UNDEF_SOURCE_VAR in _executeWithIndirectVariable: variable '%s' not found (op=%u)", tmpStringLabelOrVariableName, op);
+    #endif
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "string '%s' is not a named variable", tmpStringLabelOrVariableName);
       moreInfoOnError("In function _executeWithIndirectVariable:", errorMessage, NULL, NULL);
@@ -529,6 +538,9 @@ static void _executeOp(uint8_t *paramAddress, uint16_t op, uint16_t paramMode) {
         }
         else {
           displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE);
+          #if defined(ANDROID_BUILD)
+            LOGE("ERROR_UNDEF_SOURCE_VAR in _executeOp: variable '%s' not found (op=%u)", tmpStringLabelOrVariableName, op);
+          #endif
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             sprintf(errorMessage, "string '%s' is not a named variable", tmpStringLabelOrVariableName);
             moreInfoOnError("In function _executeOp:", errorMessage, NULL, NULL);

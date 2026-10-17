@@ -19,12 +19,21 @@ all: $(TARGET)
 items_android.c: ../../src/c47/items.c
 	(sed -n '40,118p' ../../src/c47/items.c; echo "#endif") > $@
 
+items_table_full.c: ../../src/c47/items.c
+	(echo '#include "c47.h"'; \
+	 sed -n '1752,$$p' ../../src/c47/items.c | \
+	 sed -E '/^#define UNIT_CONV/,/RESULT_IN_X \}/c\#define UNIT_CONV(unit, invert, cat, menu) { NULL, 0, cat, menu, 0, CAT_NONE | SLS_ENABLED | US_ENABLED | EIM_DISABLED | PTP_NONE | RESULT_IN_X }' | \
+	 sed -E 's/^(\/\*[[:space:]]*[0-9]+[[:space:]]*\*\/[[:space:]]*\{)[[:space:]]*[^,]+,[[:space:]]*[^,]+,/\1 NULL, 0,/') > $@
+
+items_table_full.o: items_table_full.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
 keyboard_keycode.c: ../../src/c47/keyboard.c
 	(echo '#include "c47.h"'; echo 'extern uint8_t lastKeyCode;'; echo 'extern uint8_t calcModel;'; sed -n '/^void setLastKeyCode/,/^}/p' ../../src/c47/keyboard.c) > $@
 
-$(TARGET): items_android.c keyboard_keycode.c $(SRC)
-	$(CC) $(CFLAGS) -o $@ $(SRC) keyboard_keycode.c $(shell pkg-config --libs gtk+-3.0) -lm
+$(TARGET): items_android.c items_table_full.o keyboard_keycode.c $(SRC)
+	$(CC) $(CFLAGS) -o $@ $(SRC) items_table_full.o keyboard_keycode.c $(shell pkg-config --libs gtk+-3.0) -lm
 
 clean:
-	rm -f $(TARGET) items_android.c keyboard_keycode.c *.o
+	rm -f $(TARGET) items_android.c items_table_full.c items_table_full.o keyboard_keycode.c *.o
 

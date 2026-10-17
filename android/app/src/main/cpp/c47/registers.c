@@ -3,6 +3,12 @@
 
 #include "c47.h"
 
+#if defined(ANDROID_BUILD)
+  #include <android/log.h>
+  #define LOG_TAG "R47Native"
+  #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+#endif
+
 #include "reservedRegisterLookup.h"
 
 TO_QSPI const reservedVariableDescStr_t varDescr[] = {
@@ -1749,6 +1755,9 @@ int16_t indirectAddressing(calcRegister_t regist, uint16_t parameterType, int16_
     isValidAlpha = true;
     if((value == INVALID_VARIABLE) && (lastErrorCode != ERROR_ENTER_NEW_NAME)) {
       displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE);
+      #if defined(ANDROID_BUILD)
+        LOGE("ERROR_UNDEF_SOURCE_VAR in indirectAddressing: variable '%s' not found", REGISTER_STRING_DATA(regist));
+      #endif
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "string '%s' is not a named variable - tryAllocate is %s", REGISTER_STRING_DATA(regist), (tryAllocate ? "true" : "false"));
         moreInfoOnError("In function indirectAddressing:", errorMessage, NULL, NULL);

@@ -9,6 +9,7 @@
 #include <assert.h>
 #include <time.h>
 #include <pthread.h>
+#include <dirent.h>
 
 // Environment emulation for Android build on PC host
 #ifndef ANDROID_BUILD
@@ -47,6 +48,39 @@ extern void setLastKeyCode(int key);
 
 real_t *statisticalSumsPointer = NULL;
 subroutineLevelHeader_t *currentSubroutineLevelData = NULL;
+
+uint8_t calcMode = CM_NORMAL;
+uint16_t numberOfPrograms = 1;
+uint16_t currentProgramNumber = 1;
+static programList_t mock_program_list[16] = {{0}};
+programList_t *programList = mock_program_list;
+uint8_t *beginOfProgramMemory = NULL;
+uint8_t *firstFreeProgramByte = NULL;
+uint16_t freeProgramBytes = 0;
+uint8_t *currentStep = NULL;
+uint8_t *firstDisplayedStep = NULL;
+uint8_t *beginOfCurrentProgram = NULL;
+uint8_t *endOfCurrentProgram = NULL;
+
+void defineCurrentProgramFromCurrentStep(void) {}
+bool_t isAtEndOfPrograms(const uint8_t *step) { (void)step; return true; }
+uint8_t *findNextStep(uint8_t *step) { (void)step; return NULL; }
+void decodeOneStep(uint8_t *step) { (void)step; strcpy(tmpString, "END"); }
+bool_t checkOpCodeOfStep(const uint8_t *step, uint16_t op) { (void)step; (void)op; return false; }
+void deleteStepsFromTo(uint8_t *from, uint8_t *to) { (void)from; (void)to; }
+void scanLabelsAndPrograms(void) {}
+void resizeProgramMemory(uint16_t newSizeInBlocks) { (void)newSizeInBlocks; }
+void goToGlobalStep(int32_t step) { (void)step; }
+bool_t reDraw = false;
+uint8_t screenUpdatingMode = 0;
+void refreshScreen(uint16_t reason) { (void)reason; }
+gboolean refreshLcd(gpointer unusedData) { (void)unusedData; return 0; }
+void lcd_refresh(void) {}
+int32_t compareString(const char *stra, const char *strb, int32_t comparisonType) {
+    (void)comparisonType;
+    return strcasecmp(stra, strb);
+}
+extern const item_t indexOfItems[];
 
 static uint32_t mock_register_datatype = dtReal34;
 
@@ -179,8 +213,56 @@ void stringToASCII(const char *in, char *out) {
     strcpy(out, in);
 }
 
+void utf8ToString(const uint8_t *utf8, char *str) {
+    if (!utf8 || !str) return;
+    const uint8_t *s = utf8;
+    char *d = str;
+    while (*s) {
+        uint32_t codePoint = 0;
+        if ((s[0] & 0x80) == 0) {
+            codePoint = s[0];
+            s += 1;
+        } else if ((s[0] & 0xE0) == 0xC0 && (s[1] & 0xC0) == 0x80) {
+            codePoint = ((uint32_t)(s[0] & 0x1F) << 6) | (s[1] & 0x3F);
+            s += 2;
+        } else if ((s[0] & 0xF0) == 0xE0 && (s[1] & 0xC0) == 0x80 && (s[2] & 0xC0) == 0x80) {
+            codePoint = ((uint32_t)(s[0] & 0x0F) << 12) | ((uint32_t)(s[1] & 0x3F) << 6) | (s[2] & 0x3F);
+            s += 3;
+        } else if ((s[0] & 0xF8) == 0xF0 && (s[1] & 0xC0) == 0x80 && (s[2] & 0xC0) == 0x80 && (s[3] & 0xC0) == 0x80) {
+            codePoint = ((uint32_t)(s[0] & 0x07) << 18) | ((uint32_t)(s[1] & 0x3F) << 12) | ((uint32_t)(s[2] & 0x3F) << 6) | (s[3] & 0x3F);
+            s += 4;
+        } else {
+            *d++ = (char)*s++;
+            continue;
+        }
+        if (codePoint < 0x0080) {
+            *d++ = (char)codePoint;
+        } else if ((codePoint & 0x00FF) == 0) {
+            *d++ = '?';
+        } else {
+            codePoint |= 0x8000;
+            *d++ = (char)((codePoint >> 8) & 0xFF);
+            *d++ = (char)(codePoint & 0xFF);
+        }
+    }
+    *d = '\0';
+}
+
 void codePointToUtf8(uint32_t codePoint, uint8_t *utf8) {
-    if (utf8) *utf8 = (uint8_t)codePoint;
+    if (!utf8) return;
+    if (codePoint <= 0x7F) {
+        utf8[0] = (uint8_t)codePoint;
+        utf8[1] = 0;
+    } else if (codePoint <= 0x7FF) {
+        utf8[0] = 0xC0 | ((codePoint >> 6) & 0x1F);
+        utf8[1] = 0x80 | (codePoint & 0x3F);
+        utf8[2] = 0;
+    } else {
+        utf8[0] = 0xE0 | ((codePoint >> 12) & 0x0F);
+        utf8[1] = 0x80 | ((codePoint >> 6) & 0x3F);
+        utf8[2] = 0x80 | (codePoint & 0x3F);
+        utf8[3] = 0;
+    }
 }
 
 void yieldToAndroid(void) {}
@@ -1033,6 +1115,1307 @@ void test_r47_last_key_code_mapping(void) {
 }
 
 // --------------------------------------------------------------------------
+// TEST 14: Program Mode Detection, Program Copy & Line Prefix Stripping
+// --------------------------------------------------------------------------
+extern bool isProgramMode(void);
+extern const char *stripProgramLinePrefix(const char *line);
+extern char *getCurrentProgramString(void);
+
+void test_program_copy_and_line_stripping(void) {
+    // 1. Line Prefix Stripping Invariants
+    const char *p1 = stripProgramLinePrefix("0001: LBL \"FOO\"");
+    TEST_ASSERT(strcmp(p1, "LBL \"FOO\"") == 0, "Line prefix '0001: ' must be stripped");
+
+    const char *p2 = stripProgramLinePrefix("0002. STO 01");
+    TEST_ASSERT(strcmp(p2, "STO 01") == 0, "Line prefix '0002. ' must be stripped");
+
+    const char *p3 = stripProgramLinePrefix("0003  RCL 01");
+    TEST_ASSERT(strcmp(p3, "RCL 01") == 0, "Line prefix '0003  ' must be stripped");
+
+    const char *p4 = stripProgramLinePrefix("1: 1234");
+    TEST_ASSERT(strcmp(p4, "1234") == 0, "Line prefix '1: ' must be stripped");
+
+    const char *p5 = stripProgramLinePrefix("12345");
+    TEST_ASSERT(strcmp(p5, "12345") == 0, "Standalone number literal '12345' must not be stripped");
+
+    const char *p6 = stripProgramLinePrefix("-0.7666");
+    TEST_ASSERT(strcmp(p6, "-0.7666") == 0, "Negative number literal '-0.7666' must not be stripped");
+
+    const char *p7 = stripProgramLinePrefix("   0010:   +");
+    TEST_ASSERT(strcmp(p7, "+") == 0, "Indented prefix '   0010:   +' must strip to '+'");
+
+    const char *p8 = stripProgramLinePrefix("0020: 1.e-50");
+    TEST_ASSERT(strcmp(p8, "1.e-50") == 0, "Scientific literal '0020: 1.e-50' must strip to '1.e-50'");
+
+    const char *p9 = stripProgramLinePrefix("255 →INT 10");
+    TEST_ASSERT(strcmp(p9, "255 →INT 10") == 0, "RPN number '255 →INT 10' must not be stripped");
+
+    const char *p10 = stripProgramLinePrefix("100 STO 01");
+    TEST_ASSERT(strcmp(p10, "100 STO 01") == 0, "RPN number '100 STO 01' must not be stripped");
+
+    // 2. Program Mode Detection
+    calcMode = CM_NORMAL;
+    TEST_ASSERT(!isProgramMode(), "CM_NORMAL must not be identified as program mode");
+
+    calcMode = CM_PEM;
+    TEST_ASSERT(isProgramMode(), "CM_PEM must be identified as program mode");
+
+    // 3. Program Copy in Normal mode vs PEM mode
+    calcMode = CM_NORMAL;
+    char *s1 = getCurrentProgramString();
+    TEST_ASSERT(s1 != NULL && strlen(s1) == 0, "Normal mode must return empty program string");
+    free(s1);
+
+    // 4. Program Paste Transactional Parsing (E2DT forum program)
+    calcMode = CM_PEM;
+    const char *e2dt_sample =
+        " \n"
+        "0001:  LBL 'E2DT'   ; epoch to date/time matrix\n"
+        "0002:    MVAR 'EP'\n"
+        "0003:    MVAR 'TZ'\n"
+        "0004:    VARMNU 'E2DT'   ; EP = epoch secs, TZ = offset secs (0 UTC, 3600 BST)\n"
+        "0005:    STOP   ; enter values, press RS\n"
+        "0006:    EXITALL\n"
+        "0007:    LocR 14   ; .00 secs .01 days .02 sod .03 hh .04 mm .05 ss\n"
+        "0008:    RCL 'EP'   ; local secs = EP + TZ\n"
+        "0009:    RCL 'TZ'\n"
+        "0010:    +\n"
+        "0011:    STO .00\n"
+        "0012:    86400   ; whole days since 1970-01-01\n"
+        "0013:    ÷\n"
+        "0014:    IP\n"
+        "0015:    STO .01\n"
+        "0016:    RCL .00   ; seconds into the day\n"
+        "0017:    86400\n"
+        "0018:    MOD\n"
+        "0019:    STO .02\n"
+        "0020:    3600   ; hours\n"
+        "0021:    ÷\n"
+        "0022:    IP\n"
+        "0023:    STO .03\n"
+        "0024:    RCL .02   ; minutes\n"
+        "0025:    3600\n"
+        "0026:    MOD\n"
+        "0027:    60\n"
+        "0028:    ÷\n"
+        "0029:    IP\n"
+        "0030:    STO .04\n"
+        "0031:    RCL .02   ; seconds\n"
+        "0032:    60\n"
+        "0033:    MOD\n"
+        "0034:    STO .05\n"
+        "0035:    RCL .01   ; days to civil date (year starts 1 March)\n"
+        "0036:    719468\n"
+        "0037:    +\n"
+        "0038:    STO .06   ; .06 doe\n"
+        "0039:    146097   ; era = 400-year block\n"
+        "0040:    ÷\n"
+        "0041:    IP\n"
+        "0042:    STO .07   ; .07 era\n"
+        "0043:    146097\n"
+        "0044:    ×\n"
+        "0045:    RCL .06\n"
+        "0046:    X<>Y\n"
+        "0047:    -\n"
+        "0048:    STO .06   ; doe = day of era\n"
+        "0049:    RCL .06   ; yoe = year of era\n"
+        "0050:    1460\n"
+        "0051:    ÷\n"
+        "0052:    IP\n"
+        "0053:    RCL .06\n"
+        "0054:    X<>Y\n"
+        "0055:    -\n"
+        "0056:    RCL .06\n"
+        "0057:    36524\n"
+        "0058:    ÷\n"
+        "0059:    IP\n"
+        "0060:    +\n"
+        "0061:    RCL .06\n"
+        "0062:    146096\n"
+        "0063:    ÷\n"
+        "0064:    IP\n"
+        "0065:    -\n"
+        "0066:    365\n"
+        "0067:    ÷\n"
+        "0068:    IP\n"
+        "0069:    STO .08   ; .08 yoe\n"
+        "0070:    RCL .07   ; year = yoe + 400*era\n"
+        "0071:    400\n"
+        "0072:    ×\n"
+        "0073:    +\n"
+        "0074:    STO .09   ; .09 year\n"
+        "0075:    RCL .08   ; doy = day of March-based year\n"
+        "0076:    365\n"
+        "0077:    ×\n"
+        "0078:    RCL .08\n"
+        "0079:    4\n"
+        "0080:    ÷\n"
+        "0081:    IP\n"
+        "0082:    +\n"
+        "0083:    RCL .08\n"
+        "0084:    100\n"
+        "0085:    ÷\n"
+        "0086:    IP\n"
+        "0087:    -\n"
+        "0088:    RCL .06\n"
+        "0089:    X<>Y\n"
+        "0090:    -\n"
+        "0091:    STO .10   ; .10 doy\n"
+        "0092:    5   ; mp = month index, March = 0\n"
+        "0093:    ×\n"
+        "0094:    2\n"
+        "0095:    +\n"
+        "0096:    153\n"
+        "0097:    ÷\n"
+        "0098:    IP\n"
+        "0099:    STO .11   ; .11 mp\n"
+        "0100:    153   ; day of month\n"
+        "0101:    ×\n"
+        "0102:    2\n"
+        "0103:    +\n"
+        "0104:    5\n"
+        "0105:    ÷\n"
+        "0106:    IP\n"
+        "0107:    RCL .10\n"
+        "0108:    X<>Y\n"
+        "0109:    -\n"
+        "0110:    1\n"
+        "0111:    +\n"
+        "0112:    STO .12   ; .12 day\n"
+        "0113:    10   ; month = mp+3 if mp<10 else mp-9\n"
+        "0114:    RCL .11\n"
+        "0115:    x<y?\n"
+        "0116:    GTO 01\n"
+        "0117:    RCL .11\n"
+        "0118:    9\n"
+        "0119:    -\n"
+        "0120:    STO .13   ; .13 month\n"
+        "0121:    GTO 02\n"
+        "0122:  LBL 01\n"
+        "0123:    RCL .11\n"
+        "0124:    3\n"
+        "0125:    +\n"
+        "0126:    STO .13\n"
+        "0127:  LBL 02\n"
+        "0128:    3   ; Jan/Feb belong to next year\n"
+        "0129:    RCL .13\n"
+        "0130:    x<y?\n"
+        "0131:    INCR .09\n"
+        "0132:    1   ; build 1x6 matrix\n"
+        "0133:    6\n"
+        "0134:    M.NEW\n"
+        "0135:    RCL .09   ; year\n"
+        "0136:    STOVEL 001\n"
+        "0137:    DROP\n"
+        "0138:    RCL .13   ; month\n"
+        "0139:    STOVEL 002\n"
+        "0140:    DROP\n"
+        "0141:    RCL .12   ; day\n"
+        "0142:    STOVEL 003\n"
+        "0143:    DROP\n"
+        "0144:    RCL .03   ; hour\n"
+        "0145:    STOVEL 004\n"
+        "0146:    DROP\n"
+        "0147:    RCL .04   ; minute\n"
+        "0148:    STOVEL 005\n"
+        "0149:    DROP\n"
+        "0150:    RCL .05   ; second\n"
+        "0151:    STOVEL 006\n"
+        "0152:    DROP\n"
+        "0153:    STO 'DT'   ; keep copy in DT, matrix stays in X\n"
+        "0154:  END\n";
+
+    extern char *parseAndPasteProgram(const char *codeText);
+    char *err = parseAndPasteProgram(e2dt_sample);
+    if(err) {
+        printf("Unexpected error in parseAndPasteProgram: '%s'\n", err);
+    }
+    TEST_ASSERT(err == NULL, "parseAndPasteProgram must succeed on E2DT forum listing with comments and Unicode ops");
+    if(err) {
+        free(err);
+    }
+
+    calcMode = CM_NORMAL; // Restore
+}
+
+static void test_c47_character_set_conversion_and_math_ops(void) {
+    extern void c47StringToReadableUtf8(const char *src, char *dest, size_t destSize);
+    char buf[128];
+
+    // Test 1: x-th root of y (custom C47 font bytes \xa2\x1c\x82\x32 -> "ˣ√y")
+    c47StringToReadableUtf8(STD_xTH_ROOT STD_y_UNDER_ROOT, buf, sizeof(buf));
+    TEST_ASSERT(strcmp(buf, "ˣ√y") == 0, "STD_xTH_ROOT STD_y_UNDER_ROOT must convert to 'ˣ√y'");
+
+    // Test 2: square root of x (\xa2\x1a\x83\x7f -> "√x")
+    c47StringToReadableUtf8(STD_SQUARE_ROOT STD_x_UNDER_ROOT, buf, sizeof(buf));
+    TEST_ASSERT(strcmp(buf, "√x") == 0, "STD_SQUARE_ROOT STD_x_UNDER_ROOT must convert to '√x'");
+
+    // Test 3: cube root of x (\xa2\x1b\x83\x7f -> "∛x")
+    c47StringToReadableUtf8(STD_CUBE_ROOT STD_x_UNDER_ROOT, buf, sizeof(buf));
+    TEST_ASSERT(strcmp(buf, "∛x") == 0, "STD_CUBE_ROOT STD_x_UNDER_ROOT must convert to '∛x'");
+
+    // Test 4: power and superscript conversions
+    c47StringToReadableUtf8("x" STD_SUP_2, buf, sizeof(buf));
+    TEST_ASSERT(strcmp(buf, "x²") == 0, "'x' STD_SUP_2 must convert to 'x²'");
+
+    c47StringToReadableUtf8("x" STD_SUP_3, buf, sizeof(buf));
+    TEST_ASSERT(strcmp(buf, "x³") == 0, "'x' STD_SUP_3 must convert to 'x³'");
+
+    c47StringToReadableUtf8("y" STD_SUP_BOLD_x, buf, sizeof(buf));
+    TEST_ASSERT(strcmp(buf, "yˣ") == 0, "'y' STD_SUP_BOLD_x must convert to 'yˣ'");
+
+    c47StringToReadableUtf8("x" STD_RIGHT_OVER_LEFT_ARROW "y", buf, sizeof(buf));
+    TEST_ASSERT(strcmp(buf, "x⇄y") == 0, "Swap must convert to 'x⇄y'");
+
+    // Test 5: Parsing incoming programs with readable, forum, and raw C47 Unicode variants
+    calcMode = CM_PEM;
+    static uint8_t mock_prog[262144];
+    memset(mock_prog, 0, sizeof(mock_prog));
+    beginOfProgramMemory = mock_prog;
+    firstFreeProgramByte = mock_prog + 16;
+    freeProgramBytes = 65000;
+    endOfCurrentProgram = mock_prog + 16;
+    mock_program_list[0].instructionPointer = mock_prog;
+    mock_program_list[0].step = 1;
+    numberOfPrograms = 1;
+    currentProgramNumber = 1;
+
+    const char *math_listing =
+        "0001:  LBL 'ALLRT'\n"
+        "0002:    3\n"
+        "0003:    x<y?\n"
+        "0004:    DROP\n"
+        "0005:    ˣ√y       ; readable Unicode x-th root of y\n"
+        "0006:    x√y       ; ASCII x root y\n"
+        "0007:    ∜Ȳ        ; raw C47 font code points from legacy clipboard\n"
+        "0008:    root(x)(y); text formula equivalent\n"
+        "0009:    xthroot   ; catalog name alias\n"
+        "0010:    √x        ; square root\n"
+        "0011:    ∛x        ; cube root\n"
+        "0012:    x²        ; square\n"
+        "0013:    x^2       ; square caret\n"
+        "0014:    yˣ        ; y power x\n"
+        "0015:    x⇄y       ; swap\n"
+        "0016:    X<>Y      ; swap ascii\n"
+        "0017:  END\n";
+
+    extern char *parseAndPasteProgram(const char *codeText);
+    char *err = parseAndPasteProgram(math_listing);
+    if(err) {
+        printf("Unexpected error in parseAndPasteProgram on math listing: '%s'\n", err);
+    }
+    TEST_ASSERT(err == NULL, "parseAndPasteProgram must parse ˣ√y, x√y, ∜Ȳ, root(x)(y), √x, ∛x, x², and swaps without error");
+    if(err) {
+        free(err);
+    }
+
+    // Test 6: Parsing raw res/PROGRAMS/GRAPHS.txt (multi-token lines, mathematical italic 𝑥², curly quotes, etc.)
+    FILE *gf = fopen("../../res/PROGRAMS/GRAPHS.txt", "r");
+    if(!gf) {
+        gf = fopen("res/PROGRAMS/GRAPHS.txt", "r");
+    }
+    if(!gf) {
+        perror("fopen GRAPHS.txt");
+    }
+    if(gf) {
+        char gBuf[4096];
+        size_t nRead = fread(gBuf, 1, sizeof(gBuf) - 1, gf);
+        gBuf[nRead] = '\0';
+        fclose(gf);
+        char *gErr = parseAndPasteProgram(gBuf);
+        if(gErr) {
+            printf("Unexpected error in parseAndPasteProgram on GRAPHS.txt: '%s'\n", gErr);
+        }
+        TEST_ASSERT(gErr == NULL, "parseAndPasteProgram must compile res/PROGRAMS/GRAPHS.txt cleanly without line numbers");
+        if(gErr) {
+            free(gErr);
+        }
+
+        TEST_ASSERT(beginOfProgramMemory != NULL, "Program memory must be allocated");
+        TEST_ASSERT(beginOfProgramMemory[0] == ITM_LBL, "Step 1 must be ITM_LBL");
+        TEST_ASSERT(beginOfProgramMemory[1] == LOCAL_LABEL_VARIABLE, "Step 1 param must be LOCAL_LABEL_VARIABLE (249)");
+        TEST_ASSERT(beginOfProgramMemory[2] == 2, "Step 1 label length must be 2");
+        TEST_ASSERT(memcmp(&beginOfProgramMemory[3], "FX", 2) == 0, "Step 1 label name must be 'FX'");
+    }
+
+    // Test 7: Export header and metadata preamble skipping on line-numbered listings
+    const char *export_header_listing =
+        "C47 Program file export, version 1\n"
+        "0000: { Prgm #1: 42 bytes / 5 steps }\n"
+        "0001:  LBL 'DEMO'\n"
+        "0002:  42.\n"
+        "0003:  IP\n"
+        "0004:  RTN\n"
+        "0005:  END\n";
+
+    char *hdrErr = parseAndPasteProgram(export_header_listing);
+    if(hdrErr) {
+        printf("Unexpected error in parseAndPasteProgram on export header listing: '%s'\n", hdrErr);
+    }
+    TEST_ASSERT(hdrErr == NULL, "parseAndPasteProgram must skip export preamble header lines and curly-brace comments");
+    if(hdrErr) {
+        free(hdrErr);
+    }
+
+    // Test 8: Unnumbered listing with export header
+    const char *unnumbered_header_listing =
+        "C47 Program file export, version 1\n"
+        "LBL 'DEMO2'\n"
+        "10.\n"
+        "RTN\n"
+        "END\n";
+
+    char *unHdrErr = parseAndPasteProgram(unnumbered_header_listing);
+    if(unHdrErr) {
+        printf("Unexpected error in parseAndPasteProgram on unnumbered header listing: '%s'\n", unHdrErr);
+    }
+    TEST_ASSERT(unHdrErr == NULL, "parseAndPasteProgram must skip export header on unnumbered listings");
+    if(unHdrErr) {
+        free(unHdrErr);
+    }
+
+    // Test 9: Multi-line preamble and post-END trailer notes on line-numbered listings
+    const char *trailer_listing =
+        "C47 Program file export, version 1\n"
+        "Author: David Castro\n"
+        "0001:  LBL 'DEMO3'\n"
+        "0002:  RTN\n"
+        "0003:  END\n"
+        "Exported successfully from C47\n";
+
+    char *trErr = parseAndPasteProgram(trailer_listing);
+    if(trErr) {
+        printf("Unexpected error in parseAndPasteProgram on trailer listing: '%s'\n", trErr);
+    }
+    TEST_ASSERT(trErr == NULL, "parseAndPasteProgram must skip author preamble and post-END trailer notes");
+    if(trErr) {
+        free(trErr);
+    }
+
+    // Test 10: ELEM47 snippet with ABS, structured programming (IF/ENDIF/DO/WHILE), and NEWMAT
+    const char *elem_snippet =
+        "LBL 'ELEMTEST'\n"
+        "ABS\n"
+        "RCL 41\n"
+        "ABS\n"
+        "+\n"
+        "1\n"
+        "X=Y?\n"
+        "IF 01\n"
+        "  XEQ 03\n"
+        "ENDIF 01\n"
+        "NEWMAT\n"
+        "RTN\n"
+        "END\n";
+
+    char *elemErr = parseAndPasteProgram(elem_snippet);
+    if(elemErr) {
+        printf("Unexpected error in parseAndPasteProgram on ELEM47 snippet: '%s'\n", elemErr);
+    }
+    TEST_ASSERT(elemErr == NULL, "parseAndPasteProgram must parse ABS, structured programming (IF/ENDIF), and NEWMAT without error");
+    if(elemErr) {
+        free(elemErr);
+    }
+
+    // Test 11: Binary/Hex numerals with #base and string literals with STD_CR ('↵')
+    const char *base_and_string_snippet =
+        "LBL 'BASETEST'\n"
+        "11111111111111111111111111#2\n"
+        "STO 20\n"
+        "100000000000000000000000010000000000000000000000001#2\n"
+        "STO 21\n"
+        "FF#16\n"
+        "\"Symbol↵State↵Group↵Config\"\n"
+        "RTN\n"
+        "END\n";
+
+    char *baseErr = parseAndPasteProgram(base_and_string_snippet);
+    if(baseErr) {
+        printf("Unexpected error in parseAndPasteProgram on base and string snippet: '%s'\n", baseErr);
+    }
+    TEST_ASSERT(baseErr == NULL, "parseAndPasteProgram must compile base literals (#2, #16) and string literals with ↵ cleanly");
+    if(baseErr) {
+        free(baseErr);
+    }
+
+    // Verify step 2 is STRING_SHORT_INTEGER with base 2
+    uint8_t *pStep = beginOfProgramMemory;
+    TEST_ASSERT(pStep != NULL && pStep[0] == ITM_LBL, "Step 1 must be LBL");
+    // Advance past step 1 (ITM_LBL, STRING_LABEL_VARIABLE, len, name...)
+    pStep = pStep + 3 + pStep[2];
+    TEST_ASSERT(pStep != NULL, "Step 2 must exist");
+    TEST_ASSERT(pStep[0] == ITM_LITERAL, "Step 2 opcode must be ITM_LITERAL");
+    TEST_ASSERT(pStep[1] == STRING_SHORT_INTEGER, "Step 2 literal type must be STRING_SHORT_INTEGER (7)");
+    TEST_ASSERT(pStep[2] == 2, "Step 2 base must be 2");
+    TEST_ASSERT(pStep[3] == 26, "Step 2 digits len must be 26");
+    TEST_ASSERT(memcmp(&pStep[4], "11111111111111111111111111", 26) == 0, "Step 2 digits must match binary literal");
+
+    // Test conversion of STD_CR and base indicators in c47StringToReadableUtf8
+    char c47StrTest[64];
+    c47StrTest[0] = 'A';
+    c47StrTest[1] = (char)0xa1;
+    c47StrTest[2] = (char)0xb5; // STD_CR
+    c47StrTest[3] = 'B';
+    c47StrTest[4] = '\0';
+    c47StringToReadableUtf8(c47StrTest, buf, sizeof(buf));
+    TEST_ASSERT(strcmp(buf, "A↵B") == 0, "STD_CR (\\xa1\\xb5) must decode to '↵'");
+
+    c47StrTest[0] = '1';
+    c47StrTest[1] = '0';
+    c47StrTest[2] = (char)0xa4;
+    c47StrTest[3] = (char)0x61; // base 2 (\xa4\x61)
+    c47StrTest[4] = '\0';
+    c47StringToReadableUtf8(c47StrTest, buf, sizeof(buf));
+    TEST_ASSERT(strcmp(buf, "10#2") == 0, "Base 2 character (\\xa4\\x61) must decode to '#2'");
+
+    // Test 12: Indirect subroutine calls and jumps (XEQ IND 50, GTO IND X, XEQ IND "MYROUT")
+    const char *indirect_listing =
+        "LBL 'INDTEST'\n"
+        "XEQ IND 50\n"
+        "XEQ IND \"MYROUT\"\n"
+        "GTO IND X\n"
+        "RTN\n"
+        "END\n";
+
+    char *indErr = parseAndPasteProgram(indirect_listing);
+    if(indErr) {
+        printf("Unexpected error in parseAndPasteProgram on indirect listing: '%s'\n", indErr);
+    }
+    TEST_ASSERT(indErr == NULL, "parseAndPasteProgram must compile indirect calls (XEQ IND 50, XEQ IND \"MYROUT\", GTO IND X)");
+    if(indErr) {
+        free(indErr);
+    }
+
+    uint8_t *pInd = beginOfProgramMemory;
+    TEST_ASSERT(pInd != NULL && pInd[0] == ITM_LBL, "Step 1 must be LBL");
+    // Step 2: XEQ IND 50 -> [ITM_XEQ, INDIRECT_REGISTER, 50] (3 bytes)
+    pInd = pInd + 3 + pInd[2];
+    TEST_ASSERT(pInd != NULL && pInd[0] == ITM_XEQ, "Step 2 must be ITM_XEQ");
+    TEST_ASSERT(pInd[1] == INDIRECT_REGISTER, "Step 2 param must be INDIRECT_REGISTER (244)");
+    TEST_ASSERT(pInd[2] == 50, "Step 2 register operand must be 50");
+
+    // Step 3: XEQ IND "MYROUT" -> [ITM_XEQ, INDIRECT_VARIABLE, 6, 'M','Y','R','O','U','T'] (9 bytes)
+    pInd = pInd + 3;
+    TEST_ASSERT(pInd != NULL && pInd[0] == ITM_XEQ, "Step 3 must be ITM_XEQ");
+    TEST_ASSERT(pInd[1] == INDIRECT_VARIABLE, "Step 3 param must be INDIRECT_VARIABLE (243)");
+    TEST_ASSERT(pInd[2] == 6, "Step 3 variable length must be 6");
+    TEST_ASSERT(memcmp(&pInd[3], "MYROUT", 6) == 0, "Step 3 variable name must be 'MYROUT'");
+
+    // Step 4: GTO IND X -> [ITM_GTO, INDIRECT_REGISTER, REGISTER_X_IN_KS_CODE] (3 bytes)
+    pInd = pInd + 3 + pInd[2];
+    TEST_ASSERT(pInd != NULL && pInd[0] == ITM_GTO, "Step 4 must be ITM_GTO");
+    TEST_ASSERT(pInd[1] == INDIRECT_REGISTER, "Step 4 param must be INDIRECT_REGISTER (244)");
+    TEST_ASSERT(pInd[2] == REGISTER_X_IN_KS_CODE, "Step 4 register operand must be REGISTER_X_IN_KS_CODE");
+
+    // Test rejection of invalid LBL IND 50
+    const char *invalid_lbl_ind =
+        "LBL 'BAD'\n"
+        "LBL IND 50\n"
+        "RTN\n"
+        "END\n";
+    char *badLblErr = parseAndPasteProgram(invalid_lbl_ind);
+    TEST_ASSERT(badLblErr != NULL, "parseAndPasteProgram must reject 'LBL IND 50'");
+    if(badLblErr) {
+        free(badLblErr);
+    }
+
+    // Test 13: Power functions (2ˣ, 10ˣ, 1/x) and indirect volume/number commands (VOL IND "KVOL", VOL IND 33, VOL 11)
+    const char *audio_prog =
+        "LBL 'AUDIO'\n"
+        "VOL#\n"
+        "STO 'KVOL'\n"
+        "2ˣ\n"
+        "10ˣ\n"
+        "1/x\n"
+        "VOL 11\n"
+        "VOL IND 33\n"
+        "VOL IND \"KVOL\"\n"
+        "RTN\n"
+        "END\n";
+
+    char *audErr = parseAndPasteProgram(audio_prog);
+    if(audErr) {
+        printf("Unexpected error in parseAndPasteProgram on audio listing: '%s'\n", audErr);
+    }
+    TEST_ASSERT(audErr == NULL, "parseAndPasteProgram must compile 2ˣ, 10ˣ, 1/x, VOL 11, VOL IND 33, and VOL IND \"KVOL\"");
+    if(audErr) {
+        free(audErr);
+    }
+
+    uint8_t *pAud = beginOfProgramMemory;
+    TEST_ASSERT(pAud != NULL && pAud[0] == ITM_LBL, "Step 1 must be LBL");
+    // Step 2: VOL# (item 2199: 2 bytes: (2199>>8)|0x80, 2199&0xff)
+    pAud = pAud + 3 + pAud[2];
+    TEST_ASSERT(pAud != NULL && pAud[0] == ((2199 >> 8) | 0x80) && pAud[1] == (2199 & 0xff), "Step 2 must be VOL#");
+
+    // Step 3: STO 'KVOL'
+    pAud = pAud + 2;
+    TEST_ASSERT(pAud != NULL && pAud[0] == 44, "Step 3 must be STO (44)");
+
+    // Step 4: 2ˣ (item 64: 1 byte: 64)
+    pAud = pAud + 3 + pAud[2];
+    TEST_ASSERT(pAud != NULL && pAud[0] == 64, "Step 4 must be ITM_2X (64)");
+
+    // Step 5: 10ˣ (item 67: 1 byte: 67)
+    pAud = pAud + 1;
+    TEST_ASSERT(pAud != NULL && pAud[0] == 67, "Step 5 must be ITM_10x (67)");
+
+    // Step 6: 1/x (item 73: 1 byte: 73)
+    pAud = pAud + 1;
+    TEST_ASSERT(pAud != NULL && pAud[0] == 73, "Step 6 must be ITM_1ONX (73)");
+
+    // Step 7: VOL 11 (item 2198 + 11: 3 bytes)
+    pAud = pAud + 1;
+    TEST_ASSERT(pAud != NULL && pAud[0] == ((2198 >> 8) | 0x80) && pAud[1] == (2198 & 0xff), "Step 7 must be VOL");
+    TEST_ASSERT(pAud[2] == 11, "Step 7 operand must be 11");
+
+    // Step 8: VOL IND 33 (item 2198 + INDIRECT_REGISTER + 33: 4 bytes)
+    pAud = pAud + 3;
+    TEST_ASSERT(pAud != NULL && pAud[0] == ((2198 >> 8) | 0x80) && pAud[1] == (2198 & 0xff), "Step 8 must be VOL");
+    TEST_ASSERT(pAud[2] == INDIRECT_REGISTER, "Step 8 param must be INDIRECT_REGISTER (244)");
+    TEST_ASSERT(pAud[3] == 33, "Step 8 register operand must be 33");
+
+    // Step 9: VOL IND "KVOL" (item 2198 + INDIRECT_VARIABLE + 4 + "KVOL": 8 bytes)
+    pAud = pAud + 4;
+    TEST_ASSERT(pAud != NULL && pAud[0] == ((2198 >> 8) | 0x80) && pAud[1] == (2198 & 0xff), "Step 9 must be VOL");
+    TEST_ASSERT(pAud[2] == INDIRECT_VARIABLE, "Step 9 param must be INDIRECT_VARIABLE (243)");
+    TEST_ASSERT(pAud[3] == 4, "Step 9 variable length must be 4");
+    TEST_ASSERT(memcmp(&pAud[4], "KVOL", 4) == 0, "Step 9 variable name must be 'KVOL'");
+
+    // Test 14: Parse full C64FX.p47u program end-to-end
+    FILE *fP47u = fopen("../../res/PROGRAMS/C64FX.p47u", "rb");
+    TEST_ASSERT(fP47u != NULL, "res/PROGRAMS/C64FX.p47u must exist");
+    if(fP47u) {
+        fseek(fP47u, 0, SEEK_END);
+        long sz = ftell(fP47u);
+        fseek(fP47u, 0, SEEK_SET);
+        char *buf = (char *)malloc(sz + 1);
+        fread(buf, 1, sz, fP47u);
+        buf[sz] = '\0';
+        fclose(fP47u);
+
+        char *c64Err = parseAndPasteProgram(buf);
+        if(c64Err) {
+            printf("Error parsing C64FX.p47u: '%s'\n", c64Err);
+        }
+        TEST_ASSERT(c64Err == NULL, "parseAndPasteProgram must succeed on C64FX.p47u");
+        if(c64Err) {
+            free(c64Err);
+        }
+        free(buf);
+    }
+
+    // Test 15: VARMENU, Printer Commands, and Structured Subscript Parsing
+    const char *testSubscriptsAndPrinters =
+        "0001: LBL 'TESTEXT'\n"
+        "0002: VARMENU 'PAYSWISS'\n"
+        "0003: PrintON\n"
+        "0004: PrintADV\n"
+        "0005: 🖨α X\n"
+        "0006: PrintXY\n"
+        "0007: PrintOFF\n"
+        "0008: IF₁\n"
+        "0009:   1\n"
+        "0010: ELSE₁\n"
+        "0011:   2\n"
+        "0012: ENDIF₁\n"
+        "0013: IF₄₄\n"
+        "0014:   3\n"
+        "0015: ENDIF₄₄\n"
+        "0016: DO₂\n"
+        "0017: WHILE₂\n"
+        "0018: ENDDO₂\n"
+        "0019: REPEAT₃\n"
+        "0020: UNTIL₃\n"
+        "0021: SKIP₁\n"
+        "0022: BACK₁\n"
+        "0023: RTN\n"
+        "0024: END\n";
+
+    char *extErr = parseAndPasteProgram(testSubscriptsAndPrinters);
+    if(extErr) {
+        printf("Error parsing testSubscriptsAndPrinters: '%s'\n", extErr);
+    }
+    TEST_ASSERT(extErr == NULL, "parseAndPasteProgram must succeed on testSubscriptsAndPrinters");
+    if(extErr) {
+        free(extErr);
+    }
+
+    // Test 16: Parse full PAYSWISS.p47u program end-to-end
+    firstFreeProgramByte = mock_prog + 16;
+    freeProgramBytes = 65000;
+    endOfCurrentProgram = mock_prog + 16;
+    FILE *fSwiss = fopen("../../res/PROGRAMS/PAYSWISS.p47u", "rb");
+    TEST_ASSERT(fSwiss != NULL, "res/PROGRAMS/PAYSWISS.p47u must exist");
+    if(fSwiss) {
+        fseek(fSwiss, 0, SEEK_END);
+        long sz = ftell(fSwiss);
+        fseek(fSwiss, 0, SEEK_SET);
+        char *buf = (char *)malloc(sz + 1);
+        fread(buf, 1, sz, fSwiss);
+        buf[sz] = '\0';
+        fclose(fSwiss);
+
+        char *swissErr = parseAndPasteProgram(buf);
+        if(swissErr) {
+            printf("Error parsing PAYSWISS.p47u: '%s'\n", swissErr);
+        }
+        TEST_ASSERT(swissErr == NULL, "parseAndPasteProgram must succeed on PAYSWISS.p47u");
+        if(swissErr) {
+            free(swissErr);
+        }
+        free(buf);
+    }
+
+    // Test 17: Parse full PAYSLIP.p47u program end-to-end
+    size_t pLenP47u = 0;
+    memset(mock_prog, 0, sizeof(mock_prog));
+    mock_program_list[0].instructionPointer = mock_prog;
+    firstFreeProgramByte = mock_prog;
+    freeProgramBytes = 65000;
+    endOfCurrentProgram = mock_prog;
+    FILE *fSlip = fopen("../../res/PROGRAMS/PAYSLIP.p47u", "rb");
+    TEST_ASSERT(fSlip != NULL, "res/PROGRAMS/PAYSLIP.p47u must exist");
+    if(fSlip) {
+        fseek(fSlip, 0, SEEK_END);
+        long sz = ftell(fSlip);
+        fseek(fSlip, 0, SEEK_SET);
+        char *buf = (char *)malloc(sz + 1);
+        fread(buf, 1, sz, fSlip);
+        buf[sz] = '\0';
+        fclose(fSlip);
+
+        char *slipErr = parseAndPasteProgram(buf);
+        if(slipErr) {
+            printf("Error parsing PAYSLIP.p47u: '%s'\n", slipErr);
+        }
+        TEST_ASSERT(slipErr == NULL, "parseAndPasteProgram must succeed on PAYSLIP.p47u");
+        if(slipErr == NULL) {
+            pLenP47u = (size_t)(endOfCurrentProgram - mock_program_list[0].instructionPointer);
+        }
+        if(slipErr) {
+            free(slipErr);
+        }
+        free(buf);
+    }
+
+    // Test 18: Parse full res/PROGRAMS/PAYSLIP.txt program end-to-end and verify byte parity with PAYSLIP.p47u
+    memset(mock_prog, 0, sizeof(mock_prog));
+    mock_program_list[0].instructionPointer = mock_prog;
+    firstFreeProgramByte = mock_prog;
+    freeProgramBytes = 65000;
+    endOfCurrentProgram = mock_prog;
+    FILE *fTxt = fopen("../../res/PROGRAMS/PAYSLIP.txt", "rb");
+    TEST_ASSERT(fTxt != NULL, "res/PROGRAMS/PAYSLIP.txt must exist");
+    if(fTxt) {
+        fseek(fTxt, 0, SEEK_END);
+        long sz = ftell(fTxt);
+        fseek(fTxt, 0, SEEK_SET);
+        char *buf = (char *)malloc(sz + 1);
+        fread(buf, 1, sz, fTxt);
+        buf[sz] = '\0';
+        fclose(fTxt);
+
+        char *txtErr = parseAndPasteProgram(buf);
+        if(txtErr) {
+            printf("Error parsing PAYSLIP.txt: '%s'\n", txtErr);
+        }
+        TEST_ASSERT(txtErr == NULL, "parseAndPasteProgram must succeed on PAYSLIP.txt");
+        if(txtErr == NULL) {
+            size_t pLenTxt = (size_t)(endOfCurrentProgram - mock_program_list[0].instructionPointer);
+            TEST_ASSERT(pLenTxt == pLenP47u, "PAYSLIP.txt (rejig R09/R11/IF₁ syntax) and PAYSLIP.p47u must compile to identical byte length");
+        }
+        if(txtErr) {
+            free(txtErr);
+        }
+        free(buf);
+    }
+
+    // Test 19: Parse full tmp/payslip_decoded.txt program end-to-end
+    firstFreeProgramByte = mock_prog + 16;
+    freeProgramBytes = 65000;
+    endOfCurrentProgram = mock_prog + 16;
+    FILE *fDec = fopen("../../tmp/payslip_decoded.txt", "rb");
+    if(fDec) {
+        fseek(fDec, 0, SEEK_END);
+        long sz = ftell(fDec);
+        fseek(fDec, 0, SEEK_SET);
+        char *buf = (char *)malloc(sz + 1);
+        fread(buf, 1, sz, fDec);
+        buf[sz] = '\0';
+        fclose(fDec);
+
+        char *decErr = parseAndPasteProgram(buf);
+        if(decErr) {
+            printf("Error parsing payslip_decoded.txt: '%s'\n", decErr);
+        }
+        TEST_ASSERT(decErr == NULL, "parseAndPasteProgram must succeed on payslip_decoded.txt");
+        if(decErr) {
+            free(decErr);
+        }
+        free(buf);
+    }
+
+    // Test 20: Parse full ATEXTing.p47u end-to-end (verify unnumbered start preserved)
+    firstFreeProgramByte = mock_prog + 16;
+    freeProgramBytes = 65000;
+    endOfCurrentProgram = mock_prog + 16;
+    FILE *fAtext = fopen("../../res/PROGRAMS/ATEXTing.p47u", "rb");
+    TEST_ASSERT(fAtext != NULL, "res/PROGRAMS/ATEXTing.p47u must exist");
+    if(fAtext) {
+        fseek(fAtext, 0, SEEK_END);
+        long sz = ftell(fAtext);
+        fseek(fAtext, 0, SEEK_SET);
+        char *buf = (char *)malloc(sz + 1);
+        fread(buf, 1, sz, fAtext);
+        buf[sz] = '\0';
+        fclose(fAtext);
+
+        char *atextErr = parseAndPasteProgram(buf);
+        if(atextErr) {
+            printf("Error parsing ATEXTing.p47u: '%s'\n", atextErr);
+        }
+        TEST_ASSERT(atextErr == NULL, "parseAndPasteProgram must succeed on ATEXTing.p47u");
+        if(atextErr) {
+            free(atextErr);
+        }
+
+        // Verify first step is LBL 'ATEXTing' (opcode 1, string variable 'ATEXTing')
+        uint8_t *firstStep = mock_program_list[0].instructionPointer;
+        TEST_ASSERT(firstStep[0] == 1, "First instruction in ATEXTing.p47u must be LBL (opcode 1)");
+        TEST_ASSERT(firstStep[1] == (uint8_t)STRING_LABEL_VARIABLE, "First instruction argument must be STRING_LABEL_VARIABLE");
+        TEST_ASSERT(firstStep[2] == 8, "LBL argument length must be 8");
+        TEST_ASSERT(memcmp(&firstStep[3], "ATEXTing", 8) == 0, "LBL name must be 'ATEXTing'");
+
+        // Verify '255' literal was preserved in program bytecode without being stripped as line prefix
+        bool found255 = false;
+        for(uint8_t *ptr = mock_prog; ptr < firstFreeProgramByte - 3; ptr++) {
+            if(ptr[0] == '2' && ptr[1] == '5' && ptr[2] == '5') {
+                found255 = true;
+                break;
+            }
+        }
+        TEST_ASSERT(found255, "Numeric literal '255' must be preserved in ATEXTing.p47u program memory");
+        free(buf);
+    }
+
+    // Test 21: Verify R00..R99, R.00..R.98, healed 'R09' / ‘R11’, system flags, shuffle, and REM compile to exact opParams (never STRING_LABEL_VARIABLE 'R09')
+    memset(mock_prog, 0, sizeof(mock_prog));
+    mock_program_list[0].instructionPointer = mock_prog;
+    firstFreeProgramByte = mock_prog;
+    freeProgramBytes = 65000;
+    endOfCurrentProgram = mock_prog;
+    const char *regAndBulletproofProg =
+        "LBL 'REGTST'\n"
+        "KEY? R09\n"
+        "CLα R11\n"
+        "αIP R11\n"
+        "RCL R11\n"
+        "STO R12\n"
+        "KEY? ‘R09’\n"
+        "CLα ‘R11’\n"
+        "STO R.00\n"
+        "RCL .05\n"
+        "SF 'SPCRES'\n"
+        "CF .05\n"
+        "<> yxzt\n"
+        "REM 'unit test'\n"
+        "x=? IND R05\n"
+        "RTN\n";
+    char *regErr = parseAndPasteProgram(regAndBulletproofProg);
+    if(regErr) {
+        printf("Error parsing regAndBulletproofProg: '%s'\n", regErr);
+    }
+    TEST_ASSERT(regErr == NULL, "parseAndPasteProgram must succeed on R09/R11/R.00/system flag/shuffle/REM syntax");
+    if(regErr == NULL) {
+        // Ensure 'R09' and 'R11' were NEVER encoded as STRING_LABEL_VARIABLE (250, 3, 'R', '0', '9')
+        size_t totalBytes = (size_t)(endOfCurrentProgram - mock_program_list[0].instructionPointer);
+        bool foundBadVarR09 = false;
+        bool foundBadVarR11 = false;
+        for(size_t bi = 0; bi + 4 < totalBytes; bi++) {
+            if(mock_prog[bi] == (uint8_t)STRING_LABEL_VARIABLE && mock_prog[bi + 1] == 3 &&
+               mock_prog[bi + 2] == 'R' && mock_prog[bi + 3] == '0' && mock_prog[bi + 4] == '9') {
+                foundBadVarR09 = true;
+            }
+            if(mock_prog[bi] == (uint8_t)STRING_LABEL_VARIABLE && mock_prog[bi + 1] == 3 &&
+               mock_prog[bi + 2] == 'R' && mock_prog[bi + 3] == '1' && mock_prog[bi + 4] == '1') {
+                foundBadVarR11 = true;
+            }
+        }
+        TEST_ASSERT(!foundBadVarR09, "R09 and ‘R09’ must compile to global register 9, never STRING_LABEL_VARIABLE 'R09'");
+        TEST_ASSERT(!foundBadVarR11, "R11 and ‘R11’ must compile to global register 11, never STRING_LABEL_VARIABLE 'R11'");
+        // Step 1: LBL 'REGTST' is 1 + 1 + 1 + 6 = 9 bytes (bytes 0..8)
+        // Step 2: KEY? R09 -> ITM_KEYQ (77 = 0x4d), reg 9 -> 2 bytes at offset 9..10
+        TEST_ASSERT(mock_prog[9] == (uint8_t)ITM_KEYQ, "Step 2 must be ITM_KEYQ (77)");
+        TEST_ASSERT(mock_prog[10] == 9, "KEY? R09 operand must be numeric register 9 (0x09)");
+        // Step 3: CLα R11 -> mock opcode 2773 (2 bytes), reg 11 -> 3 bytes at offset 11..13
+        TEST_ASSERT(mock_prog[13] == 11, "CLα R11 operand must be numeric register 11 (0x0b)");
+        // Step 4: αIP R11 -> mock opcode 2774 (2 bytes), reg 11 -> 3 bytes at offset 14..16
+        TEST_ASSERT(mock_prog[16] == 11, "αIP R11 operand must be numeric register 11 (0x0b)");
+        // Step 5: RCL R11 -> ITM_RCL (51 = 0x33), reg 11 -> 2 bytes at offset 17..18
+        TEST_ASSERT(mock_prog[17] == (uint8_t)ITM_RCL && mock_prog[18] == 11, "RCL R11 must encode as [ITM_RCL, 11]");
+        // Step 6: STO R12 -> ITM_STO (44 = 0x2c), reg 12 -> 2 bytes at offset 19..20
+        TEST_ASSERT(mock_prog[19] == (uint8_t)ITM_STO && mock_prog[20] == 12, "STO R12 must encode as [ITM_STO, 12]");
+        // Step 7: KEY? ‘R09’ -> healed to reg 9 at offset 21..22
+        TEST_ASSERT(mock_prog[21] == (uint8_t)ITM_KEYQ && mock_prog[22] == 9, "Healed KEY? ‘R09’ operand must be numeric register 9");
+        // Step 8: CLα ‘R11’ -> healed to reg 11 at offset 23..25
+        TEST_ASSERT(mock_prog[25] == 11, "Healed CLα ‘R11’ operand must be numeric register 11");
+    }
+    if(regErr) {
+        free(regErr);
+    }
+
+    // Test 22: Parse full res/PROGRAMS/TRI∠.p47u end-to-end (verify CF F00, KEY 01 XEQ 11, y⇄ Z, cos(𝑥), cos⁻¹(𝑥), sin(𝑥), sin⁻¹(𝑥), ShortInt?, LongInt?, ℝ?)
+    memset(mock_prog, 0, sizeof(mock_prog));
+    mock_program_list[0].instructionPointer = mock_prog;
+    firstFreeProgramByte = mock_prog;
+    freeProgramBytes = 65000;
+    endOfCurrentProgram = mock_prog;
+    FILE *fTriAngle = fopen("../../res/PROGRAMS/TRI∠.p47u", "rb");
+    TEST_ASSERT(fTriAngle != NULL, "res/PROGRAMS/TRI∠.p47u must exist");
+    if(fTriAngle) {
+        fseek(fTriAngle, 0, SEEK_END);
+        long sz = ftell(fTriAngle);
+        fseek(fTriAngle, 0, SEEK_SET);
+        char *buf = (char *)malloc(sz + 1);
+        fread(buf, 1, sz, fTriAngle);
+        buf[sz] = '\0';
+        fclose(fTriAngle);
+
+        char *triErr = parseAndPasteProgram(buf);
+        if(triErr) {
+            printf("Error parsing TRI∠.p47u: '%s'\n", triErr);
+        }
+        TEST_ASSERT(triErr == NULL, "parseAndPasteProgram must succeed on TRI∠.p47u");
+        if(triErr == NULL) {
+            size_t triBytes = (size_t)(endOfCurrentProgram - mock_program_list[0].instructionPointer);
+            TEST_ASSERT(triBytes > 2000, "TRI∠.p47u compiled bytecode must exceed 2000 bytes");
+            // Verify KEY 01 XEQ 11 encoded as [0x85, 0xd9, 0x01, 0x03, 0x0b]
+            bool foundKey01Xeq11 = false;
+            // Verify CF F00 encoded as [110, 0]
+            bool foundCfF00 = false;
+            // Verify y⇄ Z encoded as [0x86, 0x72, REGISTER_Z_IN_KS_CODE]
+            bool foundYexZ = false;
+            for(size_t bi = 0; bi + 4 < triBytes; bi++) {
+                if(mock_prog[bi] == (uint8_t)((1497 >> 8) | 0x80) && mock_prog[bi + 1] == (uint8_t)(1497 & 0xff) &&
+                   mock_prog[bi + 2] == 1 && mock_prog[bi + 3] == 3 && mock_prog[bi + 4] == 11) {
+                    foundKey01Xeq11 = true;
+                }
+                if(mock_prog[bi] == 110 && mock_prog[bi + 1] == 0) {
+                    foundCfF00 = true;
+                }
+                if(mock_prog[bi] == (uint8_t)((1650 >> 8) | 0x80) && mock_prog[bi + 1] == (uint8_t)(1650 & 0xff) &&
+                   mock_prog[bi + 2] == (uint8_t)REGISTER_Z_IN_KS_CODE) {
+                    foundYexZ = true;
+                }
+            }
+            TEST_ASSERT(foundCfF00, "CF F00 in TRI∠.p47u must encode as [110, 0]");
+            TEST_ASSERT(foundKey01Xeq11, "KEY 01 XEQ 11 in TRI∠.p47u must encode key number 1 followed by XEQ 11");
+            TEST_ASSERT(foundYexZ, "𝑦⇄ Z in TRI∠.p47u must encode as [0x86, 0x72, REGISTER_Z_IN_KS_CODE]");
+
+            // Compare against res/PROGRAMS/TRI∠.p47 with REM comment steps (134, 18, 253, len, ...) stripped
+            FILE *fp47 = fopen("../../res/PROGRAMS/TRI∠.p47", "r");
+            if(fp47) {
+                char line[64];
+                for(int skip = 0; skip < 6; skip++) {
+                    if(!fgets(line, sizeof(line), fp47)) break;
+                }
+                uint8_t rawP47[16384];
+                size_t rawLen = 0;
+                while(fgets(line, sizeof(line), fp47) && rawLen < sizeof(rawP47)) {
+                    rawP47[rawLen++] = (uint8_t)atoi(line);
+                }
+                fclose(fp47);
+                if(rawLen >= 2 && rawP47[rawLen - 1] == 255 && rawP47[rawLen - 2] == 255) {
+                    rawLen -= 2;
+                }
+                uint8_t cleanP47[16384];
+                size_t cleanLen = 0;
+                for(size_t ri = 0; ri < rawLen;) {
+                    if(ri + 3 < rawLen && rawP47[ri] == 134 && rawP47[ri + 1] == 18 && rawP47[ri + 2] == 253) {
+                        uint8_t remLen = rawP47[ri + 3];
+                        ri += 4 + remLen;
+                    }
+                    else {
+                        cleanP47[cleanLen++] = rawP47[ri++];
+                    }
+                }
+                if(cleanLen != triBytes || memcmp(cleanP47, mock_prog, triBytes) != 0) {
+                    printf("TRI∠.p47u vs TRI∠.p47 mismatch: cleanLen=%zu, triBytes=%zu\n", cleanLen, triBytes);
+                    size_t minL = (cleanLen < triBytes) ? cleanLen : triBytes;
+                    for(size_t mi = 0; mi < minL; mi++) {
+                        if(cleanP47[mi] != mock_prog[mi]) {
+                            printf("First byte diff at offset %zu: p47=%u (0x%02x) vs compiled=%u (0x%02x)\n",
+                                   mi, cleanP47[mi], cleanP47[mi], mock_prog[mi], mock_prog[mi]);
+                            break;
+                        }
+                    }
+                }
+                TEST_ASSERT(cleanLen == triBytes && memcmp(cleanP47, mock_prog, triBytes) == 0,
+                            "Compiled TRI∠.p47u must match TRI∠.p47 byte-for-byte (excluding REM comment steps)");
+            }
+        }
+        if(triErr) {
+            free(triErr);
+        }
+        free(buf);
+    }
+
+    // Test 23: Parse full res/PROGRAMS/TRI∡.p47u end-to-end (verify →RECT_(HP), →POL_(HP), KEY 01 XEQ A, STOCFG K)
+    memset(mock_prog, 0, sizeof(mock_prog));
+    mock_program_list[0].instructionPointer = mock_prog;
+    firstFreeProgramByte = mock_prog;
+    freeProgramBytes = 65000;
+    endOfCurrentProgram = mock_prog;
+    FILE *fTriMeas = fopen("../../res/PROGRAMS/TRI∡.p47u", "rb");
+    TEST_ASSERT(fTriMeas != NULL, "res/PROGRAMS/TRI∡.p47u must exist");
+    if(fTriMeas) {
+        fseek(fTriMeas, 0, SEEK_END);
+        long sz = ftell(fTriMeas);
+        fseek(fTriMeas, 0, SEEK_SET);
+        char *buf = (char *)malloc(sz + 1);
+        fread(buf, 1, sz, fTriMeas);
+        buf[sz] = '\0';
+        fclose(fTriMeas);
+
+        char *triMeasErr = parseAndPasteProgram(buf);
+        if(triMeasErr) {
+            printf("Error parsing TRI∡.p47u: '%s'\n", triMeasErr);
+        }
+        TEST_ASSERT(triMeasErr == NULL, "parseAndPasteProgram must succeed on TRI∡.p47u");
+        if(!triMeasErr) {
+            size_t triMeasBytes = (size_t)(endOfCurrentProgram - mock_prog);
+            FILE *fp47m = fopen("../../res/PROGRAMS/TRI∡.p47", "rb");
+            if(fp47m) {
+                char line[64];
+                for(int skip = 0; skip < 6; skip++) {
+                    if(!fgets(line, sizeof(line), fp47m)) break;
+                }
+                uint8_t rawP47[16384];
+                size_t rawLen = 0;
+                while(fgets(line, sizeof(line), fp47m) && rawLen < sizeof(rawP47)) {
+                    rawP47[rawLen++] = (uint8_t)atoi(line);
+                }
+                fclose(fp47m);
+                if(rawLen >= 2 && rawP47[rawLen - 1] == 255 && rawP47[rawLen - 2] == 255) {
+                    rawLen -= 2;
+                }
+                uint8_t cleanP47[16384];
+                size_t cleanLen = 0;
+                for(size_t ri = 0; ri < rawLen;) {
+                    if(ri + 3 < rawLen && rawP47[ri] == 134 && rawP47[ri + 1] == 18 && rawP47[ri + 2] == 253) {
+                        uint8_t remLen = rawP47[ri + 3];
+                        ri += 4 + remLen;
+                    }
+                    else {
+                        cleanP47[cleanLen++] = rawP47[ri++];
+                    }
+                }
+                TEST_ASSERT(cleanLen == triMeasBytes && memcmp(cleanP47, mock_prog, triMeasBytes) == 0,
+                            "Compiled TRI∡.p47u must match TRI∡.p47 byte-for-byte (excluding REM comment steps)");
+            }
+        }
+        if(triMeasErr) {
+            free(triMeasErr);
+        }
+        free(buf);
+    }
+
+    // Test 24: Parse SPIRALk.p47u, TSTAEQ.p47u, OpAmp.p47u, 47DEFLT.p47u, SETT.p47u, HP35fun.p47u, FreeF.p47u, POL.p47u and verify byte-for-byte parity with .p47
+    const char *parityPairs[][2] = {
+        { "../../res/PROGRAMS/SPIRALk.p47u", "../../res/PROGRAMS/SPIRALk.p47" },
+        { "../../res/PROGRAMS/TSTAEQ.p47u",  "../../res/PROGRAMS/TSTAEQ.p47"  },
+        { "../../res/PROGRAMS/OpAmp.p47u",   "../../res/PROGRAMS/OpAmp.p47"   },
+        { "../../res/PROGRAMS/47DEFLT.p47u", "../../res/PROGRAMS/47DEFLT.p47" },
+        { "../../res/PROGRAMS/SETT.p47u",    "../../res/PROGRAMS/SETT.p47"    },
+        { "../../res/PROGRAMS/HP35fun.p47u", "../../res/PROGRAMS/HP35fun.p47" },
+        { "../../res/PROGRAMS/FreeF.p47u",   "../../res/PROGRAMS/FreeF.p47"   },
+        { "../../res/PROGRAMS/POL.p47u",     "../../res/PROGRAMS/POL.p47"     }
+    };
+    for(size_t pi = 0; pi < sizeof(parityPairs) / sizeof(parityPairs[0]); pi++) {
+        memset(mock_prog, 0, sizeof(mock_prog));
+        mock_program_list[0].instructionPointer = mock_prog;
+        firstFreeProgramByte = mock_prog;
+        freeProgramBytes = 65000;
+        endOfCurrentProgram = mock_prog;
+
+        FILE *fSrc = fopen(parityPairs[pi][0], "rb");
+        TEST_ASSERT(fSrc != NULL, "Source .p47u file must exist");
+        if(fSrc) {
+            fseek(fSrc, 0, SEEK_END);
+            long sz = ftell(fSrc);
+            fseek(fSrc, 0, SEEK_SET);
+            char *pBuf = (char *)malloc(sz + 1);
+            fread(pBuf, 1, sz, fSrc);
+            pBuf[sz] = '\0';
+            fclose(fSrc);
+
+            char *pErr = parseAndPasteProgram(pBuf);
+            if(pErr) {
+                printf("Error parsing %s: '%s'\n", parityPairs[pi][0], pErr);
+            }
+            TEST_ASSERT(pErr == NULL, "parseAndPasteProgram must succeed on .p47u file");
+            if(!pErr) {
+                size_t compiledBytes = (size_t)(endOfCurrentProgram - mock_prog);
+                FILE *fBin = fopen(parityPairs[pi][1], "rb");
+                if(fBin) {
+                    char line[64];
+                    for(int skip = 0; skip < 6; skip++) {
+                        if(!fgets(line, sizeof(line), fBin)) {
+                            break;
+                        }
+                    }
+                    uint8_t rawP47[16384];
+                    size_t rawLen = 0;
+                    while(fgets(line, sizeof(line), fBin) && rawLen < sizeof(rawP47)) {
+                        rawP47[rawLen++] = (uint8_t)atoi(line);
+                    }
+                    fclose(fBin);
+                    if(rawLen >= 2 && rawP47[rawLen - 1] == 255 && rawP47[rawLen - 2] == 255) {
+                        rawLen -= 2;
+                    }
+                    uint8_t cleanP47[16384];
+                    size_t cleanLen = 0;
+                    for(size_t ri = 0; ri < rawLen;) {
+                        if(ri + 3 < rawLen && rawP47[ri] == 134 && rawP47[ri + 1] == 18 && rawP47[ri + 2] == 253) {
+                            uint8_t remLen = rawP47[ri + 3];
+                            ri += 4 + remLen;
+                        }
+                        else {
+                            cleanP47[cleanLen++] = rawP47[ri++];
+                        }
+                    }
+                    TEST_ASSERT(cleanLen == compiledBytes && memcmp(cleanP47, mock_prog, compiledBytes) == 0,
+                                "Compiled .p47u must match .p47 byte-for-byte (excluding REM comment steps)");
+                }
+            }
+            if(pErr) {
+                free(pErr);
+            }
+            free(pBuf);
+        }
+    }
+
+    // Test 25: Scan all RPN program files (.p47u, .txt, and .rtf) in res/PROGRAMS, res/PROGRAMS/tvm, and PROGRAMS
+    const char *progDirs[] = {
+        "../../res/PROGRAMS",
+        "../../res/PROGRAMS/tvm",
+        "../../PROGRAMS"
+    };
+    int totalScanned = 0;
+    int totalRtfScanned = 0;
+    int scanFailures = 0;
+    for(size_t di = 0; di < sizeof(progDirs) / sizeof(progDirs[0]); di++) {
+        DIR *dir = opendir(progDirs[di]);
+        TEST_ASSERT(dir != NULL, "Program directory must be readable");
+        if(dir) {
+            struct dirent *ent;
+            while((ent = readdir(dir)) != NULL) {
+                const char *fname = ent->d_name;
+                size_t flen = strlen(fname);
+                bool isP47u = (flen > 5 && strcmp(fname + flen - 5, ".p47u") == 0);
+                bool isTxt = (flen > 4 && strcmp(fname + flen - 4, ".txt") == 0);
+                bool isRtf = (flen > 4 && strcmp(fname + flen - 4, ".rtf") == 0);
+                if(!isP47u && !isTxt && !isRtf) {
+                    continue;
+                }
+                // Skip plain-text documentation / README files
+                if(strcmp(fname, "Example programs.txt") == 0 ||
+                   strcmp(fname, "Example-programs.txt") == 0 ||
+                   strcmp(fname, "PAYSWISS.txt") == 0 ||
+                   strcmp(fname, "AllOp's.txt") == 0) {
+                    continue;
+                }
+                char fullPath[512];
+                snprintf(fullPath, sizeof(fullPath), "%s/%s", progDirs[di], fname);
+                FILE *fp = fopen(fullPath, "rb");
+                TEST_ASSERT(fp != NULL, "RPN program file must be readable");
+                if(fp) {
+                    fseek(fp, 0, SEEK_END);
+                    long sz = ftell(fp);
+                    fseek(fp, 0, SEEK_SET);
+                    char *pBuf = (char *)malloc(sz + 1);
+                    fread(pBuf, 1, sz, fp);
+                    pBuf[sz] = '\0';
+                    fclose(fp);
+
+                    memset(mock_prog, 0, sizeof(mock_prog));
+                    mock_program_list[0].instructionPointer = mock_prog;
+                    firstFreeProgramByte = mock_prog;
+                    freeProgramBytes = 65000;
+                    endOfCurrentProgram = mock_prog;
+
+                    char *pErr = parseAndPasteProgram(pBuf);
+                    if(pErr) {
+                        printf("Failed to parse RPN program %s: %s\n", fullPath, pErr);
+                        free(pErr);
+                        scanFailures++;
+                    }
+                    if(isRtf) {
+                        totalRtfScanned++;
+                    }
+                    else {
+                        totalScanned++;
+                    }
+                    free(pBuf);
+                }
+            }
+            closedir(dir);
+        }
+    }
+    TEST_ASSERT(scanFailures == 0, "Every RPN program in res/PROGRAMS and PROGRAMS must paste without error");
+    printf("  Verified %d RPN program files (.p47u/.txt) and %d .rtf files across res/PROGRAMS, res/PROGRAMS/tvm, and PROGRAMS\n", totalScanned, totalRtfScanned);
+    TEST_ASSERT(totalScanned >= 90, "Must scan at least 90 RPN program files");
+    TEST_ASSERT(totalRtfScanned >= 69, "Must scan at least 69 RTF program files");
+
+    // Test 26: User ROMAN program with U+2006 (SIX-PER-EM SPACE ' '), comma decimals (','), and U+2008 (' ') digit grouping
+    const char *roman_u2006 =
+        "0001:\xe2\x80\x86 \xe2\x80\x86 LBL \xe2\x80\x98ROMAN\xe2\x80\x99\n"
+        "0002:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 STRI?\n"
+        "0003:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 GTO 03\n"
+        "0004:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 STO 20\n"
+        "0005:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 STO 23\n"
+        "0006:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 42CLA\n"
+        "0007:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 1000,77\n"
+        "0008:\xe2\x80\x86 \xe2\x80\x86 XEQ 00\n"
+        "0009:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 900,677\xe2\x80\x88" "7\n"
+        "0010:\xe2\x80\x86 \xe2\x80\x86 XEQ 00\n"
+        "0011:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 500,68\n"
+        "0012:\xe2\x80\x86 \xe2\x80\x86 XEQ 00\n"
+        "0013:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 400,676\xe2\x80\x88" "8\n"
+        "0014:\xe2\x80\x86 \xe2\x80\x86 XEQ 00\n"
+        "0015:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 100,67\n"
+        "0016:\xe2\x80\x86 \xe2\x80\x86 XEQ 00\n"
+        "0017:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 90,886\xe2\x80\x88" "7\n"
+        "0018:\xe2\x80\x86 \xe2\x80\x86 XEQ 00\n"
+        "0019:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 50,76\n"
+        "0020:\xe2\x80\x86 \xe2\x80\x86 XEQ 00\n"
+        "0021:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 40,887\xe2\x80\x88" "6\n"
+        "0022:\xe2\x80\x86 \xe2\x80\x86 XEQ 00\n"
+        "0023:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 10,88\n"
+        "0024:\xe2\x80\x86 \xe2\x80\x86 XEQ 00\n"
+        "0025:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 9,738\xe2\x80\x88" "8\n"
+        "0026:\xe2\x80\x86 \xe2\x80\x86 XEQ 00\n"
+        "0027:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 5,86\n"
+        "0028:\xe2\x80\x86 \xe2\x80\x86 XEQ 00\n"
+        "0029:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 4,738\xe2\x80\x88" "6\n"
+        "0030:\xe2\x80\x86 \xe2\x80\x86 XEQ 00\n"
+        "0031:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 1,73\n"
+        "0032:\xe2\x80\x86 \xe2\x80\x86 XEQ 00\n"
+        "0033:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 CLSTK\n"
+        "0034:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 RCL 23\n"
+        "0035:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 RCL K\n"
+        "0036:\xe2\x80\x86 \xe2\x80\x86 RTN\n"
+        "0037:\xe2\x80\x86 \xe2\x80\x86 LBL 00\n"
+        "0038:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 ENTER\n"
+        "0039:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 IP\n"
+        "0040:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 STO 21\n"
+        "0041:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 x\xe2\x87\x84y\n"
+        "0042:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 FP\n"
+        "0043:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 STO 22\n"
+        "0044:\xe2\x80\x86 \xe2\x80\x86 LBL 01\n"
+        "0045:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 RCL 20\n"
+        "0046:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 RCL 21\n"
+        "0047:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 x> ? Y\n"
+        "0048:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 RTN\n"
+        "0049:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 STO- 20\n"
+        "0050:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 RCL 22\n"
+        "0051:\xe2\x80\x86 \xe2\x80\x86 LBL 02\n"
+        "0052:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 100\n"
+        "0053:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xc3\x97\n"
+        "0054:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 42XTOA\n"
+        "0055:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 FP\n"
+        "0056:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 x\xe2\x89\xa0 ? 0.\n"
+        "0057:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 GTO 02\n"
+        "0058:\xe2\x80\x86 \xe2\x80\x86 GTO 01\n"
+        "0059:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 STOP\n"
+        "0060:\xe2\x80\x86 \xe2\x80\x86 LBL 03\n"
+        "0061:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 STO 24\n"
+        "0062:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 STO K\n"
+        "0063:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 0\n"
+        "0064:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 STO 20\n"
+        "0065:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 CLX\n"
+        "0066:\xe2\x80\x86 \xe2\x80\x86 XEQ 10\n"
+        "0067:\xe2\x80\x86 \xe2\x80\x86 LBL 04\n"
+        "0068:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 42ALENG\n"
+        "0069:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 x= ? 0.\n"
+        "0070:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 GTO 05\n"
+        "0071:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 RCL 22\n"
+        "0072:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 STO 21\n"
+        "0073:\xe2\x80\x86 \xe2\x80\x86 XEQ 10\n"
+        "0074:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 RCL 22\n"
+        "0075:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 RCL 21\n"
+        "0076:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 x< ? Y\n"
+        "0077:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 CHS\n"
+        "0078:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 STO+ 20\n"
+        "0079:\xe2\x80\x86 \xe2\x80\x86 GTO 04\n"
+        "0080:\xe2\x80\x86 \xe2\x80\x86 LBL 05\n"
+        "0081:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 RCL 22\n"
+        "0082:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 STO+ 20\n"
+        "0083:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 CLSTK\n"
+        "0084:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 RCL 24\n"
+        "0085:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 RCL 20\n"
+        "0086:\xe2\x80\x86 \xe2\x80\x86 RTN\n"
+        "0087:\xe2\x80\x86 \xe2\x80\x86 LBL 10\n"
+        "0088:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 42ATOX\n"
+        "0089:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x86\x92REAL\n"
+        "0090:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 STO 23\n"
+        "0091:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 0\n"
+        "0092:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 STO 22\n"
+        "0093:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 1000,77\n"
+        "0094:\xe2\x80\x86 \xe2\x80\x86 XEQ 11\n"
+        "0095:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 500,68\n"
+        "0096:\xe2\x80\x86 \xe2\x80\x86 XEQ 11\n"
+        "0097:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 100,67\n"
+        "0098:\xe2\x80\x86 \xe2\x80\x86 XEQ 11\n"
+        "0099:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 50,76\n"
+        "0100:\xe2\x80\x86 \xe2\x80\x86 XEQ 11\n"
+        "0101:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 10,88\n"
+        "0102:\xe2\x80\x86 \xe2\x80\x86 XEQ 11\n"
+        "0103:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 5,86\n"
+        "0104:\xe2\x80\x86 \xe2\x80\x86 XEQ 11\n"
+        "0105:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 1,73\n"
+        "0106:\xe2\x80\x86 \xe2\x80\x86 XEQ 11\n"
+        "0107:\xe2\x80\x86 \xe2\x80\x86 RTN\n"
+        "0108:\xe2\x80\x86 \xe2\x80\x86 LBL 11\n"
+        "0109:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 ENTER\n"
+        "0110:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 IP\n"
+        "0111:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 x\xe2\x87\x84y\n"
+        "0112:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 FP\n"
+        "0113:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 100\n"
+        "0114:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xc3\x97\n"
+        "0115:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 RCL 23\n"
+        "0116:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 x\xe2\x89\xa0 ? Y\n"
+        "0117:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 RTN\n"
+        "0118:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 R\xe2\x86\x93\n"
+        "0119:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 R\xe2\x86\x93\n"
+        "0120:\xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 \xe2\x80\x86 STO 22\n"
+        "0121:\xe2\x80\x86 \xe2\x80\x86 RTN\n"
+        "0122:\xe2\x80\x86 \xe2\x80\x86 END\n";
+
+    memset(mock_prog, 0, sizeof(mock_prog));
+    mock_program_list[0].instructionPointer = mock_prog;
+    firstFreeProgramByte = mock_prog;
+    freeProgramBytes = 65000;
+    endOfCurrentProgram = mock_prog;
+
+    char *romErr = parseAndPasteProgram(roman_u2006);
+    if(romErr) {
+        printf("Unexpected error in parseAndPasteProgram on ROMAN program: '%s'\n", romErr);
+    }
+    TEST_ASSERT(romErr == NULL, "parseAndPasteProgram must parse ROMAN program with U+2006 spaces and comma decimals cleanly");
+    if(!romErr) {
+        size_t romBytes = (size_t)(endOfCurrentProgram - mock_prog);
+        TEST_ASSERT(romBytes == 375, "Compiled ROMAN program must be 375 bytes (377 bytes of ROMANv2 minus 2 bytes for 'v2' in label)");
+    }
+    if(romErr) {
+        free(romErr);
+    }
+
+    calcMode = CM_NORMAL;
+}
+
+// --------------------------------------------------------------------------
 // MAIN RUNNER
 // --------------------------------------------------------------------------
 int main(void) {
@@ -1053,6 +2436,8 @@ int main(void) {
     RUN_TEST(test_battery_and_disk_info);
     RUN_TEST(test_pip_mode_invariants);
     RUN_TEST(test_r47_last_key_code_mapping);
+    RUN_TEST(test_program_copy_and_line_stripping);
+    RUN_TEST(test_c47_character_set_conversion_and_math_ops);
 
     printf("====================================================\n");
     printf("  Summary: %d Run, %d Passed, %d Failed\n", tests_run, tests_passed, tests_failed);

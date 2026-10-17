@@ -649,7 +649,6 @@ static bool_t composeSoftkeyInlineLabel(keypadSoftkeyScene_t *scene,
 
 static void resolveSoftkeyScene(int16_t fnKeyIndex, keypadSoftkeyScene_t *scene, jboolean isDynamic) {
   clearSoftkeyScene(scene);
-  __android_log_print(ANDROID_LOG_INFO, "R47Native", "resolveSoftkeyScene: fnKeyIndex=%d, softmenuId=%d", fnKeyIndex, softmenuStack[0].softmenuId);
 
   if (fnKeyIndex < 1 || fnKeyIndex > 6) {
 
@@ -1288,6 +1287,39 @@ Java_org_rpncalculators_r47_MainActivity_getAllRegistersNative(
   char *allRegsText = getAllRegistersString();
   jstring result = (*env)->NewStringUTF(env, allRegsText ? allRegsText : "");
   pthread_mutex_unlock(&screenMutex);
+  return result;
+}
+
+JNIEXPORT jboolean JNICALL
+Java_org_rpncalculators_r47_MainActivity_isProgramModeNative(
+    JNIEnv *env, jobject thiz) {
+  (void)env;
+  (void)thiz;
+  if (!ram || isCoreBlockingForIo) {
+    return JNI_FALSE;
+  }
+  pthread_mutex_lock(&screenMutex);
+  bool pem = isProgramMode();
+  pthread_mutex_unlock(&screenMutex);
+  return pem ? JNI_TRUE : JNI_FALSE;
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_rpncalculators_r47_MainActivity_copyProgramNative(
+    JNIEnv *env, jobject thiz) {
+  (void)thiz;
+  if (!ram || isCoreBlockingForIo) {
+    return (*env)->NewStringUTF(env, "");
+  }
+
+  pthread_mutex_lock(&screenMutex);
+  char *pgmStr = getCurrentProgramString();
+  pthread_mutex_unlock(&screenMutex);
+
+  jstring result = (*env)->NewStringUTF(env, pgmStr ? pgmStr : "");
+  if (pgmStr) {
+    free(pgmStr);
+  }
   return result;
 }
 
