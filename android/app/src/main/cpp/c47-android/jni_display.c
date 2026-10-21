@@ -315,8 +315,14 @@ static void projectUtf8MainKeyLabel(const calcKey_t *key, jint labelType,
   }
 
   if (alphaOn && labelType == KEYPAD_LABEL_F &&
-      (item == CHR_caseUP || item == CHR_caseDN)) {
-    setUtf8Label(utf8, utf8Size, "CASE ");
+      (item == ITM_CASEUP || item == ITM_CASEDN)) {
+    setUtf8Label(utf8, utf8Size, "CASE");
+    return;
+  }
+
+  if (alphaOn && labelType == KEYPAD_LABEL_G &&
+      (item == ITM_SUPUP || item == ITM_SUBDN)) {
+    setUtf8Label(utf8, utf8Size, item == ITM_SUPUP ? "SUP" : "SUB");
     return;
   }
 

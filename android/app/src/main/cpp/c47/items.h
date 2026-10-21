@@ -1925,12 +1925,12 @@
 #define ITM_CLN                     1875
 #define ITM_DENANY                  1876
 #define ITM_DENFIX                  1877
-#define CHR_caseUP                  1878
-#define CHR_caseDN                  1879
+#define ITM_CASEUP                  1878
+#define ITM_CASEDN                  1879
 #define ITM_LISTXY                  1880
-#define ITM_1881                    1881 // General items / any items spare
+#define ITM_SUPUP                   1881 // General items / any items spare
 #define ITM_SYS_FREE_RAM            1882
-#define ITM_1883                    1883 // General items / any items spare
+#define ITM_SUBDN                   1883 // General items / any items spare
 #define ITM_TEST                    1884
 #define ITM_GET_TEST_BS             1885
 #define ITM_SET_TEST_BS             1886

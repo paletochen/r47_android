@@ -55,6 +55,10 @@ void setLastintegerBasetoZero(void) {
   fnRefreshState();                                                //JMNIM
 }
 
+bool_t checkHPMode(void) {  // the HP35 settings are in force, so numbers are drawn in the HP 7-segment font; one stack line is the rarest of them, so it comes first
+  return displayStack == 1 && significantDigits != 0 && significantDigits <= 16 && exponentLimit == 99 && Input_Default == ID_DP && (calcMode == CM_NORMAL || calcMode == CM_NIM);  // 0 digits are 34
+}
+
 bool_t blockMonitoring = false;
 
 #if defined(DMCP_BUILD)

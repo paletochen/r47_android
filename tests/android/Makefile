@@ -23,7 +23,7 @@ items_table_full.c: ../../src/c47/items.c
 	(echo '#include "c47.h"'; \
 	 sed -n '1752,$$p' ../../src/c47/items.c | \
 	 sed -E '/^#define UNIT_CONV/,/RESULT_IN_X \}/c\#define UNIT_CONV(unit, invert, cat, menu) { NULL, 0, cat, menu, 0, CAT_NONE | SLS_ENABLED | US_ENABLED | EIM_DISABLED | PTP_NONE | RESULT_IN_X }' | \
-	 sed -E 's/^(\/\*[[:space:]]*[0-9]+[[:space:]]*\*\/[[:space:]]*\{)[[:space:]]*[^,]+,[[:space:]]*[^,]+,/\1 NULL, 0,/') > $@
+	 sed -E 's/^(\/\*[[:space:]]*[0-9]+[-+[:space:]]*\*\/[[:space:]]*\{)[[:space:]]*[^,]+,[[:space:]]*[^,]+,/\1 NULL, 0,/') > $@
 
 items_table_full.o: items_table_full.c
 	$(CC) $(CFLAGS) -c -o $@ $<

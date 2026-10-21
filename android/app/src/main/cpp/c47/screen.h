@@ -14,6 +14,7 @@
   bool_t   registerFMA(calcRegister_t regist, real_t *tmp1, real_t *tmp2, real_t *tmp4, real34_t *tmp3, angularMode_t *angle, realContext_t *c);
 
   void     setLastintegerBasetoZero           (void);
+  bool_t   checkHPMode                        (void);
   extern bool_t   doRefreshSoftMenu;                                                                              //dr
   void     _executeItem(int16_t item, int keyCode);
   void     FN_handler();                                                                                          //JM LONGPRESS

@@ -1155,6 +1155,7 @@
 #define SETTING_WATCHICON                     0x0084 // the bit controlling the watch face icon
 #define SETTING_SIOICON                       0x0085 // the bit controlling the serial i/o activity icon
 #define SETTING_PRINTERICON                   0x0086 // the bit controlling the IR printer icon
+#define SETTING_FDIGS                         0x0087 // fraction almost equal param
 
 
 // FLGS and STATUS SCREENS
@@ -2535,7 +2536,7 @@ static inline uint8_t regCtoKS(const int16_t regC) {
 #define gapItemFrac                          (gapItemLeft == 0 ? 0 : ITM_SPACE_4_PER_EM)          // Fractions only get to have narrow space or nothing
 #define SEPARATOR_FRAC                       (gapItemFrac  == 0 ? (char*) "\1\1\0" : (char*)indexOfItems[gapItemFrac].itemSoftmenuName) // Actual separator character
 
-#define checkHP                              (significantDigits <= 16 && displayStack == 1 && exponentLimit == 99 && Input_Default == ID_DP && (calcMode == CM_NORMAL || calcMode == CM_NIM))
+#define checkHP                              (checkHPMode())
 #define REPLACEFONT                          // Use HP 7-segment font
 #if defined(REPLACEFONT)
   #define DOUBLING_A                         15u // 16=is double; 14 is 1.75*; 12=1.5*; 10=1.25* (8 is the per unit norm horizontal factor, A/B)

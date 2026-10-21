@@ -518,7 +518,7 @@ static void executeFunction(const char *data, int16_t item_);
                     #endif //PAIMDEBUG
       keyActionProcessed = true;
     }
-    else if(item == ITM_DOWN_ARROW) {
+    else if(item == ITM_DOWN_ARROW || item == ITM_SUBDN) {
       if(nextChar == NC_NORMAL) {
         nextChar = NC_SUBSCRIPT;
       }
@@ -531,7 +531,7 @@ static void executeFunction(const char *data, int16_t item_);
       keyActionProcessed = true;
     }
 
-    else if(item == ITM_UP_ARROW) {
+    else if(item == ITM_UP_ARROW || item == ITM_SUPUP) {
       if(nextChar == NC_NORMAL) {
         nextChar = NC_SUPERSCRIPT;
       }
@@ -1679,10 +1679,10 @@ endReturnTrue:
                shiftG ? key->gShiftedAim :
                         key->primaryAim;
       if(calcMode == CM_PEM && getSystemFlag(FLAG_ALPHA)) {
-        if(result == ITM_DOWN_ARROW || scrLock == NC_SUBSCRIPT) {
+        if(result == ITM_DOWN_ARROW || result == ITM_SUBDN || scrLock == NC_SUBSCRIPT) {
           nextChar = NC_SUBSCRIPT;
         }
-        else if(result == ITM_UP_ARROW || scrLock == NC_SUPERSCRIPT) {
+        else if(result == ITM_UP_ARROW || result == ITM_SUPUP || scrLock == NC_SUPERSCRIPT) {
           nextChar = NC_SUPERSCRIPT;
         }
       }
@@ -2693,7 +2693,7 @@ RELEASE_END:
           break;
         }
 
-        case CHR_caseUP: {                                                   //From keyboard: logic for Up/Dn case/num
+        case ITM_CASEUP: {                                                   //From keyboard: logic for Up/Dn case/num
           if(getSystemFlag(FLAG_NUMLOCK))  {}
           else if(alphaCase == AC_LOWER) {
             processKeyAction(CHR_case);
@@ -2706,7 +2706,7 @@ RELEASE_END:
           break;
         }
 
-        case CHR_caseDN: {                                                   //From keyboard: logic for Up/Dn case/num
+        case ITM_CASEDN: {                                                   //From keyboard: logic for Up/Dn case/num
           if(getSystemFlag(FLAG_NUMLOCK)) {
             alphaCase = AC_UPPER;
             processKeyAction(CHR_numU);
@@ -4031,6 +4031,10 @@ void fnKeyExit(uint16_t unusedButMandatoryParameter) {
           refreshScreen(0);
         }
         calcMode = previousCalcMode;
+        if(calcMode == CM_AIM || calcMode == CM_EIM) {
+          setSystemFlag(FLAG_ALPHA);
+          calcModeAimGui();
+        }
         break;
       }
 

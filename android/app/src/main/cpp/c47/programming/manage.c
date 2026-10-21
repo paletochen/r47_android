@@ -1027,12 +1027,12 @@ void pemAlpha(int16_t item) {
       SetSetting(indexOfItems[CHR_num].param);
       return;
     }
-    else if(item == CHR_caseUP && alphaCase != AC_UPPER) { // JM addon
+    else if(item == ITM_CASEUP && alphaCase != AC_UPPER) { // JM addon
       nextChar = NC_NORMAL;
       SetSetting(indexOfItems[CHR_case].param);
       return;
     }
-    else if(item == CHR_caseDN && alphaCase != AC_LOWER) { // JM addon
+    else if(item == ITM_CASEDN && alphaCase != AC_LOWER) { // JM addon
       nextChar = NC_NORMAL;
       SetSetting(indexOfItems[CHR_case].param);
       return;

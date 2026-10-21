@@ -1004,6 +1004,7 @@ void fnGetFractionDigits(uint16_t unusedButMandatoryParameter) {
 
 
 void fnSetFractionDigits(uint16_t S) {
+   setSystemFlagChanged(SETTING_FDIGS);
    fractionDigits = S;
    if(fractionDigits == 0) {
      fractionDigits = 34;
