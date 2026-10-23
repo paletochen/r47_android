@@ -107,12 +107,15 @@
   uint32_t realToUint32C47     (const real_t *r, bool_t *error);
   //int64_t  realToInt64C47      (const real_t *r);
   //uint64_t realToUint64C47     (const real_t *r);
+  bool_t   realIsZero          (const real_t *r);
   void     realSetZero         (real_t *r);
   void     realSetOne          (real_t *r);
   void     realSetNegativeOne  (real_t *r);
   void     realSetNaN          (real_t *r);
   void     realSetPlusInfinity (real_t *r);
   void     realSetMinusInfinity(real_t *r);
+  void     copyComplex34       (const real34_t *source, real34_t *destination);
+  void     setReal34NegativeSign(real34_t *r);
   // A routine that is the same under addition and under subtraction takes one of these. real34Add and real34Subtract are macros and cannot be pointed at.
   typedef void (*real34Op_t)   (const real34_t *y, const real34_t *x, real34_t *res);
   void     real34AddOp         (const real34_t *y, const real34_t *x, real34_t *res);
@@ -123,9 +126,7 @@
   void     realMultiplyOp      (const real_t *y, const real_t *x, real_t *res, realContext_t *realContext);
 
   #define complex34ChangeSign(operand)                           do { real34ChangeSign(TO_REAL34_T(operand)); real34ChangeSign(TO_REAL34_T(operand) + 1); } while(0)
-  #define complex34Copy(source, destination)                     do { real34Copy(TO_REAL34_T(source),     TO_REAL34_T(destination));     \
-                                                                     real34Copy(TO_REAL34_T(source) + 1, TO_REAL34_T(destination) + 1); \
-                                                                 } while(0)
+  #define complex34Copy(source, destination)                     copyComplex34            (TO_REAL34_T(source), TO_REAL34_T(destination))
   #define int32ToReal34(source, destination)                     decQuadFromInt32         (TO_REAL34_T(destination), source)
   #define real34Add(operand1, operand2, res)                     decQuadAdd               (TO_REAL34_T(res), TO_REAL34_T(operand1), TO_REAL34_T(operand2), &ctxtReal34)
   #define real34ChangeSign(operand)                              decQuadCopyNegate        (TO_REAL34_T(operand), TO_REAL34_T(operand))
@@ -142,7 +143,7 @@
   #define real34IsNaN(source)                                    decQuadIsNaN             (TO_REAL34_T(source))
   #define real34IsNegative(source)                               (!!decQuadIsSigned       (TO_REAL34_T(source)))
   #define real34IsPositive(source)                               (!decQuadIsSigned        (TO_REAL34_T(source)))
-  #define real34IsSpecial(source)                                (decQuadIsNaN(TO_REAL34_T(source)) || decQuadIsSignaling(TO_REAL34_T(source)) || decQuadIsInfinite(TO_REAL34_T(source)))
+  #define real34IsSpecial(source)                                (!decQuadIsFinite(TO_REAL34_T(source)))
   #define real34IsZero(source)                                   decQuadIsZero            (TO_REAL34_T(source))
   #define real34Minus(operand, res)                              decQuadMinus             (TO_REAL34_T(res), TO_REAL34_T(operand), &ctxtReal34)
   #define real34Multiply(operand1, operand2, res)                decQuadMultiply          (TO_REAL34_T(res), TO_REAL34_T(operand1), TO_REAL34_T(operand2), &ctxtReal34)
@@ -150,9 +151,7 @@
   #define real34NextPlus(operand, res)                           decQuadNextPlus          (TO_REAL34_T(res), TO_REAL34_T(operand), &ctxtReal34)
   #define real34Plus(operand, res)                               decQuadPlus              (TO_REAL34_T(res), TO_REAL34_T(operand), &ctxtReal34)
   #define real34Reduce(operand, res)                             decQuadReduce            (TO_REAL34_T(res), TO_REAL34_T(operand), &ctxtReal34)
-  #define real34SetNegativeSign(operand)                         do { decQuadCopyAbs   (TO_REAL34_T(operand), TO_REAL34_T(operand)); \
-                                                                     decQuadCopyNegate(TO_REAL34_T(operand), TO_REAL34_T(operand)); \
-                                                                 } while(0)
+  #define real34SetNegativeSign(operand)                         setReal34NegativeSign    (TO_REAL34_T(operand))
   #define real34SetPositiveSign(operand)                         decQuadCopyAbs           (TO_REAL34_T(operand), TO_REAL34_T(operand))
   #define real34Subtract(operand1, operand2, res)                decQuadSubtract          (TO_REAL34_T(res), TO_REAL34_T(operand1), TO_REAL34_T(operand2), &ctxtReal34)
   #define real34ToInt32(source)                                  decQuadToInt32           (TO_REAL34_T(source), &ctxtReal34, DEC_ROUND_DOWN)
@@ -194,8 +193,6 @@
   #define realIsNegative(source)                                 ((TO_REAL_HEADER(source)->bits & DECNEG) != 0)
   #define realIsPositive(source)                                 ((TO_REAL_HEADER(source)->bits & DECNEG) == 0)
   #define realIsSpecial(source)                                  ((TO_REAL_HEADER(source)->bits & DECSPECIAL) != 0)
-  #define realIsZero(source)                                     (TO_REAL_HEADER(source)->lsu[0] == 0 && TO_REAL_HEADER(source)->digits == 1 && \
-                                                                 (TO_REAL_HEADER(source)->bits & DECSPECIAL) == 0)
   #define realLn(operand, res, ctxt)                             decNumberLn              (TO_REAL_T(res), TO_REAL_T(operand), ctxt)
   #define realMinus(operand, res, ctxt)                          decNumberMinus           (TO_REAL_T(res), TO_REAL_T(operand), ctxt)
   #define realMultiply(operand1, operand2, res, ctxt)            decNumberMultiply        (TO_REAL_T(res), TO_REAL_T(operand1), TO_REAL_T(operand2), ctxt)

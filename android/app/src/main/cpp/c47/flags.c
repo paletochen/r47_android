@@ -7,8 +7,6 @@
 
 #include "c47.h"
 
-typedef enum { FLAG_CLEAR=0, FLAG_SET=1, FLAG_FLIP=2 } flagAction_t;
-
 uint64_t systemFlags0Changed = 0xFFFFFFFFFFFFFFFF;
 uint64_t systemFlags1Changed = 0xFFFFFFFFFFFFFFFF;
 uint64_t systemFlags2Changed = 0xFFFFFFFFFFFFFFFF;
@@ -259,6 +257,10 @@ doInteractionFlags:
               if(getSystemFlag(FLAG_IMPLOT)) {
                 _clearSystemFlag(FLAG_CPXPLOT);
               }
+              break;
+
+    case FLAG_TDM24:
+              timeSetSystemTimeFormat(action);
               break;
 
     default: break;

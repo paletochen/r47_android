@@ -190,4 +190,21 @@
    * \return void
    ***********************************************/
   void getWeekOfYearString     (char *weekOfYearString);
+
+  /********************************************//**
+   * \brief Set DMCP date format
+   *
+   * \param[in] none
+   * \return void
+   ***********************************************/
+  void timeSetSystemDateFormat (void);
+
+  /********************************************//**
+   * \brief Set DMCP clk24 time format
+   *
+   * \param[in] action 0 -> Clear clk24 , 1 -> Set clk24, 2 -> Flip clk24
+   * \return void
+   ***********************************************/
+  void timeSetSystemTimeFormat (flagAction_t action);
+
 #endif // !DATETIME_H

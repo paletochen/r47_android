@@ -30,6 +30,8 @@
 
   //<------------ Control character ------------->
   #define STD_NOCHAR                    1
+  #define STD_NOCHAR_STRING             "\x01"                                 // STD_NOCHAR as a string, the second byte of a one-byte glyph in a two-byte field
+  #define STD_NOCHAR_NOCHAR             STD_NOCHAR_STRING STD_NOCHAR_STRING    // a two-byte field with no glyph
 
 
   //<------------ Numeric font glyphs -----------> Experimentally used by IRFRAC

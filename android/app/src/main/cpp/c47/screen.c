@@ -59,6 +59,18 @@ bool_t checkHPMode(void) {  // the HP35 settings are in force, so numbers are dr
   return displayStack == 1 && significantDigits != 0 && significantDigits <= 16 && exponentLimit == 99 && Input_Default == ID_DP && (calcMode == CM_NORMAL || calcMode == CM_NIM);  // 0 digits are 34
 }
 
+bool_t showModeActive(void) {  // temporaryInformation is TI_NO_INFO most of the time, in number entry as well
+  if(temporaryInformation == TI_NO_INFO) {
+    return false;
+  }
+  return calcMode == CM_NORMAL && (temporaryInformation == TI_SHOW_REGISTER || temporaryInformation == TI_SHOW_REGISTER_BIG || temporaryInformation == TI_SHOW_REGISTER_SMALL ||
+                                   temporaryInformation == TI_SHOW_REGISTER_TINY || temporaryInformation == TI_SHOWNOTHING);
+}
+
+bool_t baseModeActive(void) {  // the three base tests are false most of the time, so the call of showingProbMenu() comes last
+  return (lastIntegerBase != 0 || dispBase > 0 || softmenu[softmenuStack[0].softmenuId].menuItem == -MNU_BASE) && !PROBMENU;
+}
+
 bool_t blockMonitoring = false;
 
 #if defined(DMCP_BUILD)

@@ -842,6 +842,16 @@ typedef enum {
 } namedLabels_t;
 
 
+/**
+ * \enum flagAction_t
+ */
+  typedef enum {
+    FLAG_CLEAR =0,
+    FLAG_SET   =1,
+    FLAG_FLIP  =2
+  } flagAction_t;
+
+
   #if defined(PC_BUILD)
   /**
    * \struct calcKeyboard_t

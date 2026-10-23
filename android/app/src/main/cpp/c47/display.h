@@ -36,6 +36,10 @@ void angle34ToDisplayString2           (const real34_t *angle34, uint8_t modeIn,
 void _numerator                        (uint64_t numer, char *displayString, int16_t *endingZero);
 void _denominator                      (uint64_t denom, char *displayString, int16_t *endingZero);
 void fractionToDisplayString           (calcRegister_t regist, char *displayString);
+char *getGapChar1Left                  (void);
+char *getGapChar1Right                 (void);
+char *getGapChar1Radix                 (void);
+char getRadix34MarkChar                (void);
 
 void realToSci(real_t* num, char* dispString);
 

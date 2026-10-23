@@ -109,6 +109,10 @@ uint32_t realToUint32C47(const real_t *r, bool_t *error) {
   return (uint32_t)realToInt(r, magnitudeLimit, error);
 }
 
+bool_t realIsZero(const real_t *r) {
+  return r->lsu[0] == 0 && r->digits == 1 && (r->bits & DECSPECIAL) == 0;
+}
+
 void realSetZero(real_t *r) {
   r->bits     = 0;
   r->exponent = 0;
@@ -149,6 +153,15 @@ void realSetMinusInfinity(real_t *r) {
   r->exponent = 0;
   r->digits   = 1;
   r->lsu[0]   = 0;
+}
+
+void copyComplex34(const real34_t *source, real34_t *destination) {
+  real34Copy(source,     destination);
+  real34Copy(source + 1, destination + 1);
+}
+
+void setReal34NegativeSign(real34_t *r) {
+  decQuadCopyNegate(r, decQuadCopyAbs(r, r));
 }
 
 

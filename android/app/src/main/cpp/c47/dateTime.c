@@ -37,6 +37,7 @@ void fnSetDateFormat(uint16_t dateFormat) {
     default: {
     }
   }
+  timeSetSystemDateFormat();
 }
 
 void internalDateToJulianDay(const real34_t *source, real34_t *destination) {
@@ -1285,4 +1286,42 @@ void getWeekOfYearString(char *weekOfYearString) {
   int32_t dow = julianDayToDayOfWeek(&jd);
   dow = modulo((dow + 7) - firstDayOfWeek, 7) + 1;
   sprintf(weekOfYearString, "W%02d-%d", (int)woy, (int)dow);
+}
+
+void timeSetSystemDateFormat(void) {
+  #if defined(DMCP_BUILD)
+    int dateFmt = (getSystemFlag(FLAG_DMY) ? SYS_DMY : getSystemFlag(FLAG_MDY) ? SYS_MDY : SYS_YMD);
+    set_flag_dmy(dateFmt);
+  //#else // !DMCP_BUILD
+  //  #define UNUSED(x) (void)(x)
+  //  UNUSED(dateFmt);
+  #endif // DMCP_BUILD
+}
+
+void timeSetSystemTimeFormat(flagAction_t action) {
+  #if defined(DMCP_BUILD)
+    switch(action) {
+      case FLAG_CLEAR: {
+        set_flag_clk24(0);      // Clear DMCP clk24 flag
+        break;
+      }
+      case FLAG_SET: {
+        set_flag_clk24(1);      // Clear DMCP clk24 flag
+        break;
+      }
+      case FLAG_FLIP: {  // Flip DMCP clk24 flag
+        if (is_flag_clk24()) {
+          set_flag_clk24(0);
+        } else {
+          set_flag_clk24(1);
+        }
+        break;
+      }
+      default: {
+      }
+    }
+  #else // !DMCP_BUILD
+    #define UNUSED(x) (void)(x)
+    UNUSED(action);
+  #endif // DMCP_BUILD
 }

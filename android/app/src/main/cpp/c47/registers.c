@@ -306,6 +306,16 @@ void *getRegisterDataPointer(calcRegister_t regist) {
 
 
 
+void copyRegisterStringTo(char *dest, calcRegister_t regist) {
+  void *regData = getRegisterDataPointer(regist);
+  if(regData != NULL) {
+    char *regStr = (char *)regData + sizeof(strLgIntHeader_t);
+    xcopy(dest, regStr, stringByteLength(regStr) + 1);
+  }
+}
+
+
+
 uint32_t getRegisterTag(calcRegister_t regist) {
   if(regist <= LAST_GLOBAL_REGISTER) { // Global register
     return globalRegister[regist].tag;
@@ -541,6 +551,90 @@ void setRegisterTag(calcRegister_t regist, const uint32_t tag) {
     sprintf(errorMessage, commonBugScreenMessages[bugMsgRegistMustBeLessThan], "setRegisterTag", regist, LAST_RESERVED_VARIABLE + 1);
     displayBugScreen(errorMessage);
   }
+}
+
+
+
+static const matrixHeader_t *realMatrixHeader(calcRegister_t regist) {  // NULL for a register that is not a real matrix
+  if(getRegisterDataType(regist) != dtReal34Matrix) {
+    return NULL;
+  }
+  return REGISTER_MATRIX_HEADER(regist);
+}
+
+
+
+bool_t isRegisterMatrix3dVector(calcRegister_t regist) {
+  const matrixHeader_t *header = realMatrixHeader(regist);
+  return header != NULL && isMatrix3dVector(header->matrixRows, header->matrixColumns);
+}
+
+
+
+bool_t isRegisterMatrix2dVector(calcRegister_t regist) {
+  const matrixHeader_t *header = realMatrixHeader(regist);
+  return header != NULL && isMatrix2dVector(header->matrixRows, header->matrixColumns);
+}
+
+
+
+bool_t isRegisterMatrixVector(calcRegister_t regist) {
+  const matrixHeader_t *header = realMatrixHeader(regist);
+  return header != NULL && (isMatrix3dVector(header->matrixRows, header->matrixColumns) || isMatrix2dVector(header->matrixRows, header->matrixColumns));
+}
+
+
+
+uint32_t getVectorRegisterPolarMode(calcRegister_t regist) {
+  const matrixHeader_t *header = realMatrixHeader(regist);
+  if(header == NULL) {
+    return 0;
+  }
+
+  uint32_t tag = getRegisterTag(regist);
+  if((tag & amAngleMask) == amNone) {
+    return 0;
+  }
+  if(isMatrix3dVector(header->matrixRows, header->matrixColumns)) {
+    return (tag & amPolar) != 0 ? amPolarSPH : amPolarCYL;
+  }
+  if(isMatrix2dVector(header->matrixRows, header->matrixColumns)) {
+    return tag & amPolar;
+  }
+  return 0;
+}
+
+
+
+void setVectorRegisterPolarMode(calcRegister_t regist, uint32_t polarMode) {
+  uint32_t tag = getRegisterTag(regist);
+  if(polarMode == 0) {
+    tag = (tag & ~(amAngleMask | amPolar)) + amNone;  /*if Polar is cleared, also clear angle */
+  }
+  else {
+    tag &= amAngleMask | amPolar;
+    if(polarMode == amPolarSPH || polarMode == amPolar) {
+      tag |= amPolar;                                 /*existing status, with polar bit ORred for 2DPolar or SPH*/
+    }
+    else if(polarMode == amPolarCYL) {
+      tag &= ~amPolar;                                /*   ANDed to force Polar 0 for CYL */
+    }
+  }
+  setRegisterTag(regist, tag);
+}
+
+
+
+bool_t registerIsNoAngle(calcRegister_t regist) {
+  uint32_t dataType = getRegisterDataType(regist);
+  return (dataType == dtReal34 && getRegisterAngularMode(regist) == amNone) || dataType == dtLongInteger;
+}
+
+
+
+bool_t isXFNregisterValid3r(calcRegister_t regist) {  // inputAngleError3r is true for any other type in the two registers above
+  uint32_t dataType = getRegisterDataType(regist);
+  return (dataType == dtReal34 || dataType == dtLongInteger) && !inputAngleError3r(regist);
 }
 
 

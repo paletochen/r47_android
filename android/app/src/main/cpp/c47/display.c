@@ -367,7 +367,8 @@ static void emitSciDigits(uint8_t *bcd, int16_t firstDigit, int16_t lastDigit, i
   bool_t  firstDigitAfterPeriod = true;
 
   // Separator and radix byte-lengths, computed once. SEPARATOR_RIGHT is 2 bytes, 1 byte or absent; RADIX34_MARK_STRING is 2 or 1.
-  int sepLen   = (SEPARATOR_RIGHT[0] != 1) ? ((SEPARATOR_RIGHT[1] != 1) ? 2 : 1) : 0;
+  const char *sepRight = SEPARATOR_RIGHT;
+  int sepLen   = (sepRight[0] != STD_NOCHAR) ? ((sepRight[1] != STD_NOCHAR) ? 2 : 1) : 0;
 
   // Round the displayed number
   int16_t roundedAt = roundBcdAt(bcd, digitToRound, lastDigit, sign);
@@ -423,7 +424,7 @@ static void emitSciDigits(uint8_t *bcd, int16_t firstDigit, int16_t lastDigit, i
   // Significant digits
   for(digitCount=-1, digitPointer=firstDigit+1; digitPointer<firstDigit+min(numDigits, digitsToDisplay+1); digitPointer++, digitCount--) {
     if(!firstDigitAfterPeriod && !GROUPRIGHT_DISABLED && modulo(digitCount, (uint16_t)GROUPWIDTH_RIGHT) == (uint16_t)GROUPWIDTH_RIGHT - 1) {
-      xcopy(displayString + charIndex, SEPARATOR_RIGHT, sepLen);
+      xcopy(displayString + charIndex, sepRight, sepLen);
       charIndex += sepLen;
     }
     else {
@@ -437,7 +438,7 @@ static void emitSciDigits(uint8_t *bcd, int16_t firstDigit, int16_t lastDigit, i
   // The ending zeros
   for(digitPointer=0; digitPointer<=digitsToDisplay-numDigits; digitPointer++, digitCount--) {
     if(!firstDigitAfterPeriod && !GROUPRIGHT_DISABLED && modulo(digitCount, (uint16_t)GROUPWIDTH_RIGHT) == (uint16_t)GROUPWIDTH_RIGHT - 1) {
-      xcopy(displayString + charIndex, SEPARATOR_RIGHT, sepLen);
+      xcopy(displayString + charIndex, sepRight, sepLen);
       charIndex += sepLen;
     }
     else {
@@ -472,6 +473,14 @@ static void emitSciDigits(uint8_t *bcd, int16_t firstDigit, int16_t lastDigit, i
  * \param[in]  x const real34_t*  Value to format
  * \return void
  ***********************************************/
+static int32_t appendSeparatorRight(char *displayString, int32_t charIndex) {  // SEPARATOR_RIGHT is 2 bytes, 1 byte or absent
+  const char *sepRight = SEPARATOR_RIGHT;
+  int32_t sepLen = (sepRight[0] != STD_NOCHAR) ? ((sepRight[1] != STD_NOCHAR) ? 2 : 1) : 0;
+  xcopy(displayString + charIndex, sepRight, sepLen);
+  return charIndex + sepLen;
+}
+
+
 static void real34ToDisplayString2(const real34_t *real34, char *displayString, int16_t displayHasNDigits, bool_t limitExponent, bool_t noFix, bool_t frontSpace, bool_t complex, irfracOption_t limitIrfrac) {
   #undef MAX_DIGITS
   #define MAX_DIGITS 37 // 34 + 1 before (used when rounding from 9.999 to 10.000) + 2 after (used for rounding and ENG display mode)
@@ -970,8 +979,7 @@ overRange:
         // Zeros before first significant digit
         for(digitCount=0, i=exponent+1; i<0; i++, digitCount--) {
           if(digitCount != 0 && !GROUPRIGHT_DISABLED && digitCount%(uint16_t)GROUPWIDTH_RIGHT == 0) {
-            xcopy(displayString + charIndex,  SEPARATOR_RIGHT, SEPARATOR_RIGHT[0]!=1 ? (SEPARATOR_RIGHT[1]!=1 ? 2 : 1) : 0);
-            charIndex +=  ( SEPARATOR_RIGHT[0]!=1 ? (SEPARATOR_RIGHT[1]!=1 ? 2 : 1) : 0);
+            charIndex = appendSeparatorRight(displayString, charIndex);
           }
           displayString[charIndex++] = '0';
           if(updateDisplayValueX) {
@@ -982,8 +990,7 @@ overRange:
         // Significant digits
         for(digitPointer=firstDigit; digitPointer<firstDigit+min(displayHasNDigits - 1 - exponent, numDigits); digitPointer++, digitCount--) {
           if(digitCount != 0 && !GROUPRIGHT_DISABLED && digitCount%(uint16_t)GROUPWIDTH_RIGHT == 0) {
-            xcopy(displayString + charIndex, SEPARATOR_RIGHT,  SEPARATOR_RIGHT[0]!=1 ? (SEPARATOR_RIGHT[1]!=1 ? 2 : 1) : 0);
-            charIndex +=  ( SEPARATOR_RIGHT[0]!=1 ? (SEPARATOR_RIGHT[1]!=1 ? 2 : 1) : 0);
+            charIndex = appendSeparatorRight(displayString, charIndex);
           }
           displayString[charIndex++] = '0' + bcd[digitPointer];
           if(updateDisplayValueX) {
@@ -1180,8 +1187,7 @@ overRange:
         // Zeros before first significant digit
         for(digitCount=0, i=exponent+1; i<0; i++, digitCount--) {
           if(digitCount!=0 && !GROUPRIGHT_DISABLED && digitCount%(uint16_t)GROUPWIDTH_RIGHT==0) {
-            xcopy(displayString + charIndex, SEPARATOR_RIGHT,  SEPARATOR_RIGHT[0]!=1 ? (SEPARATOR_RIGHT[1]!=1 ? 2 : 1) : 0);
-            charIndex +=  ( SEPARATOR_RIGHT[0]!=1 ? (SEPARATOR_RIGHT[1]!=1 ? 2 : 1) : 0);
+            charIndex = appendSeparatorRight(displayString, charIndex);
           }
           displayString[charIndex++] = '0';
           if(updateDisplayValueX) {
@@ -1192,8 +1198,7 @@ overRange:
         // Significant digits
         for(digitPointer=firstDigit; digitPointer<=lastDigit; digitPointer++, digitCount--) {
           if(digitCount!=0 && !GROUPRIGHT_DISABLED && digitCount%(uint16_t)GROUPWIDTH_RIGHT==0) {
-            xcopy(displayString + charIndex, SEPARATOR_RIGHT,  SEPARATOR_RIGHT[0]!=1 ? (SEPARATOR_RIGHT[1]!=1 ? 2 : 1) : 0);
-            charIndex +=  ( SEPARATOR_RIGHT[0]!=1 ? (SEPARATOR_RIGHT[1]!=1 ? 2 : 1) : 0);
+            charIndex = appendSeparatorRight(displayString, charIndex);
           }
           displayString[charIndex++] = '0' + bcd[digitPointer];
           if(updateDisplayValueX) {
@@ -1208,8 +1213,7 @@ overRange:
         }
         for(i=1; i<=zerosAfter; i++, digitCount--) {   //JM SIGFIGNEW hackpoint
           if(!GROUPRIGHT_DISABLED && digitCount%(uint16_t)GROUPWIDTH_RIGHT==0) {
-            xcopy(displayString + charIndex, SEPARATOR_RIGHT,  SEPARATOR_RIGHT[0]!=1 ? (SEPARATOR_RIGHT[1]!=1 ? 2 : 1) : 0);
-            charIndex +=  ( SEPARATOR_RIGHT[0]!=1 ? (SEPARATOR_RIGHT[1]!=1 ? 2 : 1) : 0);
+            charIndex = appendSeparatorRight(displayString, charIndex);
           }
           displayString[charIndex++] = '0';
           if(updateDisplayValueX) {
@@ -1405,8 +1409,7 @@ fixCarriedPastLimit:
     // Digits after radix mark
     for(digitCount=-1, digitPointer=firstDigit; digitPointer<firstDigit+min(numDigits, digitsToDisplay+1); digitPointer++, digitCount--) {
       if(!firstDigitAfterPeriod && !GROUPRIGHT_DISABLED && modulo(digitCount, (uint16_t)GROUPWIDTH_RIGHT) == (uint16_t)GROUPWIDTH_RIGHT - 1) {
-        xcopy(displayString + charIndex, SEPARATOR_RIGHT,  SEPARATOR_RIGHT[0]!=1 ? (SEPARATOR_RIGHT[1]!=1 ? 2 : 1) : 0);
-        charIndex +=  ( SEPARATOR_RIGHT[0]!=1 ? (SEPARATOR_RIGHT[1]!=1 ? 2 : 1) : 0);
+        charIndex = appendSeparatorRight(displayString, charIndex);
       }
       else {
         firstDigitAfterPeriod = false;
@@ -1421,8 +1424,7 @@ fixCarriedPastLimit:
     // The ending zeros
     for(digitPointer=0; digitPointer<=digitsToDisplay-max(0, numDigits); digitPointer++, digitCount--) {
       if(!firstDigitAfterPeriod && !GROUPRIGHT_DISABLED && modulo(digitCount, (uint16_t)GROUPWIDTH_RIGHT) == (uint16_t)GROUPWIDTH_RIGHT - 1) {
-        xcopy(displayString + charIndex, SEPARATOR_RIGHT,  SEPARATOR_RIGHT[0]!=1 ? (SEPARATOR_RIGHT[1]!=1 ? 2 : 1) : 0);
-        charIndex +=  ( SEPARATOR_RIGHT[0]!=1 ? (SEPARATOR_RIGHT[1]!=1 ? 2 : 1) : 0);
+        charIndex = appendSeparatorRight(displayString, charIndex);
       }
       else {
         firstDigitAfterPeriod = false;
@@ -2647,12 +2649,72 @@ void longIntegerRegisterToRealDisplayString(calcRegister_t regist, char *display
 }
 
 
+static char *gapWithSkipByte(char separator) {  //set second character to skip character 0x01
+  switch(separator) {
+    case ',': {
+      return (char *)"," STD_NOCHAR_STRING;
+    }
+    case '.': {
+      return (char *)"." STD_NOCHAR_STRING;
+    }
+    case '\'': {
+      return (char *)"\'" STD_NOCHAR_STRING;
+    }
+    case '_': {
+      return (char *)"_" STD_NOCHAR_STRING;
+    }
+    default: {
+      return NULL;
+    }
+  }
+}
+
+char *getGapChar1Left(void) {  // the default gap takes two bytes, so the length is tested first
+  char *lt = Lt;
+  if(lt[1] == 0 && lt[2] == 0) {
+    char *gap = gapWithSkipByte(lt[0]);
+    if(gap != NULL) {
+      return gap;
+    }
+  }
+  return lt;
+}
+
+char *getGapChar1Right(void) {  // a gap of two bytes also satisfies the length test, so the character is tested first
+  char *rt = Rt;
+  char *gap = gapWithSkipByte(rt[0]);
+  if(gap != NULL && (rt[1] == 0 || rt[2] == 0)) {
+    return gap;
+  }
+  return rt;
+}
+
+char *getGapChar1Radix(void) {  // the default radix mark is a period
+  char *rx = Rx;
+  if(rx[1] == 0 || rx[2] == 0) {
+    if(rx[0] == '.') {
+      return (char *)"." STD_NOCHAR_STRING;
+    }
+    if(rx[0] == ',') {
+      return (char *)"," STD_NOCHAR_STRING;
+    }
+  }
+  return rx;
+}
+
+char getRadix34MarkChar(void) {  //map comma and wide comma to comma, and dot and period and wdot and wperiod to period
+  const char *radix = gapChar1Radix;
+  return (radix[0] == ',' || (radix[0] == STD_WCOMMA[0] && radix[1] == STD_WCOMMA[1]) ? ',' : '.');
+}
+
+
 //this procedure is meant to be integrated into the integer parts of Real, Integer, sup & sub text.
 //TODO. It needs careful consideration and will save some bytes
 
 static void insertSepsIntoIntegerText(char *displayString){
   //IPGRP IPGRP1 IPGRP1x handling
   if(!GROUPLEFT_DISABLED && GROUPWIDTH_LEFT1 > 0) {
+    const char *sepLeft = SEPARATOR_LEFT;
     //Handle IPGRP1, bearing in mind with a negative number, the digits start one deeper
     int16_t len = strlen(displayString);
     //printf("len %u %u %u %u\n",len, displayString[0], displayString[1], displayString[2]);
@@ -2663,29 +2725,29 @@ static void insertSepsIntoIntegerText(char *displayString){
     Grp1 = len >= (checkHP ? 10 : 20) ? GROUPWIDTH_LEFT : Grp1;
     int16_t i = len - Grp1;
     if(i > 0 && (i != 1 || displayString[0] != '-')) {
-      if(SEPARATOR_LEFT[1]!=1) {
+      if(sepLeft[1]!=STD_NOCHAR) {
         xcopy(displayString + i + 2, displayString + i, len - i + 1);
-        displayString[i] = SEPARATOR_LEFT[0];
-        displayString[i + 1] = SEPARATOR_LEFT[1];
+        displayString[i] = sepLeft[0];
+        displayString[i + 1] = sepLeft[1];
       }
-      else if(SEPARATOR_LEFT[0] != 1) {
+      else if(sepLeft[0] != STD_NOCHAR) {
         xcopy(displayString + i + 1, displayString + i, len - i + 1);
-        displayString[i] = SEPARATOR_LEFT[0];
+        displayString[i] = sepLeft[0];
       }
 
       //Handle repeating IPGRP
       len = strlen(displayString);
-      for(i=len - GROUPWIDTH_LEFT - (Grp1 + (SEPARATOR_LEFT[1] == 1 ? 1 : 2)); i>0; i-=GROUPWIDTH_LEFT) {
+      for(i=len - GROUPWIDTH_LEFT - (Grp1 + (sepLeft[1] == STD_NOCHAR ? 1 : 2)); i>0; i-=GROUPWIDTH_LEFT) {
         if(i != 1 || displayString[0] != '-') {
-          if(SEPARATOR_LEFT[1] != 1) {
+          if(sepLeft[1] != STD_NOCHAR) {
             xcopy(displayString + i + 2, displayString + i, len - i + 1);
-            displayString[i] = SEPARATOR_LEFT[0];
-            displayString[i + 1] = SEPARATOR_LEFT[1];
+            displayString[i] = sepLeft[0];
+            displayString[i + 1] = sepLeft[1];
             len += 2;
           }
-          else if(SEPARATOR_LEFT[0] != 1) {
+          else if(sepLeft[0] != STD_NOCHAR) {
             xcopy(displayString + i + 1, displayString + i, len - i + 1);
-            displayString[i] = SEPARATOR_LEFT[0];
+            displayString[i] = sepLeft[0];
             len += 1;
           }
         }
@@ -2707,8 +2769,9 @@ void longIntegerToDisplayString(longInteger_t lgInt, char *displayString, int32_
   }
 
   exponentShift = (longIntegerBits(lgInt) - 1) * 0.3010299956639811952137;
-  exponentStep = (GROUPWIDTH_LEFT  == 0 || (SEPARATOR_LEFT[0]==1 && SEPARATOR_LEFT[1]==1) ? 1 : GROUPWIDTH_LEFT);   //TOCHECK
-  exponentStep1= (                         (SEPARATOR_LEFT[0]==1 && SEPARATOR_LEFT[1]==1) ? 1 : GROUPWIDTH_LEFT1);  //TOCHECK
+  const char *sepLeft = SEPARATOR_LEFT;
+  exponentStep = (GROUPWIDTH_LEFT  == 0 || (sepLeft[0]==STD_NOCHAR && sepLeft[1]==STD_NOCHAR) ? 1 : GROUPWIDTH_LEFT);   //TOCHECK
+  exponentStep1= (                         (sepLeft[0]==STD_NOCHAR && sepLeft[1]==STD_NOCHAR) ? 1 : GROUPWIDTH_LEFT1);  //TOCHECK
 
   exponentShift = (exponentShift / exponentStep  + 1) * exponentStep;
   exponentShiftLimit = ((maxExp-exponentStep1) / exponentStep + 1) * exponentStep;
@@ -2754,7 +2817,7 @@ void longIntegerToDisplayString(longInteger_t lgInt, char *displayString, int32_
     char exponentString[24];                    // ×, ₁₀, the sign, five digits and a gap at 2 bytes each, and the terminator: any int16_t exponent
     int16_t lastChar, stringStep, tenExponent, lastIndex = strlen(displayString) - 1;
 
-    stringStep = (GROUPLEFT_DISABLED ? 1 : GROUPWIDTH_LEFT + (SEPARATOR_LEFT[1] == 1 ? 1 : 2));
+    stringStep = (GROUPLEFT_DISABLED ? 1 : GROUPWIDTH_LEFT + (sepLeft[1] == STD_NOCHAR ? 1 : 2));
     tenExponent = exponentStep + exponentShift;
     lastChar = strlen(displayString) - stringStep;
     char cutChar = displayString[lastChar];
@@ -2796,17 +2859,17 @@ void longIntegerToDisplayString(longInteger_t lgInt, char *displayString, int32_
           lastChar = (displayString[0] == '-' ? 1 : 0);
           xcopy(displayString + lastChar + 1, displayString + lastChar, strlen(displayString) + 1);
           displayString[lastChar] = '1';
-          if(SEPARATOR_LEFT[1] != 1) {
-            if(!GROUPLEFT_DISABLED && displayString[lastChar + GROUPWIDTH_LEFT + 2] == SEPARATOR_LEFT[1]) { // We need to insert a new goup SEPARATOR_LEFT
+          if(sepLeft[1] != STD_NOCHAR) {
+            if(!GROUPLEFT_DISABLED && displayString[lastChar + GROUPWIDTH_LEFT + 2] == sepLeft[1]) { // We need to insert a new goup SEPARATOR_LEFT
               xcopy(displayString + lastChar + 3, displayString + lastChar + 1, strlen(displayString));
-              displayString[lastChar + 1] = SEPARATOR_LEFT[0];
-              displayString[lastChar + 2] = SEPARATOR_LEFT[1];
+              displayString[lastChar + 1] = sepLeft[0];
+              displayString[lastChar + 2] = sepLeft[1];
             }
           }
-          else if(SEPARATOR_LEFT[0] !=1 ){
-            if(!GROUPLEFT_DISABLED && displayString[lastChar + GROUPWIDTH_LEFT + 1] == SEPARATOR_LEFT[0]) { // We need to insert a new goup SEPARATOR_LEFT
+          else if(sepLeft[0] !=STD_NOCHAR ){
+            if(!GROUPLEFT_DISABLED && displayString[lastChar + GROUPWIDTH_LEFT + 1] == sepLeft[0]) { // We need to insert a new goup SEPARATOR_LEFT
               xcopy(displayString + lastChar + 2, displayString + lastChar + 1, strlen(displayString));
-              displayString[lastChar + 1] = SEPARATOR_LEFT[0];
+              displayString[lastChar + 1] = sepLeft[0];
             }
           }
 

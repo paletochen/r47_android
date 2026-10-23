@@ -548,6 +548,69 @@ TO_QSPI const calcKey_t kbd_std_R47fg_g[37] = {
 
 
 
+#if !defined(PC_BUILD)
+  const calcKey_t *getKbdStd(void) {  // the hardware selector of kbd_std
+    #if CALCMODEL == USER_R47
+      switch(calcModel) {
+        case USER_R47bk_fg: {
+          return kbd_std_R47bk_fg;
+        }
+        case USER_R47fg_bk: {
+          return kbd_std_R47fg_bk;
+        }
+        case USER_R47fg_g: {
+          return kbd_std_R47fg_g;
+        }
+        default: {
+          return kbd_std_R47f_g;
+        }
+      }
+    #else // CALCMODEL != USER_R47
+      return (calcModel == USER_DM42 ? kbd_std_DM42 : kbd_std_C47);
+    #endif // CALCMODEL == USER_R47
+  }
+#endif // !PC_BUILD
+
+
+
+int16_t getNormKey00Key(void) {
+  switch(calcModel) {
+    case USER_C47:
+    case USER_DM42: {
+      return 0;
+    }
+    case USER_R47bk_fg: {
+      return 10;
+    }
+    case USER_R47fg_bk: {
+      return 11;
+    }
+    default: {
+      return -1;
+    }
+  }
+}
+
+
+
+int16_t getNormKey00ItemInLayout(void) {
+  switch(calcModel) {
+    case USER_C47:
+    case USER_DM42: {
+      return ITM_SIGMAPLUS;
+    }
+    case USER_R47bk_fg:
+    case USER_R47fg_bk: {
+      return ITM_NULL;
+    }
+    default: {
+      return -1;
+    }
+  }
+}
+
+
+
 void fnAssign(uint16_t mode) {
   if(mode) {
     createMenu(aimBuffer);

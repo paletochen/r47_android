@@ -794,9 +794,9 @@
 #define REAL34_WIDTH_TEST 0 // For debugging real34 ALL 0 formating. Use UP/DOWN to shrink or enlarge the available space. The Z register holds the available width.
 
 //Norm_Key_00_VAR, using -1 output for not applicable, purposely out of range
-#define Norm_Key_00_key   (calcModel == USER_C47 ? 0 :             calcModel == USER_DM42 ? 0 :             calcModel == USER_R47f_g ? -1 : calcModel == USER_R47bk_fg ? 10 :       calcModel == USER_R47fg_bk ? 11 : -1)
+#define Norm_Key_00_key   (getNormKey00Key())
 #define Norm_Key_00_keyID (calcModel == USER_C47 ? 21 :            calcModel == USER_DM42 ? 21 :            calcModel == USER_R47f_g ? -1 : calcModel == USER_R47bk_fg ? 35 :       calcModel == USER_R47fg_bk ? 36 : -1)
-#define Norm_Key_00_item_in_layout  (calcModel == USER_C47 ? ITM_SIGMAPLUS : calcModel == USER_DM42 ? ITM_SIGMAPLUS : calcModel == USER_R47f_g ? -1 : calcModel == USER_R47bk_fg ? ITM_NULL : calcModel == USER_R47fg_bk ? ITM_NULL : -1)
+#define Norm_Key_00_item_in_layout  (getNormKey00ItemInLayout())
 #define isR47FAM          ((bool_t)(calcModel == USER_R47f_g || calcModel == USER_R47bk_fg || calcModel == USER_R47fg_bk || calcModel == USER_R47fg_g))
 
 #define shortcutProfile   (calcModel == USER_C47 ? USER_C47 : isR47FAM ? USER_R47 : 0)
@@ -1803,6 +1803,11 @@ static inline uint8_t regCtoKS(const int16_t regC) {
 #define DF_YMD                                     1
 #define DF_MDY                                     2
 
+// DMCP date format
+#define SYS_MDY                                    0
+#define SYS_DMY                                    1
+#define SYS_YMD                                    2
+
 // Curve fitting 10 bits
 #define CF_LINEAR_FITTING                          1
 #define CF_EXPONENTIAL_FITTING                     2
@@ -2464,7 +2469,7 @@ static inline uint8_t regCtoKS(const int16_t regC) {
 
 #define PROBMENU                             showingProbMenu()
 
-#define BASEMODEACTIVE                       (!PROBMENU && (lastIntegerBase != 0 || softmenu[softmenuStack[0].softmenuId].menuItem == -MNU_BASE || dispBase > 0))
+#define BASEMODEACTIVE                       (baseModeActive())
 
 #define XXFNMODEACTIVE                       (!SHOWMODE && !GRAPHMODE && softmenu[softmenuStack[0].softmenuId].menuItem == -MNU_XXFCNS && calcMode != CM_NIM &&\
                                              ( (getRegisterDataType(REGISTER_X) == dtReal34 || getRegisterDataType(REGISTER_X) == dtLongInteger) ||\
@@ -2481,19 +2486,14 @@ static inline uint8_t regCtoKS(const int16_t regC) {
                                                 (calcMode == CM_NORMAL && getRegisterDataType(REGISTER_X) == dtLongInteger)) \
                                               )
 #define inputAngleMode3r(r)                  ((registerIsNoAngle(r+1) && registerIsNoAngle(r+2)) ? (!registerIsNoAngle(r) ? getRegisterAngularMode(r) : amNone) : amNone)
-#define registerIsNoAngle(r)                 ((getRegisterDataType(r  ) == dtReal34 && getRegisterAngularMode(r) == amNone) || getRegisterDataType(r) == dtLongInteger)
 #define registerIsAngle(r)                   ( getRegisterDataType(r  ) == dtReal34 && !registerIsNoAngle(r))
 #define inputIsNoAngle3r(r)                  ( registerIsNoAngle(r  )   || !registerIsNoAngle(r+1)  || !registerIsNoAngle(r+2))
 #define inputAngleError3r(r)                 (!registerIsNoAngle(r+1)   || !registerIsNoAngle(r+2))
-#define isXFNregisterValid3r(r)              ((getRegisterDataType(r  ) == dtReal34 || getRegisterDataType(r  ) == dtLongInteger) &&\
-                                              (getRegisterDataType(r+1) == dtReal34 || getRegisterDataType(r+1) == dtLongInteger) &&\
-                                              (getRegisterDataType(r+2) == dtReal34 || getRegisterDataType(r+2) == dtLongInteger) &&\
-                                              !inputAngleError3r(r))
 #define isXFNShowing(r)                      (menu(0) == -MNU_SHOW && menu(1) == -MNU_XXFCNS && isXFNregisterValid3r(r))
 
 
 
-#define SHOWMODE                             (calcMode == CM_NORMAL && (temporaryInformation == TI_SHOW_REGISTER || temporaryInformation == TI_SHOW_REGISTER_BIG || temporaryInformation == TI_SHOW_REGISTER_SMALL || temporaryInformation == TI_SHOW_REGISTER_TINY || temporaryInformation == TI_SHOWNOTHING))
+#define SHOWMODE                             (showModeActive())
 #define GRAPHMODE                            (calcMode == CM_PLOT_STAT || calcMode == CM_GRAPH)
 
 #define SNAP_REGISTERS_OK                    (currentMenu() != -MNU_SHOW && calcMode == CM_NORMAL && !tam.mode)  // X register capture
@@ -2503,7 +2503,7 @@ static inline uint8_t regCtoKS(const int16_t regC) {
 #define COMPLEX_UNIT                         (getSystemFlag(FLAG_CPXj)   ? STD_op_j  : STD_op_i)  //Do not change back to single byte character - code must also change accordingly
 #define PRODUCT_SIGN                         (getSystemFlag(FLAG_MULTx)  ? STD_CROSS : STD_DOT)
 
-#define RADIX34_MARK_CHAR                    (gapChar1Radix[0] == ',' || (gapChar1Radix[0] == STD_WCOMMA[0] && gapChar1Radix[1] == STD_WCOMMA[1]) ? ',' : '.') //map comma and wide comma to comma, and dot and period and wdot and wperiod to period
+#define RADIX34_MARK_CHAR                    (getRadix34MarkChar())
 #define RADIX34_MARK_STRING                  (gapChar1Radix)
 #define RADIX34_MARK_SUPSTRING               (gapChar1Radix[0] == ',' || (gapChar1Radix[0] == STD_WCOMMA[0] && gapChar1Radix[1] == STD_WCOMMA[1]) ? STD_SUP_COMMA : STD_SUP_DOT) //map to 2 SUP characters
 #define RADIX34_MARK_DEC_ITM                 (RADIX34_MARK_CHAR == '.' ? ITM_PERIOD : ITM_COMMA)
@@ -2511,22 +2511,12 @@ static inline uint8_t regCtoKS(const int16_t regC) {
 
 #define groupingGap                          ((uint8_t)(grpGroupingLeft)) //ADD HERE THE CONDITIONS FOR NIL SEPS
 
-#define Lt                                   (gapItemLeft  == 0 ? (char*) "\1\1\0" : (char*)indexOfItems[gapItemLeft ].itemSoftmenuName) // Actual separator character
-#define Rt                                   (gapItemRight == 0 ? (char*) "\1\1\0" : (char*)indexOfItems[gapItemRight].itemSoftmenuName) // Actual separator character
+#define Lt                                   (gapItemLeft  == 0 ? (char*) STD_NOCHAR_NOCHAR : (char*)indexOfItems[gapItemLeft ].itemSoftmenuName) // Actual separator character
+#define Rt                                   (gapItemRight == 0 ? (char*) STD_NOCHAR_NOCHAR : (char*)indexOfItems[gapItemRight].itemSoftmenuName) // Actual separator character
 #define Rx                                   ((char*)indexOfItems[gapItemRadix].itemSoftmenuName) // Actual separator character
-#define gapChar1Left                         (Lt[0] != 0 && Lt[1] == 0 && Lt[2] == 0 ? \
-                                                ( Lt[0] == ','  ? (char*) ",\1\0"  :   \
-                                                  Lt[0] == '.'  ? (char*) ".\1\0"  :   \
-                                                  Lt[0] == '\'' ? (char*) "\'\1\0" :   \
-                                                  Lt[0] == '_'  ? (char*) "_\1\0"  : Lt ) : Lt )  //set second character to skip character 0x01
-#define gapChar1Right                        (Rt[0] != 0 && (Rt[1] == 0 || (Rt[1] != 0 && Rt[2] == 0)) ? \
-                                                ( Rt[0] == ','  ? (char*) ",\1\0"  :   \
-                                                  Rt[0] == '.'  ? (char*) ".\1\0"  :   \
-                                                  Rt[0] == '\'' ? (char*) "\'\1\0" :   \
-                                                  Rt[0] == '_'  ? (char*) "_\1\0"  : Rt ) : Rt )  //set second character to skip character 0x01
-#define gapChar1Radix                        (Rx[0] != 0 && (Rx[1] == 0 || (Rx[1] != 0 && Rx[2] == 0)) ? \
-                                                ( Rx[0] == ','  ? (char*) ",\1\0"  :   \
-                                                  Rx[0] == '.'  ? (char*) ".\1\0"  : Rx ) : Rx )  //set second character to skip character 0x01
+#define gapChar1Left                         (getGapChar1Left())
+#define gapChar1Right                        (getGapChar1Right())
+#define gapChar1Radix                        (getGapChar1Radix())
 
 #define GROUPLEFT_DISABLED                   (GROUPWIDTH_LEFT == 0 || gapItemLeft == 0)
 #define GROUPRIGHT_DISABLED                  (GROUPWIDTH_RIGHT == 0 || gapItemRight == 0)
@@ -2534,7 +2524,7 @@ static inline uint8_t regCtoKS(const int16_t regC) {
 #define SEPARATOR_RIGHT                      (gapChar1Right)
 
 #define gapItemFrac                          (gapItemLeft == 0 ? 0 : ITM_SPACE_4_PER_EM)          // Fractions only get to have narrow space or nothing
-#define SEPARATOR_FRAC                       (gapItemFrac  == 0 ? (char*) "\1\1\0" : (char*)indexOfItems[gapItemFrac].itemSoftmenuName) // Actual separator character
+#define SEPARATOR_FRAC                       (gapItemFrac  == 0 ? (char*) STD_NOCHAR_NOCHAR : (char*)indexOfItems[gapItemFrac].itemSoftmenuName) // Actual separator character
 
 #define checkHP                              (checkHPMode())
 #define REPLACEFONT                          // Use HP 7-segment font

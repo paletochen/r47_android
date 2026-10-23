@@ -32,14 +32,8 @@
   #define REGISTER_STRING_HEADER(a)                              ((strLgIntHeader_t     *)(getRegisterDataPointer(a)))
   #define REGISTER_STRING_DATA(a)                                ((char                 *)(getRegisterDataPointer(a) + sizeof(strLgIntHeader_t)))
   // Safe copy of a register string: skips the copy if the register pointer is NULL. Used only where register string is both the source and length argument, which is the pattern GCC's flags on the Windows build
-  #define COPY_REGISTER_STRING_TO(dest, regist)                                  \
-    do {                                                                         \
-      void *regData_ = getRegisterDataPointer(regist);                           \
-      if(regData_ != NULL) {                                                     \
-        char *regStr_ = (char *)regData_ + sizeof(strLgIntHeader_t);             \
-        xcopy((dest), regStr_, stringByteLength(regStr_) + 1);                   \
-      }                                                                          \
-    } while(0)
+  void           copyRegisterStringTo            (char *dest, calcRegister_t regist);
+  #define COPY_REGISTER_STRING_TO(dest, regist)                  copyRegisterStringTo(dest, regist)
 
   #define REGISTER_CONFIG_DATA(a)                                ((dtConfigDescriptor_t *)(getRegisterDataPointer(a)))
 
@@ -303,27 +297,66 @@
   #define setComplexRegisterPolarMode(reg, pm)   setRegisterTag(reg, (((pm & amPolar) != 0) ? (getRegisterTag(reg) & amAngleMask) : amNone) | (pm & amPolar))   // if polar bit clear, force angle to amNone; if set, preserve angle bits
   #define isXYRegisterMatrix                      ((getRegisterDataType(REGISTER_X) == dtReal34Matrix) || (getRegisterDataType(REGISTER_X) == dtComplex34Matrix) || (getRegisterDataType(REGISTER_Y) == dtReal34Matrix) || (getRegisterDataType(REGISTER_Y) == dtComplex34Matrix) )
 
+  /**
+   * Returns whether a register is a long integer, or a real without an angular mode.
+   *
+   * \param[in] regist Register number
+   * \return true for a value without an angle
+   */
+  bool_t         registerIsNoAngle               (calcRegister_t regist);
+
+  /**
+   * Returns whether three registers from regist on are reals or long integers, the two above regist without an angular mode.
+   *
+   * \param[in] regist Number of the lowest of the three registers
+   * \return true when the three registers are valid XFN operands
+   */
+  bool_t         isXFNregisterValid3r            (calcRegister_t regist);
 
   #define amPolarCYL 64  //  virtual bit, working in addition to the tag bit 4 = amPolar = 16; bit 5 usid by 32-bit pointer changes; real bits 6 & 7 spare. Real bits not used, in favour of these virtual logic bits,  as the register header also only has bits 0-4.
   #define amPolarSPH 128 //  virtual bit, see typeDefinitions.h, amPolar
-  #define isRegisterMatrix3dVector(reg)          ((getRegisterDataType(reg) == dtReal34Matrix) && isMatrix3dVector(REGISTER_MATRIX_HEADER(reg)->matrixRows, REGISTER_MATRIX_HEADER(reg)->matrixColumns))
-  #define isRegisterMatrix2dVector(reg)          ((getRegisterDataType(reg) == dtReal34Matrix) && isMatrix2dVector(REGISTER_MATRIX_HEADER(reg)->matrixRows, REGISTER_MATRIX_HEADER(reg)->matrixColumns))
-  #define isRegisterMatrixVector(reg)            (isRegisterMatrix3dVector(reg) || isRegisterMatrix2dVector(reg))
+
+  /**
+   * Returns whether a register is a real matrix of 1 by 3 or 3 by 1.
+   *
+   * \param[in] regist Register number
+   * \return true for a 3D vector
+   */
+  bool_t         isRegisterMatrix3dVector        (calcRegister_t regist);
+
+  /**
+   * Returns whether a register is a real matrix of 1 by 2 or 2 by 1.
+   *
+   * \param[in] regist Register number
+   * \return true for a 2D vector
+   */
+  bool_t         isRegisterMatrix2dVector        (calcRegister_t regist);
+
+  /**
+   * Returns whether a register is a 2D or 3D vector.
+   *
+   * \param[in] regist Register number
+   * \return true for a 2D or 3D vector
+   */
+  bool_t         isRegisterMatrixVector          (calcRegister_t regist);
   #define getVectorRegisterAngularMode(reg)      ((getRegisterDataType(reg) == dtReal34Matrix) ? (getTagAngularMode(getRegisterTag(reg)) & amAngleMask) : amNone) //maybe conditional on 2D 3D????
   #define setVectorRegisterAngularMode(reg, am)  (setRegisterTag(reg, (am & amAngleMask) | (getRegisterTag(reg) & amPolar)))                                      //note maybe conditional on Mx???
-  #define getVectorRegisterPolarMode(reg)        ( ((getRegisterDataType(reg) == dtReal34Matrix) && ((getRegisterTag(reg) & amAngleMask) != amNone)) \
-                                                     ? (isRegisterMatrix3dVector(reg)) \
-                                                        ? /*3D*/ ((((getRegisterTag(reg) & amPolar) == amPolar)) ? amPolarSPH : amPolarCYL)\
-                                                        : (isRegisterMatrix2dVector(reg)) \
-                                                           ? /*2D*/ (getRegisterTag(reg) & amPolar) \
-                                                           : 0 \
-                                                     : 0 )
-  #define setVectorRegisterPolarMode(reg, pm)   setRegisterTag(reg, ((pm == 0) ? ((getRegisterTag(reg) & ~(amAngleMask | amPolar)) + amNone) : \
-                                                                      ((getRegisterTag(reg) & (amAngleMask | amPolar)) | ((pm == amPolarSPH || pm == amPolar) ? amPolar : 0)) \
-                                                                      & ((pm == amPolarCYL) ? ((~amPolar) & (amAngleMask | amPolar)) : 255) \
-                                                                        ))           /*if Polar is cleared, also clear angle */
-                                                                                     /*existing status, with polar bit ORred for 2DPolar or SPH*/
-                                                                                     /*   ANDed to force Polar 0 for CYL */
+
+  /**
+   * Returns the polar mode of a vector register.
+   *
+   * \param[in] regist Register number
+   * \return amPolarSPH or amPolarCYL for a 3D vector, amPolar or 0 for a 2D vector, 0 for a vector without an angular mode or any other register
+   */
+  uint32_t       getVectorRegisterPolarMode      (calcRegister_t regist);
+
+  /**
+   * Sets the polar mode of a vector register.
+   *
+   * \param[in] regist    Register number
+   * \param[in] polarMode 0, amPolar, amPolarSPH or amPolarCYL
+   */
+  void           setVectorRegisterPolarMode      (calcRegister_t regist, uint32_t polarMode);
 
   /********************************************//**
    * \brief Save register X to register X

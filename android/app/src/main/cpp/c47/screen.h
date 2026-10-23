@@ -15,6 +15,8 @@
 
   void     setLastintegerBasetoZero           (void);
   bool_t   checkHPMode                        (void);
+  bool_t   showModeActive                     (void);
+  bool_t   baseModeActive                     (void);
   extern bool_t   doRefreshSoftMenu;                                                                              //dr
   void     _executeItem(int16_t item, int keyCode);
   void     FN_handler();                                                                                          //JM LONGPRESS

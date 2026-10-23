@@ -110,6 +110,7 @@ void configCommon(uint16_t idx) {
   forceSystemFlag(FLAG_DMY, configSettings[idx].dmy);
   forceSystemFlag(FLAG_MDY, configSettings[idx].mdy);
   forceSystemFlag(FLAG_YMD, configSettings[idx].ymd);
+  timeSetSystemDateFormat();
   firstGregorianDay = configSettings[idx].gregorianDay;
   fnSetWeekOfYearRule(configSettings[idx].woy);
   temporaryInformation = TI_DISP_JULIAN_WOY;
@@ -2387,6 +2388,40 @@ void runDMCPmenu(uint16_t confirmation) {
 //        fnOff(NOPARAM);
 //      #endif // PC_BUILD
       run_menu_item_sys(MI_DMCP_MENU);
+      
+      // Sync TDM24 flag with DMCP clk24
+      if (is_flag_clk24()) {
+          setSystemFlag(FLAG_TDM24);
+      } else {
+        clearSystemFlag(FLAG_TDM24); 
+      }
+    
+      // Sync DMY/YMD/MDY flag with DMCP dmy
+      clearSystemFlag(FLAG_DMY);
+      clearSystemFlag(FLAG_MDY);
+      clearSystemFlag(FLAG_YMD);
+    
+      int dmcp_dmy = get_flag_dmy();
+    
+      switch(dmcp_dmy) {
+        case SYS_MDY: {
+          setSystemFlag(FLAG_MDY);
+          break;
+        }
+        case SYS_DMY: {
+          setSystemFlag(FLAG_DMY);
+          break;
+        }
+        case SYS_YMD: {
+          setSystemFlag(FLAG_YMD);
+          break;
+        }
+        default: {
+          setSystemFlag(FLAG_YMD);
+          break;
+        }
+      }
+
       clearScreen(200);
       screenUpdatingMode = SCRUPD_AUTO;
     }

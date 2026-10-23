@@ -2380,22 +2380,54 @@ void shrinkNimBuffer(void) {                      //JMNIM vv
 }                                                 //JMNIM ^^
 
 
+static void _updateStackShortIntegers(uint16_t BASE) {
+  if(getSystemFlag(FLAG_HPBASE)) {
+    for(uint16_t regist = REGISTER_X + 1; regist < REGISTER_X + (getSystemFlag(FLAG_SSIZE8) ? 8 : 4); regist ++ ) {
+      if(getRegisterDataType(regist) == dtShortInteger) {
+        if(2 <= BASE && BASE <= 16) {
+          setRegisterTag(regist, BASE);
+        }
+        fnRefreshState();
+      }
+    }
+  }
+}
+
+
+void fnChangeBaseMode(uint16_t BASE) {
+    real_t rval;
+    bool_t regReal = getRegisterAsRealQuiet(REGISTER_X, &rval);
+    shrinkNimBuffer();
+    switch(getRegisterDataType(REGISTER_X)) {
+      case dtShortInteger:
+      case dtLongInteger:
+        fnChangeBase(BASE);
+        break;
+      case dtReal34:
+      case dtComplex34:
+        if(!regReal) {
+          lastIntegerBase = BASE;
+          fnRefreshState();
+        }
+        else {
+          fnChangeBase(BASE);
+        }
+        break;
+      default:
+        lastIntegerBase = BASE;
+        fnRefreshState();
+        break;
+    }
+    _updateStackShortIntegers(BASE);
+    nimBufferToDisplayBuffer(aimBuffer, nimBufferDisplay + 2);
+}
+
+
 void fnChangeBaseJM(uint16_t BASE) {
     //printf(">>> §§§ fnChangeBaseJMa Calmode:%d, nimbuffer:%s, lastbase:%d, nimnumberpart:%d\n", calcMode, nimBuffer, lastIntegerBase, nimNumberPart);
     shrinkNimBuffer();
     fnChangeBase(BASE);
-
-    if(getSystemFlag(FLAG_HPBASE)) {
-      for(uint16_t regist = REGISTER_X + 1; regist < REGISTER_X + (getSystemFlag(FLAG_SSIZE8) ? 8 : 4); regist ++ ) {
-        if(getRegisterDataType(regist) == dtShortInteger) {
-          if(2 <= BASE && BASE <= 16) {
-            setRegisterTag(regist, BASE);
-          }
-          fnRefreshState();
-        }
-      }
-    }
-
+    _updateStackShortIntegers(BASE);
     nimBufferToDisplayBuffer(aimBuffer, nimBufferDisplay + 2);
 }
 

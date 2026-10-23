@@ -7,6 +7,12 @@
 #if !defined(ASSIGN_H)
   #define ASSIGN_H
 
+  #if !defined(PC_BUILD)
+    const calcKey_t *getKbdStd    (void);
+  #endif // !PC_BUILD
+  int16_t getNormKey00Key         (void);
+  int16_t getNormKey00ItemInLayout(void);
+
   void fnAssign                   (uint16_t mode);
 
   void fnDeleteMenu               (uint16_t id);
