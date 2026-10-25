@@ -653,6 +653,23 @@ def _rtc_read_sec(emu):
 
 
 # ----------------------------------
+# Settings in the system data block
+# ----------------------------------
+# DMCP's date format, 24 hour clock and beep mute are reached through function pointers in sys_sdb_t, not through the table. pgemu.py points each one at a trampoline
+# answered here under the member's name. A read returns the value the last write gave, and 0 where no write has come yet.
+
+def _setting(key):
+  def read(emu):
+    return emu.sdb_settings.get(key, 0)
+  def write(emu):
+    emu.sdb_settings[key] = emu.arg(0)
+  return read, write
+
+for _read, _write, _key in (('get_flag_dmy', 'set_flag_dmy', 'dmy'), ('is_flag_clk24', 'set_flag_clk24', 'clk24'), ('is_beep_mute', 'set_beep_mute', 'beep_mute')):
+  HANDLERS[_read], HANDLERS[_write] = _setting(_key)
+
+
+# ----------------------------------
 # File system
 # ----------------------------------
 # Answered against a directory on the host by hostfs.py. The FIL the firmware names is a plain address, so a file opened on the frame works the same as the ppgm_fp

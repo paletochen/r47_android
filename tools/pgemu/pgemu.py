@@ -68,6 +68,10 @@ RETURN_SENTINEL = 0x0FF00000                                  # left unmapped, s
 # The members of sys_sdb_t the emulator fills or takes from, laid out by Target.sdb_layout from the struct in the SDK's own dmcp.h, so a member added to it moves them.
 SDB_MEMBERS = ('calc_state', 'ppgm_fp', 'pds_t20', 'pds_t24', 'pds_fReg', 'timer2_counter', 'timer3_counter')
 
+# The members of sys_sdb_t that are DMCP's settings functions. The firmware calls them through the block, so an unfilled one is a call to address zero. Each one that the
+# SDK declares gets a trampoline that hostfn.py answers under the member's name.
+SDB_SETTINGS = ('get_flag_dmy', 'set_flag_dmy', 'is_flag_clk24', 'set_flag_clk24', 'is_beep_mute', 'set_beep_mute')
+
 # The stack reading. A span below the entry frame is written with this value and the deepest word that no longer contains it is how far the run went, which is the same
 # method as the firmware's own STACK_WATERMARK in src/c47/memory.c and needs neither an instrumented build nor a calculator. The value is deliberately not that one's:
 # where a build has the firmware's marking too, the two write over one stretch, and sharing a value would let each take the other's marking for ground nobody had touched.
@@ -165,6 +169,7 @@ class Emulator:
     self.started = time.monotonic()
     self.stop_reason = None
     self.sdb_installed = False
+    self.sdb_settings = {}                                    # the date format, 24 hour clock and beep mute the firmware set through the system data block
     self.stubs = None
     self.hostcalls = {}
     self.returned = False
@@ -679,6 +684,12 @@ class Emulator:
       self.sdb['timer2_counter']: self._scratch(4),
       self.sdb['timer3_counter']: self._scratch(4),
     }
+    for name in SDB_SETTINGS:
+      if name in self.sdb:
+        trampoline = self._scratch(4)
+        self.uc.mem_write(trampoline, b'\x00\xdf\x70\x47')   # svc, then bx lr
+        self.hostcalls[trampoline] = name
+        provided[self.sdb[name]] = trampoline | 1
     for offset, addr in provided.items():
       self.uc.mem_write(self.target.sdb_addr + offset, struct.pack('<I', addr))
     for name, offset in (('t20', self.sdb['pds_t20']), ('t24', self.sdb['pds_t24'])):

@@ -9465,11 +9465,11 @@ static bool columnMinMaxReal(real34Matrix_t *matrix, bool calcMax) {
     realToReal34(calcMax ? const_minusInfinity : const_plusInfinity, &res_val);
     if(i >= 0 && j >= 0 && i < matrix->header.matrixRows && j < matrix->header.matrixColumns) {
       for(r = 0; r < matrix->header.matrixRows; ++r) {
-        if((!calcMax) && real34CompareLessThan(&matrix->matrixElements[r * matrix->header.matrixColumns + j], &res_val)) {
+        if((!calcMax) && real34CompareLessEqual(&matrix->matrixElements[r * matrix->header.matrixColumns + j], &res_val)) {
           real34Copy(&matrix->matrixElements[r * matrix->header.matrixColumns + j], &res_val);
           res_r = r;
         }
-        else if(calcMax && real34CompareGreaterThan(&matrix->matrixElements[r * matrix->header.matrixColumns + j], &res_val)) {
+        else if(calcMax && real34CompareGreaterEqual(&matrix->matrixElements[r * matrix->header.matrixColumns + j], &res_val)) {
           real34Copy(&matrix->matrixElements[r * matrix->header.matrixColumns + j], &res_val);
           res_r = r;
         }

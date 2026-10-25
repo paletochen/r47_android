@@ -449,7 +449,9 @@ its drawing entries.
   interface  the image was built for platform interface 3.17 and dep/DMCP5_SDK/dmcp/dmcp.h is 3.16, so the library table the emulator puts down may not be the one the image calls
   ```
 - **The system data block** is laid out from `sys_sdb_t` in the same header. A member that is neither a pointer nor a 32 bit integer is refused by name, and a member
-  pgemu needs that has gone stops the start.
+  pgemu needs that has gone stops the start. The settings functions in it, the date format, the 24 hour clock and the beep mute, are answered on the host: a read
+  returns what the firmware last wrote, and 0 before any write. A function pointer the block declares and pgemu leaves empty is a call to address zero, reported as an
+  svc outside the library table.
 - **The memory map** in `target.py` was read by hand out of one platform image per target, DMCP5 3.57 and DMCP 3.29. A DMCP that moves the stack or resizes the arena
   runs as before, but the stack and heap figures then describe the old machine.
 - **The allocator** is started by the call the platform image makes to create its heap, where it makes one, and by a trial allocation. An allocator pgemu does not
