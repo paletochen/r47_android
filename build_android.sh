@@ -142,8 +142,10 @@ sed -i 's|gtk_widget_queue_draw(screen);|// stub|g' "$CPP_DIR/c47/softmenus.c"
 sed -i 's|while(gtk_events_pending())|if(0)|g' "$CPP_DIR/c47/softmenus.c"
 sed -i 's/^[[:space:]]*static void changeSoftKey(/void changeSoftKey(/' "$CPP_DIR/c47/softmenus.c"
 
-# 6. Make restoreRegister non-static for JNI pasteTextNative
+# 6. Make restoreRegister non-static, enable fnSaveAuto, and route fnDeleteBackup via ioFileRemove on Android
 sed -i 's/^[[:space:]]*static void restoreRegister(/  void restoreRegister(/' "$CPP_DIR/c47/saveRestoreCalcState.c"
+sed -i '/void fnSaveAuto(/,/^  }/ s/#if defined(DMCP_BUILD)/#if defined(DMCP_BUILD) || defined(ANDROID_BUILD)/' "$CPP_DIR/c47/saveRestoreCalcState.c"
+sed -i '/^void fnDeleteBackup(/,/^}/ s/#else \/\/ !DMCP_BUILD/#elif defined(ANDROID_BUILD)\n      extern int ioFileRemove(ioFilePath_t path, uint32_t *errorNumber);\n      uint32_t err;\n      ioFileRemove(ioPathManualSave, \&err);\n      ioFileRemove(ioPathAutoSave, \&err);\n    #else \/\/ !DMCP_BUILD/' "$CPP_DIR/c47/saveRestoreCalcState.c"
 
 # 7. Hook printPrettyLine in Android printLine
 sed -i '/void printLine(const char \*buff, int with_lf) {/a \

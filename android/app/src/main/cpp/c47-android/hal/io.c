@@ -190,6 +190,7 @@ int ioFileOpen(ioFilePath_t path, ioFileMode_t mode) {
                     const char *autoFileName = "C47auto.sav";
                 #endif
                 int directFd = openDirectDocumentFd(2 /* SAVFILES */, autoFileName, (mode == ioModeWrite) ? "wt" : "r");
+                LOGI("ioFileOpen ioPathAutoSave: mode=%d, file=%s, directFd=%d", mode, autoFileName, directFd);
                 if (directFd < 0 && mode == ioModeRead) {
                     #if (CALCMODEL == USER_R47)
                         directFd = openDirectDocumentFd(2 /* SAVFILES */, "C47auto.sav", "r");
@@ -203,6 +204,18 @@ int ioFileOpen(ioFilePath_t path, ioFileMode_t mode) {
                         return FILE_OK;
                     }
                     close(directFd);
+                }
+                if (mode == ioModeWrite && g_mainActivityObj != NULL) {
+                    int safFd = requestAndroidFile(1, autoFileName, 2 /* SAVFILES */);
+                    if (safFd < 0) {
+                        return FILE_CANCEL;
+                    }
+                    openedFile = fdopen(safFd, "wb");
+                    if (!openedFile) {
+                        close(safFd);
+                        return FILE_ERROR;
+                    }
+                    return FILE_OK;
                 }
                 #if (CALCMODEL == USER_R47)
                     snprintf(fullpath, 1024, "%s/%s/R47auto_%d.sav", android_base_path, SAVE_DIR, current_slot_id);

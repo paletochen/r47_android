@@ -961,7 +961,7 @@ void fnSaveSystemFlags(uint16_t unusedButMandatoryParameter) {
 static void doSave(uint16_t saveType);
 
   void fnSaveAuto(uint16_t unusedButMandatoryParameter) {
-  #if defined(DMCP_BUILD)
+  #if defined(DMCP_BUILD) || defined(ANDROID_BUILD)
     doSave(autoSave);
   #endif // DMCP_BUILD
   }
@@ -3498,6 +3498,11 @@ void fnDeleteBackup(uint16_t confirmation) {
         displayCalcErrorMessage(ERROR_IO, ERR_REGISTER_LINE);
       }
       sys_disk_write_enable(0);
+    #elif defined(ANDROID_BUILD)
+      extern int ioFileRemove(ioFilePath_t path, uint32_t *errorNumber);
+      uint32_t err;
+      ioFileRemove(ioPathManualSave, &err);
+      ioFileRemove(ioPathAutoSave, &err);
     #else // !DMCP_BUILD
       int result = remove(SAVE_DIR "/" SAVE_FILE);
       if(result == -1) {

@@ -383,6 +383,38 @@ static int mock_last_isSave = -1;
 static char mock_last_defaultName[256] = {0};
 static int mock_last_category = -1;
 
+static int mock_direct_last_category = -1;
+static char mock_direct_last_fileName[256] = {0};
+static char mock_direct_last_mode[32] = {0};
+static int mock_direct_return_fd = -1;
+
+static int mock_delete_count = 0;
+static int mock_delete_last_category = -1;
+static char mock_delete_last_fileName[256] = {0};
+
+static int mock_doSave_last_type = -1;
+
+void setConfirmationMode(void (*func)(uint16_t)) {
+    (void)func;
+}
+
+void displayCalcErrorMessage(uint8_t errorCode, calcRegister_t errMessageRegisterLine) {
+    (void)errorCode;
+    (void)errMessageRegisterLine;
+}
+
+void doSave(uint16_t saveType) {
+    mock_doSave_last_type = (int)saveType;
+    ioFilePath_t path = (saveType == autoSave) ? ioPathAutoSave : ((saveType == manualSave) ? ioPathManualSave : ioPathSaveStateFile);
+    int ret = ioFileOpen(path, ioModeWrite);
+    if (ret == FILE_OK) {
+        const char *hdr = "SAVE_FILE_REVISION\n0\n";
+        ioFileWrite(hdr, (uint32_t)strlen(hdr));
+        ioFileClose();
+        temporaryInformation = TI_SAVED;
+    }
+}
+
 int requestAndroidFile(int isSave, const char *defaultName, int category) {
     mock_last_isSave = isSave;
     if (defaultName) {
@@ -396,15 +428,33 @@ int requestAndroidFile(int isSave, const char *defaultName, int category) {
 }
 
 int openDirectDocumentFd(int category, const char *fileName, const char *mode) {
-    (void)category;
-    (void)fileName;
-    (void)mode;
-    return -1;
+    mock_direct_last_category = category;
+    if (fileName) {
+        strncpy(mock_direct_last_fileName, fileName, sizeof(mock_direct_last_fileName) - 1);
+        mock_direct_last_fileName[sizeof(mock_direct_last_fileName) - 1] = '\0';
+    } else {
+        mock_direct_last_fileName[0] = '\0';
+    }
+    if (mode) {
+        strncpy(mock_direct_last_mode, mode, sizeof(mock_direct_last_mode) - 1);
+        mock_direct_last_mode[sizeof(mock_direct_last_mode) - 1] = '\0';
+    } else {
+        mock_direct_last_mode[0] = '\0';
+    }
+    int fd = mock_direct_return_fd;
+    mock_direct_return_fd = -1;
+    return fd;
 }
 
 bool deleteDirectDocument(int category, const char *fileName) {
-    (void)category;
-    (void)fileName;
+    mock_delete_count++;
+    mock_delete_last_category = category;
+    if (fileName) {
+        strncpy(mock_delete_last_fileName, fileName, sizeof(mock_delete_last_fileName) - 1);
+        mock_delete_last_fileName[sizeof(mock_delete_last_fileName) - 1] = '\0';
+    } else {
+        mock_delete_last_fileName[0] = '\0';
+    }
     return true;
 }
 
@@ -987,7 +1037,7 @@ void test_softmenu_rendering_bitblt24(void) {
 }
 
 // --------------------------------------------------------------------------
-// TEST 9: State Save and Restore Function Mappings
+// TEST 9: State Save and Restore Function Mappings (SAVEAUT & DELBkup End-to-End)
 // --------------------------------------------------------------------------
 void test_state_save_and_restore_commands(void) {
     // Items table indices for save and load operations
@@ -997,6 +1047,49 @@ void test_state_save_and_restore_commands(void) {
     TEST_ASSERT(ITM_SAVE > 0, "ITM_SAVE must be a valid item identifier");
     TEST_ASSERT(ITM_WRITEP > 0, "ITM_WRITEP must be a valid item identifier");
     TEST_ASSERT(ITM_READP > 0, "ITM_READP must be a valid item identifier");
+
+    // Verify end-to-end SAVEAUT execution on Android (must invoke doSave(autoSave) -> openDirectDocumentFd(2, "R47auto.sav", "wt"))
+    extern void set_android_base_path(const char *path);
+    set_android_base_path("/tmp");
+    int pipeFds[2] = {-1, -1};
+    TEST_ASSERT(pipe(pipeFds) == 0, "pipe() must succeed for SAVEAUT test");
+    mock_direct_return_fd = pipeFds[1];
+    mock_doSave_last_type = -1;
+    mock_direct_last_category = -1;
+    mock_direct_last_fileName[0] = '\0';
+    mock_direct_last_mode[0] = '\0';
+    temporaryInformation = 0;
+
+    fnSaveAuto(0);
+
+    TEST_ASSERT(mock_doSave_last_type == (int)autoSave, "fnSaveAuto must invoke doSave(autoSave) on ANDROID_BUILD");
+    TEST_ASSERT(mock_direct_last_category == 2, "SAVEAUT must target category 2 (SAVFILES)");
+    #if (CALCMODEL == USER_R47)
+    TEST_ASSERT(strcmp(mock_direct_last_fileName, "R47auto.sav") == 0, "SAVEAUT must write to R47auto.sav on R47");
+    #else
+    TEST_ASSERT(strcmp(mock_direct_last_fileName, "C47auto.sav") == 0, "SAVEAUT must write to C47auto.sav on C47");
+    #endif
+    TEST_ASSERT(strcmp(mock_direct_last_mode, "wt") == 0, "SAVEAUT must open R47auto.sav with mode 'wt'");
+    TEST_ASSERT(temporaryInformation == TI_SAVED, "SAVEAUT must set temporaryInformation = TI_SAVED on completion");
+
+    char writtenBuf[64] = {0};
+    ssize_t bytesRead = read(pipeFds[0], writtenBuf, sizeof(writtenBuf) - 1);
+    close(pipeFds[0]);
+    TEST_ASSERT(bytesRead > 0 && strstr(writtenBuf, "SAVE_FILE_REVISION") != NULL,
+                "SAVEAUT must write state file content into the opened SAVFILES descriptor");
+
+    // Verify end-to-end DELBkup execution on Android (must remove both manual and auto-save files via ioFileRemove)
+    mock_delete_count = 0;
+    mock_delete_last_category = -1;
+    mock_delete_last_fileName[0] = '\0';
+    fnDeleteBackup(1 /* confirmed */);
+    TEST_ASSERT(mock_delete_count == 2, "fnDeleteBackup must call deleteDirectDocument twice (manual save + auto save)");
+    TEST_ASSERT(mock_delete_last_category == 2, "fnDeleteBackup must delete from category 2 (SAVFILES)");
+    #if (CALCMODEL == USER_R47)
+    TEST_ASSERT(strcmp(mock_delete_last_fileName, "R47auto.sav") == 0, "Second delete in fnDeleteBackup must remove R47auto.sav");
+    #else
+    TEST_ASSERT(strcmp(mock_delete_last_fileName, "C47auto.sav") == 0, "Second delete in fnDeleteBackup must remove C47auto.sav");
+    #endif
 }
 
 // --------------------------------------------------------------------------

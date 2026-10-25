@@ -31,9 +31,23 @@ items_table_full.o: items_table_full.c
 keyboard_keycode.c: ../../src/c47/keyboard.c
 	(echo '#include "c47.h"'; echo 'extern uint8_t lastKeyCode;'; echo 'extern uint8_t calcModel;'; sed -n '/^void setLastKeyCode/,/^}/p' ../../src/c47/keyboard.c) > $@
 
-$(TARGET): items_android.c items_table_full.o keyboard_keycode.c $(SRC)
-	$(CC) $(CFLAGS) -o $@ $(SRC) items_table_full.o keyboard_keycode.c $(shell pkg-config --libs gtk+-3.0) -lm
+save_restore_android.c: ../../src/c47/saveRestoreCalcState.c ../../build_android.sh
+	(echo '#include "c47.h"'; \
+	 echo '#include "hal/io.h"'; \
+	 echo 'extern void doSave(uint16_t saveType);'; \
+	 echo 'extern void setConfirmationMode(void (*func)(uint16_t));'; \
+	 sed -n '/^[[:space:]]*void fnSaveAuto(/,/^[[:space:]]*}/p' ../../src/c47/saveRestoreCalcState.c; \
+	 sed -n '/^void fnDeleteBackup(/,/^}/p' ../../src/c47/saveRestoreCalcState.c) > $@
+	if grep -q 'fnSaveAuto' ../../build_android.sh; then \
+		sed -i '/void fnSaveAuto(/,/^  }/ s/#if defined(DMCP_BUILD)/#if defined(DMCP_BUILD) || defined(ANDROID_BUILD)/' $@; \
+	fi
+	if grep -q 'fnDeleteBackup' ../../build_android.sh; then \
+		sed -i '/^void fnDeleteBackup(/,/^}/ s/#else \/\/ !DMCP_BUILD/#elif defined(ANDROID_BUILD)\n      extern int ioFileRemove(ioFilePath_t path, uint32_t *errorNumber);\n      uint32_t err;\n      ioFileRemove(ioPathManualSave, \&err);\n      ioFileRemove(ioPathAutoSave, \&err);\n    #else \/\/ !DMCP_BUILD/' $@; \
+	fi
+
+$(TARGET): items_android.c items_table_full.o keyboard_keycode.c save_restore_android.c $(SRC)
+	$(CC) $(CFLAGS) -o $@ $(SRC) items_table_full.o keyboard_keycode.c save_restore_android.c $(shell pkg-config --libs gtk+-3.0) -lm
 
 clean:
-	rm -f $(TARGET) items_android.c items_table_full.c items_table_full.o keyboard_keycode.c *.o
+	rm -f $(TARGET) items_android.c items_table_full.c items_table_full.o keyboard_keycode.c save_restore_android.c *.o
 

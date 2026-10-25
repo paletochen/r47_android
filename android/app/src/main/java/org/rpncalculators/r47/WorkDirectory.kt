@@ -227,58 +227,88 @@ object WorkDirectory {
             val cacheKey = "$treeUriString|$fileType|$fileName"
             var docUri: Uri? = documentUriCache[cacheKey]
 
-            if (docUri == null) {
-                val folderUri = resolveSubfolder(contentResolver, treeUriString, fileType) ?: return -1
-                val treeUri = Uri.parse(treeUriString)
-                val folderDocId = DocumentsContract.getDocumentId(folderUri)
-                val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, folderDocId)
-
-                contentResolver.query(
-                    childrenUri,
-                    arrayOf(
-                        DocumentsContract.Document.COLUMN_DISPLAY_NAME,
-                        DocumentsContract.Document.COLUMN_DOCUMENT_ID,
-                    ),
-                    null,
-                    null,
-                    null,
-                )?.use { cursor ->
-                    while (cursor.moveToNext()) {
-                        if (cursor.getString(0).equals(fileName, ignoreCase = true)) {
-                            docUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, cursor.getString(1))
-                            break
+            if (docUri != null) {
+                val cachedPfd = try {
+                    contentResolver.openFileDescriptor(docUri!!, mode)
+                } catch (error: Exception) {
+                    if (mode == "wt") {
+                        try {
+                            contentResolver.openFileDescriptor(docUri!!, "w")
+                        } catch (_: Exception) {
+                            null
                         }
+                    } else {
+                        null
                     }
                 }
-
-                if (docUri == null) {
-                    if (!mode.contains("w")) {
-                        return -1
-                    }
-                    val mimeType = when {
-                        fileName.endsWith(".txt", ignoreCase = true) -> "text/plain"
-                        fileName.endsWith(".sav", ignoreCase = true) -> "application/octet-stream"
-                        fileName.endsWith(".tsv", ignoreCase = true) -> "text/tab-separated-values"
-                        fileName.endsWith(".csv", ignoreCase = true) -> "text/comma-separated-values"
-                        else -> "application/octet-stream"
-                    }
-                    docUri = DocumentsContract.createDocument(
-                        contentResolver,
-                        folderUri,
-                        mimeType,
-                        fileName,
-                    ) ?: DocumentsContract.createDocument(
-                        contentResolver,
-                        folderUri,
-                        "text/plain",
-                        fileName,
-                    ) ?: return -1
+                if (cachedPfd != null) {
+                    val fd = cachedPfd.detachFd()
+                    Log.i(TAG, "openDirectDocumentFd: opened cached $fileName with fd $fd (fileType=$fileType, mode=$mode)")
+                    return fd
                 }
-
-                documentUriCache[cacheKey] = docUri!!
+                Log.w(TAG, "openDirectDocumentFd: cached URI stale for $fileName, resolving fresh")
+                documentUriCache.remove(cacheKey)
+                docUri = null
             }
 
-            val pfd = contentResolver.openFileDescriptor(docUri!!, mode) ?: run {
+            val folderUri = resolveSubfolder(contentResolver, treeUriString, fileType) ?: return -1
+            val treeUri = Uri.parse(treeUriString)
+            val folderDocId = DocumentsContract.getDocumentId(folderUri)
+            val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, folderDocId)
+
+            contentResolver.query(
+                childrenUri,
+                arrayOf(
+                    DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                    DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                ),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    if (cursor.getString(0).equals(fileName, ignoreCase = true)) {
+                        docUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, cursor.getString(1))
+                        break
+                    }
+                }
+            }
+
+            if (docUri == null) {
+                if (!mode.contains("w")) {
+                    return -1
+                }
+                val mimeType = when {
+                    fileName.endsWith(".txt", ignoreCase = true) -> "text/plain"
+                    fileName.endsWith(".sav", ignoreCase = true) -> "application/octet-stream"
+                    fileName.endsWith(".tsv", ignoreCase = true) -> "text/tab-separated-values"
+                    fileName.endsWith(".csv", ignoreCase = true) -> "text/comma-separated-values"
+                    else -> "application/octet-stream"
+                }
+                docUri = DocumentsContract.createDocument(
+                    contentResolver,
+                    folderUri,
+                    mimeType,
+                    fileName,
+                ) ?: DocumentsContract.createDocument(
+                    contentResolver,
+                    folderUri,
+                    "text/plain",
+                    fileName,
+                ) ?: return -1
+            }
+
+            documentUriCache[cacheKey] = docUri!!
+
+            val pfd = try {
+                contentResolver.openFileDescriptor(docUri!!, mode)
+            } catch (error: Exception) {
+                if (mode == "wt") {
+                    contentResolver.openFileDescriptor(docUri!!, "w")
+                } else {
+                    throw error
+                }
+            } ?: run {
                 documentUriCache.remove(cacheKey)
                 Log.e(TAG, "openDirectDocumentFd: openFileDescriptor returned null for $fileName (mode=$mode)")
                 return -1
