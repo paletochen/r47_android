@@ -1280,7 +1280,7 @@ currentKeyCode = 255;
 
   if((plotStatMx[0]=='S' && checkMinimumDataPoints(const_2)) ||
      (plotStatMx[0]=='D' && drawMxN() >= 2) ||
-     (plotStatMx[0]=='H' && statMxN() >= 3)) {
+     (plotStatMx[0]=='H' && statMxN() >= 2)) {  // the bin count is also checked in stats.c -> histogramBinCount()
     switch(plotStatMx[0]) {
       case 'S': numberOfPlotPoints = realToInt32C47(SIGMA_N, NULL); break;
       case 'D': numberOfPlotPoints = drawMxN();                     break;
@@ -1554,11 +1554,20 @@ currentKeyCode = 255;
   }
   else {
     calcMode = CM_NORMAL;
-    displayCalcErrorMessage(ERROR_NO_SUMMATION_DATA, ERR_REGISTER_LINE);
-    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      sprintf(errorMessage, "There is no statistical data available!");
-      moreInfoOnError("In function graphPlotstat:", errorMessage, NULL, NULL);
-    #endif
+    if(plotStatMx[0]=='H') {
+      displayCalcErrorMessage(ERROR_NOT_INITIALIZED, ERR_REGISTER_LINE);
+      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+        sprintf(errorMessage, "HISTOX or HISTOY needs to be selected first!");
+        moreInfoOnError("In function fnPlotStat:", errorMessage, NULL, NULL);
+      #endif
+    }
+    else if(lastErrorCode == ERROR_NONE) {
+      displayCalcErrorMessage(ERROR_NO_SUMMATION_DATA, ERR_REGISTER_LINE);
+      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+        sprintf(errorMessage, "There is no statistical/plot data available!");
+        moreInfoOnError("In function fnPlotStat:", errorMessage, NULL, NULL);
+      #endif
+    }
   }
  return;
 
@@ -2015,7 +2024,7 @@ void fnPlotStat(uint16_t plotMode){
 
     if((plotStatMx[0]=='S' && checkMinimumDataPoints(const_2)) ||
        (plotStatMx[0]=='D' && drawMxN() >= 2) ||
-       (plotStatMx[0]=='H' && statMxN() >= 3) ) {
+       (plotStatMx[0]=='H' && statMxN() >= 2) ) {   // the bin count is also checked in stats.c -> histogramBinCount()
       plotStatScale = 0;              // per-mode default; SCATR/CENTRL set it
 
       if(!(lastPlotMode == PLOT_NOTHING || lastPlotMode == PLOT_START)) {
@@ -2082,11 +2091,20 @@ void fnPlotStat(uint16_t plotMode){
   }
   else {
     calcMode = CM_NORMAL;
-    displayCalcErrorMessage(ERROR_NO_SUMMATION_DATA, ERR_REGISTER_LINE);
-    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-      sprintf(errorMessage, "There is no statistical/plot data available!");
-      moreInfoOnError("In function fnPlotStat:", errorMessage, NULL, NULL);
-    #endif
+    if(plotStatMx[0]=='H') {
+      displayCalcErrorMessage(ERROR_NOT_INITIALIZED, ERR_REGISTER_LINE);
+      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+        sprintf(errorMessage, "HISTOX or HISTOY needs to be selected first!");
+        moreInfoOnError("In function fnPlotStat:", errorMessage, NULL, NULL);
+      #endif
+    }
+    else if(lastErrorCode == ERROR_NONE) {
+      displayCalcErrorMessage(ERROR_NO_SUMMATION_DATA, ERR_REGISTER_LINE);
+      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+        sprintf(errorMessage, "There is no statistical/plot data available!");
+        moreInfoOnError("In function fnPlotStat:", errorMessage, NULL, NULL);
+      #endif
+    }
   }
 #endif // OPTION_GRAPHICS
 }

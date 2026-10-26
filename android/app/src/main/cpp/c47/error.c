@@ -99,7 +99,7 @@ TO_QSPI const char commonBugScreenMessages[NUMBER_OF_BUG_SCREEN_MESSAGES][SIZE_O
   ENTRY(e072, "NEXT without FOR") /*  72 */ \
   ENTRY(e073, "Invalid counter register") /*  73 */ \
   ENTRY(e074, "Step of zero") /*  74 */ \
-  ENTRY(e075, "") /*  75 */ \
+  ENTRY(e075, "Data not initialized") /*  75 */ \
   ENTRY(e076, "") /*  76 */ \
   ENTRY(e077, "") /*  77 */ \
   ENTRY(e078, "") /*  78 */ \

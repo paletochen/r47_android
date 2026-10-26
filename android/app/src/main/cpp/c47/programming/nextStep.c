@@ -379,8 +379,11 @@ static void _sstInPem(void) {
 
 
 void showStep(void) {
+  const bool_t testResultShown = (temporaryInformation == TI_TRUE || temporaryInformation == TI_FALSE);
   temporaryInformation = TI_NO_INFO;
-  refreshRegisterLine(REGISTER_Z);     // Clear previous test result, if any
+  if(testResultShown) {
+    refreshRegisterLine(REGISTER_Z);   // Clear the test result on the Z line, and nothing else
+  }
   _showStep();
 }
 

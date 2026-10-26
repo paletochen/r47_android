@@ -274,7 +274,7 @@ void fnPause(uint16_t dur) {
           sys_delay(100);
         }
       }
-      if(dur != 0 && (dur == 99 || previousProgramRunStop != PGM_RUNNING)) {
+      if(dur != 0 && previousProgramRunStop != PGM_RUNNING) {
         screenUpdatingMode = SCRUPD_AUTO;
         refreshScreen(1201);
         lcd_refresh();

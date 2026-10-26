@@ -944,7 +944,8 @@
 #define ERROR_NEXT_WITHOUT_FOR                    72
 #define ERROR_INVALID_COUNTER_REGISTER            73
 #define ERROR_STEP_OF_ZERO                        74
-#define LAST_ERROR_MESSAGE                        74
+#define ERROR_NOT_INITIALIZED                     75
+#define LAST_ERROR_MESSAGE                        75
 
 //Status output messages for time consuming tasks, to keep user informed
 #define LOADING_STATE_FILE                       100
