@@ -1829,7 +1829,24 @@ bool_t nimWhenButtonPressed = false;                  //PHM eRPN 2021-07
 
 
 #if defined(PC_BUILD)
-    void btnPressed(GtkWidget *notUsed, GdkEvent *event, gpointer data) {
+static int16_t btnPressedDepth = 0;                 // btnPressed is running; a refresh inside it pumps GTK, which can deliver the release of the key it handles
+static char   *btnPressedKey = NULL;                // the key the outermost btnPressed handles
+static bool_t  btnReleasedDeferred = false;         // that key's release arrived meanwhile and runs after btnPressed has returned, the order DMCP keeps
+
+static void _btnPressed(GtkWidget *notUsed, GdkEvent *event, gpointer data);
+
+void btnPressed(GtkWidget *notUsed, GdkEvent *event, gpointer data) {
+  if(btnPressedDepth++ == 0) {
+    btnPressedKey = (char *)data;
+  }
+  _btnPressed(notUsed, event, data);
+  if(--btnPressedDepth == 0 && btnReleasedDeferred) {
+    btnReleasedDeferred = false;
+    btnReleased(notUsed, event, data);
+  }
+}
+
+  static void _btnPressed(GtkWidget *notUsed, GdkEvent *event, gpointer data) {
 #endif //PC_BUILD
   #if defined(DMCP_BUILD)
     void btnPressed(void *data) {
@@ -2091,6 +2108,10 @@ bool_t nimWhenButtonPressed = false;                  //PHM eRPN 2021-07
 
   #if defined(PC_BUILD)
     void btnReleased(GtkWidget *notUsed, GdkEvent *event, gpointer data) {
+      if(btnPressedDepth > 0 && strncmp((char *)data, btnPressedKey, 2) == 0) {
+        btnReleasedDeferred = true;
+        return;
+      }
                     #if defined(PC_BUILD) && defined(MONITOR_CLRSCR)
                       printf(">>> btnReleased showFunctionNameItem=%i screenUpdatingMode=%d temporaryInformation=%u tam=%i getSystemFlag(FLAG_ALPHA)=%i\n", showFunctionNameItem, screenUpdatingMode, temporaryInformation, tam.mode, getSystemFlag(FLAG_ALPHA));
                     #endif // PC_BUILD &&MONITOR_CLRSCR
