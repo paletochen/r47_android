@@ -5021,6 +5021,7 @@ void fnKeyDotD(uint16_t unusedButMandatoryParameter) {
         else {
           runFunction(ITM_toREAL);
         }
+        setLastintegerBasetoZero();
         break;
       }
 

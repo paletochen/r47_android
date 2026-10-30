@@ -8,6 +8,7 @@
 static void real34ToDisplayString2(const real34_t *real34, char *displayString, int16_t displayHasNDigits, bool_t limitExponent, bool_t noFix, bool_t frontSpace, bool_t complex, irfracOption_t limitIrfrac);
 static void complex34ToDisplayString2(const complex34_t *complex34, char *displayString, int16_t displayHasNDigits, bool_t limitExponent, bool_t frontSpace, const uint16_t tagAngle, const bool_t tagPolar, irfracOption_t limitIrfrac, rectToPolarCache_t *cache);
 static void insertSepsIntoIntegerText(char *displayString);
+static int32_t appendRadixMark(char *displayString, int32_t charIndex);           // defined below, used before its definition by emitSciDigits
 
 
 static void fnDisplayFormatReset(uint16_t displayFormatN) {
@@ -407,17 +408,7 @@ static void emitSciDigits(uint8_t *bcd, int16_t firstDigit, int16_t lastDigit, i
     displayValueX[valueIndex++] = '0' + bcd[firstDigit];
   }
   // Radix mark
-  displayString[charIndex] = 0;
-  char tt[4];
-  if(RADIX34_MARK_STRING[1] != 1) {
-    strcpy(tt, RADIX34_MARK_STRING);
-  }
-  else {
-    tt[0] = RADIX34_MARK_STRING[0];
-    tt[1] = 0;
-  }
-  strcat(displayString, tt);
-  charIndex += strlen(tt);
+  charIndex = appendRadixMark(displayString, charIndex);
   if(updateDisplayValueX) {
     displayValueX[valueIndex++] = '.';
   }
@@ -478,6 +469,36 @@ static int32_t appendSeparatorRight(char *displayString, int32_t charIndex) {  /
   int32_t sepLen = (sepRight[0] != STD_NOCHAR) ? ((sepRight[1] != STD_NOCHAR) ? 2 : 1) : 0;
   xcopy(displayString + charIndex, sepRight, sepLen);
   return charIndex + sepLen;
+}
+
+
+#if 0
+static int32_t appendSeparatorLeft(char *displayString, int32_t charIndex) {    // SEPARATOR_LEFT is 2 bytes, 1 byte or absent; SCI, ENG and UNIT borrow it to group the integer part
+  const char *sepLeft = SEPARATOR_LEFT;
+  int32_t sepLen = (sepLeft[0] != STD_NOCHAR) ? ((sepLeft[1] != STD_NOCHAR) ? 2 : 1) : 0;
+  xcopy(displayString + charIndex, sepLeft, sepLen);
+  return charIndex + sepLen;
+}
+#endif // 0
+
+
+static void radixMarkToString(char *tt) {                                       // RADIX34_MARK_STRING is 2 bytes or 1; copies it into a nul-terminated buffer the callers splice
+  if(RADIX34_MARK_STRING[1] != 1) {
+    strcpy(tt, RADIX34_MARK_STRING);
+  }
+  else {
+    tt[0] = RADIX34_MARK_STRING[0];
+    tt[1] = 0;
+  }
+}
+
+
+static int32_t appendRadixMark(char *displayString, int32_t charIndex) {        // every render that writes a point borrows this
+  char tt[4];
+  displayString[charIndex] = 0;
+  radixMarkToString(tt);
+  strcat(displayString, tt);
+  return charIndex + (int32_t)strlen(tt);
 }
 
 
@@ -961,17 +982,7 @@ overRange:
         if(updateDisplayValueX) {
           displayValueX[valueIndex++] = '0';
         }
-        displayString[charIndex] = 0;
-        char tt[4];
-        if(RADIX34_MARK_STRING[1] != 1) {
-          strcpy(tt, RADIX34_MARK_STRING);
-        }
-        else {
-          tt[0] = RADIX34_MARK_STRING[0];
-          tt[1] = 0;
-        }
-        strcat(displayString, tt);
-        charIndex += strlen(tt);
+        charIndex = appendRadixMark(displayString, charIndex);
         if(updateDisplayValueX) {
           displayValueX[valueIndex++] = '.';
         }
@@ -1030,17 +1041,7 @@ overRange:
 
           // Radix mark
           if(digitCount == 0) {
-            displayString[charIndex] = 0;
-            char tt[4];
-            if(RADIX34_MARK_STRING[1] != 1) {
-              strcpy(tt, RADIX34_MARK_STRING);
-            }
-            else {
-              tt[0] = RADIX34_MARK_STRING[0];
-              tt[1] = 0;
-            }
-            strcat(displayString, tt);
-            charIndex += strlen(tt);
+            charIndex = appendRadixMark(displayString, charIndex);
             if(updateDisplayValueX) {
               displayValueX[valueIndex++] = '.';
             }
@@ -1169,17 +1170,7 @@ overRange:
         if(updateDisplayValueX) {
           displayValueX[valueIndex++] = '0';
         }
-        displayString[charIndex] = 0;
-        char tt[4];
-        if(RADIX34_MARK_STRING[1] != 1) {
-          strcpy(tt, RADIX34_MARK_STRING);
-        }
-        else {
-          tt[0] = RADIX34_MARK_STRING[0];
-          tt[1] = 0;
-        }
-        strcat(displayString, tt);
-        charIndex += strlen(tt);
+        charIndex = appendRadixMark(displayString, charIndex);
         if(updateDisplayValueX) {
           displayValueX[valueIndex++] = '.';
         }
@@ -1260,17 +1251,7 @@ overRange:
 
           // Radix mark
           if(digitCount == 0) {
-            displayString[charIndex] = 0;
-            char tt[4];
-            if(RADIX34_MARK_STRING[1] != 1) {
-              strcpy(tt, RADIX34_MARK_STRING);
-            }
-            else {
-              tt[0] = RADIX34_MARK_STRING[0];
-              tt[1] = 0;
-            }
-            strcat(displayString, tt);
-            charIndex += strlen(tt);
+            charIndex = appendRadixMark(displayString, charIndex);
             if(updateDisplayValueX) {
               displayValueX[valueIndex++] = '.';
             }
@@ -1391,17 +1372,7 @@ fixCarriedPastLimit:
 
 
     // Radix Mark
-    displayString[charIndex] = 0;
-    char tt[4];
-    if(RADIX34_MARK_STRING[1] != 1) {
-      strcpy(tt, RADIX34_MARK_STRING);
-    }
-    else {
-      tt[0] = RADIX34_MARK_STRING[0];
-      tt[1] = 0;
-    }
-    strcat(displayString, tt);
-    charIndex += strlen(tt);
+    charIndex = appendRadixMark(displayString, charIndex);
     if(updateDisplayValueX) {
       displayValueX[valueIndex++] = '.';
     }
@@ -1999,13 +1970,7 @@ void angle34ToDisplayString2(const real34_t *angle34, uint8_t modeIn, char *disp
 
 
     char tt[4];
-    if(RADIX34_MARK_STRING[1] != 1) {
-      strcpy(tt, RADIX34_MARK_STRING);
-    }
-    else {
-      tt[0] = RADIX34_MARK_STRING[0];
-      tt[1] = 0;
-    }
+    radixMarkToString(tt);
 
     sprintf(displayString, "%s%s" STD_DEGREE "%s%" PRIu32 STD_RIGHT_SINGLE_QUOTE "%s%" PRIu32 "%s%02" PRIu32 STD_RIGHT_DOUBLE_QUOTE,
                             sign ? "-" : " ",
@@ -3197,13 +3162,7 @@ void timeToDisplayString(calcRegister_t regist, char *displayString, bool_t igno
 
       if(digits == 0u) {
         char tt[4];
-        if(RADIX34_MARK_STRING[1] != 1) {
-          strcpy(tt, RADIX34_MARK_STRING);
-        }
-        else {
-          tt[0] = RADIX34_MARK_STRING[0];
-          tt[1] = 0;
-        }
+        radixMarkToString(tt);
         strcat(displayString, tt);
       }
       else if(digits % GROUPWIDTH_RIGHT == 0u) {
