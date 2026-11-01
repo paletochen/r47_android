@@ -587,7 +587,7 @@ char* getAllRegistersString(void) {
     }
   }
 
-  // 4. Statistical sums: SR00..SR26
+  // 4. Statistical sums: SR00..SR27
   if(statisticalSumsPointer != NULL) {
     TO_QSPI const char * const StatSumNames[NUMBER_OF_STATISTICAL_SUMS] = {
       /* 0*/ "n             ",
@@ -604,19 +604,20 @@ char* getAllRegistersString(void) {
       /*11*/ STD_SIGMA "(ln(y))      ",
       /*12*/ STD_SIGMA "(ln" STD_SUP_2 "(y))     ",
       /*13*/ STD_SIGMA "(x ln(y))    ",
-      /*14*/ STD_SIGMA "(ln(y)/x)    ",
-      /*15*/ STD_SIGMA "(x" STD_SUP_2 "/y)       ",
-      /*16*/ STD_SIGMA "(1/x)        ",
-      /*17*/ STD_SIGMA "(1/x" STD_SUP_2 ")       ",
-      /*18*/ STD_SIGMA "(x/y)        ",
-      /*19*/ STD_SIGMA "(1/y)        ",
-      /*20*/ STD_SIGMA "(1/y" STD_SUP_2 ")       ",
-      /*21*/ STD_SIGMA "(x" STD_SUP_3 ")         ",
-      /*22*/ STD_SIGMA "(x" STD_SUP_4 ")         ",
-      /*23*/ "x min         ",
-      /*24*/ "x max         ",
-      /*25*/ "y min         ",
-      /*26*/ "y max         "
+      /*14*/ STD_SIGMA "(x" STD_SUP_2 "ln(y))    ",
+      /*15*/ STD_SIGMA "(ln(y)/x)    ",
+      /*16*/ STD_SIGMA "(x" STD_SUP_2 "/y)       ",
+      /*17*/ STD_SIGMA "(1/x)        ",
+      /*18*/ STD_SIGMA "(1/x" STD_SUP_2 ")       ",
+      /*19*/ STD_SIGMA "(x/y)        ",
+      /*20*/ STD_SIGMA "(1/y)        ",
+      /*21*/ STD_SIGMA "(1/y" STD_SUP_2 ")       ",
+      /*22*/ STD_SIGMA "(x" STD_SUP_3 ")         ",
+      /*23*/ STD_SIGMA "(x" STD_SUP_4 ")         ",
+      /*24*/ "x min         ",
+      /*25*/ "x max         ",
+      /*26*/ "y min         ",
+      /*27*/ "y max         "
     };
 
     char sumName[40];

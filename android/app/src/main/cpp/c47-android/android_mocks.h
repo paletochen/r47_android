@@ -54,6 +54,7 @@ typedef struct {
         double y; 
     } button;
 } GdkEvent;
+typedef struct _GdkEventKey GdkEventKey;
 typedef void cairo_t;
 typedef void cairo_surface_t;
 typedef void GtkClipboard;

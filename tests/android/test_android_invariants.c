@@ -870,6 +870,17 @@ void test_copy_x_register_conversions(void) {
         TEST_ASSERT(isPolar || hasTuple || hasUnit, "Input must be recognized as complex representation");
     }
 
+    // Verify getAllRegistersString formats all 28 statistical sums (SR00..SR27) without NULL dereference
+    mock_register_datatype = dtReal34;
+    static real_t dummyStatSums[NUMBER_OF_STATISTICAL_SUMS];
+    memset(dummyStatSums, 0, sizeof(dummyStatSums));
+    statisticalSumsPointer = dummyStatSums;
+    char *allRegsStr = getAllRegistersString();
+    TEST_ASSERT(allRegsStr != NULL, "getAllRegistersString with statisticalSumsPointer must not return NULL");
+    TEST_ASSERT(strstr(allRegsStr, "SR14 =") != NULL, "getAllRegistersString must format SR14");
+    TEST_ASSERT(strstr(allRegsStr, "SR27 = y max          = 0.") != NULL, "getAllRegistersString must format SR27 (y max) without crashing");
+    statisticalSumsPointer = NULL;
+
     // Reset RAM and datatype
     ram = NULL;
     mock_register_datatype = dtReal34;
