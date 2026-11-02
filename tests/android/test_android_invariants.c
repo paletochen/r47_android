@@ -392,9 +392,6 @@ static int mock_delete_count = 0;
 static int mock_delete_last_category = -1;
 static char mock_delete_last_fileName[256] = {0};
 
-static int mock_notify_updated_count = 0;
-static int mock_notify_last_fd = -1;
-
 static int mock_doSave_last_type = -1;
 
 void setConfirmationMode(void (*func)(uint16_t)) {
@@ -459,11 +456,6 @@ bool deleteDirectDocument(int category, const char *fileName) {
         mock_delete_last_fileName[0] = '\0';
     }
     return true;
-}
-
-void notifyAndroidFileUpdated(int fd) {
-    mock_notify_updated_count++;
-    mock_notify_last_fd = fd;
 }
 
 // --------------------------------------------------------------------------
@@ -1077,16 +1069,12 @@ void test_state_save_and_restore_commands(void) {
     mock_direct_last_category = -1;
     mock_direct_last_fileName[0] = '\0';
     mock_direct_last_mode[0] = '\0';
-    mock_notify_updated_count = 0;
-    mock_notify_last_fd = -1;
     temporaryInformation = 0;
 
     fnSaveAuto(0);
 
     TEST_ASSERT(mock_doSave_last_type == (int)autoSave, "fnSaveAuto must invoke doSave(autoSave) on ANDROID_BUILD");
     TEST_ASSERT(mock_direct_last_category == 2, "SAVEAUT must target category 2 (SAVFILES)");
-    TEST_ASSERT(mock_notify_updated_count == 1, "SAVEAUT must call notifyAndroidFileUpdated once on file close");
-    TEST_ASSERT(mock_notify_last_fd == pipeFds[1], "notifyAndroidFileUpdated must receive the written file descriptor");
     #if (CALCMODEL == USER_R47)
     TEST_ASSERT(strcmp(mock_direct_last_fileName, "R47auto.sav") == 0, "SAVEAUT must write to R47auto.sav on R47");
     #else

@@ -7083,15 +7083,7 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
     }
 
 
-    #if defined(ANDROID_BUILD)
-      fflush(bmp);
-      fsync(fileno(bmp));
-      fclose(bmp);
-      extern void notifyAndroidFileUpdated(int fd);
-      notifyAndroidFileUpdated(fd);
-    #else
-      fclose(bmp);
-    #endif
+    fclose(bmp);
   #endif // PC_BUILD || ANDROID_BUILD
 }
 

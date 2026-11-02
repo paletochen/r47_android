@@ -54,23 +54,4 @@ class WorkDirectoryCategoryTest {
         val nullFormatted = WorkDirectory.formatDisplayPath(null)
         assertEquals("Select a folder", nullFormatted)
     }
-
-    @Test
-    fun testResolveFileSystemPathFromDocumentId() {
-        val primarySnap = WorkDirectory.resolveFileSystemPathFromDocumentId(
-            "primary:Documents/R47/SCREENS/SNAP_20261102_105500.bmp"
-        )
-        assertEquals(
-            "/storage/emulated/0/Documents/R47/SCREENS/SNAP_20261102_105500.bmp",
-            primarySnap
-        )
-
-        val sdcardSnap = WorkDirectory.resolveFileSystemPathFromDocumentId(
-            "1234-5678:R47/SCREENS/SNAP_20261102_105500.bmp"
-        )
-        assertEquals(
-            "/storage/1234-5678/R47/SCREENS/SNAP_20261102_105500.bmp",
-            sdcardSnap
-        )
-    }
 }

@@ -28,7 +28,6 @@ extern jmethodID g_getBatteryVoltageId;
 extern jmethodID g_getStorageInfoId;
 extern jmethodID g_openDirectDocumentFdId;
 extern jmethodID g_deleteDirectDocumentId;
-extern jmethodID g_notifyFileUpdatedId;
 
 extern pthread_mutex_t fileMutex;
 extern pthread_cond_t fileCond;
@@ -69,7 +68,6 @@ void yieldToAndroid(void);
 int requestAndroidFile(int isSave, const char *defaultName, int fileType);
 int openDirectDocumentFd(int fileType, const char *fileName, const char *mode);
 bool deleteDirectDocument(int fileType, const char *fileName);
-void notifyAndroidFileUpdated(int fd);
 void triggerQuit(void);
 int register_main_activity_natives(JNIEnv *env);
 

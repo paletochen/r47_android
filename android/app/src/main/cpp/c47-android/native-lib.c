@@ -15,7 +15,6 @@ jmethodID g_getBatteryVoltageId = NULL;
 jmethodID g_getStorageInfoId = NULL;
 jmethodID g_openDirectDocumentFdId = NULL;
 jmethodID g_deleteDirectDocumentId = NULL;
-jmethodID g_notifyFileUpdatedId = NULL;
 
 pthread_mutex_t fileMutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t fileCond = PTHREAD_COND_INITIALIZER;
@@ -341,7 +340,6 @@ void releaseNativeActivityReferences(JNIEnv* env) {
   g_getStorageInfoId = NULL;
   g_openDirectDocumentFdId = NULL;
   g_deleteDirectDocumentId = NULL;
-  g_notifyFileUpdatedId = NULL;
 }
 
 JNIEXPORT void JNICALL

@@ -169,21 +169,3 @@ bool deleteDirectDocument(int fileType, const char *fileName) {
 
   return (bool)res;
 }
-
-void notifyAndroidFileUpdated(int fd) {
-  if (fd < 0 || !g_notifyFileUpdatedId || !g_mainActivityObj || !g_jvm) {
-    return;
-  }
-
-  JNIEnv *env = NULL;
-  if ((*g_jvm)->GetEnv(g_jvm, (void **)&env, JNI_VERSION_1_6) != JNI_OK) {
-    if ((*g_jvm)->AttachCurrentThread(g_jvm, &env, NULL) != JNI_OK || !env) {
-      return;
-    }
-  }
-
-  (*env)->CallVoidMethod(env, g_mainActivityObj, g_notifyFileUpdatedId, (jint)fd);
-  if ((*env)->ExceptionCheck(env)) {
-    (*env)->ExceptionClear(env);
-  }
-}

@@ -58,12 +58,7 @@ static void appendToFile(int fileType, const char *fileName, const char *data, s
   }
 
   fwrite(data, 1, len, f);
-  fflush(f);
-  fsync(fileno(f));
   fclose(f);
-  if(directFd >= 0) {
-    notifyAndroidFileUpdated(directFd);
-  }
 }
 
 static void flushPrinterBuffer(void) {

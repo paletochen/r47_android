@@ -41,8 +41,6 @@ Java_org_rpncalculators_r47_MainActivity_updateNativeActivityRef(JNIEnv *env,
       (*env)->GetMethodID(env, clazz, "openDirectDocumentFd", "(ILjava/lang/String;Ljava/lang/String;)I");
   g_deleteDirectDocumentId =
       (*env)->GetMethodID(env, clazz, "deleteDirectDocument", "(ILjava/lang/String;)Z");
-  g_notifyFileUpdatedId =
-      (*env)->GetMethodID(env, clazz, "notifyFileUpdated", "(I)V");
   (*env)->DeleteLocalRef(env, clazz);
 
   if (!ram) {
