@@ -1373,6 +1373,7 @@ printf("tam.value: %d\n", tam.value);
     }
 
     tam.alpha = false;
+    tam.colon = false;
     tam.mode = 0;
     clearSystemFlag(FLAG_ALPHA);
 

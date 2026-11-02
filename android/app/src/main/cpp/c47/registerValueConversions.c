@@ -12,8 +12,9 @@ static float fnRealToFloat(const real_t *r);
 void convertLongIntegerToLongIntegerRegister(const longInteger_t lgInt, calcRegister_t regist) {
   uint16_t sizeInBytes = longIntegerSizeInBytes(lgInt);
 
-  reallocateRegister(regist, dtLongInteger, TO_BLOCKS(sizeInBytes), longIntegerSignTag(lgInt));
-  xcopy(REGISTER_LONG_INTEGER_DATA(regist), lgInt->_mp_d, sizeInBytes);
+  if(reallocateRegister(regist, dtLongInteger, TO_BLOCKS(sizeInBytes), longIntegerSignTag(lgInt))) {
+    xcopy(REGISTER_LONG_INTEGER_DATA(regist), lgInt->_mp_d, sizeInBytes);
+  }
 }
 
 

@@ -1632,7 +1632,32 @@ int64_t stringToInt64(const char *str) {
   }
 
 
-  void restoreRegister(calcRegister_t regist, char *type, char *value) {
+  static void skipMatrixElements(uint32_t elements, bool_t isComplex) {
+    for(uint32_t i = 0; i < elements; ++i) {
+      if(dataFileMode) {
+        if(isComplex) {                                                          // skip exactly as restoreMatrixData() reads, or the file position desyncs
+          readComplexToken(tmpString, TMP_STR_LENGTH);
+        }
+        else {
+          readToken(tmpString, TMP_STR_LENGTH);
+        }
+      }
+      else {
+        readLine(tmpString, TMP_STR_LENGTH);
+      }
+    }
+  }
+
+
+  /**
+   * Restores one register from the file. With the pool full reallocateRegister leaves the register as it is, and nothing is written to it.
+   *
+   * \param[in]     regist Register
+   * \param[in,out] type   Data type from the file
+   * \param[in,out] value  Value from the file
+   * \return true when the matrix elements after this entry are still to be read into the register
+   */
+  bool_t restoreRegister(calcRegister_t regist, char *type, char *value) {
     uint32_t tag = amNone;
 
     //printf("restoreRegister:%i %s %s\n",regist, type, value);
@@ -1666,7 +1691,9 @@ int64_t stringToInt64(const char *str) {
 
 
     if(strcmp(type, "Real") == 0) {
-      reallocateRegister(regist, dtReal34, 0, tag);
+      if(!reallocateRegister(regist, dtReal34, 0, tag)) {
+        return false;
+      }
       if(dataFileMode) {
         dataFileCommaToPeriod(value);
       }
@@ -1681,7 +1708,7 @@ int64_t stringToInt64(const char *str) {
           sprintf(errorMessage, "XFN import only to REGISTER_X (stack), got register %d", (int)regist);
           moreInfoOnError("In function restoreRegister:", errorMessage, NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-        return;
+        return false;
       }
 
       REAL_T_PTR(paramX, 1071);
@@ -1702,12 +1729,16 @@ int64_t stringToInt64(const char *str) {
 #endif //OPTION_XFN_1000
 
     else if(strcmp(type, "Time") == 0) {
-      reallocateRegister(regist, dtTime, 0, amNone);
+      if(!reallocateRegister(regist, dtTime, 0, amNone)) {
+        return false;
+      }
       stringToReal34(value, REGISTER_REAL34_DATA(regist));
     }
 
     else if(strcmp(type, "Date") == 0) {
-      reallocateRegister(regist, dtDate, 0, amNone);
+      if(!reallocateRegister(regist, dtDate, 0, amNone)) {
+        return false;
+      }
       stringToReal34(value, REGISTER_REAL34_DATA(regist));
     }
 
@@ -1770,7 +1801,7 @@ int64_t stringToInt64(const char *str) {
           sprintf(errorMessage, "long integer of more than %" PRId32 " digits refused for register %d", MAX_LONG_INTEGER_DIGITS, (int)regist);
           moreInfoOnError("In function restoreRegister:", errorMessage, NULL, NULL);
         #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-        return;
+        return false;
       }
 
       longIntegerInit(lgInt);
@@ -1793,7 +1824,9 @@ int64_t stringToInt64(const char *str) {
       }
       errorMessage[len] = 0;                                                                            //more bytes than a register takes are cut on a glyph boundary
       len++;
-      reallocateRegister(regist, dtString, TO_BLOCKS(len), amNone);
+      if(!reallocateRegister(regist, dtString, TO_BLOCKS(len), amNone)) {
+        return false;
+      }
       xcopy(REGISTER_STRING_DATA(regist), errorMessage, len);
     }
 
@@ -1811,7 +1844,9 @@ int64_t stringToInt64(const char *str) {
       char *imaginaryPart;
       char stdTmp[STANDARDISED_COMPLEX_LENGTH];
 
-      reallocateRegister(regist, dtComplex34, 0, tag);
+      if(!reallocateRegister(regist, dtComplex34, 0, tag)) {
+        return false;
+      }
       if(dataFileMode) {
         standardiseComplex(value, stdTmp);                                       // accept (3-i4) / 3-i4 / +3+i4 / stock "re im"; emit the stock "re im" form for the parser below
         dataFileCommaToPeriod(stdTmp);
@@ -1841,10 +1876,14 @@ int64_t stringToInt64(const char *str) {
       if((uint64_t)rows * cols * REAL34_SIZE_IN_BLOCKS + TO_BLOCKS(sizeof(matrixHeader_t)) > 0xFFFFu) {
         rows = cols = 0;
       }
-      reallocateRegister(regist, dtReal34Matrix, REAL34_SIZE_IN_BLOCKS * rows * cols, tag);
+      if(!reallocateRegister(regist, dtReal34Matrix, REAL34_SIZE_IN_BLOCKS * rows * cols, tag)) {
+        skipMatrixElements((uint32_t)rows * cols, false);                        // value is gone: the error display writes tmpString
+        return false;
+      }
       REGISTER_MATRIX_HEADER(regist)->matrixRows = rows;
       REGISTER_MATRIX_HEADER(regist)->matrixColumns = cols;
       //printf("     %i %i %i\n",rows, cols, tag);
+      return true;
     }
 
     else if(strcmp(type, "Cxma") == 0) {
@@ -1859,9 +1898,13 @@ int64_t stringToInt64(const char *str) {
       if((uint64_t)rows * cols * COMPLEX34_SIZE_IN_BLOCKS + TO_BLOCKS(sizeof(matrixHeader_t)) > 0xFFFFu) {
         rows = cols = 0;
       }
-      reallocateRegister(regist, dtComplex34Matrix, COMPLEX34_SIZE_IN_BLOCKS * rows * cols, tag);
+      if(!reallocateRegister(regist, dtComplex34Matrix, COMPLEX34_SIZE_IN_BLOCKS * rows * cols, tag)) {
+        skipMatrixElements((uint32_t)rows * cols, true);                         // value is gone: the error display writes tmpString
+        return false;
+      }
       REGISTER_MATRIX_HEADER(regist)->matrixRows = rows;
       REGISTER_MATRIX_HEADER(regist)->matrixColumns = cols;
+      return true;
     }
 
     else if(strcmp(type, "Conf") == 0) {
@@ -1871,7 +1914,9 @@ int64_t stringToInt64(const char *str) {
       // Older files hold earlier layouts (896, 928, 832, 856 or reordered 840 bytes) whose bytes would recall into the wrong settings, and C43-era files
       // parse as loadedVersion 0; for all of those, skip the entry and leave the register untouched rather than decode a descriptor RCLCFG cannot apply.
       if(loadedVersion >= 10000020) {
-        reallocateRegister(regist, dtConfig, 0, amNone);
+        if(!reallocateRegister(regist, dtConfig, 0, amNone)) {
+          return false;
+        }
         // The register holds exactly sizeof(dtConfigDescriptor_t) bytes; bound the decode so a longer payload cannot overrun it into the following pool block.
         for(cfg=(char *)REGISTER_CONFIG_DATA(regist), tag=0;  tag < sizeof(dtConfigDescriptor_t); tag++, value+=2, cfg++) {
           *cfg = ((*value >= 'A' ? *value - 'A' + 10 : *value - '0') << 4) | (*(value + 1) >= 'A' ? *(value + 1) - 'A' + 10 : *(value + 1) - '0');
@@ -1883,6 +1928,7 @@ int64_t stringToInt64(const char *str) {
       sprintf(errorMessage, "In function restoreRegister: Data: Reg %d, type %s, value %s to be coded!", (int16_t)regist, type, value);
       displayBugScreen(errorMessage);
     }
+    return false;
   }
 
 
@@ -1940,7 +1986,6 @@ int64_t stringToInt64(const char *str) {
 
   static void skipMatrixData(char *type, char *value) {
     uint16_t rows, cols;
-    uint32_t i;
     char *numOfCols;
 
     if(strcmp(type, "Rema") == 0 || strcmp(type, "Cxma") == 0) {
@@ -1954,19 +1999,7 @@ int64_t stringToInt64(const char *str) {
         rows = cols = 0;
       }
 
-      for(i = 0; i < rows * cols; ++i) {
-        if(dataFileMode) {
-          if(strcmp(type, "Cxma") == 0) {                                        // skip exactly as restoreMatrixData() reads, or the file position desyncs
-            readComplexToken(tmpString, TMP_STR_LENGTH);
-          }
-          else {
-            readToken(tmpString, TMP_STR_LENGTH);
-          }
-        }
-        else {
-          readLine(tmpString, TMP_STR_LENGTH);
-        }
-      }
+      skipMatrixElements((uint32_t)rows * cols, strcmp(type, "Cxma") == 0);
     }
   }
 
@@ -2101,8 +2134,9 @@ int64_t stringToInt64(const char *str) {
             sprintf(line, ", register=%i loadMode:%d, ['%s'] = %s", regist - s + d, loadMode, aimBuffer, tmpString);
             debugPrintf(1, "-", line);
           #endif //LOADDEBUG
-          restoreRegister(loadMode == LM_REGISTERS_PARTIAL ? (regist - s + d) : regist, aimBuffer, tmpString);
-          restoreMatrixData(loadMode == LM_REGISTERS_PARTIAL ? (regist - s + d) : regist);
+          if(restoreRegister(loadMode == LM_REGISTERS_PARTIAL ? (regist - s + d) : regist, aimBuffer, tmpString)) {
+            restoreMatrixData(loadMode == LM_REGISTERS_PARTIAL ? (regist - s + d) : regist);
+          }
         }
         else {
           skipMatrixData(aimBuffer, tmpString);
@@ -2164,8 +2198,9 @@ int64_t stringToInt64(const char *str) {
               sprintf(line, ", loadMode:%d, %s\n", loadMode, tmpString);
               debugPrintf(3, "C", tmpString);
             #endif //LOADDEBUG
-            restoreRegister(regist, aimBuffer, tmpString);
-            restoreMatrixData(regist);
+            if(restoreRegister(regist, aimBuffer, tmpString)) {
+              restoreMatrixData(regist);
+            }
           }
           else {
             skipMatrixData(aimBuffer, tmpString);
@@ -2232,8 +2267,9 @@ int64_t stringToInt64(const char *str) {
           utf8ToStringWithLength((uint8_t *)errorMessage, varName, MAX_LABEL_NAME_LENGTH + 1);  //a long name must not decode over the type string in aimBuffer
           regist = findOrAllocateNamedVariable(varName);
           if(regist != INVALID_VARIABLE) {
-            restoreRegister(regist, aimBuffer, tmpString);
-            restoreMatrixData(regist);
+            if(restoreRegister(regist, aimBuffer, tmpString)) {
+              restoreMatrixData(regist);
+            }
           }
           else {
             skipMatrixData(aimBuffer, tmpString);
@@ -3181,7 +3217,7 @@ static void doLoadDataFile(uint16_t loadMode, uint16_t s, uint16_t n, uint16_t d
 
   dataFileMode = false;
   ioFileClose();
-  temporaryInformation = TI_DATA_LOADED;
+  temporaryInformation = (lastErrorCode == ERROR_NONE ? TI_DATA_LOADED : TI_NO_INFO);
 
   screenUpdatingMode = SCRUPD_AUTO;
   refreshScreen(2999);
@@ -3200,6 +3236,7 @@ void doLoad(uint16_t loadMode, uint16_t s, uint16_t n, uint16_t d, uint16_t load
   savedCalcModel = 0;
   ioFilePath_t path;
   int ret;
+  bool_t ramFull = false;
   #if defined(LOADDEBUG)
     char yy[1000];
     sprintf(yy, "%d", loadMode);
@@ -3319,6 +3356,7 @@ void doLoad(uint16_t loadMode, uint16_t s, uint16_t n, uint16_t d, uint16_t load
     // restoreOneSection() only returns false at END_CONFIG, which a file that stops short - truncated, or with a count that swallowed its last section - never
     // reaches: every further call then reads an empty section name, matches nothing and returns true. Loop on ioEof() as well, as doLoadDataFile() does.
     while(!ioEof() && restoreOneSection(loadMode, s, n, d, allowUserKeys)) {
+      ramFull = ramFull || (lastErrorCode == ERROR_RAM_FULL);                    // an entry that did not fit is skipped, and NAMED_VARIABLES clears lastErrorCode
     }
 
     if(loadedVersion < 10000028) {                                              // menu items renumbered into one block: move the stored menu links. Incl. LOADR and LOADV which restore a Conf register
@@ -3347,6 +3385,9 @@ void doLoad(uint16_t loadMode, uint16_t s, uint16_t n, uint16_t d, uint16_t load
 
   lastErrorCode = ERROR_NONE;
   previousErrorCode = lastErrorCode;
+  if(ramFull) {
+    displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
+  }
 
   // The PROGRAMS section is applied in place, so a file claiming a label name longer than MAX_LABEL_NAME_LENGTH leaves nothing to roll back to.
   // Clear the program area to an empty .END. and report the file as corrupt. fnClPAll also removes all XEQ key assignments, the right scope once every label is gone.
@@ -3441,6 +3482,9 @@ void doLoad(uint16_t loadMode, uint16_t s, uint16_t n, uint16_t d, uint16_t load
     }
     else if(loadMode == LM_NAMED_VARIABLES) {
       temporaryInformation = TI_VARIABLES_RESTORED;
+    }
+    if(lastErrorCode != ERROR_NONE) {
+      temporaryInformation = TI_NO_INFO;                                         // the error is displayed instead of the confirmation
     }
     cachedDynamicMenu = 0;
 }

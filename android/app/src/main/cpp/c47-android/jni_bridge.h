@@ -56,7 +56,7 @@ extern gboolean refreshLcd(gpointer unusedData);
 extern void JNICALL Java_org_rpncalculators_r47_MainActivity_setLcdColors(
     JNIEnv *env, jobject thiz, jint text, jint bg);
 
-extern void restoreRegister(calcRegister_t regist, char *type, char *value);
+extern bool_t restoreRegister(calcRegister_t regist, char *type, char *value);
 
 void onUIActivity(void);
 gint64 g_get_monotonic_time(void);
@@ -166,7 +166,7 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(JNIEnv *env,
                                                          jobject thiz,
                                                          jstring text);
 
-extern void restoreRegister(calcRegister_t regist, char *type, char *value);
-extern void reallocateRegister(calcRegister_t regist, uint32_t dataType, uint16_t dataSizeWithoutDataLenBlocks, uint32_t tag);
+extern bool_t restoreRegister(calcRegister_t regist, char *type, char *value);
+extern bool_t reallocateRegister(calcRegister_t regist, uint32_t dataType, uint16_t dataSizeWithoutDataLenBlocks, uint32_t tag);
 
 #endif

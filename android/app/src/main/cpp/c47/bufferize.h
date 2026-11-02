@@ -34,4 +34,5 @@
   void    closeNim                 (void);
   void    closeAim                 (void);
   void    nimBufferToDisplayBuffer (const char *buffer, char *displayBuffer);
+  bool_t  checkShortIntegerDigits  (char *buffer);
 #endif // !BUFFERIZE_H

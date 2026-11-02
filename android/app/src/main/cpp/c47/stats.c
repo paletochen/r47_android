@@ -332,9 +332,6 @@ void initStatisticalSums(void) {
       clearStatisticalSums();
       strcpy(statMx, "STATS");                     //any stats operation restores the stats matrix. The purpose of the changed names are just to be able to exchange the matrixes for reading and graphing
     }
-    else {
-      displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
-    }
   }
 }
 

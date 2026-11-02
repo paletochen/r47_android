@@ -702,6 +702,7 @@ void fnEdit (uint16_t unusedParamButMandatory) {
             uint16_t i;
             uint16_t iMax = strlen(tempBuffer);
             bool decimalflag = false;
+            hexDigits = 0;
             for(i = 0; i < iMax; i++) {
               //printf("**[DL]** fnEdit tempBuffer[%2d] %02x aimBuffer %s\n", i, tempBuffer[i]&0xff, aimBuffer);
               //fflush(stdout);

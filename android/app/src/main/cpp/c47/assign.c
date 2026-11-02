@@ -1255,6 +1255,9 @@ void assignGetName1(void) {
   else if(compareString(aimBuffer, "BKSPC", CMP_NAME) == 0) {
     itemToBeAssigned = ITM_BACKSPACE;
   }
+  else if(compareString(aimBuffer, "CFLG", CMP_NAME) == 0) {
+    itemToBeAssigned = ITM_CFG;
+  }
   /*else if(compareString(aimBuffer, STD_alpha, CMP_NAME) == 0) {
     itemToBeAssigned = ITM_AIM;
   }

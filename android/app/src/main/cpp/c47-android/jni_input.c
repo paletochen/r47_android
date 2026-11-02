@@ -356,22 +356,24 @@ static bool_t tryPasteMatrix(const char *str) {
   }
 
   if(isComplex) {
-    reallocateRegister(REGISTER_X, dtComplex34Matrix, COMPLEX34_SIZE_IN_BLOCKS * rows * cols, amNone);
-    REGISTER_MATRIX_HEADER(REGISTER_X)->matrixRows = (uint16_t)rows;
-    REGISTER_MATRIX_HEADER(REGISTER_X)->matrixColumns = (uint16_t)cols;
-    complex34_t *dst = REGISTER_COMPLEX34_MATRIX_ELEMENTS(REGISTER_X);
-    for(uint32_t i = 0; i < totalElements; i++) {
-      real34Copy(&realElements[i], VARIABLE_REAL34_DATA(dst + i));
-      real34Copy(&imagElements[i], VARIABLE_IMAG34_DATA(dst + i));
+    if(reallocateRegister(REGISTER_X, dtComplex34Matrix, COMPLEX34_SIZE_IN_BLOCKS * rows * cols, amNone)) {
+      REGISTER_MATRIX_HEADER(REGISTER_X)->matrixRows = (uint16_t)rows;
+      REGISTER_MATRIX_HEADER(REGISTER_X)->matrixColumns = (uint16_t)cols;
+      complex34_t *dst = REGISTER_COMPLEX34_MATRIX_ELEMENTS(REGISTER_X);
+      for(uint32_t i = 0; i < totalElements; i++) {
+        real34Copy(&realElements[i], VARIABLE_REAL34_DATA(dst + i));
+        real34Copy(&imagElements[i], VARIABLE_IMAG34_DATA(dst + i));
+      }
     }
   }
   else {
-    reallocateRegister(REGISTER_X, dtReal34Matrix, REAL34_SIZE_IN_BLOCKS * rows * cols, amNone);
-    REGISTER_MATRIX_HEADER(REGISTER_X)->matrixRows = (uint16_t)rows;
-    REGISTER_MATRIX_HEADER(REGISTER_X)->matrixColumns = (uint16_t)cols;
-    real34_t *dst = REGISTER_REAL34_MATRIX_ELEMENTS(REGISTER_X);
-    for(uint32_t i = 0; i < totalElements; i++) {
-      real34Copy(&realElements[i], dst + i);
+    if(reallocateRegister(REGISTER_X, dtReal34Matrix, REAL34_SIZE_IN_BLOCKS * rows * cols, amNone)) {
+      REGISTER_MATRIX_HEADER(REGISTER_X)->matrixRows = (uint16_t)rows;
+      REGISTER_MATRIX_HEADER(REGISTER_X)->matrixColumns = (uint16_t)cols;
+      real34_t *dst = REGISTER_REAL34_MATRIX_ELEMENTS(REGISTER_X);
+      for(uint32_t i = 0; i < totalElements; i++) {
+        real34Copy(&realElements[i], dst + i);
+      }
     }
   }
 
@@ -851,9 +853,10 @@ static bool_t tryPasteComplex(const char *rawInput) {
     liftStack();
   }
 
-  reallocateRegister(REGISTER_X, dtComplex34, 0, tag);
-  real34Copy(&reVal, REGISTER_REAL34_DATA(REGISTER_X));
-  real34Copy(&imVal, REGISTER_IMAG34_DATA(REGISTER_X));
+  if(reallocateRegister(REGISTER_X, dtComplex34, 0, tag)) {
+    real34Copy(&reVal, REGISTER_REAL34_DATA(REGISTER_X));
+    real34Copy(&imVal, REGISTER_IMAG34_DATA(REGISTER_X));
+  }
 
   setSystemFlag(FLAG_ASLIFT);
 

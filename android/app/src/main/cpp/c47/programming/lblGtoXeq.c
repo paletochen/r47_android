@@ -659,11 +659,18 @@ static void _putLiteral(uint8_t *literalAddress) {
         longIntegerInit(val);
 
         getStringLabelOrVariableName(literalAddress + 1);
-        stringToLongInteger(tmpStringLabelOrVariableName, base, val);
-        liftStack();
-        setSystemFlag(FLAG_ASLIFT);
-        convertLongIntegerToShortIntegerRegister(val, (uint32_t)(*literalAddress), REGISTER_X);
-
+        if(stringToLongInteger(tmpStringLabelOrVariableName, base, val) == 0) {  // Valid short integer string
+          liftStack();
+          setSystemFlag(FLAG_ASLIFT);
+          convertLongIntegerToShortIntegerRegister(val, (uint32_t)(*literalAddress), REGISTER_X);
+        }
+        else {
+          displayCalcErrorMessage(ERROR_INVALID_INTEGER_INPUT, ERR_REGISTER_LINE);
+          #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+            sprintf(errorMessage, "string %s contain a digit not allowed in base %d!", tmpStringLabelOrVariableName, base);
+            moreInfoOnError("In function _putLiteral:", errorMessage, NULL, NULL);
+          #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+        }
         longIntegerFree(val);
       break;
       }

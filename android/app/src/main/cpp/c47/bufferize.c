@@ -22,8 +22,31 @@ TO_QSPI static const char bugScreenNoParam[] = "In function addItemToBuffer:item
     }
   }
 
+  bool_t checkShortIntegerDigits(char *buffer) {
+    char *numBuffer = buffer[0] == '+' ? buffer + 1 : buffer;
+    char *basePtr = numBuffer;
+    int16_t posHash, i;
+    posHash = 0;
+    while(*basePtr != '#') {
+      ++basePtr;
+      ++posHash;
+    }
+    uint8_t base = (uint8_t)atoi(++basePtr);
+    for(i=numBuffer[0] == '-' ? 1 : 0; i<posHash; i++) {
+      if((numBuffer[i] > '9' ? numBuffer[i] - 'A' + 10 : numBuffer[i] - '0') >= base) {
+        displayCalcErrorMessage(ERROR_INVALID_INTEGER_INPUT, ERR_REGISTER_LINE);
+        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+          sprintf(errorMessage, "digit %c is not allowed in base %d!", numBuffer[i], base);
+          moreInfoOnError("In function checkShortIntegerDigits:", errorMessage, NULL, NULL);
+        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+        return false;
+      }
+    }
+    return true;
+  }
 
-uint16_t convertItemToSubOrSup(uint16_t item, int16_t subOrSup) {
+
+  uint16_t convertItemToSubOrSup(uint16_t item, int16_t subOrSup) {
     if(subOrSup == NC_SUBSCRIPT) {
       nextChar = NC_NORMAL;            //JM de-latching superscript / suscript /sup/sub, removing the lock. Comment out to let sup/sub lock
            if(item >= ITM_0 && item <= ITM_9) return (uint16_t)((int16_t)item + (int16_t)ITM_SUB_0 - (int16_t)ITM_0); //JM optimized
@@ -1269,6 +1292,11 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
           nimNumberPart = NP_INT_BASE;
           //debugNIM();
         }
+        else if(nimNumberPart == NP_INT_BASE) {  // Clear previous base value
+          while((strlen(aimBuffer) != 0) && (aimBuffer[strlen(aimBuffer)-1] != '#')) {
+            aimBuffer[strlen(aimBuffer)-1] = 0;
+          }
+        }
         break;
       }
 
@@ -2482,20 +2510,12 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
               goto closeNim_exit;
             }
 
-            for(i=aimBuffer[0] == '-' ? 1 : 0; i<posHash; i++) {
-              if((aimBuffer[i] > '9' ? aimBuffer[i] - 'A' + 10 : aimBuffer[i] - '0') >= base) {
-                displayCalcErrorMessage(ERROR_INVALID_INTEGER_INPUT, ERR_REGISTER_LINE);
-                #if (EXTRA_INFO_ON_CALC_ERROR == 1)
-                  sprintf(errorMessage, "digit %c is not allowed in base %d!", aimBuffer[i], base);
-                  moreInfoOnError("In function closeNIM:", errorMessage, NULL, NULL);
-                #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-
-                #if defined(DEBUGUNDO)
-                  printf(">>> undo from addItemToNimBufferD\n");
-                #endif // DEBUGUNDO
-                undo();
-                goto closeNim_exit;
-              }
+            if (checkShortIntegerDigits(aimBuffer) == false) {
+              undo();
+              #if defined(DEBUGUNDO)
+                printf(">>> undo from addItemToNimBufferD\n");
+              #endif // DEBUGUNDO
+              goto closeNim_exit;
             }
 
             longIntegerInit(value);

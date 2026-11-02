@@ -1261,7 +1261,7 @@ void pemCloseNumberInput(void) {
     }
     return;
   }
-  deleteStepsFromTo(currentStep, findNextStep(currentStep));
+
   if(aimBuffer[0] != 0) {
     char *numBuffer = aimBuffer[0] == '+' ? aimBuffer + 1 : aimBuffer;
     char *tmpPtr = tmpString;
@@ -1270,10 +1270,31 @@ void pemCloseNumberInput(void) {
     int16_t lastChar = strlen(aimBuffer) - 1;
 
     if((lastIntegerBase != 0) && (nimNumberPart == NP_INT_10 || nimNumberPart == NP_INT_16)) {
+      int16_t hashPos = strlen(aimBuffer);
       sprintf(aimBuffer + strlen(aimBuffer), "#%" PRIu16, (int) lastIntegerBase);
-      nimNumberPart = NP_INT_BASE;
+      if (checkShortIntegerDigits(aimBuffer) == false) {
+        aimBuffer[hashPos] = 0;
+        return;
+      }
+      else {
+        nimNumberPart = NP_INT_BASE;
+      }
+    }
+    else if(nimNumberPart == NP_INT_BASE) {
+      if (checkShortIntegerDigits(aimBuffer) == false) {
+       return;
+      }
+    }
+    else if(nimNumberPart == NP_INT_16) {
+      displayCalcErrorMessage(ERROR_INVALID_INTEGER_INPUT, ERR_REGISTER_LINE);
+      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+        sprintf(errorMessage, "An hexdigit is not allowed in a long integer!");
+        moreInfoOnError("In function pemCloseNumberInput:", errorMessage, NULL, NULL);
+      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+      return;
     }
 
+    deleteStepsFromTo(currentStep, findNextStep(currentStep));
     *(tmpPtr++) = ITM_LITERAL;
     if((nimNumberPart == NP_COMPLEX_EXPONENT || nimNumberPart == NP_REAL_EXPONENT) && (aimBuffer[lastChar] == '+' || aimBuffer[lastChar] == '-') && aimBuffer[lastChar - 1] == 'e') {
       aimBuffer[--lastChar] = 0;
@@ -1398,6 +1419,9 @@ void pemCloseNumberInput(void) {
       _insertInProgram((uint8_t *)tmpString, inputLength + (int32_t)(tmpPtr - tmpString));
       pemCursorIsZerothStep = false;
     }
+  }
+  else {
+    deleteStepsFromTo(currentStep, findNextStep(currentStep));
   }
 
   aimBuffer[0] = '!';
@@ -1608,7 +1632,9 @@ void insertStepInProgram(const int16_t newFunc) {
         case STRING_ANGLE_MULTPI : _pemCloseAngleInput(ITM_MULPI2); break;
         default:     pemCloseNumberInput();
       }
-      aimBuffer[0] = 0;
+      if(lastErrorCode == ERROR_NONE) {
+        aimBuffer[0] = 0;
+      }
       if(func == ITM_ENTER) {  // just close number editing, don't insert ENTER
         return;
       }

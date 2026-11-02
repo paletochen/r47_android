@@ -243,8 +243,25 @@ TO_QSPI static const char *nameOfWday_pt[8] = {"dia inv" STD_a_ACUTE "lido da se
 
 
   #define CLIPSTR 30000                                         //JMCSV
+
+  /**
+   * Returns the bytes copyRegisterToClipboardString needs for a register. A matrix takes the element sizes of copyRegisterToClipboardString2.
+   *
+   * \param[in] regist Register
+   * \return Size in bytes, terminator included
+   */
+  static uint32_t clipboardBytes(calcRegister_t regist) {
+    const uint32_t dataType = getRegisterDataType(regist);
+
+    if(dataType == dtReal34Matrix || dataType == dtComplex34Matrix) {
+      const matrixHeader_t *matrixHeader = REGISTER_MATRIX_HEADER(regist);
+      return CLIPSTR + (uint32_t)matrixHeader->matrixRows * matrixHeader->matrixColumns * (dataType == dtReal34Matrix ? 46 : 92);
+    }
+    return CLIPSTR;
+  }
 #else // !PC_BUILD
   #define CLIPSTR TMP_STR_LENGTH                              //JMCSV
+  #define clipboardBytes(regist) CLIPSTR
 #endif // PC_BUILD                                            //JMCSV
 
 #if defined(PC_BUILD) || defined(DMCP_BUILD)        //JMCSV
@@ -264,7 +281,7 @@ TO_QSPI static const char *nameOfWday_pt[8] = {"dia inv" STD_a_ACUTE "lido da se
     longInteger_t lgInt;
     int16_t base, sign, n;
     uint64_t shortInt;
-    char *string = malloc(CLIPSTR);                           // off the stack: this runs under stackregister_csv_out, and the pair overran the DM42 stack grant
+    char *string = malloc(clipboardBytes(regist));            // off the stack: this runs under stackregister_csv_out, and the pair overran the DM42 stack grant
     if(string == NULL) {
       clipboardString[0] = 0;
       return;
@@ -463,7 +480,11 @@ char letteredRegisterName(calcRegister_t regist) {
 #if defined(PC_BUILD)                                         //JMCSV
   void copyRegisterXToClipboard(void) {
     GtkClipboard *clipboard;
-    char clipboardString[CLIPSTR];
+    char *clipboardString = malloc(clipboardBytes(REGISTER_X));
+
+    if(clipboardString == NULL) {
+      return;
+    }
 
     clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
     gtk_clipboard_clear(clipboard);
@@ -471,6 +492,17 @@ char letteredRegisterName(calcRegister_t regist) {
 
     copyRegisterToClipboardString(REGISTER_X, clipboardString, false);
     gtk_clipboard_set_text(clipboard, clipboardString, -1);
+    free(clipboardString);
+  }
+
+
+  static uint32_t stackClipboardBytes(void) {
+    uint32_t bytes = CLIPSTR;                                 // the register names and the statistical sums
+
+    for(calcRegister_t r = LAST_SPARE_REGISTER; r >= REGISTER_X; r--) {
+      bytes += clipboardBytes(r);
+    }
+    return bytes;
   }
 
 
@@ -489,7 +521,11 @@ char letteredRegisterName(calcRegister_t regist) {
 
   void copyStackRegistersToClipboard(void) {
     GtkClipboard *clipboard;
-    char clipboardString[10000];
+    char *clipboardString = malloc(stackClipboardBytes());
+
+    if(clipboardString == NULL) {
+      return;
+    }
 
     clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
     gtk_clipboard_clear(clipboard);
@@ -498,12 +534,27 @@ char letteredRegisterName(calcRegister_t regist) {
     copyStackRegistersToClipboardString(clipboardString, LAST_SPARE_REGISTER);
 
     gtk_clipboard_set_text(clipboard, clipboardString, -1);
+    free(clipboardString);
   }
 
 
   void copyAllRegistersToClipboard(void) {
     GtkClipboard *clipboard;
-    char clipboardString[15000], *ptr = clipboardString;
+    uint32_t bytes = stackClipboardBytes();
+    char *clipboardString, *ptr;
+
+    for(int32_t regist=99; regist>=0; --regist) {
+      bytes += clipboardBytes(regist);
+    }
+    for(int32_t regist=currentNumberOfLocalRegisters-1; regist>=0; --regist) {
+      bytes += clipboardBytes(FIRST_LOCAL_REGISTER + regist);
+    }
+
+    clipboardString = malloc(bytes);
+    if(clipboardString == NULL) {
+      return;
+    }
+    ptr = clipboardString;
 
     clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
     gtk_clipboard_clear(clipboard);
@@ -541,19 +592,20 @@ char letteredRegisterName(calcRegister_t regist) {
         /*11*/ STD_SIGMA "(ln(y))      ",
         /*12*/ STD_SIGMA "(ln" STD_SUP_2 "(y))     ",
         /*13*/ STD_SIGMA "(x ln(y))    ",
-        /*14*/ STD_SIGMA "(ln(y)/x)    ",
-        /*15*/ STD_SIGMA "(x" STD_SUP_2 "/y)       ",
-        /*16*/ STD_SIGMA "(1/x)        ",
-        /*17*/ STD_SIGMA "(1/x" STD_SUP_2 ")       ",
-        /*18*/ STD_SIGMA "(x/y)        ",
-        /*19*/ STD_SIGMA "(1/y)        ",
-        /*20*/ STD_SIGMA "(1/y" STD_SUP_2 ")       ",
-        /*21*/ STD_SIGMA "(x" STD_SUP_3 ")         ",
-        /*22*/ STD_SIGMA "(x" STD_SUP_4 ")         ",
-        /*23*/ "x min         ",
-        /*24*/ "x max         ",
-        /*25*/ "y min         ",
-        /*26*/ "y max         "
+        /*14*/ STD_SIGMA "(x" STD_SUP_2 "ln(y))    ",
+        /*15*/ STD_SIGMA "(ln(y)/x)    ",
+        /*16*/ STD_SIGMA "(x" STD_SUP_2 "/y)       ",
+        /*17*/ STD_SIGMA "(1/x)        ",
+        /*18*/ STD_SIGMA "(1/x" STD_SUP_2 ")       ",
+        /*19*/ STD_SIGMA "(x/y)        ",
+        /*20*/ STD_SIGMA "(1/y)        ",
+        /*21*/ STD_SIGMA "(1/y" STD_SUP_2 ")       ",
+        /*22*/ STD_SIGMA "(x" STD_SUP_3 ")         ",
+        /*23*/ STD_SIGMA "(x" STD_SUP_4 ")         ",
+        /*24*/ "x min         ",
+        /*25*/ "x max         ",
+        /*26*/ "y min         ",
+        /*27*/ "y max         "
       };
 
       char sumName[40];
@@ -576,6 +628,7 @@ char letteredRegisterName(calcRegister_t regist) {
     }
 
     gtk_clipboard_set_text(clipboard, clipboardString, -1);
+    free(clipboardString);
   }
 
 
