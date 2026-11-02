@@ -24,6 +24,8 @@ static int android_base_path_ready = 0;
 int current_slot_id = 0; // Linked via JNI
 
 static FILE *openedFile = NULL;
+static int openedFileFd = -1;
+static int openedFileIsWrite = 0;
 extern int requestAndroidFile(int isSave, const char* defaultName, int fileType);
 extern void onFileSelectedNative(int fd);
 extern void onFileCancelledNative();
@@ -164,6 +166,8 @@ int ioFileOpen(ioFilePath_t path, ioFileMode_t mode) {
             close(fd);
             return FILE_ERROR;
         }
+        openedFileFd = fd;
+        openedFileIsWrite = isSave;
         return FILE_OK;
     }
 
@@ -201,6 +205,8 @@ int ioFileOpen(ioFilePath_t path, ioFileMode_t mode) {
                 if (directFd >= 0) {
                     openedFile = fdopen(directFd, (mode == ioModeWrite) ? "wb" : "rb");
                     if (openedFile) {
+                        openedFileFd = directFd;
+                        openedFileIsWrite = (mode == ioModeWrite);
                         return FILE_OK;
                     }
                     close(directFd);
@@ -215,6 +221,8 @@ int ioFileOpen(ioFilePath_t path, ioFileMode_t mode) {
                         close(safFd);
                         return FILE_ERROR;
                     }
+                    openedFileFd = safFd;
+                    openedFileIsWrite = 1;
                     return FILE_OK;
                 }
                 #if (CALCMODEL == USER_R47)
@@ -260,6 +268,8 @@ int ioFileOpen(ioFilePath_t path, ioFileMode_t mode) {
     }
 
     openedFile = fopen(fullpath, modeStr);
+    openedFileFd = -1;
+    openedFileIsWrite = 0;
     return openedFile ? FILE_OK : FILE_ERROR;
 }
 
@@ -278,11 +288,17 @@ void ioFileSeek(uint32_t position) {
 
 void ioFileClose(void) {
     if (openedFile) {
+        int fdToNotify = (openedFileIsWrite && openedFileFd >= 0) ? openedFileFd : -1;
         fflush(openedFile);
         // On Android, fsync ensures the SAF file is actually written
         fsync(fileno(openedFile));
         fclose(openedFile);
         openedFile = NULL;
+        openedFileFd = -1;
+        openedFileIsWrite = 0;
+        if (fdToNotify >= 0) {
+            notifyAndroidFileUpdated(fdToNotify);
+        }
     }
 }
 

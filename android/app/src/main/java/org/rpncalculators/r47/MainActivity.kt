@@ -685,6 +685,11 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     }
 
     @Keep
+    fun notifyFileUpdated(fd: Int) {
+        WorkDirectory.notifyFileUpdated(this, fd)
+    }
+
+    @Keep
     fun processCoreTasks() {
         coreRuntime.processCoreTasks()
     }

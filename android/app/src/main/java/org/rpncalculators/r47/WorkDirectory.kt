@@ -2,10 +2,13 @@ package org.rpncalculators.r47
 
 import android.content.ContentResolver
 import android.content.Context
+import android.media.MediaScannerConnection
 import android.net.Uri
+import android.os.Environment
 import android.provider.DocumentsContract
 import android.util.Log
 
+import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
 object WorkDirectory {
@@ -15,6 +18,83 @@ object WorkDirectory {
     const val KEY_TREE_URI = "work_directory_uri"
 
     private val documentUriCache = ConcurrentHashMap<String, Uri>()
+    private val activeFdUriMap = ConcurrentHashMap<Int, Uri>()
+
+    fun registerWrittenFd(fd: Int, uri: Uri) {
+        if (fd >= 0) {
+            activeFdUriMap[fd] = uri
+        }
+    }
+
+    internal fun resolveFileSystemPathFromDocumentId(docId: String?, defaultPrimaryRoot: String = "/storage/emulated/0"): String? {
+        if (docId.isNullOrEmpty()) {
+            return null
+        }
+        val parts = docId.split(":", limit = 2)
+        if (parts.size != 2) {
+            return null
+        }
+        val volume = parts[0]
+        val relPath = parts[1].trimStart('/')
+        return if (volume.equals("primary", ignoreCase = true)) {
+            if (relPath.isEmpty()) defaultPrimaryRoot else "$defaultPrimaryRoot/$relPath"
+        } else {
+            if (relPath.isEmpty()) "/storage/$volume" else "/storage/$volume/$relPath"
+        }
+    }
+
+    internal fun resolveFileSystemPath(uri: Uri): String? {
+        val docId = try {
+            DocumentsContract.getDocumentId(uri)
+        } catch (_: Exception) {
+            try {
+                DocumentsContract.getTreeDocumentId(uri)
+            } catch (_: Exception) {
+                null
+            }
+        } ?: return null
+
+        val primaryRoot = try {
+            Environment.getExternalStorageDirectory()?.absolutePath
+        } catch (_: Exception) {
+            null
+        } ?: "/storage/emulated/0"
+
+        return resolveFileSystemPathFromDocumentId(docId, primaryRoot)
+    }
+
+    fun notifyFileUpdated(context: Context, fd: Int) {
+        val uri = activeFdUriMap.remove(fd) ?: return
+        try {
+            // Re-open and close a managed ParcelFileDescriptor so the ContentProvider
+            // observes a clean Java-side close after the detached native fd is closed.
+            context.contentResolver.openFileDescriptor(uri, "r")?.close()
+        } catch (error: Exception) {
+            Log.w(TAG, "notifyFileUpdated: read pfd touch failed for $uri: ${error.message}")
+        }
+
+        try {
+            context.contentResolver.notifyChange(uri, null)
+        } catch (_: Exception) {
+        }
+
+        val realPath = resolveFileSystemPath(uri)
+        if (realPath != null) {
+            try {
+                val file = File(realPath)
+                Log.i(TAG, "notifyFileUpdated: triggering MediaScanner for $realPath (size=${file.length()})")
+                MediaScannerConnection.scanFile(
+                    context.applicationContext,
+                    arrayOf(realPath),
+                    null,
+                ) { scannedPath, scannedUri ->
+                    Log.i(TAG, "MediaScanner finished for $scannedPath -> $scannedUri")
+                }
+            } catch (error: Exception) {
+                Log.w(TAG, "notifyFileUpdated: MediaScanner failed for $realPath: ${error.message}")
+            }
+        }
+    }
 
     fun readTreeUriString(context: Context): String? {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -243,6 +323,9 @@ object WorkDirectory {
                 }
                 if (cachedPfd != null) {
                     val fd = cachedPfd.detachFd()
+                    if (mode.contains("w") || mode.contains("a")) {
+                        registerWrittenFd(fd, docUri!!)
+                    }
                     Log.i(TAG, "openDirectDocumentFd: opened cached $fileName with fd $fd (fileType=$fileType, mode=$mode)")
                     return fd
                 }
@@ -314,6 +397,9 @@ object WorkDirectory {
                 return -1
             }
             val fd = pfd.detachFd()
+            if (mode.contains("w") || mode.contains("a")) {
+                registerWrittenFd(fd, docUri!!)
+            }
             Log.i(TAG, "openDirectDocumentFd: opened $fileName with fd $fd (fileType=$fileType, mode=$mode)")
             fd
         } catch (error: Exception) {

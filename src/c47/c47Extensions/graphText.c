@@ -870,7 +870,15 @@ void preventFilenameTimeout(void){
     else {
       printf("Exported %i chars to %s: %s\n", frr, filename_csv, inputstring);
       fflush(stdout);
-      fclose(outfile);
+      #if defined(ANDROID_BUILD)
+        fflush(outfile);
+        fsync(fileno(outfile));
+        fclose(outfile);
+        extern void notifyAndroidFileUpdated(int fd);
+        notifyAndroidFileUpdated(directFd);
+      #else
+        fclose(outfile);
+      #endif
     }
     return 0;
   }
