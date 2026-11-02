@@ -5,10 +5,12 @@ import android.content.Context
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Environment
+import android.os.ParcelFileDescriptor
 import android.provider.DocumentsContract
 import android.util.Log
 
 import java.io.File
+import java.io.FileOutputStream
 import java.util.concurrent.ConcurrentHashMap
 
 object WorkDirectory {
@@ -17,12 +19,35 @@ object WorkDirectory {
     const val PREFS_NAME = SlotStore.APP_PREFS_NAME
     const val KEY_TREE_URI = "work_directory_uri"
 
-    private val documentUriCache = ConcurrentHashMap<String, Uri>()
-    private val activeFdUriMap = ConcurrentHashMap<Int, Uri>()
+    internal data class WriteSession(
+        val uri: Uri,
+        val mode: String,
+        val stageFile: File,
+    )
 
-    fun registerWrittenFd(fd: Int, uri: Uri) {
-        if (fd >= 0) {
-            activeFdUriMap[fd] = uri
+    private val documentUriCache = ConcurrentHashMap<String, Uri>()
+    private val activeWriteSessions = ConcurrentHashMap<Int, WriteSession>()
+
+    fun openWriteStagingFd(context: Context?, uri: Uri, mode: String): Int {
+        return try {
+            val cacheDir = context?.cacheDir
+            val stageFile = if (cacheDir != null) {
+                File.createTempFile("r47_saf_", ".tmp", cacheDir)
+            } else {
+                File.createTempFile("r47_saf_", ".tmp")
+            }
+            val pfd = ParcelFileDescriptor.open(
+                stageFile,
+                ParcelFileDescriptor.MODE_READ_WRITE or
+                    ParcelFileDescriptor.MODE_CREATE or
+                    ParcelFileDescriptor.MODE_TRUNCATE,
+            )
+            val fd = pfd.detachFd()
+            activeWriteSessions[fd] = WriteSession(uri = uri, mode = mode, stageFile = stageFile)
+            fd
+        } catch (error: Exception) {
+            Log.e(TAG, "openWriteStagingFd failed for $uri (mode=$mode)", error)
+            -1
         }
     }
 
@@ -64,13 +89,39 @@ object WorkDirectory {
     }
 
     fun notifyFileUpdated(context: Context, fd: Int) {
-        val uri = activeFdUriMap.remove(fd) ?: return
+        val session = activeWriteSessions.remove(fd) ?: return
+        val uri = session.uri
         try {
-            // Re-open and close a managed ParcelFileDescriptor so the ContentProvider
-            // observes a clean Java-side close after the detached native fd is closed.
-            context.contentResolver.openFileDescriptor(uri, "r")?.close()
+            val openMode = if (session.mode.contains("a")) "wa" else "wt"
+            val outStream = try {
+                context.contentResolver.openOutputStream(uri, openMode)
+            } catch (error: Exception) {
+                if (openMode == "wt") {
+                    context.contentResolver.openOutputStream(uri, "w")
+                } else {
+                    throw error
+                }
+            }
+            outStream?.use { out ->
+                session.stageFile.inputStream().use { input ->
+                    input.copyTo(out)
+                }
+                out.flush()
+                if (out is FileOutputStream) {
+                    try {
+                        out.fd.sync()
+                    } catch (_: Exception) {
+                    }
+                }
+            }
+            Log.i(TAG, "notifyFileUpdated: committed ${session.stageFile.length()} bytes to $uri (mode=${session.mode})")
         } catch (error: Exception) {
-            Log.w(TAG, "notifyFileUpdated: read pfd touch failed for $uri: ${error.message}")
+            Log.e(TAG, "notifyFileUpdated: failed committing staged write to $uri", error)
+        } finally {
+            try {
+                session.stageFile.delete()
+            } catch (_: Exception) {
+            }
         }
 
         try {
@@ -308,26 +359,30 @@ object WorkDirectory {
             var docUri: Uri? = documentUriCache[cacheKey]
 
             if (docUri != null) {
-                val cachedPfd = try {
-                    contentResolver.openFileDescriptor(docUri!!, mode)
-                } catch (error: Exception) {
-                    if (mode == "wt") {
-                        try {
-                            contentResolver.openFileDescriptor(docUri!!, "w")
-                        } catch (_: Exception) {
-                            null
+                if (mode.contains("w") || mode.contains("a")) {
+                    val exists = try {
+                        contentResolver.openFileDescriptor(docUri!!, "r")?.use { true } ?: false
+                    } catch (_: Exception) {
+                        false
+                    }
+                    if (exists) {
+                        val fd = openWriteStagingFd(null, docUri!!, mode)
+                        if (fd >= 0) {
+                            Log.i(TAG, "openDirectDocumentFd: staged cached $fileName with fd $fd (fileType=$fileType, mode=$mode)")
+                            return fd
                         }
-                    } else {
+                    }
+                } else {
+                    val cachedPfd = try {
+                        contentResolver.openFileDescriptor(docUri!!, mode)
+                    } catch (_: Exception) {
                         null
                     }
-                }
-                if (cachedPfd != null) {
-                    val fd = cachedPfd.detachFd()
-                    if (mode.contains("w") || mode.contains("a")) {
-                        registerWrittenFd(fd, docUri!!)
+                    if (cachedPfd != null) {
+                        val fd = cachedPfd.detachFd()
+                        Log.i(TAG, "openDirectDocumentFd: opened cached $fileName with fd $fd (fileType=$fileType, mode=$mode)")
+                        return fd
                     }
-                    Log.i(TAG, "openDirectDocumentFd: opened cached $fileName with fd $fd (fileType=$fileType, mode=$mode)")
-                    return fd
                 }
                 Log.w(TAG, "openDirectDocumentFd: cached URI stale for $fileName, resolving fresh")
                 documentUriCache.remove(cacheKey)
@@ -383,23 +438,22 @@ object WorkDirectory {
 
             documentUriCache[cacheKey] = docUri!!
 
-            val pfd = try {
-                contentResolver.openFileDescriptor(docUri!!, mode)
-            } catch (error: Exception) {
-                if (mode == "wt") {
-                    contentResolver.openFileDescriptor(docUri!!, "w")
-                } else {
-                    throw error
+            if (mode.contains("w") || mode.contains("a")) {
+                val fd = openWriteStagingFd(null, docUri!!, mode)
+                if (fd < 0) {
+                    documentUriCache.remove(cacheKey)
+                    return -1
                 }
-            } ?: run {
+                Log.i(TAG, "openDirectDocumentFd: staged $fileName with fd $fd (fileType=$fileType, mode=$mode)")
+                return fd
+            }
+
+            val pfd = contentResolver.openFileDescriptor(docUri!!, mode) ?: run {
                 documentUriCache.remove(cacheKey)
                 Log.e(TAG, "openDirectDocumentFd: openFileDescriptor returned null for $fileName (mode=$mode)")
                 return -1
             }
             val fd = pfd.detachFd()
-            if (mode.contains("w") || mode.contains("a")) {
-                registerWrittenFd(fd, docUri!!)
-            }
             Log.i(TAG, "openDirectDocumentFd: opened $fileName with fd $fd (fileType=$fileType, mode=$mode)")
             fd
         } catch (error: Exception) {

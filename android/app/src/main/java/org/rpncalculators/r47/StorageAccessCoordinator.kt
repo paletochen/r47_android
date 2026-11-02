@@ -90,13 +90,19 @@ internal class StorageAccessCoordinator(
         }
 
         try {
-            activity.contentResolver.openFileDescriptor(uri, mode)?.use { fileDescriptor ->
-                val fd = fileDescriptor.detachFd()
-                if (mode.contains("w") || mode.contains("a")) {
-                    WorkDirectory.registerWrittenFd(fd, uri)
+            if (mode.contains("w") || mode.contains("a")) {
+                val stageFd = WorkDirectory.openWriteStagingFd(activity, uri, mode)
+                if (stageFd >= 0) {
+                    onNativeFileSelected(stageFd)
+                } else {
+                    onNativeFileCancelled()
                 }
-                onNativeFileSelected(fd)
-            } ?: onNativeFileCancelled()
+            } else {
+                activity.contentResolver.openFileDescriptor(uri, mode)?.use { fileDescriptor ->
+                    val fd = fileDescriptor.detachFd()
+                    onNativeFileSelected(fd)
+                } ?: onNativeFileCancelled()
+            }
         } catch (error: Exception) {
             Log.e(TAG, "Failed to open selected SAF file", error)
             onNativeFileCancelled()
@@ -107,7 +113,7 @@ internal class StorageAccessCoordinator(
         return Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = when {
-                defaultName.endsWith(".bmp") -> "image/bmp"
+                defaultName.endsWith(".bmp") -> "application/octet-stream"
                 defaultName.endsWith(".rtf") -> "application/rtf"
                 defaultName.endsWith(".s47") -> "application/octet-stream"
                 defaultName.endsWith(".p47") -> "application/octet-stream"
