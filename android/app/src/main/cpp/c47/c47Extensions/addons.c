@@ -2184,7 +2184,7 @@ TO_QSPI static const char ITSIprefixes[22] = "K  M  G  T  P  E  Z  ";
 
 
 void fnDisplayFormatCycle (uint16_t unusedButMandatoryParameter) {
-  if(DM_Cycling == 0 && softmenu[softmenuStack[0].softmenuId].menuItem == -MNU_PREFIX) {
+  if(DM_Cycling == 0 && displayFormat != DF_UN && softmenu[softmenuStack[0].softmenuId].menuItem == -MNU_PREFIX) {
     fnDisplayFormatUnit(displayFormatDigits);
   }
   else if(displayFormat == DF_UN) {

@@ -285,16 +285,24 @@
 
   #define getRegisterAngularMode(reg)            (getRegisterTag(reg) & amAngleMask)
   #define setRegisterAngularMode(reg, am)        setRegisterTag(reg, am)
+  #define EXP_FIELD_SHIFT                        5
+  #define EXP_FIELD_MASK                         (15u << EXP_FIELD_SHIFT)
+  #define EXP_STEP_OFF                           (-8)                                                                        // the off sentinel signed step; nibble 0 decodes to -8, which is out of range
+  #define getRegisterExpField(reg)               ((getRegisterTag(reg) >> EXP_FIELD_SHIFT) & 15u)                            // the raw 0..15 exponent-step nibble in tag bits 5-8; 0 is off
+  #define getRegisterExpFixed(reg)               (getRegisterExpField(reg) != 0)                                            // boolean on, like the Polar and 3D flags: on when the nibble is not 0
+  #define clearRegisterExpFixed(reg)             setRegisterTag(reg, getRegisterTag(reg) & ~EXP_FIELD_MASK)                 // nibble 0 is off; the angle bits and the Polar bit are kept
+  #define getRegisterExpStep(reg)                ((int16_t)((int16_t)getRegisterExpField(reg) - 8))                         // signed step V-8, so -8..+7; -8 (nibble 0) is the off sentinel, out of range
+  #define setRegisterExpStep(reg, step)          setRegisterTag(reg, (getRegisterTag(reg) & ~EXP_FIELD_MASK) | ((((step) + 8) & 15u) << EXP_FIELD_SHIFT))   // store step+8 in bits 5-8, keep angle and Polar
   #define getRegisterShortIntegerBase(reg)       getRegisterTag(reg)
   #define setRegisterShortIntegerBase(reg, base) setRegisterTag(reg, base)
   #define getRegisterLongIntegerSign(reg)        getRegisterTag(reg)
   #define setRegisterLongIntegerSign(reg, sign)  setRegisterTag(reg, sign)
 
   #define getComplexRegisterAngularMode(reg)     (getRegisterTag(reg) & amAngleMask)
-  #define setComplexRegisterAngularMode(reg, am) setRegisterTag(reg, (am & amAngleMask) | (getRegisterTag(reg) & amPolar))    // ok. amAngleMask = 15; amPolar = 16
+  #define setComplexRegisterAngularMode(reg, am) setRegisterTag(reg, (am & amAngleMask) | (getRegisterTag(reg) & (amPolar | EXP_FIELD_MASK)))    // keep the Polar bit and the expFixed nibble; a display-mode change is not an operation and must not clear the fixed exponent
   #define getComplexRegisterPolarMode(reg)       (getRegisterTag(reg) & amPolar)
   //#define setComplexRegisterPolarMode(reg, pm) setRegisterTag(reg, (getRegisterTag(reg) & amAngleMask) | (pm & amPolar))    // Intended to maintain bits 0-3 for amAngle (amAngleMask), clear the polar bit 4, and then OR only the polar bit.
-  #define setComplexRegisterPolarMode(reg, pm)   setRegisterTag(reg, (((pm & amPolar) != 0) ? (getRegisterTag(reg) & amAngleMask) : amNone) | (pm & amPolar))   // if polar bit clear, force angle to amNone; if set, preserve angle bits
+  #define setComplexRegisterPolarMode(reg, pm)   setRegisterTag(reg, (((pm & amPolar) != 0) ? (getRegisterTag(reg) & amAngleMask) : amNone) | (pm & amPolar) | (getRegisterTag(reg) & EXP_FIELD_MASK))   // if polar bit clear, force angle to amNone; if set, preserve angle bits; the expFixed nibble is kept either way
   #define isXYRegisterMatrix                      ((getRegisterDataType(REGISTER_X) == dtReal34Matrix) || (getRegisterDataType(REGISTER_X) == dtComplex34Matrix) || (getRegisterDataType(REGISTER_Y) == dtReal34Matrix) || (getRegisterDataType(REGISTER_Y) == dtComplex34Matrix) )
 
   /**
@@ -313,7 +321,7 @@
    */
   bool_t         isXFNregisterValid3r            (calcRegister_t regist);
 
-  #define amPolarCYL 64  //  virtual bit, working in addition to the tag bit 4 = amPolar = 16; bit 5 usid by 32-bit pointer changes; real bits 6 & 7 spare. Real bits not used, in favour of these virtual logic bits,  as the register header also only has bits 0-4.
+  #define amPolarCYL 64  //  virtual bit, working in addition to the tag bit 4 = amPolar = 16. The register header tag is bits 0-8, with bits 5-8 the expFixed nibble, so CYL and SPH stay virtual logic bits and take no header bit.
   #define amPolarSPH 128 //  virtual bit, see typeDefinitions.h, amPolar
 
   /**

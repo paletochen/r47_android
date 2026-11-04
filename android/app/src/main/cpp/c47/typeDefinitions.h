@@ -242,7 +242,10 @@ typedef enum {
   amSecond    =  6, // not an angular but a time unit: for the routine unified with the real type
   TM_HMS      =  7, // not an angular but a time unit
   amAngleMask = 15,
-  amPolar     = 16, // JM bit 4 of the 5 bits is used for Polar in Complex Case
+  amPolar     = 16, // JM bit 4 of the tag is used for Polar in Complex Case
+  // The expFixed exponent-step is a dedicated four-bit field in tag bits 5-8, defined in registers.h (EXP_FIELD_SHIFT and EXP_FIELD_MASK), not an angularMode_t value. The
+  // stored nibble V is 0..15 and the signed step is V - 8: V = 0 (step -8) is OFF and out of range, V = 1..15 is step -7..+7. The shown exponent is three times the step and
+  // the stored value never changes. The field is separate from the angle bits and the Polar bit, so a complex register takes an angle, a Polar flag and an expFixed step at once.
 
   //removed the idea of adding bits: See registers.h
   //  amPolarCYL  =  64, // 3D Vector: Polar cylindrical.
@@ -254,10 +257,10 @@ typedef enum {
   //   There are macros for this in defines.h (for matrix type) and registers.h (for registers)
 
   //using logic to store in a real matrix register, the states: CYL, SPH or RECT. RECT being amNone set and no Polar mode set. This can be reworked into storing the bits. Search for amPolarCYL & amPolarSPH to change.
-  //5-bits stored in register header
-  //current:   0b ---.-xxx   x : 0-7 angle/time types
-  //              ---z-...   z : Polar
-  //              ---.-...   - : spare bits
+  //9 bits stored in register header (registerHeader_t.tag), widened from 5 when the expFixed nibble was added
+  //layout:    0b eeee z xxxx   xxxx : bits 0-3, amAngleMask, the angle or time type 0-7 (amRadian..TM_HMS, amNone)
+  //                            z    : bit 4, amPolar, set for a Polar complex or a Spherical 3D vector
+  //                            eeee : bits 5-8, the expFixed exponent-step nibble V (0-15), defined in registers.h; signed step V-8, V=0 off, V=1-15 step -7..+7
 
   //Real             0 -000       Real amRadian
   //Real             0 -001       Real amGrad
@@ -430,9 +433,9 @@ typedef union {
   struct {
     unsigned pointerToRegisterData : 16; ///< uint32_t      Memory block number
     unsigned dataType              :  4; ///< uint32_t      dtLongInteger, dtReal34, ...
-    unsigned tag                   :  5; ///< angularMode_t Short integer base, real34 angular mode, or long integer sign; complex34 angle mode + Polar
+    unsigned tag                   :  9; ///< angularMode_t bits 0-3 angle, bit 4 Polar, bits 5-8 the expFixed step nibble (0 off); short integer base and long integer sign use the low bits only
     unsigned readOnly              :  1; ///< uint32_t      The register or variable is readOnly if this field is 1 (used for system named variables)
-    unsigned notUsed               :  6; ///< uint32_t      6 bits free
+    unsigned notUsed               :  2; ///< uint32_t      2 bits free
   };
 } registerHeader_t;
 

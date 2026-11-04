@@ -24,7 +24,7 @@
 
       case dtComplex34: {
         if(showContent) {
-          complex34ToDisplayString(REGISTER_COMPLEX34_DATA(regist), tmpString, &standardFont, SCREEN_WIDTH - 1 - registerNameWidth, 34, !LIMITEXP, !FRONTSPACE, LIMITIRFRAC, getComplexRegisterAngularMode(regist), getComplexRegisterPolarMode(regist));
+          complex34ToDisplayString(REGISTER_COMPLEX34_DATA(regist), tmpString, &standardFont, SCREEN_WIDTH - 1 - registerNameWidth, 34, !LIMITEXP, !FRONTSPACE, LIMITIRFRAC, getComplexRegisterAngularMode(regist), getComplexRegisterPolarMode(regist), getRegisterExpStep(regist));
         }
         else {
           sprintf(tmpString, "%d bytes", (int16_t)COMPLEX34_SIZE_IN_BYTES);

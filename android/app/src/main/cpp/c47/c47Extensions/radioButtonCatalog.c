@@ -127,6 +127,7 @@ TO_QSPI const radiocb_t indexOfRadioCbEepromItems[] = {
   {ITM_PRTACT,           FLAG_PRTACT ,           CB_JC},  // SFL_PRTACT
 //  {ITM_TRACE,            FLAG_TRACE ,            CB_JC},  // SFL_TRACE
   {ITM_ERPN,             FLAG_ERPN   ,           CB_JC},  //SetSetting
+  {ITM_TOPFX,            FLAG_TOPFX  ,           CB_JC},  //SetSetting
   {ITM_M_ALL,            FLAG_M_ALL  ,           CB_JC},  //SetSetting
   {ITM_CARRY,            FLAG_CARRY  ,           CB_JC},  //SetSetting
   {ITM_OVERFLOW,         FLAG_OVERFLOW,          CB_JC},  //SetSetting
@@ -280,6 +281,7 @@ TO_QSPI const uint16_t systemFlagParams[] = {  // CB_JC CHECK BOX System flags c
   FLAG_FRACT,
   FLAG_PRTACT,
   FLAG_ERPN,
+  FLAG_TOPFX,
   FLAG_M_ALL,
   FLAG_CARRY,
   FLAG_OVERFLOW,

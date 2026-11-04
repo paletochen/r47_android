@@ -1907,7 +1907,7 @@
 #define ITM_CB_LEADING_ZERO         1857
 #define CHR_case                    1858
 #define ITM_BASE_HOME               1859
-#define ITM_1860                    1860 // General items / any items spare
+#define ITM_TOPFX                   1860
 #define ITM_MYMx3                   1861
 #define ITM_DTtoJ                   1862
 #define ITM_JtoDT                   1863
@@ -1960,21 +1960,21 @@
 #define ITM_msTo                    1910
 #define ITM_ymdTo                   1911
 #define ITM_FINISH                  1912
-#define ITM_1913                    1913 // General items / any items spare
+#define ITM_ENGCL                   1913 // Temp ENG display clear
 #define ITM_TO_USER                 1914
 #define ITM_N_KEY_NIL               1915
 #define ITM_USER_DM42               1916
 #define ITM_HPRP                    1917
 #define ITM_N_KEY_FGSH              1918
 #define ITM_YY_OFF                  1919
-#define ITM_1920                    1920 // General items / any items spare
-#define ITM_1921                    1921 // General items / any items spare
-#define ITM_1922                    1922 // General items / any items spare
-#define ITM_1923                    1923 // General items / any items spare
+#define ITM_SI_c                    1920 // SI prefix centi, 10^-2 (spare 1920)
+#define ITM_SI_d                    1921 // SI prefix deci, 10^-1 (spare 1921)
+#define ITM_SI_da                   1922 // SI prefix deca, 10^1 (spare 1922)
+#define ITM_SI_h                    1923 // SI prefix hecto, 10^2 (spare 1923)
 #define ITM_MNUp1                   1924
-#define ITM_1925                    1925 // General items / any items spare
+#define ITM_ENGL                    1925 // left-arrow Temp ENG display
 #define ITM_T_UP_ARROW              1926
-#define ITM_1927                    1927 // General items / any items spare
+#define ITM_ENGR                    1927 // right-arrow Temp ENG display
 #define ITM_T_DOWN_ARROW            1928
 #define ITM_T_HOME                  1929
 #define ITM_T_END                   1930
@@ -2351,7 +2351,7 @@
 #define SFL_AUTOVALID               2299
 #define SFL_M_ALL                   2300
 #define SFL_PL_2L                   2301
-#define SFL_2302                    2302
+#define SFL_TOPFX                   2302
 #define SFL_2303                    2303
 #define SFL_2304                    2304
 #define SFL_2305                    2305
@@ -3273,6 +3273,7 @@
 #define ITM_3151                    3151 // General items / any items spare (reserved: FIN12C, dynamic softmenu spare)
 #define MNU_RMODE                   3152
 #define ITM_3153                    3153 // General items / any items spare (reserved: Menus)
+#define MNU_EEXPFX                  3153 // EEX SI prefix menu; spare 3153, opened by the EEX long press
 #define ITM_3154                    3154 // General items / any items spare (reserved: Menus)
 #define ITM_3155                    3155 // General items / any items spare (reserved: Menus)
 #define MNU_DRM                     3156

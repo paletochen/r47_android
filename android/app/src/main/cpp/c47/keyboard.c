@@ -3,6 +3,7 @@
 
 #include "c47.h"
 
+#define EEX_TOPFX_AUTO true   //JM when set, a prefix run from the EEX SI prefix menu switches the display to PFX, and a binary prefix also sets the 1024 grouping
 
 TO_QSPI static const char bugScreenNonexistentMenu[] = "In function determineFunctionKeyItem: nonexistent menu specified!";
 TO_QSPI static const char bugScreenItemNotDetermined[] = "In function determineItem: item was not determined!";
@@ -973,6 +974,23 @@ endReturnTrue:
 
         lastKeyItemDetermined = item;
       }
+
+#if defined(OPTION_EEX_PREFIX)
+      if(currentMenu() == -MNU_EEXPFX || currentMenu() == -MNU_PREFIX) {                   //JM close EEXPFX before the item runs; PFX closes it too
+        if(EEX_TOPFX_AUTO && item > 0 && indexOfItems[item].func == fnMultiplySI) {        //JM a prefix from this menu switches the display to UNIT
+          if(getSystemFlag(FLAG_TOPFX)) {
+            displayFormat = DF_UN;
+            if(indexOfItems[item].param > 200) {   //JM a binary prefix (param over 200) also sets the 1024 grouping
+              setSystemFlag(FLAG_2TO10);
+            }
+            fnRefreshState();
+          }
+        }
+        if(currentMenu() == -MNU_EEXPFX) {
+          popSoftmenu();
+        }
+      }
+#endif // OPTION_EEX_PREFIX
 
       // in graph plot menu, wanting to change Normal Mode items, so open the correct menu first and return to Normal Mode, and stop the processing.
       if(calcMode == CM_GRAPH && currentMenu() == -MNU_PLOT_FUNC && (item == VAR_LX || item == VAR_UX)) {
@@ -1976,6 +1994,14 @@ void btnPressed(GtkWidget *notUsed, GdkEvent *event, gpointer data) {
 
         processKeyAction(item);
 
+#if defined(OPTION_EEX_PREFIX)
+        if(item == ITM_EXPONENT && calcMode == CM_NIM && currentMenu() != -MNU_EEXPFX) {   //JM EEX primary press opens the SI prefix menu at once, no long press; cancel the armed long press so a hold does not open it twice
+          showSoftmenu(-MNU_EEXPFX);
+          screenUpdatingMode = SCRUPD_AUTO;
+          refreshScreen(1997);
+        }
+#endif // OPTION_EEX_PREFIX
+
                     #if defined(PC_BUILD_TELLTALE)
                       sprintf(tmp, "keyboard.c: btnPressed 2--> processKeyAction(%d) which is str:%s; keyActionProcessed=%u\n", item, (char *)data, keyActionProcessed);
                       jm_show_calc_state(tmp);
@@ -2230,6 +2256,19 @@ void btnPressed(GtkWidget *notUsed, GdkEvent *event, gpointer data) {
           goto RELEASE_END;
         }
 
+#if defined(OPTION_EEX_PREFIX)
+        if(item == ITM_EXIT1 && currentMenu() == -MNU_PREFIX && menu(1) == -MNU_EEXPFX) {   //JM EXIT from PFX opened off EEXPFX pops back to EEXPFX; NIM stays
+          popSoftmenu();
+          screenUpdatingMode = SCRUPD_AUTO;
+          goto RELEASE_END;
+        }
+        if(item == ITM_EXIT1 && currentMenu() == -MNU_EEXPFX) {                //JM EXIT closes only EEXPFX; NIM stays
+          popSoftmenu();
+          screenUpdatingMode = SCRUPD_AUTO;
+          goto RELEASE_END;
+        }
+#endif // OPTION_EEX_PREFIX
+
         bool_t Norm_Key_00_released = !getSystemFlag(FLAG_USER) && (keyStateCode == 0) && (keyCode == Norm_Key_00_key) && Norm_Key_00.used && (!(lastIntegerBase >= 2 && getSystemFlag(FLAG_TOPHEX)));
 
         char *funcParam = (Norm_Key_00_released ? Norm_Key_00.funcParam : (char *)getUserKeyLabelString(keyCode * 6 + keyStateCode));
@@ -2345,6 +2384,15 @@ void btnPressed(GtkWidget *notUsed, GdkEvent *event, gpointer data) {
               leaveTamModeIfEnabled();
             }
 
+              if(item == ITM_ENGR && calcMode == CM_NIM) {                         // there is only one way it can come while in NIM, that is via the long press
+                closeNim();
+                runFunction(ITM_CHS);                                              // the press ran ITM_CHS on this key; undo the sign change so the long-press eng step keeps the value's sign
+              }
+#if defined(OPTION_EEX_PREFIX)
+              if(currentMenu() == -MNU_EEXPFX && item != ITM_EXIT1) {              //JM the long-press stage runs here via runFunction, which the processKeyAction close does not reach, so close EEXPFX on this path too
+                popSoftmenu();
+              }
+#endif // OPTION_EEX_PREFIX
               runFunction(item);
 
                     #if defined(PC_BUILD) && defined(MONITOR_CLRSCR)
@@ -2455,6 +2503,12 @@ RELEASE_END:
                     #endif // PC_BUILD &&MONITOR_CLRSCR
 
     keyActionProcessed = false;
+
+#if defined(OPTION_EEX_PREFIX)
+    if(currentMenu() == -MNU_EEXPFX && item != ITM_EXIT1) {             //JM the EEX SI prefix menu closes on the next key, before dispatch, and leaves NIM open; EXIT closes it on release only so NIM stays
+      popSoftmenu();
+    }
+#endif // OPTION_EEX_PREFIX
 
     if(lastErrorCode != 0 && item != ITM_EXIT1 && item != ITM_BACKSPACE) {
       lastErrorCode = 0;

@@ -3,10 +3,11 @@
 
 #include "c47.h"
 
+#define EEX_NO_CONVERT_LI_SI    //JM when not defined, <-ENG and ENG-> will permanently with data loss convert LI and SI to real
 #define isComplex true
 #define isReal    false
 static void real34ToDisplayString2(const real34_t *real34, char *displayString, int16_t displayHasNDigits, bool_t limitExponent, bool_t noFix, bool_t frontSpace, bool_t complex, irfracOption_t limitIrfrac);
-static void complex34ToDisplayString2(const complex34_t *complex34, char *displayString, int16_t displayHasNDigits, bool_t limitExponent, bool_t frontSpace, const uint16_t tagAngle, const bool_t tagPolar, irfracOption_t limitIrfrac, rectToPolarCache_t *cache);
+static void complex34ToDisplayString2(const complex34_t *complex34, char *displayString, int16_t displayHasNDigits, bool_t limitExponent, bool_t frontSpace, const uint16_t tagAngle, const bool_t tagPolar, const int16_t expStep, irfracOption_t limitIrfrac, rectToPolarCache_t *cache);
 static void insertSepsIntoIntegerText(char *displayString);
 static int32_t appendRadixMark(char *displayString, int32_t charIndex);           // defined below, used before its definition by emitSciDigits
 
@@ -53,6 +54,117 @@ void fnDisplayFormatEng(uint16_t displayFormatN) {
   fnDisplayFormatReset(displayFormatN);
   displayFormat = DF_ENG;
   fnRefreshState();                              //drJM
+}
+
+
+static bool_t engFixedActive = false;                          // set while a register with the fixed-exponent bit is rendered, so the ENG display is forced
+static int32_t engFixedExp = 0;                                // the forced shown exponent for that register, read from the signed tag step times three
+
+/********************************************//**
+ * \brief Steps X's fixed display exponent by three, keeping the stored value. The first press seeds the step at the natural ENG
+ *        exponent and sets the tag; when X already sits on a multiple of three the first press also steps one in the key's
+ *        direction. Later presses step the signed tag step. direction +1 raises the shown exponent (←ENG), -1 lowers it (ENG→).
+ ***********************************************/
+static void engExpShift(int16_t direction) {
+  if(calcMode == CM_NIM) {
+    closeNim();                                                  // finish the entry first, then act on X as in normal mode
+  }
+  bool_t isCplx  = (getRegisterDataType(REGISTER_X) == dtComplex34);
+
+  #if defined(EEX_NO_CONVERT_LI_SI)
+    if(getRegisterDataType(REGISTER_X) == dtLongInteger || getRegisterDataType(REGISTER_X) == dtShortInteger) {
+      return;
+    }
+  #else //!EEX_NO_CONVERT_LI_SI
+    if(getRegisterDataType(REGISTER_X) == dtLongInteger) {
+      convertLongIntegerRegisterToReal34Register(REGISTER_X, REGISTER_X);   // the feature acts on a Real: a long integer in X is converted to a Real permanently
+    }
+    else if(getRegisterDataType(REGISTER_X) == dtShortInteger) {
+      convertShortIntegerRegisterToReal34Register(REGISTER_X, REGISTER_X);  // and a short integer, permanently
+    }
+  #endif //EEX_NO_CONVERT_LI_SI
+
+  if(getRegisterDataType(REGISTER_X) != dtReal34 && !isCplx) {
+    return;                                                        // only a Real scalar or a Complex takes the fixed exponent
+  }
+  if(!isCplx && (real34IsSpecial(REGISTER_REAL34_DATA(REGISTER_X)) || real34IsZero(REGISTER_REAL34_DATA(REGISTER_X)))) {
+    return;                                                        // a special or zero Real has no exponent to fix
+  }
+  bool_t bitSet = (getRegisterExpFixed(REGISTER_X) != 0);          // the keys write only this per-register tag, never the global display format
+  {
+    int16_t  step;
+    uint32_t oldTag   = getRegisterTag(REGISTER_X);
+    bool_t   savedUpd = updateDisplayValueX;
+    char     fitStr[128];
+    int16_t  teWidth  = stringWidth("TE", &standardFont, true, true) + noShiftOffset;   // the fixed-exponent register shows the TE prefix on the left, so a step is measured against the line less that width
+    if(bitSet) {
+      step = (int16_t)(getRegisterExpStep(REGISTER_X) + direction);    // already on the ladder: step the signed tag step
+    }
+    else {
+      real_t  x;
+      int32_t e;
+      if(isCplx && getComplexRegisterPolarMode(REGISTER_X) == amPolar) {
+        cplx_t  z;
+        real_t  arg;
+        real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &z.Real);
+        real34ToReal(VARIABLE_IMAG34_DATA(REGISTER_COMPLEX34_DATA(REGISTER_X)), &z.Imag);
+        realRectangularToPolar(&z, &x, &arg, &ctxtReal39);            // a Polar complex shows its magnitude, so the arrows seed from the magnitude, not the rectangular real part
+      }
+      else {
+        real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &x);
+      }
+      e = realGetExponent(&x);                                        // the adjusted base-ten exponent of the leading digit
+      step = (int16_t)((e - modulo(e, 3)) / 3);                       // the first press seeds the scaler to the natural ENG exponent
+      if(modulo(e, 3) == 0) {                                   // already on a triplen exponent: step on to the next boundary in the key's direction, never staying on it
+        step = (int16_t)(step + direction);
+      }
+    }
+    if(step >= -7 && step <= 7) {                               // the usable step range -7..+7; -8 (nibble 0) is the off sentinel and is never set by stepping
+      setRegisterExpStep(REGISTER_X, step);                     // set the bit and the step, then render it and measure the real width of the fixed display
+      updateDisplayValueX = false;
+      if(isCplx) {
+        complex34ToDisplayString(REGISTER_COMPLEX34_DATA(REGISTER_X), fitStr, &numericFont, SCREEN_WIDTH - teWidth, NUMBER_OF_DISPLAY_DIGITS, LIMITEXP, FRONTSPACE, NOIRFRAC, getComplexRegisterAngularMode(REGISTER_X), getComplexRegisterPolarMode(REGISTER_X) == amPolar, step);
+      }
+      else {
+        real34ToDisplayString(REGISTER_REAL34_DATA(REGISTER_X), getRegisterTag(REGISTER_X), fitStr, &numericFont, SCREEN_WIDTH - teWidth, NUMBER_OF_DISPLAY_DIGITS, LIMITEXP, FRONTSPACE, NOIRFRAC);
+      }
+      updateDisplayValueX = savedUpd;
+      if(stringWidth(fitStr, &numericFont, false, true) > SCREEN_WIDTH - teWidth) {
+        setRegisterTag(REGISTER_X, oldTag);                     // too wide for the line beside the TE prefix: block the climb, restore the tag exactly as it was
+      }
+    }
+    fnRefreshState();                                           // refresh for the permanent integer conversion, and for the step when it was kept
+  }
+}
+
+
+/********************************************//**
+ * \brief Clears X's fixed display exponent, returning X to the normal format
+ ***********************************************/
+void fnEngExpClear(uint16_t unusedButMandatoryParameter) {
+  if(calcMode == CM_NIM) {
+    fnCln(NOPARAM);
+  }
+  calcRegister_t regist;
+  for(regist = REGISTER_X; regist <= (getSystemFlag(FLAG_SSIZE8) ? REGISTER_D : REGISTER_T); regist++) {
+    clearRegisterExpFixed(regist);                             // .d clears the fixed-exponent nibble; the angle bits and the Polar bit are kept
+  }
+}
+
+
+/********************************************//**
+ * \brief Steps X's displayed exponent up by three, moving the radix left; the stored value is unchanged
+ ***********************************************/
+void fnEngExpLeft(uint16_t unusedButMandatoryParameter) {
+  engExpShift(+1);
+}
+
+
+/********************************************//**
+ * \brief Steps X's displayed exponent down by three, moving the radix right; the stored value is unchanged
+ ***********************************************/
+void fnEngExpRight(uint16_t unusedButMandatoryParameter) {
+  engExpShift(-1);
 }
 
 
@@ -237,6 +349,19 @@ void real34ToDisplayString(const real34_t *real34, uint32_t tag, char *displaySt
     clearSystemFlag(FLAG_ENGOVR);   // Default to SCI display in PEM for large reals
   }
 
+  bool_t expFixedFlag = ((tag & EXP_FIELD_MASK) != 0);
+  engFixedActive = expFixedFlag && !real34IsSpecial(real34) && !real34IsZero(real34);
+  if(expFixedFlag) {
+    engFixedExp = (((int32_t)((tag & EXP_FIELD_MASK) >> EXP_FIELD_SHIFT)) - 8) * 3;   // the nibble in bits 5-8 is V; the signed step is V-8 and the shown exponent is three times it
+    tag = amNone;                                                 // a fixed real has no angle: the dispatch and the scalar path read it as amNone
+  }
+  tag &= ~EXP_FIELD_MASK;                                         // strip the exponent-step nibble before the angle dispatch
+
+  if(engFixedActive && calcMode != CM_PEM) {                     // the fixed view ignores the global format: ENG, or UNIT when the global is UNIT, at m digits
+    displayFormatDigits = (displayFormat == DF_ALL) ? 19 : max(displayFormatDigits, 12);   // m from the global setting: ALL gives 19, the rest max(n,12)
+    displayFormat       = (displayFormat == DF_UN) ? DF_UN : DF_ENG;
+  }
+
   #if (REAL34_WIDTH_TEST == 1)
     maxWidth = largeur;
   #endif // (REAL34_WIDTH_TEST == 1)
@@ -277,6 +402,7 @@ void real34ToDisplayString(const real34_t *real34, uint32_t tag, char *displaySt
   if(ovrENG) {
     setSystemFlag(FLAG_ENGOVR);
   }
+  engFixedActive = false;
 }
 
 
@@ -472,14 +598,12 @@ static int32_t appendSeparatorRight(char *displayString, int32_t charIndex) {  /
 }
 
 
-#if 0
 static int32_t appendSeparatorLeft(char *displayString, int32_t charIndex) {    // SEPARATOR_LEFT is 2 bytes, 1 byte or absent; SCI, ENG and UNIT borrow it to group the integer part
   const char *sepLeft = SEPARATOR_LEFT;
   int32_t sepLen = (sepLeft[0] != STD_NOCHAR) ? ((sepLeft[1] != STD_NOCHAR) ? 2 : 1) : 0;
   xcopy(displayString + charIndex, sepLeft, sepLen);
   return charIndex + sepLen;
 }
-#endif // 0
 
 
 static void radixMarkToString(char *tt) {                                       // RADIX34_MARK_STRING is 2 bytes or 1; copies it into a nul-terminated buffer the callers splice
@@ -1289,6 +1413,12 @@ fixCarriedPastLimit:
       digitsToDisplay = displayFormatDigits;
       digitToRound    = min(firstDigit + digitsToDisplay, lastDigit);
     }
+    if(engFixedActive) {                                         // the fixed view keeps the integer digits at the forced exponent and rounds the fraction to the format, so the value shows at the display precision and no leading digit is fabricated
+      int32_t fixedIntDigits = exponent - engFixedExp + 1;
+      int32_t keep = max(fixedIntDigits, (int32_t)displayFormatDigits + 1);   // round to the format precision, displayFormatDigits+1 significant figures, keeping more only where the forced exponent's integer part needs them
+      digitsToDisplay = keep;
+      digitToRound    = min(firstDigit + keep - 1, lastDigit);
+    }
 
     roundedAt = roundBcdAt(bcd, digitToRound, lastDigit + digitsToTruncate, sign);
 
@@ -1298,6 +1428,10 @@ fixCarriedPastLimit:
 
     numDigits -= digitToRound - roundedAt;
     digitToRound = roundedAt;
+
+    if(engFixedActive) {
+      lastDigit = digitToRound;                                  // the fixed view rounded to the display digits, so the loop stops at the rounded digit, not the full precision; the narrow line fits and the fixed view is kept
+    }
 
     // Case when 9.9999 rounds to 10.0000
     if(digitToRound < firstDigit) {
@@ -1330,15 +1464,68 @@ fixCarriedPastLimit:
     }
 
     // Digits before radix mark
-    displayString[charIndex++] = '0' + bcd[firstDigit];
-    if(updateDisplayValueX) {
-      displayValueX[valueIndex++] = '0' + bcd[firstDigit];
+    if(engFixedActive) {                                      // fixed exponent: render the value at engFixedExp; the key handler already blocked a step too wide to fit the line
+      int32_t shownExp  = engFixedExp;
+      int32_t intDigits = exponent - engFixedExp + 1;         // digits left of the radix in value divided by ten to engFixedExp
+      int32_t pos       = firstDigit;
+      int32_t d, f;
+      char    ch;
+      if(intDigits >= 1) {
+        for(d = 0; d < intDigits; d++, pos++) {
+          if(d != 0 && !GROUPLEFT_DISABLED && GROUPWIDTH_LEFT != 0 && ((intDigits - d) % GROUPWIDTH_LEFT) == 0) {
+            charIndex = appendSeparatorLeft(displayString, charIndex);
+          }
+          ch = (pos <= lastDigit) ? (char)('0' + bcd[pos]) : '0';
+          displayString[charIndex++] = ch;
+          if(updateDisplayValueX) {
+            displayValueX[valueIndex++] = ch;
+          }
+        }
+      }
+      else {
+        displayString[charIndex++] = '0';
+        if(updateDisplayValueX) {
+          displayValueX[valueIndex++] = '0';
+        }
+      }
+      charIndex = appendRadixMark(displayString, charIndex);
+      if(updateDisplayValueX) {
+        displayValueX[valueIndex++] = '.';
+      }
+      for(f = 0; f < -intDigits; f++) {                       // leading zeros when the value is below one, grouped with the fraction
+        if(f != 0 && !GROUPRIGHT_DISABLED && GROUPWIDTH_RIGHT != 0 && (f % GROUPWIDTH_RIGHT) == 0) {
+          charIndex = appendSeparatorRight(displayString, charIndex);
+        }
+        displayString[charIndex++] = '0';
+        if(updateDisplayValueX) {
+          displayValueX[valueIndex++] = '0';
+        }
+      }
+      for(; pos <= lastDigit; pos++, f++) {                   // the significant digits as the fraction, grouping continuing from the leading zeros
+        if(f != 0 && !GROUPRIGHT_DISABLED && GROUPWIDTH_RIGHT != 0 && (f % GROUPWIDTH_RIGHT) == 0) {
+          charIndex = appendSeparatorRight(displayString, charIndex);
+        }
+        ch = (char)('0' + bcd[pos]);
+        displayString[charIndex++] = ch;
+        if(updateDisplayValueX) {
+          displayValueX[valueIndex++] = ch;
+        }
+      }
+      displayString[charIndex] = 0;
+      if(updateDisplayValueX) {
+        displayValueX[valueIndex] = 0;
+      }
+      if(shownExp != 0) {
+        if(displayFormat == DF_UN) {
+          exponentToUnitDisplayString(shownExp, flag2To10, displayString + charIndex, updateDisplayValueX ? displayValueX + valueIndex : NULL, false);   // UNIT shows the SI prefix for the fixed exponent
+        }
+        else {
+          exponentToDisplayString(shownExp, displayString + charIndex, updateDisplayValueX ? displayValueX + valueIndex : NULL, false);                  // ENG shows the power of ten
+        }
+      }
+      return;
     }
-    firstDigit++;
-    numDigits--;
-    digitsToDisplay--;
-    while(modulo(exponent, 3) != 0) {
-      exponent--;
+    else {
       displayString[charIndex++] = '0' + bcd[firstDigit];
       if(updateDisplayValueX) {
         displayValueX[valueIndex++] = '0' + bcd[firstDigit];
@@ -1346,6 +1533,16 @@ fixCarriedPastLimit:
       firstDigit++;
       numDigits--;
       digitsToDisplay--;
+      while(modulo(exponent, 3) != 0) {
+        exponent--;
+        displayString[charIndex++] = '0' + bcd[firstDigit];
+        if(updateDisplayValueX) {
+          displayValueX[valueIndex++] = '0' + bcd[firstDigit];
+        }
+        firstDigit++;
+        numDigits--;
+        digitsToDisplay--;
+      }
     }
 
 //The digits are not in groups of three, as the underlying ENG display needs no more than 3 digits left of the radix.
@@ -1443,10 +1640,15 @@ fixCarriedPastLimit:
 }
 
 
-void complex34ToDisplayString(const complex34_t *complex34, char *displayString, const font_t *font, int16_t maxWidth, int16_t displayHasNDigits, bool_t limitExponent, bool_t frontSpace, irfracOption_t limitIrfrac, const uint16_t tagAngle, const bool_t tagPolar) {
+void complex34ToDisplayString(const complex34_t *complex34, char *displayString, const font_t *font, int16_t maxWidth, int16_t displayHasNDigits, bool_t limitExponent, bool_t frontSpace, irfracOption_t limitIrfrac, const uint16_t tagAngle, const bool_t tagPolar, const int16_t expStep) {
   rectToPolarCache_t cache = { .valid = false };
   uint8_t savedDisplayFormatDigits = displayFormatDigits;
   uint8_t saveddisplayFormat       = displayFormat;
+
+  if(expStep != EXP_STEP_OFF) {                                  // the fixed view ignores the global format: ENG, or UNIT when the global is UNIT, at m digits
+    displayFormatDigits = (displayFormat == DF_ALL) ? 6 : max(displayFormatDigits, 4);   // m from the global setting: ALL gives 6, the rest max(n,4)
+    displayFormat       = (displayFormat == DF_UN) ? DF_UN : DF_ENG;
+  }
 
   int16_t digitWidth = stringWidth("0", font, false, false);
 
@@ -1454,7 +1656,7 @@ void complex34ToDisplayString(const complex34_t *complex34, char *displayString,
     displayValueX[0] = 0;
   }
 
-  complex34ToDisplayString2(complex34, displayString, displayHasNDigits, limitExponent, frontSpace, tagAngle, tagPolar, limitIrfrac, &cache);
+  complex34ToDisplayString2(complex34, displayString, displayHasNDigits, limitExponent, frontSpace, tagAngle, tagPolar, expStep, limitIrfrac, &cache);
   bool noFix = false;
   // bool overflown = false;
   int16_t overflow = stringWidth(displayString, font, true, true) - maxWidth;
@@ -1484,9 +1686,17 @@ void complex34ToDisplayString(const complex34_t *complex34, char *displayString,
         }
       }
       else {
-        displayFormatDigits = max(displayFormatDigits - overflowDigits, 3);
-        if(displayFormatDigits == 3) {
-          displayFormat = DF_ALL;
+        if(expStep != EXP_STEP_OFF) {                                   // the fixed view reduces m toward zero to fit; a step too wide even at zero is refused by the key handler, so the view is never dropped to DF_ALL
+          displayFormatDigits = max(displayFormatDigits - overflowDigits, 0);
+          if(displayFormatDigits == 0) {
+            break;
+          }
+        }
+        else {
+          displayFormatDigits = max(displayFormatDigits - overflowDigits, 3);
+          if(displayFormatDigits == 3) {
+            displayFormat = DF_ALL;
+          }
         }
       }
     }
@@ -1495,7 +1705,7 @@ void complex34ToDisplayString(const complex34_t *complex34, char *displayString,
       displayValueX[0] = 0;
     }
 
-    complex34ToDisplayString2(complex34, displayString, displayHasNDigits, limitExponent, frontSpace, tagAngle, tagPolar, limitIrfrac, &cache);
+    complex34ToDisplayString2(complex34, displayString, displayHasNDigits, limitExponent, frontSpace, tagAngle, tagPolar, expStep, limitIrfrac, &cache);
     overflow = stringWidth(displayString, font, true, true) - maxWidth;
   }
   // if(overflown && overflow < -3 * digitWidth) {
@@ -1555,7 +1765,7 @@ void strPrepend(char*dest, char*prefix) {
   }
 #endif //PC_BUILD_TELLTALE
 
-static void complex34ToDisplayString2(const complex34_t *complex34, char *displayString, int16_t displayHasNDigits, bool_t limitExponent, bool_t frontSpace, const uint16_t tagAngle, const bool_t tagPolar, irfracOption_t limitIrfrac, rectToPolarCache_t *cache) {
+static void complex34ToDisplayString2(const complex34_t *complex34, char *displayString, int16_t displayHasNDigits, bool_t limitExponent, bool_t frontSpace, const uint16_t tagAngle, const bool_t tagPolar, const int16_t expStep, irfracOption_t limitIrfrac, rectToPolarCache_t *cache) {
   int16_t imagOffset = 100;
   real34_t real34, imag34, absimag34;
   cplx_t z;
@@ -1592,7 +1802,14 @@ polarFormat:
     real34Copy(VARIABLE_IMAG34_DATA(complex34), &imag34);
   }
 
+  // expFixed on a complex: the real and imaginary parts (rectangular), or the magnitude (polar), show at the one fixed exponent; the polar angle is never scaled, so it is exempt
+  bool_t cplxExpOn = (expStep != -8);
+  if(cplxExpOn) {
+    engFixedExp = (int32_t)expStep * 3;
+  }
+  engFixedActive = cplxExpOn && !real34IsSpecial(&real34) && !real34IsZero(&real34);
   real34ToDisplayString2(&real34, displayString, displayHasNDigits, limitExponent, false, frontSpace, isComplex, limitIrfrac);
+  engFixedActive = false;
   if(updateDisplayValueX) {
     if(tagPolar) {
       strcat(displayValueX, "j");
@@ -1604,7 +1821,9 @@ polarFormat:
 
   const bool_t savedUpdateDisplayValueX = updateDisplayValueX;
   updateDisplayValueX = updateDisplayValueX && !tagPolar;              // the polar angle is written into displayValueX by angle34ToDisplayString2 below
+  engFixedActive = cplxExpOn && !tagPolar && !real34IsSpecial(&imag34) && !real34IsZero(&imag34);   // the imaginary part is fixed in rectangular; the polar angle is exempt
   real34ToDisplayString2(&imag34, displayString + imagOffset, displayHasNDigits, limitExponent, false, !FRONTSPACE, isComplex, limitIrfrac);
+  engFixedActive = false;
   updateDisplayValueX = savedUpdateDisplayValueX;
 
   #if defined(PC_BUILD_TELLTALE)
@@ -3340,7 +3559,7 @@ static void printXSHOW(int16_t am, int16_t d, int16_t df, int16_t dfd, int16_t d
     real34ToDisplayString(&real34, am, tmpString + 2100 + stringByteLength(tmpString + 2100), &numericFont, SCREEN_WIDTH - ww - 8*2, 34, !LIMITEXP, !FRONTSPACE, NOIRFRAC);
   }
   else if(dt == dtComplex34) {
-    complex34ToDisplayString(REGISTER_COMPLEX34_DATA(showRegis), tmpString + 2100 + stringByteLength(tmpString + 2100), &numericFont, SCREEN_WIDTH - ww - 8*2, 34 , !LIMITEXP, !FRONTSPACE, NOIRFRAC, getComplexRegisterAngularMode(showRegis), tagPolar);
+    complex34ToDisplayString(REGISTER_COMPLEX34_DATA(showRegis), tmpString + 2100 + stringByteLength(tmpString + 2100), &numericFont, SCREEN_WIDTH - ww - 8*2, 34 , !LIMITEXP, !FRONTSPACE, NOIRFRAC, getComplexRegisterAngularMode(showRegis), tagPolar, getRegisterExpStep(showRegis));
   }
 
   if(stringWidth(tmpString + 2100, &numericFont, true, true) > SCREEN_WIDTH) {
@@ -3932,7 +4151,7 @@ goBreak1:
         #endif // VERBOSE_SCREEN && PC_BUILD
         temporaryInformation = TI_SHOW_REGISTER_BIG;
 
-        complex34ToDisplayString(REGISTER_COMPLEX34_DATA(showRegis), tmpString, &numericFont, 2000, 34, LIMITEXP, FRONTSPACE, NOIRFRAC, getComplexRegisterAngularMode(showRegis), getComplexRegisterPolarMode(showRegis));
+        complex34ToDisplayString(REGISTER_COMPLEX34_DATA(showRegis), tmpString, &numericFont, 2000, 34, LIMITEXP, FRONTSPACE, NOIRFRAC, getComplexRegisterAngularMode(showRegis), getComplexRegisterPolarMode(showRegis), getRegisterExpStep(showRegis));
         for(i=stringByteLength(tmpString) - 1; i>0; i--) {
           if(tmpString[i] == 0x08) { //change punctuation space to EM4
             tmpString[i] = 0x05;

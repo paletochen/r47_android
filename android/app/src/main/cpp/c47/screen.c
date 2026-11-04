@@ -1272,6 +1272,19 @@ void execTimerApp(uint16_t timerType) {
         int keyStateCode = (getSystemFlag(FLAG_ALPHA) ? 3 : 0) + ((LongPressM == RBX_M124) ? 1 : longpressDelayedkey3 ? 1 : 2);
         funcParam = (char *)getUserKeyLabelString(currentKeyCode * 6 + keyStateCode);
 
+#if defined(OPTION_EEX_PREFIX)
+        if(JM_auto_longpress_enabled == -MNU_EEXPFX) {   //JM EEX SI prefix menu opens on the timeout, no preview label and no NOP stage, as the R47 f/g key long press
+          JM_auto_longpress_enabled = 0;
+          longpressDelayedkey2 = 0;
+          longpressDelayedkey3 = 0;
+          hideFunctionName();
+          showSoftmenu(-MNU_EEXPFX);
+          screenUpdatingMode = SCRUPD_AUTO;
+          refreshScreen(1216);
+          return;
+        }
+#endif // OPTION_EEX_PREFIX
+
         if(calcMode == CM_NORMAL && programRunStop == PGM_STOPPED && (isArrowUp(currentKeyCode))) {
           aimBuffer[0] = 0;
           fnSkip(0);
@@ -2983,7 +2996,7 @@ void createSubstrings(uint8_t number) {
     }
     else if(getRegisterDataType(REGISTER_X) == dtComplex34) {
       clearRegisterLine(REGISTER_X, true, true);
-      complex34ToDisplayString(REGISTER_COMPLEX34_DATA(REGISTER_X), tmpString, &numericFont, SCREEN_WIDTH - prefixWidth, NUMBER_OF_DISPLAY_DIGITS, LIMITEXP, FRONTSPACE, LIMITIRFRAC, getComplexRegisterAngularMode(REGISTER_X),  getComplexRegisterPolarMode(REGISTER_X) == amPolar);
+      complex34ToDisplayString(REGISTER_COMPLEX34_DATA(REGISTER_X), tmpString, &numericFont, SCREEN_WIDTH - prefixWidth, NUMBER_OF_DISPLAY_DIGITS, LIMITEXP, FRONTSPACE, LIMITIRFRAC, getComplexRegisterAngularMode(REGISTER_X),  getComplexRegisterPolarMode(REGISTER_X) == amPolar, getRegisterExpStep(REGISTER_X));
       w = stringWidth(tmpString, &numericFont, false, true);
       showString(prefix, &standardFont, noShiftOffset, Y_POSITION_OF_REGISTER_X_LINE + 6, vmNormal, true, true);
       showString(tmpString, &numericFont, SCREEN_WIDTH - w, Y_POSITION_OF_REGISTER_X_LINE, vmNormal, false, true);
@@ -5252,6 +5265,9 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
           }
 #endif //OPTION_VECTOR
 
+          else if(getRegisterExpFixed(regist)) {                     // temporary ENG active on this register: TE on the left, a permanent label that any fleeting TI above overrides
+            prefixWidth = setPrefix(prefix, "TE", indent);
+          }
 
           if(prefixWidth > 0 && temporaryInformation != TI_VIEW_REGISTER) {
             if(regist == REGISTER_X) {
@@ -5266,7 +5282,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
           }
                                                                       //JM EE ^
 
-          real34ToDisplayString(REGISTER_REAL34_DATA(regist), getRegisterAngularMode(regist), tmpString, &numericFont, SCREEN_WIDTH - prefixWidth, NUMBER_OF_DISPLAY_DIGITS, LIMITEXP, FRONTSPACE, FULLIRFRAC);
+          real34ToDisplayString(REGISTER_REAL34_DATA(regist), getRegisterTag(regist), tmpString, &numericFont, SCREEN_WIDTH - prefixWidth, NUMBER_OF_DISPLAY_DIGITS, LIMITEXP, FRONTSPACE, FULLIRFRAC);
 
           w = stringWidth(tmpString, &numericFont, false, true);
           lineWidth = w;
@@ -5336,7 +5352,9 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
           else if(temporaryInformation == TI_STORCL && regist == REGISTER_X) {
             viewStoRcl(prefix, &prefixWidth);
           }
-
+          else if(getRegisterExpFixed(regist)) {                     // temporary ENG active on this register: TE on the left, a permanent label that any fleeting TI above overrides
+            prefixWidth = setPrefix(prefix, "TE", indent);
+          }
 
           if(prefixWidth > 0) {
             if(regist == REGISTER_X) {
@@ -5350,7 +5368,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
             }
           }
                                                                        //JM EE ^
-          complex34ToDisplayString(REGISTER_COMPLEX34_DATA(regist), tmpString, &numericFont, SCREEN_WIDTH - prefixWidth, NUMBER_OF_DISPLAY_DIGITS, LIMITEXP, FRONTSPACE, FULLIRFRAC, getComplexRegisterAngularMode(regist),  getComplexRegisterPolarMode(regist) == amPolar);
+          complex34ToDisplayString(REGISTER_COMPLEX34_DATA(regist), tmpString, &numericFont, SCREEN_WIDTH - prefixWidth, NUMBER_OF_DISPLAY_DIGITS, LIMITEXP, FRONTSPACE, FULLIRFRAC, getComplexRegisterAngularMode(regist),  getComplexRegisterPolarMode(regist) == amPolar, getRegisterExpStep(regist));
 
           w = stringWidth(tmpString, &numericFont, false, true);
           lineWidth = w;
@@ -6815,6 +6833,8 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
 // PIXEL etc.:    screenHoldsDrawnPixels keeps a CLLCD, PIXEL, POINT or AGRAPH screen blank. snapSkipRefresh keeps the raw screen.
 // testSuite:     TESTSUITE_BUILD freezes the clock across fnSNAP (testClockFrozen) so stored capture hashes hold.
 void fnSNAP(uint16_t unusedButMandatoryParameter) {
+  const bool_t showPage = (currentMenu() == -MNU_SHOW && temporaryInformation != TI_WHO && !screenHoldsDrawnPixels);  //the WHO screen uses the SHOW menu as well
+
   if(!SNAP_PROPER_OK) {
     return;
   }
@@ -6832,7 +6852,7 @@ void fnSNAP(uint16_t unusedButMandatoryParameter) {
     testClockFrozen = true;           // the capture carries the date and time, so the test build reads a fixed clock and the stored hashes stay put
   #endif // TESTSUITE_BUILD
   if(!snapSkipRefresh && !screenHoldsDrawnPixels) {   //--snapskiprefresh, or a screen a program drew, keeps the raw graphic screen
-    if(currentMenu() == -MNU_SHOW) {                  //a SHOW page: repaint the page on screen so the capture keeps its top line, as f+DISP does; the longpress preview clears the SHOW TI, so test the menu, not SHOWMODE
+    if(showPage) {                                    //a SHOW page: repaint the page on screen so the capture keeps its top line, as f+DISP does; the longpress preview clears the SHOW TI, so test the menu, not SHOWMODE
       recallShowStatus();
       fnC47Show(ITM_NOP);
     }
@@ -6861,7 +6881,7 @@ void fnSNAP(uint16_t unusedButMandatoryParameter) {
     fnP_All_Regs(PRN_STK); //print stack
   }
   xcopy(tamBuffer, ss, TAM_BUFFER_LENGTH);      //Backup the TamBuffer, in case we are in a TAM screen when doing screenshot
-  if(currentMenu() == -MNU_SHOW && !screenHoldsDrawnPixels) {   //fnP_All_Regs above formats the registers through the SHOW display buffer; repaint the page so the screen the release refresh leaves is the clean SHOW page, not the register print's TSV text
+  if(showPage) {                                    //fnP_All_Regs above formats the registers through the SHOW display buffer; repaint the page so the screen the release refresh leaves is the clean SHOW page, not the register print's TSV text
     recallShowStatus();
     fnC47Show(ITM_NOP);
   }

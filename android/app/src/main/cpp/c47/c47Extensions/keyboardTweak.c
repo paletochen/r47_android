@@ -581,7 +581,14 @@ void resetKeytimers(void) {
       longpressDelayedkey2 = 0;     // EXIT longpress DOES CLRMOD
       longpressDelayedkey3 = ITM_CLRMOD;              // forcefully prevent the 3rd slot to trigger when EXIT is assigned elsewhere
     }
-
+    else if((calcMode == CM_NORMAL || calcMode == CM_NIM) && *result == ITM_XexY) {
+      longpressDelayedkey2 = longpressDelayedkey1;
+      longpressDelayedkey1 = ITM_ENGL;
+    }
+    else if((calcMode == CM_NORMAL || calcMode == CM_NIM) && *result == ITM_CHS) {
+      longpressDelayedkey2 = longpressDelayedkey1;
+      longpressDelayedkey1 = ITM_ENGR;
+    }
     else if((calcMode == CM_NORMAL || calcMode == CM_NIM) && *result == ITM_DRG) {
       longpressDelayedkey1 = 0;
       longpressDelayedkey2 = 0;
@@ -604,6 +611,12 @@ void resetKeytimers(void) {
         }
       }
     }
+
+#if defined(OPTION_EEX_PREFIX)
+    else if((calcMode == CM_NORMAL || calcMode == CM_NIM) && *result == ITM_EXPONENT && tam.mode == 0) {
+      longpressDelayedkey1 = ITM_ENGCL;   //JM EEX long press clears the TempENG on all stack entries; EEX enters NIM on the press, so the menu is reached in NIM by the timeout
+    }
+#endif // OPTION_EEX_PREFIX
 
     else {
       switch(calcMode) {

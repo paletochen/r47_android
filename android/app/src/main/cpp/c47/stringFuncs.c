@@ -328,7 +328,7 @@ static void _readDestinationRegister(uint16_t regist) {
     }
 
     case dtComplex34: {
-      complex34ToDisplayString(REGISTER_COMPLEX34_DATA(regist), tmpString, &numericFont, SCREEN_WIDTH, NUMBER_OF_DISPLAY_DIGITS, false, STD_SPACE_PUNCTUATION, true, getComplexRegisterAngularMode(regist), getComplexRegisterPolarMode(regist));
+      complex34ToDisplayString(REGISTER_COMPLEX34_DATA(regist), tmpString, &numericFont, SCREEN_WIDTH, NUMBER_OF_DISPLAY_DIGITS, false, STD_SPACE_PUNCTUATION, true, getComplexRegisterAngularMode(regist), getComplexRegisterPolarMode(regist), getRegisterExpStep(regist));
       trimLeadingSpace(tmpString);
       break;
     }

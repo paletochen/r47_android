@@ -619,7 +619,7 @@ void addStriReal(void) {
  * \return void
  ***********************************************/
 void addStriCplx(void) {
-  complex34ToDisplayString(REGISTER_COMPLEX34_DATA(REGISTER_X), tmpString, &numericFont, SCREEN_WIDTH, NUMBER_OF_DISPLAY_DIGITS, !LIMITEXP, FRONTSPACE, FULLIRFRAC, currentAngularMode, getSystemFlag(FLAG_POLAR));
+  complex34ToDisplayString(REGISTER_COMPLEX34_DATA(REGISTER_X), tmpString, &numericFont, SCREEN_WIDTH, NUMBER_OF_DISPLAY_DIGITS, !LIMITEXP, FRONTSPACE, FULLIRFRAC, currentAngularMode, getSystemFlag(FLAG_POLAR), EXP_STEP_OFF);
   trimLeadingSpace(tmpString);
   _addString(tmpString);
 }

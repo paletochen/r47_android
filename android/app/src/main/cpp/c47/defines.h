@@ -82,6 +82,7 @@
 #define OPTION_DEVPROFILES             //                   // Dev profile shortcuts (JM, RJ, HP35)
 #define OPTION_IR_PRINTING             //                   // Enable printing everywhere
 #define OPTION_STRUCTURED_PGM          //                   // STRUCT: IF/ELSE/ENDIF, DO/WHILE/ENDDO, FOR/NEXT, REPEAT/UNTIL; 63 nesting levels, 18 FOR loops, 255 numbers
+#define OPTION_EEX_PREFIX              //                   // EEX SI prefix menu on the EEX key in NIM, and the centi deci deca hecto items
 
 #undef  OPTION_VECTOR_EDIT  //NOT AN OPTION. TEST, TO REMOVE, TO PHASE OUT. Enable vector editing in matrix editor: to be removed altogether?
 
@@ -324,6 +325,7 @@
     #define OPTION_ATEXT                 // ✓   504 bytes // ATEXT: the string in a register, displayed from the PIXEL position
     #define OPTION_ATEXT_FONTS           // ✓   592 bytes // GRFNT, GRFNT#: the ATEXT font
     #define OPTION_LP_DP_TIMING          // ✓   296 bytes // LP%, DP% long press and double press timing in percent
+    #define OPTION_EEX_PREFIX            // ✓   288 bytes // EEX SI prefix menu on the EEX key, and the centi deci deca hecto items
   //Large packages developed for DM42/DM42n. Could arguably work on DM42.
             #undef  OPTION_CUBIC_159     // ✓  2880 bytes // C47 SLVC function is 159 digits internally
             #undef  OPTION_SQUARE_159    // ✓  2656 bytes // C47 SLVQ function is 159 digits internally
@@ -1145,8 +1147,9 @@
 #define FLAG_AUTOVALID                        0x8070 //49
 #define FLAG_M_ALL                            0x8072 //50
 #define FLAG_PL_2L                            0x8073 //51
+#define FLAG_TOPFX                            0x8074 //52
 
-#define NUMBER_OF_SYSTEM_FLAGS                 64+51 // We can have a maximum of 128 system flags
+#define NUMBER_OF_SYSTEM_FLAGS                 64+52 // We can have a maximum of 128 system flags
 
                                                      // only used as bit count for setting change detection
 #define SETTING_AMODE                         0x0080 // current angle mode

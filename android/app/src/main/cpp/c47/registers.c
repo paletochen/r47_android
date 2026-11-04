@@ -2349,7 +2349,10 @@ void fnToReal(uint16_t unusedButMandatoryParameter) {
 
     case dtReal34: {
       copySourceRegisterToDestRegister(REGISTER_X, REGISTER_L);
-      if(getRegisterAngularMode(REGISTER_X) != amNone) {
+      if(getRegisterExpFixed(REGISTER_X)) {
+        clearRegisterExpFixed(REGISTER_X);                                        // .d clears the fixed-exponent nibble; the angle bits and the Polar bit are kept
+      }
+      else if(getRegisterAngularMode(REGISTER_X) != amNone) {
         if(getRegisterAngularMode(REGISTER_X) == amDMS) {
           temporaryInformation = TI_FROM_DMS;
         }

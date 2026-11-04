@@ -58,7 +58,7 @@ TO_QSPI const int16_t menu_CPX[]         = { ITM_RE,                        ITM_
 
 TO_QSPI const int16_t menu_DISP[]        = { ITM_FIX,                       ITM_SCI,                    ITM_ENG,                  ITM_UNIT,              ITM_SIGFIG,                  ITM_ALL,
                                              ITM_FRACT,                     ITM_IRFRAC,                 ITM_PROPFR,               ITM_DENMAX2,           ITM_DENANY,                  ITM_DENFIX,
-                                             ITM_GAP_L,                     ITM_GAP_RX,                 ITM_GAP_R,                ITM_SETFDIGS,          ITM_FRCYC,                   ITM_SIGZEROS,
+                                             ITM_ENGL,                      ITM_ENGR,                   ITM_ENGCL,                ITM_SETFDIGS,          ITM_FRCYC,                   ITM_SIGZEROS,
 
                                              ITM_LARGELI,                   ITM_DREAL,                  ITM_DSTACK,               ITM_SHOIREP,           ITM_BASENR,                  ITM_CLKp2,
                                              ITM_CPXI,                      ITM_CPXJ,                   ITM_NULL,                 ITM_CPXMULT,           ITM_MULTCR,                  ITM_MULTDOT,
@@ -66,7 +66,7 @@ TO_QSPI const int16_t menu_DISP[]        = { ITM_FIX,                       ITM_
 
                                              ITM_SETCHN,                    ITM_SETEUR,                 ITM_SETIND,               ITM_SETJPN,            ITM_SETUK,                   ITM_SETUSA,
                                              ITM_NULL,                      ITM_NULL,                   ITM_NULL,                 ITM_NULL,              ITM_NULL,                    ITM_SETDFLT,
-                                             ITM_NULL,                      ITM_NULL,                   ITM_NULL,                 ITM_NULL,              ITM_NULL,                    ITM_NULL                        };
+                                             ITM_GAP_L,                     ITM_GAP_RX,                 ITM_GAP_R,                ITM_NULL,              ITM_NULL,                    ITM_NULL                        };
 
 #if defined(OPTION_DEVPROFILES)
   #if defined(OPTION_HP35)
@@ -1020,11 +1020,13 @@ TO_QSPI const int16_t menu_HOME[]        = { ITM_op_j,                      ITM_
 /*HOME MENU IS NOT USED ANYMORE*/
 /*INSTEAD THIS IS USED TO POPULATE THE HOME DYNAMIC MENU (USER MENU)*/
 
-TO_QSPI const int16_t menu_PREFIX[]      = { ITM_SI_k,                      ITM_SI_M,                   ITM_SI_G,                 ITM_SI_T,              ITM_SI_P,                    ITM_DSPCYCLE,
-                                             ITM_SI_m,                      ITM_SI_u,                   ITM_SI_n,                 ITM_SI_p,              ITM_SI_f,                    ITM_DSP,
-                                             ITM_SI_Ki,                     ITM_SI_Mi,                  ITM_SI_Gi,                ITM_SI_Ti,             ITM_SI_Pi,                   ITM_2TO10             };                //JM HOME
+TO_QSPI const int16_t menu_PREFIX[]      = { ITM_SI_k,                      ITM_SI_M,                   ITM_SI_G,                 ITM_SI_T,              ITM_SI_P,                    ITM_TOPFX,
+                                             ITM_SI_Ki,                     ITM_SI_Mi,                  ITM_SI_Gi,                ITM_SI_Ti,             ITM_SI_Pi,                   ITM_2TO10,
+                                             ITM_SI_m,                      ITM_SI_u,                   ITM_SI_n,                 ITM_SI_p,              ITM_DSPCYCLE,                ITM_DSP               };            //JM HOME
 
-
+TO_QSPI const int16_t menu_EEXPFX[]      = { ITM_SI_k,                      ITM_SI_M,                   ITM_SI_G,                 ITM_SI_T,              ITM_SI_P,                    -MNU_PREFIX,                          //JM EEX SI
+                                             ITM_SI_Ki,                     ITM_SI_Mi,                  ITM_SI_Gi,                ITM_SI_Ti,             ITM_SI_da,                   ITM_SI_h,
+                                             ITM_SI_m,                      ITM_SI_u,                   ITM_SI_n,                 ITM_SI_p,              ITM_SI_d,                    ITM_SI_c              };
 
 TO_QSPI const int16_t menu_PLOTFUNC[]    = {  VAR_LX,                       VAR_UX,                     ITM_NULL,                 ITM_NULL,              ITM_NULL,                    ITM_NULL,
                                               ITM_SCALE,                    ITM_PLOTRST,                ITM_NULL,                 ITM_NULL,              ITM_NULL,                    ITM_NULL,                           //JM GRAPH
@@ -1281,6 +1283,7 @@ TO_QSPI const softmenu_t softmenu[] = {
 /* 216 */  {.menuItem = -MNU_RMODE,         .numItems = sizeof(menu_RMODE         )/sizeof(int16_t), .softkeyItem = menu_RMODE          },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references.
 /* 218 */  {.menuItem = -MNU_DRM,           .numItems = sizeof(menu_DRM           )/sizeof(int16_t), .softkeyItem = menu_DRM            },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references.
 /* 219 */  {.menuItem = -MNU_RNDMODES,      .numItems = sizeof(menu_RNDMODES      )/sizeof(int16_t), .softkeyItem = menu_RNDMODES       },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references.
+/* 220 */  {.menuItem = -MNU_EEXPFX,         .numItems = sizeof(menu_EEXPFX         )/sizeof(int16_t), .softkeyItem = menu_EEXPFX          },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references.
 
 /* 189 */  {.menuItem =  0,                 .numItems = 0,                                           .softkeyItem = NULL                }
 
@@ -2453,7 +2456,7 @@ TO_QSPI static const mstr modeNames[] = {
 /*2*/  { "SCI" },
 /*3*/  { "ENG" },
 /*4*/  { "SIG" },
-/*5*/  { "UNIT"},
+/*5*/  { "PFX" },
 };
 
 static void placeSubscript(int16_t itemNr, bool_t flt, float tmpF, char *itemName, char *tmpS, char *tmpSS, char *showText) {

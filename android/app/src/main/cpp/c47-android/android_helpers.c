@@ -1862,6 +1862,9 @@ static int findItemOpcode(const char *cmd) {
   if(strcasecmp(cmd, "INC") == 0) {
     return 92; // ITM_INCR
   }
+  if(strcasecmp(cmd, "UNIT") == 0) {
+    return 1867; // ITM_UNIT (renamed to PFX)
+  }
 
   char c47Cmd[128];
   extern void utf8ToString(const uint8_t *utf8, char *str);
