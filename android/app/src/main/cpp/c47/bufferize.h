@@ -30,8 +30,24 @@
 
   void    addItemToNimBuffer       (int16_t item);
   void    closeNimWithFraction     (real34_t *dest);
+  void    nimRealValue             (real34_t *dest);
+  bool_t  nimPiAfterI              (void);
+  bool_t  nimShortInteger          (char *buffer, calcRegister_t regist);
+  bool_t  nimFractionEntered       (void);
+  void    nimLiteralValue          (real34_t *re, real34_t *im);
+  void    nimComplexValue          (real34_t *dest_r, real34_t *dest_i);
+  void    nimStartNumber           (int16_t item);
+  void    nimCompleteNumber        (void);
+  void    nimHint                  (char *hint);
   void    closeNimWithComplex      (real34_t *dest_r, real34_t *dest_i);
   void    closeNim                 (void);
+  bool_t  nimPolarEntry            (void);
+  bool_t  nimComplexPart           (void);
+  #if defined(OPTION_DRG_CFG)
+    bool_t  nimRealOrFractionPart    (void);
+    bool_t  nimDrgChoosesUnit        (void);
+    const char *nimDmsMark           (void);
+  #endif // OPTION_DRG_CFG
   void    closeAim                 (void);
   void    nimBufferToDisplayBuffer (const char *buffer, char *displayBuffer);
   bool_t  checkShortIntegerDigits  (char *buffer);

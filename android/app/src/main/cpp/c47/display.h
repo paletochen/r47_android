@@ -39,6 +39,7 @@ void angle34ToDisplayString2           (const real34_t *angle34, uint8_t modeIn,
 void _numerator                        (uint64_t numer, char *displayString, int16_t *endingZero);
 void _denominator                      (uint64_t denom, char *displayString, int16_t *endingZero);
 void fractionToDisplayString           (calcRegister_t regist, char *displayString);
+const char *angularUnitGlyph           (uint8_t mode);
 char *getGapChar1Left                  (void);
 char *getGapChar1Right                 (void);
 char *getGapChar1Radix                 (void);

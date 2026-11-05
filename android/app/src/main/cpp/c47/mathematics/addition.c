@@ -600,7 +600,11 @@ void addStriShoI(void) {
  * \return void
  ***********************************************/
 void addStriReal(void) {
-  if(getSystemFlag(FLAG_FRACT)) {
+  #if defined(OPTION_DRG_CFG)
+    if(getSystemFlag(FLAG_FRACT) && getRegisterAngularMode(REGISTER_X) != amDMS) {
+  #else // !OPTION_DRG_CFG
+    if(getSystemFlag(FLAG_FRACT)) {
+  #endif // OPTION_DRG_CFG
     fractionToDisplayString(REGISTER_X, tmpString);
   }
   else {

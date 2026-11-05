@@ -59,7 +59,7 @@
 //
 //  freeProgramBytes = 1
 
-static void _pemCloseAngleInput(int item);
+static void _pemCloseAngleInput(uint8_t literalType);
 static void _pemCloseDateInput(void);
 static void _pemCloseTimeInput(void);
 
@@ -678,27 +678,29 @@ void fnPem(uint16_t unusedButMandatoryParameter) {
           tmpString[2 + cursorInString    ] = STD_CURSOR[0];
           tmpString[2 + cursorInString + 1] = STD_CURSOR[1];
         }
-        else if(aimBuffer[0] != 0) {
-          char *tstr = tmpString + stringByteLength(tmpString);
+        else if(aimBuffer[0] != 0) {  // the number is shown as in NIM while it is entered, with its base, denominator or unit after the cursor
+          char hint[20];
           lastIntegerBase = decodedIntegerBase;
-          if((lastIntegerBase != 0) && ((nimNumberPart == NP_INT_10) || (nimNumberPart == NP_INT_16))) {
-            tstr -= 2;
-            *(tstr++) = STD_CURSOR[0];
-            *(tstr++) = STD_CURSOR[1];
-            *(tstr++) = baseChars[lastIntegerBase * 2    ];
-            *(tstr++) = baseChars[lastIntegerBase * 2 + 1];
-          }
-          else if(_isAngleType(editingLiteralType)) {
-            tstr -= 2;                    // to overwrite angle symbol with cursor
-            *(tstr++) = STD_CURSOR[0];
-            *(tstr++) = STD_CURSOR[1];
-            *(tstr++) = angleChars[(editingLiteralType - STRING_ANGLE_RADIAN) * 2    ];
-            *(tstr++) = angleChars[(editingLiteralType - STRING_ANGLE_RADIAN) * 2 + 1];
-          }
-          else {
-            *(tstr++) = STD_CURSOR[0];
-            *(tstr++) = STD_CURSOR[1];
-          }
+          char *tstr = stringCopy(tmpString, nimBufferDisplay + 2);
+          *(tstr++) = STD_CURSOR[0];
+          *(tstr++) = STD_CURSOR[1];
+          nimHint(hint);
+          tstr = stringCopy(tstr, hint);
+          #if defined(OPTION_DRG_CFG)
+            uint8_t unit = nimComplexPart() ? nimPolarAngularMode : (editingLiteralType >= STRING_ANGLE_RADIAN && editingLiteralType <= STRING_ANGLE_MULTPI) ? editingLiteralType - STRING_ANGLE_RADIAN : amNone;
+            if(unit == amDMS) {
+              tstr = stringCopy(tstr, nimDmsMark());
+            }
+            else if(unit < amNone) {
+              *(tstr++) = angleChars[unit * 2    ];
+              *(tstr++) = angleChars[unit * 2 + 1];
+            }
+          #else // !OPTION_DRG_CFG
+            if(_isAngleType(editingLiteralType)) {
+              *(tstr++) = angleChars[(editingLiteralType - STRING_ANGLE_RADIAN) * 2    ];
+              *(tstr++) = angleChars[(editingLiteralType - STRING_ANGLE_RADIAN) * 2 + 1];
+            }
+          #endif // OPTION_DRG_CFG
           *(tstr++) = 0;
         }
       }
@@ -891,6 +893,14 @@ static void _closeAlphaMenus(void) {
   }
 }
 
+static void _pemInsertText(char *tmpPtr, const char *text) {  // the length and the text of a literal after its header in tmpString, inserted as one step
+  uint32_t length = stringByteLength(text);
+  *(tmpPtr++) = length;
+  xcopy(tmpPtr, text, length);
+  _insertInProgram((uint8_t *)tmpString, length + (int32_t)(tmpPtr - tmpString));
+}
+
+
 void pemAlpha(int16_t item) {
   bool_t editCommand = false;
   if(item == ITM_EDIT) {
@@ -1068,17 +1078,13 @@ void pemAlpha(int16_t item) {
     if(aimFunc < 128) { // literal
       tmpString[0] = aimFunc;
       tmpString[1] = (char)STRING_LABEL_VARIABLE;
-      tmpString[2] = stringByteLength(aimBuffer);
-      xcopy(tmpString + 3, aimBuffer, stringByteLength(aimBuffer));
-      _insertInProgram((uint8_t *)tmpString, stringByteLength(aimBuffer) + 3);
+      _pemInsertText(tmpString + 2, aimBuffer);
     }
     else { // rem or 42str
       tmpString[0] = (aimFunc >> 8) | 0x80;
       tmpString[1] =  aimFunc       & 0xff;
       tmpString[2] = (char)STRING_LABEL_VARIABLE;
-      tmpString[3] = stringByteLength(aimBuffer);
-      xcopy(tmpString + 4, aimBuffer, stringByteLength(aimBuffer));
-      _insertInProgram((uint8_t *)tmpString, stringByteLength(aimBuffer) + 4);
+      _pemInsertText(tmpString + 3, aimBuffer);
     }
     --currentLocalStepNumber;
     currentStep = findPreviousStep(currentStep);
@@ -1131,46 +1137,7 @@ void pemAddNumber(int16_t item, bool doInsertInProgram) {
     memset(nimBufferDisplay, 0, NIM_BUFFER_LENGTH);
     --currentLocalStepNumber;
     currentStep = findPreviousStep(currentStep);
-    switch(item) {
-      case ITM_EXPONENT : {
-        aimBuffer[0] = '+';
-        aimBuffer[1] = '1';
-        aimBuffer[2] = '.';
-        aimBuffer[3] = 0;
-        nimNumberPart = NP_REAL_FLOAT_PART;
-        break;
-      }
-
-      case ITM_PERIOD : {
-        aimBuffer[0] = '+';
-        aimBuffer[1] = '0';
-        aimBuffer[2] = 0;
-        nimNumberPart = NP_INT_10;
-        break;
-      }
-
-      case ITM_0 :
-      case ITM_1 :
-      case ITM_2 :
-      case ITM_3 :
-      case ITM_4 :
-      case ITM_5 :
-      case ITM_6 :
-      case ITM_7 :
-      case ITM_8 :
-      case ITM_9 :
-      case ITM_A :
-      case ITM_B :
-      case ITM_C :
-      case ITM_D :
-      case ITM_E :
-      case ITM_F : {
-        aimBuffer[0] = '+';
-        aimBuffer[1] = 0;
-        nimNumberPart = NP_EMPTY;
-        break;
-      }
-    }
+    nimStartNumber(item);
   }
 
   if(item == ITM_BACKSPACE && ((aimBuffer[0] == '+' && aimBuffer[1] != 0 && aimBuffer[2] == 0) || aimBuffer[1] == 0)) {
@@ -1190,7 +1157,6 @@ void pemAddNumber(int16_t item, bool doInsertInProgram) {
     }
     if(aimBuffer[0] != 0) {
       char *tmpPtr = tmpString;
-      char offset = 3;
       const char *numBuffer = aimBuffer[0] == '+' ? aimBuffer + 1 : aimBuffer;
       *tmpPtr++ = ITM_LITERAL;
       switch(nimNumberPart) {
@@ -1200,7 +1166,6 @@ void pemAddNumber(int16_t item, bool doInsertInProgram) {
           if(lastIntegerBase != 0) {
             *tmpPtr++ = STRING_SHORT_INTEGER;
             *tmpPtr++ = lastIntegerBase;
-            offset++;
           }
           else {
             *tmpPtr++ = STRING_LONG_INTEGER;
@@ -1228,10 +1193,8 @@ void pemAddNumber(int16_t item, bool doInsertInProgram) {
       if(_isAngleType(editingLiteralType)) {
         *(tmpPtr - 1) = editingLiteralType;  // [DL] force literal type when editing angles
       }
-      *tmpPtr++ = stringByteLength(numBuffer);
-      xcopy(tmpPtr, numBuffer, stringByteLength(numBuffer));
       if(doInsertInProgram) {
-        _insertInProgram((uint8_t *)tmpString, stringByteLength(numBuffer) + offset);
+        _pemInsertText(tmpPtr, numBuffer);
         --currentLocalStepNumber;
         currentStep = findPreviousStep(currentStep);
         if(!programListEnd) {
@@ -1248,15 +1211,16 @@ void pemAddNumber(int16_t item, bool doInsertInProgram) {
 }
 
 void pemCloseNumberInput(void) {
+  nimCompleteNumber();
   if(editingLiteralType > 0) {     // For EDIT: close number input with the right data or angle type
     switch(editingLiteralType) {
       case STRING_DATE         : _pemCloseDateInput();            break;
       case STRING_TIME         : _pemCloseTimeInput();            break;
-      case STRING_ANGLE_RADIAN : _pemCloseAngleInput(ITM_RAD2);   break;
-      case STRING_ANGLE_GRAD   : _pemCloseAngleInput(ITM_GRAD2);  break;
-      case STRING_ANGLE_DEGREE : _pemCloseAngleInput(ITM_DEG2);   break;
-      case STRING_ANGLE_DMS    : _pemCloseAngleInput(ITM_DMS2);   break;
-      case STRING_ANGLE_MULTPI : _pemCloseAngleInput(ITM_MULPI2); break;
+      case STRING_ANGLE_RADIAN :
+      case STRING_ANGLE_GRAD   :
+      case STRING_ANGLE_DEGREE :
+      case STRING_ANGLE_DMS    :
+      case STRING_ANGLE_MULTPI : _pemCloseAngleInput(editingLiteralType); break;
       default:     ;
     }
     return;
@@ -1267,7 +1231,6 @@ void pemCloseNumberInput(void) {
     char *tmpPtr = tmpString;
     uint32_t inputLength = stringByteLength(numBuffer);
     bool_t doneWithBinaryLiteral = false;
-    int16_t lastChar = strlen(aimBuffer) - 1;
 
     if((lastIntegerBase != 0) && (nimNumberPart == NP_INT_10 || nimNumberPart == NP_INT_16)) {
       int16_t hashPos = strlen(aimBuffer);
@@ -1296,13 +1259,6 @@ void pemCloseNumberInput(void) {
 
     deleteStepsFromTo(currentStep, findNextStep(currentStep));
     *(tmpPtr++) = ITM_LITERAL;
-    if((nimNumberPart == NP_COMPLEX_EXPONENT || nimNumberPart == NP_REAL_EXPONENT) && (aimBuffer[lastChar] == '+' || aimBuffer[lastChar] == '-') && aimBuffer[lastChar - 1] == 'e') {
-      aimBuffer[--lastChar] = 0;
-      lastChar--;
-    }
-    else if(nimNumberPart == NP_REAL_EXPONENT && aimBuffer[lastChar] == 'e') {
-      aimBuffer[lastChar--] = 0;
-    }
     switch(nimNumberPart) {
       //case NP_INT_16:
       case NP_INT_BASE: {
@@ -1347,10 +1303,15 @@ void pemCloseNumberInput(void) {
       case NP_REAL_EXPONENT:
       case NP_HP32SII_DENOMINATOR:
       case NP_FRACTION_DENOMINATOR: {
-        if(inputLength >= REAL34_SIZE_IN_BYTES) {
+        if(inputLength >= REAL34_SIZE_IN_BYTES || nimFractionEntered()) {  // a program literal takes no fraction, so a fraction is written as its value
           real34_t val;
           *(tmpPtr++) = BINARY_REAL34;
-          stringToReal34(numBuffer, &val);
+          if(nimFractionEntered()) {
+            nimLiteralValue(&val, NULL);
+          }
+          else {
+            stringToReal34(numBuffer, &val);
+          }
           for(unsigned int i = 0; i < REAL34_SIZE_IN_BYTES; ++i) {
             *(tmpPtr++) = ((uint8_t *)(&val))[i];
           }
@@ -1364,36 +1325,39 @@ void pemCloseNumberInput(void) {
       }
       case NP_COMPLEX_INT_PART:
       case NP_COMPLEX_FLOAT_PART:
-      case NP_COMPLEX_EXPONENT: {
-        if(aimBuffer[stringByteLength(aimBuffer)-1] == 'i') {
-          strcat(aimBuffer, "1");
-          inputLength++;
-        }
-
-        if(inputLength >= TO_BYTES(COMPLEX34_SIZE_IN_BLOCKS)) {
+      case NP_COMPLEX_EXPONENT:
+      case NP_COMPLEX_FRACTION_DENOMINATOR:
+      case NP_COMPLEX_HP32SII_DENOMINATOR: {
+        bool_t polar = nimPolarEntry();
+        if(inputLength >= TO_BYTES(COMPLEX34_SIZE_IN_BLOCKS) || nimFractionEntered() || polar) {  // a program literal takes no fraction and no polar form, so these are written as their value
           real34_t re, im;
-          char *imag = numBuffer;
-          while(*imag != 'i' && *imag != 0) {
-            ++imag;
+          if(nimFractionEntered() || polar) {
+            nimLiteralValue(&re, &im);
           }
-          if(*imag == 'i') {
-            if(imag > numBuffer && *(imag - 1) == '-') {
-              *imag = '-';
-              *(imag - 1) = 0;
-            }
-            else if(imag > numBuffer && *(imag - 1) == '+') {
-              *imag = 0;
-              *(imag - 1) = 0;
+          else {
+            char *imag = numBuffer;
+            while(*imag != 'i' && *imag != 0) {
               ++imag;
             }
-            else {
-              *imag = 0;
+            if(*imag == 'i') {
+              if(imag > numBuffer && *(imag - 1) == '-') {
+                *imag = '-';
+                *(imag - 1) = 0;
+              }
+              else if(imag > numBuffer && *(imag - 1) == '+') {
+                *imag = 0;
+                *(imag - 1) = 0;
+                ++imag;
+              }
+              else {
+                *imag = 0;
+              }
             }
+            stringToReal34(numBuffer, &re);
+            stringToReal34(imag, &im);
           }
 
           *(tmpPtr++) = BINARY_COMPLEX34;
-          stringToReal34(numBuffer, &re);
-          stringToReal34(imag, &im);
           for(unsigned int i = 0; i < REAL34_SIZE_IN_BYTES; ++i) {
             *(tmpPtr++) = ((uint8_t *)(&re))[i];
           }
@@ -1414,9 +1378,7 @@ void pemCloseNumberInput(void) {
       }
     }
     if(!doneWithBinaryLiteral) {
-      *(tmpPtr++) = inputLength;
-      xcopy(tmpPtr, numBuffer, inputLength);
-      _insertInProgram((uint8_t *)tmpString, inputLength + (int32_t)(tmpPtr - tmpString));
+      _pemInsertText(tmpPtr, numBuffer);
       pemCursorIsZerothStep = false;
     }
   }
@@ -1439,9 +1401,7 @@ static void _pemCloseTimeInput(void) {
         char *tmpPtr = tmpString;
         *(tmpPtr++) = ITM_LITERAL;
         *(tmpPtr++) = STRING_TIME;
-        *(tmpPtr++) = stringByteLength(numBuffer);
-        xcopy(tmpPtr, numBuffer, stringByteLength(numBuffer));
-        _insertInProgram((uint8_t *)tmpString, stringByteLength(numBuffer) + (int32_t)(tmpPtr - tmpString));
+        _pemInsertText(tmpPtr, numBuffer);
       }
 
       aimBuffer[0] = '!';
@@ -1465,11 +1425,8 @@ static void _pemCloseDateInput(void) {
       internalDateToJulianDay(REGISTER_REAL34_DATA(TEMP_REGISTER_1), REGISTER_REAL34_DATA(TEMP_REGISTER_1));
 
       if (lastErrorCode == 0) {
-        real34ToString(REGISTER_REAL34_DATA(TEMP_REGISTER_1), tmpPtr + 1);
-        *tmpPtr = stringByteLength(tmpPtr + 1);
-        ++tmpPtr;
-
-        _insertInProgram((uint8_t *)tmpString, stringByteLength(tmpPtr) + (int32_t)(tmpPtr - tmpString));
+        real34ToString(REGISTER_REAL34_DATA(TEMP_REGISTER_1), numBuffer);  // the Julian day number, written over the typed date
+        _pemInsertText(tmpPtr, numBuffer);
       }
     }
 
@@ -1477,32 +1434,35 @@ static void _pemCloseDateInput(void) {
   }
 }
 
-static void _pemCloseAngleInput(int item) {
+static void _pemCloseAngleInput(uint8_t literalType) {
+  nimCompleteNumber();
   switch(nimNumberPart) {
+    case NP_FRACTION_DENOMINATOR:
+    case NP_HP32SII_DENOMINATOR: {  // an angle literal is text, so a fraction is written as the text of its value
+      real34_t value;
+      nimLiteralValue(&value, NULL);
+      if(literalType == STRING_ANGLE_DMS) {
+        real34FromDegToDms(&value, &value);
+      }
+      real34ToString(&value, aimBuffer);
+      char *exponent = strchr(aimBuffer, 'E');
+      if(exponent != NULL) {  // a literal takes its exponent in lower case
+        *exponent = 'e';
+      }
+      #if !defined(OSX)
+        __attribute__ ((fallthrough));
+      #endif // !OSX
+    }
     case NP_INT_10:
-    case NP_REAL_FLOAT_PART: {
+    case NP_REAL_FLOAT_PART:
+    case NP_REAL_EXPONENT: {
       deleteStepsFromTo(currentStep, findNextStep(currentStep));
       if(aimBuffer[0] != 0) {
         char *numBuffer = aimBuffer[0] == '+' ? aimBuffer + 1 : aimBuffer;
         char *tmpPtr = tmpString;
         *(tmpPtr++) = ITM_LITERAL;
-        static const int angle_ids[] = {
-            [ITM_DEG2]   = STRING_ANGLE_DEGREE,
-            [ITM_DMS2]   = STRING_ANGLE_DMS,
-            [ITM_GRAD2]  = STRING_ANGLE_GRAD,
-            [ITM_MULPI2] = STRING_ANGLE_MULTPI,
-            [ITM_RAD2]   = STRING_ANGLE_RADIAN
-        };
-        int id = -1;
-        if(item >= 0 && item < (int)(sizeof(angle_ids)/sizeof(angle_ids[0]))) {
-            id = angle_ids[item];
-        }
-        if(id != -1) {
-            *(tmpPtr++) = id;
-        }
-        *(tmpPtr++) = stringByteLength(numBuffer);
-        xcopy(tmpPtr, numBuffer, stringByteLength(numBuffer));
-        _insertInProgram((uint8_t *)tmpString, stringByteLength(numBuffer) + (int32_t)(tmpPtr - tmpString));
+        *(tmpPtr++) = literalType;
+        _pemInsertText(tmpPtr, numBuffer);
       }
       editingLiteralType = 0;
       aimBuffer[0] = '!';
@@ -1510,6 +1470,30 @@ static void _pemCloseAngleInput(int item) {
     }
   }
 }
+
+static uint8_t _angleLiteralType(int16_t func) {  // the literal type an angle key gives the number being entered, 0 for any other key
+  switch(func) {
+    case ITM_DEG2: {
+      return STRING_ANGLE_DEGREE;
+    }
+    case ITM_DMS2: {
+      return STRING_ANGLE_DMS;
+    }
+    case ITM_GRAD2: {
+      return STRING_ANGLE_GRAD;
+    }
+    case ITM_MULPI2: {
+      return STRING_ANGLE_MULTPI;
+    }
+    case ITM_RAD2: {
+      return STRING_ANGLE_RADIAN;
+    }
+    default: {
+      return 0;
+    }
+  }
+}
+
 
 void insertStepInProgram(const int16_t newFunc) {
                                 #if defined(DEBUG_PGM)
@@ -1561,9 +1545,7 @@ void insertStepInProgram(const int16_t newFunc) {
     tmpString[0] = (func >> 8) | 0x80;
     tmpString[1] =  func  & 0xff;
     tmpString[2] = (char)STRING_LABEL_VARIABLE;
-    tmpString[3] = stringByteLength(aimBuffer);
-    xcopy(tmpString + 4, aimBuffer, stringByteLength(aimBuffer));
-    _insertInProgram((uint8_t *)tmpString, stringByteLength(aimBuffer) + 4);
+    _pemInsertText(tmpString + 3, aimBuffer);
     aimBuffer[0] = 0;
     return;
   }
@@ -1579,14 +1561,13 @@ void insertStepInProgram(const int16_t newFunc) {
   else if(nimNumberPart == NP_INT_BASE) {
     return;
   }
-  else if(func == ITM_CONSTpi && aimBuffer[0] != 0 && !getSystemFlag(FLAG_ALPHA) && nimNumberPart == NP_COMPLEX_INT_PART && aimBuffer[strlen(aimBuffer) - 1] == 'i') {
-    strcat(aimBuffer, "3.141592653589793238462643383279503");
+  else if(func == ITM_CONSTpi && aimBuffer[0] != 0 && !getSystemFlag(FLAG_ALPHA) && nimPiAfterI()) {
     pemCloseNumberInput();
     aimBuffer[0] = 0;
     return;
   }
-  else if((func == ITM_DMS || func == ITM_DMS2 || func == ITM_DEG2 || func == ITM_GRAD2 || func == ITM_RAD2 || func == ITM_MULPI2) && aimBuffer[0] != 0 && !getSystemFlag(FLAG_ALPHA) && (nimNumberPart == NP_INT_10 || nimNumberPart == NP_REAL_FLOAT_PART)) {
-    _pemCloseAngleInput(func);
+  else if(_angleLiteralType(func) != 0 && aimBuffer[0] != 0 && !getSystemFlag(FLAG_ALPHA) && (nimNumberPart == NP_INT_10 || nimNumberPart == NP_REAL_FLOAT_PART)) {
+    _pemCloseAngleInput(_angleLiteralType(func));
     aimBuffer[0] = 0;
     return;
   }
@@ -1595,15 +1576,28 @@ void insertStepInProgram(const int16_t newFunc) {
     pemCloseNumberInput();
     aimBuffer[0] = '!';
   }
-  else if((func == ITM_DRG) && aimBuffer[0] != 0 && !getSystemFlag(FLAG_ALPHA) && (nimNumberPart == NP_INT_10 || nimNumberPart == NP_REAL_FLOAT_PART)) {
-    switch(currentAngularMode) {
-      case amRadian : _pemCloseAngleInput(ITM_RAD2); break;
-      case amGrad   : _pemCloseAngleInput(ITM_GRAD2); break;
-      case amDegree : _pemCloseAngleInput(ITM_DEG2); break;
-      case amDMS    : _pemCloseAngleInput(ITM_DMS2); break;
-      case amMultPi : _pemCloseAngleInput(ITM_MULPI2); break;
-      default: return;
+  #if defined(OPTION_DRG_CFG)
+    else if((func == ITM_DRG) && aimBuffer[0] != 0 && !getSystemFlag(FLAG_ALPHA) && (drgConfig & (1 << DRG_NIM_BIT)) && (nimComplexPart() || nimRealOrFractionPart())) {
+      if(nimComplexPart()) {
+        pemAddNumber(ITM_DRG, true);    // the angle takes the unit DRG chooses, as in NIM, and the input stays open
+        return;
+      }
+      uint16_t unit = editingLiteralType - STRING_ANGLE_RADIAN;  // STRING_ANGLE_* follow angularMode_t
+      if(unit > amMultPi) {
+        unit = amNone;
+      }
+      DRG_cycNim(&unit);
+      DRG_Cycling = 0;
+      editingLiteralType = (unit == amNone ? 0 : STRING_ANGLE_RADIAN + unit);
+      pemAddNumber(ITM_NOP, true);    // the step in the program becomes a literal of that unit, and the input stays open
+      return;
     }
+  #endif // OPTION_DRG_CFG
+  else if((func == ITM_DRG) && aimBuffer[0] != 0 && !getSystemFlag(FLAG_ALPHA) && (nimNumberPart == NP_INT_10 || nimNumberPart == NP_REAL_FLOAT_PART)) {
+    if(currentAngularMode > amMultPi) {
+      return;
+    }
+    _pemCloseAngleInput(STRING_ANGLE_RADIAN + currentAngularMode);  // STRING_ANGLE_* follow angularMode_t
     aimBuffer[0] = 0;
     return;
   }
@@ -1624,14 +1618,7 @@ void insertStepInProgram(const int16_t newFunc) {
       }
     }
     else {
-      switch(editingLiteralType) {   // For EDIT: close number input with the right angle type
-        case STRING_ANGLE_RADIAN : _pemCloseAngleInput(ITM_RAD2); break;
-        case STRING_ANGLE_GRAD   : _pemCloseAngleInput(ITM_GRAD2); break;
-        case STRING_ANGLE_DEGREE : _pemCloseAngleInput(ITM_DEG2); break;
-        case STRING_ANGLE_DMS    : _pemCloseAngleInput(ITM_DMS2); break;
-        case STRING_ANGLE_MULTPI : _pemCloseAngleInput(ITM_MULPI2); break;
-        default:     pemCloseNumberInput();
-      }
+      pemCloseNumberInput();  // For EDIT: it closes number input with the right angle type
       if(lastErrorCode == ERROR_NONE) {
         aimBuffer[0] = 0;
       }

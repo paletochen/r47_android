@@ -92,7 +92,7 @@
 
 
   #define debugLongNumberLimit       100
-  #define modulus(a)                 (a == amRadian ? const2139_2pi : a == amDegree ? const_360 : a == amGrad ? const_400 : a == amMultPi ? const_2 : const_1)
+  #define modulus(a)                 (a == amRadian ? const2139_2pi : a == amDegree || a == amDMS ? const_360 : a == amGrad ? const_400 : a == amMultPi ? const_2 : const_1)
 
   static void C47Cvt2RadSinCosTan1071(real_t *an, angularMode_t angularMode, real_t *sinOut, real_t *cosOut, real_t *tanOut, realContext_t *realContext) {
     explicitTaylorIterVisibilitySelection = true;
@@ -933,16 +933,21 @@ static void replaceSeparatorWithFigureSpace(char *displayString) {              
         }
 
         case ITM_DRG_XFN: {
-          angularMode_t nextAngleMode = angleMode == amDegree ? amRadian : angleMode == amRadian ? amGrad : angleMode == amGrad ? amMultPi : angleMode == amMultPi ? amDegree : amDegree;
-          if(inputIsNoAngle3r(registerNo)) {
-            angleMode = currentAngularMode;
+          if(registerIsNoAngle(registerNo)) {  // a value with no unit takes ADM, or DEG for D.MS, and keeps its number
+            angleMode = (currentAngularMode == amDMS ? amDegree : currentAngularMode);
+            #if defined(OPTION_DRG_CFG)
+              drgAutoAdm(angleMode);
+            #endif // OPTION_DRG_CFG
             break;
           }
-          else {
-            if(!inputAngleError3r(registerNo) && angleMode != nextAngleMode) {                                                                       // if either or both is/are set to am
-              realDivide(paramX, modulus(angleMode), paramX, &c);
-              realMultiply(paramX, modulus(nextAngleMode), paramX, &c);
-            }
+        #if defined(OPTION_DRG_CFG)
+          angularMode_t nextAngleMode = drgXfnUnit(angleMode);
+        #else // !OPTION_DRG_CFG
+          angularMode_t nextAngleMode = angleMode == amDegree ? amRadian : angleMode == amRadian ? amGrad : angleMode == amGrad ? amMultPi : angleMode == amMultPi ? amDegree : amDegree;
+        #endif // OPTION_DRG_CFG
+          if(angleMode != nextAngleMode) {                                                                       // if either or both is/are set to am
+            realDivide(paramX, modulus(angleMode), paramX, &c);
+            realMultiply(paramX, modulus(nextAngleMode), paramX, &c);
           }
           angleMode = nextAngleMode;
           break;

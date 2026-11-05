@@ -516,6 +516,9 @@
   extern uint8_t                overrideShowBottomLine;
   extern int16_t                ListXYposition;               //JM
   extern uint8_t                DRG_Cycling;                  //JM
+  #if defined(OPTION_DRG_CFG)
+    extern uint8_t              drgConfig;
+  #endif // OPTION_DRG_CFG
   extern uint8_t                DM_Cycling;                   //JM
   extern int16_t                JM_auto_doublepress_autodrop_enabled;  //JM TIMER CLRDROP //drop
   extern int16_t                JM_auto_longpress_enabled;    //JM TIMER CLRDROP //clstk
@@ -631,6 +634,9 @@
 
   extern bool_t                 temporaryFlagRect;
   extern bool_t                 temporaryFlagPolar;
+  #if defined(OPTION_DRG_CFG)
+    extern uint8_t              nimPolarAngularMode;          // the unit DRG chose for the angle of a polar entry, amNone for ADM
+  #endif // OPTION_DRG_CFG
   extern int                    vbatVIntegrated;
 
   extern uint32_t               timeLastOp;

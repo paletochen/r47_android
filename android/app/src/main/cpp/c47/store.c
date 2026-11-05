@@ -379,7 +379,6 @@ void fnStoreConfig(uint16_t regist) {
   int16_t compatibility_int1  = 0;               //defaults to use when settings are removed
   bool_t compatibility_byte00 = false;           //defaults to use when settings are removed
   uint8_t compatibility_byte1 = 0;               //defaults to use when settings are removed
-  bool_t compatibility_byte6  = false;           //defaults to use when settings are removed
   bool_t compatibility_byte7  = false;           //defaults to use when settings are removed
   bool_t compatibility_byte8  = false;           //defaults to use when settings are removed
   bool_t compatibility_byte9  = false;           //defaults to use when settings are removed
@@ -455,7 +454,11 @@ void fnStoreConfig(uint16_t regist) {
   storeToDtConfigDescriptor(grpGroupingBin);
   storeToDtConfigDescriptor(graMod);
   storeToDtConfigDescriptor(graFont);
-  storeToDtConfigDescriptor(    compatibility_byte6);
+  #if defined(OPTION_DRG_CFG)
+    configToStore->drgConfig = drgConfig ^ DRG_CONFIG_DEFAULT;  // relative to the default, so a 0 in the byte recalls the default configuration
+  #else // !OPTION_DRG_CFG
+    configToStore->drgConfig = 0;
+  #endif // OPTION_DRG_CFG
   storeToDtConfigDescriptor(    compatibility_byte7);
   storeToDtConfigDescriptor(    compatibility_byte8);
   storeToDtConfigDescriptor(    compatibility_byte9);

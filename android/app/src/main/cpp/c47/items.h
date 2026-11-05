@@ -1390,13 +1390,13 @@
 #define ITM_1348                    1348 // General items / any items spare (reserved: graphic primitives)
 #define ITM_1349                    1349 // General items / any items spare (reserved: graphic primitives)
 #define ITM_1350                    1350 // General items / any items spare (reserved: graphic primitives)
-#define ITM_1351                    1351 // General items / any items spare
-#define ITM_1352                    1352 // General items / any items spare
-#define ITM_1353                    1353 // General items / any items spare
-#define ITM_1354                    1354 // General items / any items spare
-#define ITM_1355                    1355 // General items / any items spare
-#define ITM_1356                    1356 // General items / any items spare
-#define ITM_1357                    1357 // General items / any items spare
+#define ITM_DRG_DEG                 1351
+#define ITM_DRG_RAD                 1352
+#define ITM_DRG_GRAD                1353
+#define ITM_DRG_DMS                 1354
+#define ITM_DRG_MULPI               1355
+#define ITM_DRG_NIM                 1356
+#define ITM_DRG_AUTADM              1357
 #define ITM_1358                    1358 // General items / any items spare
 #define ITM_1359                    1359 // General items / any items spare
 #define ITM_1360                    1360 // General items / any items spare
@@ -3274,7 +3274,7 @@
 #define MNU_RMODE                   3152
 #define ITM_3153                    3153 // General items / any items spare (reserved: Menus)
 #define MNU_EEXPFX                  3153 // EEX SI prefix menu; spare 3153, opened by the EEX long press
-#define ITM_3154                    3154 // General items / any items spare (reserved: Menus)
+#define MNU_DRG                     3154
 #define ITM_3155                    3155 // General items / any items spare (reserved: Menus)
 #define MNU_DRM                     3156
 #define MNU_RNDMODES                3157

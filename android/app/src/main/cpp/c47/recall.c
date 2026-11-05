@@ -208,7 +208,6 @@ void fnRecallConfig(uint16_t regist) {
     __attribute__((unused)) bool_t compatibility_byte00;    //for use in spare slots below
     __attribute__((unused)) uint8_t compatibility_byte1;    //for use in spare slots below
     __attribute__((unused)) bool_t compatibility_byte5 ;    //for use in spare slots below
-    __attribute__((unused)) bool_t compatibility_byte6 ;    //for use in spare slots below
     __attribute__((unused)) bool_t compatibility_byte7 ;    //for use in spare slots below
     __attribute__((unused)) bool_t compatibility_byte8 ;    //for use in spare slots below
     __attribute__((unused)) bool_t compatibility_byte9 ;    //for use in spare slots below
@@ -306,7 +305,9 @@ void fnRecallConfig(uint16_t regist) {
       recallFromDtConfigDescriptor(graFont);
       graFontCheck();
     #endif // OPTION_ATEXT_FONTS
-    recallFromDtConfigDescriptor(    compatibility_byte6);
+    #if defined(OPTION_DRG_CFG)
+      drgConfig = configToRecall->drgConfig ^ DRG_CONFIG_DEFAULT;
+    #endif // OPTION_DRG_CFG
     recallFromDtConfigDescriptor(    compatibility_byte7);
     recallFromDtConfigDescriptor(    compatibility_byte8);
     recallFromDtConfigDescriptor(    compatibility_byte9);

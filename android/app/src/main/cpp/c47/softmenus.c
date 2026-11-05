@@ -151,6 +151,19 @@ TO_QSPI const int16_t menu_DRM[]         = { ITM_RM_HALF_EVEN,              ITM_
 
 TO_QSPI const int16_t menu_RNDMODES[]    = { ITM_DRM,                       ITM_ROUNDMM,                ITM_NULL,                 ITM_NULL,              ITM_NULL,                     ITM_NULL                     };
 
+#if defined(OPTION_DRG_CFG)
+#if (CALCMODEL != USER_R47)
+TO_QSPI const int16_t menu_DRG[]         = { ITM_DRG_DEG,                   ITM_DRG_RAD,                ITM_DRG_GRAD,             ITM_DRG_DMS,           ITM_DRG_MULPI,               ITM_DRG,
+#else
+TO_QSPI const int16_t menu_DRG[]         = { ITM_DRG_DEG,                   ITM_DRG_RAD,                ITM_DRG_GRAD,             ITM_DRG_DMS,           ITM_DRG_MULPI,               ITM_NULL,
+#endif
+                                             ITM_NULL,                      ITM_NULL,                   ITM_NULL,                 ITM_NULL,              ITM_NULL,                    ITM_NULL,
+                                             ITM_DRG_NIM,                   ITM_DRG_AUTADM,             ITM_NULL,                 ITM_NULL,              ITM_NULL,                    ITM_NULL                      };
+  #define DRC_M -MNU_DRG
+#else // !OPTION_DRG_CFG
+  #define DRC_M ITM_NULL
+#endif // OPTION_DRG_CFG
+
 
 TO_QSPI const int16_t menu_INTS[]        = { ITM_A,                         ITM_B,                      ITM_C,                    ITM_D,                 ITM_E,                       ITM_F,
                                              ITM_IDIV,                      ITM_RMD,                    ITM_MOD,                  ITM_XMOD,              ITM_LINT,                    ITM_LCM,
@@ -981,9 +994,9 @@ TO_QSPI const int16_t menu_ASN_N[]       = { ITM_N_KEY_SIGMA,               ITM_
 //KEYS menu different for C47, R47
 TO_QSPI const int16_t menu_KEYS[]      =  {  -MNU_ASN_N,                -MNU_RIBBONS,              -MNU_RESETS,               ITM_ASSIGN,                ITM_USERMODE,              ITM_KEYMAP,
 #if (CALCMODEL != USER_R47)
-                                             ITM_USER_C47,              ITM_USER_DM42,             ITM_NULL,                  ITM_NULL,                  ITM_NULL,                  ITM_NULL         };
+                                             ITM_USER_C47,              ITM_USER_DM42,             ITM_NULL,                  ITM_NULL,                  ITM_NULL,                  DRC_M            };
 #else
-                                             ITM_USER_R47f_g,           ITM_USER_R47fg_bk,         ITM_USER_R47fg_g,          ITM_USER_R47bk_fg,         ITM_NULL,                  ITM_NULL         };
+                                             ITM_USER_R47f_g,           ITM_USER_R47fg_bk,         ITM_USER_R47fg_g,          ITM_USER_R47bk_fg,         ITM_NULL,                  DRC_M            };
 #endif
 
 
@@ -1284,6 +1297,9 @@ TO_QSPI const softmenu_t softmenu[] = {
 /* 218 */  {.menuItem = -MNU_DRM,           .numItems = sizeof(menu_DRM           )/sizeof(int16_t), .softkeyItem = menu_DRM            },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references.
 /* 219 */  {.menuItem = -MNU_RNDMODES,      .numItems = sizeof(menu_RNDMODES      )/sizeof(int16_t), .softkeyItem = menu_RNDMODES       },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references.
 /* 220 */  {.menuItem = -MNU_EEXPFX,         .numItems = sizeof(menu_EEXPFX         )/sizeof(int16_t), .softkeyItem = menu_EEXPFX          },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references.
+#if defined(OPTION_DRG_CFG)
+/* 221 */  {.menuItem = -MNU_DRG,           .numItems = sizeof(menu_DRG           )/sizeof(int16_t), .softkeyItem = menu_DRG            },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references.
+#endif // OPTION_DRG_CFG
 
 /* 189 */  {.menuItem =  0,                 .numItems = 0,                                           .softkeyItem = NULL                }
 

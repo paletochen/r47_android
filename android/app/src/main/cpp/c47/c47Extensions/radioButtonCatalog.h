@@ -73,6 +73,9 @@ char*    figlabel              (const char* label, const char* showText, int16_t
 #define RB_FDF                 165 // FIN12C money display format
 #define RB_FOT                 166 // FIN12C BSM option type
 #define RB_RM                  167 // RMODE
+#if defined(OPTION_DRG_CFG)
+  #define CB_DRG               168 // DRG menu
+#endif // OPTION_DRG_CFG
 
 //Not strictly needed to follow on numerically from RB/CB types above, but why not
 #define JC_ITM_TST             180    //dr

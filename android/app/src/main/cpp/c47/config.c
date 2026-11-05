@@ -1743,6 +1743,9 @@ void resetOtherConfigurationStuff(bool_t allowUserKeys) {
   displayStackSHOIDISP = 2;            //See if the refresh is needed. fnShoiXRepeats(2); //displayStackSHOIDISP
   bcdDisplaySign = BCDu;
   DRG_Cycling = 0;
+  #if defined(OPTION_DRG_CFG)
+    drgConfig = DRG_CONFIG_DEFAULT;
+  #endif // OPTION_DRG_CFG
   DM_Cycling = 0;
   LongPressM = RBX_M1234;
   LongPressF = RBX_F124;

@@ -2099,6 +2099,33 @@ void fractionToDisplayString(calcRegister_t regist, char *displayString) {
   endingZero++;
 
   _denominator(denom, displayString, &endingZero);
+  #if defined(OPTION_DRG_CFG)
+    strcat(displayString, angularUnitGlyph(getRegisterAngularMode(regist)));  // a tagged angle shows its unit after the fraction, as the decimal display does
+  #endif // OPTION_DRG_CFG
+}
+
+
+const char *angularUnitGlyph(uint8_t mode) {  // the mark after a number in that angular unit; nothing for no unit, and for D.MS, whose marks are among the digits
+  switch(mode) {
+    case amRadian: {
+      return STD_SUP_BOLD_r;
+    }
+    case amGrad: {
+      return STD_SUP_BOLD_g;
+    }
+    case amDegree: {
+      return STD_DEGREE;
+    }
+    case amMultPi: {
+      return STD_SUP_pir;
+    }
+    case amSecond: {
+      return "s";
+    }
+    default: {
+      return "";
+    }
+  }
 }
 
 
@@ -2206,17 +2233,8 @@ void angle34ToDisplayString2(const real34_t *angle34, uint8_t modeIn, char *disp
   else {
     real34ToDisplayString2(angle34, displayString, displayHasNDigits, limitExponent, mode == amSecond, frontSpace, isReal, limitIrfrac);
 
-    if(mode == amRadian) {
-      strcat(displayString, STD_SUP_BOLD_r);
-    }
-    else if(mode == amGrad) {
-      strcat(displayString, STD_SUP_BOLD_g);
-    }
-    else if(mode == amDegree) {
-      strcat(displayString, STD_DEGREE);
-    }
-    else if(mode == amSecond) {
-      strcat(displayString, "s");
+    if(mode == amRadian || mode == amGrad || mode == amDegree || mode == amSecond) {
+      strcat(displayString, angularUnitGlyph(mode));
     }
     else {
       strcat(displayString, "?");

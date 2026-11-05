@@ -2984,7 +2984,11 @@ void createSubstrings(uint8_t number) {
 
     if(getRegisterDataType(REGISTER_X) == dtReal34) {
       clearRegisterLine(REGISTER_X, true, true);
-      if(getSystemFlag(FLAG_FRACT)) {
+      #if defined(OPTION_DRG_CFG)
+        if(getSystemFlag(FLAG_FRACT) && getRegisterAngularMode(REGISTER_X) != amDMS) {
+      #else // !OPTION_DRG_CFG
+        if(getSystemFlag(FLAG_FRACT)) {
+      #endif // OPTION_DRG_CFG
         fractionToDisplayString(REGISTER_X, tmpString);
       }
       else {
@@ -4357,69 +4361,9 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
         }
 
         else if(regist == NIM_REGISTER_LINE && calcMode == CM_NIM) {
-          if(lastIntegerBase != 0) {
-            lastBase[0] = '#';
-            if(lastIntegerBase > 9) {
-              lastBase[1] = '1';
-              lastBase[2] = '0' + (lastIntegerBase - 10);
-              lastBase[3] = 0;
-            }
-            else {
-              lastBase[1] = '0' + lastIntegerBase;
-              lastBase[2] = 0;
-            }
-            wLastBaseNumeric  = stringWidth(lastBase, &numericFont,  true, true);
-            wLastBaseStandard = stringWidth(lastBase, &standardFont, true, true);
-          }
-          else if(aimBuffer[0] != 0 && aimBuffer[strlen(aimBuffer)-1]=='/') {
-            char *lb = lastBase;
-
-            uint32_t iDigit = 1;                     // smallest power of ten above lastDenominator, as pow(10, log10+1) computed it, without libm
-            while(iDigit <= lastDenominator) {
-              iDigit *= 10;
-            }
-            uint32_t iDigit1;
-            while(iDigit >= 10) {
-              iDigit1 = iDigit / 10;
-              if(lastDenominator >= iDigit1) {
-                //printf("%i %i %i\n",lastDenominator, iDigit, iDigit1);
-                *(lb++) = STD_SUB_0[0];
-                *(lb++) = STD_SUB_0[1] + (lastDenominator % iDigit) / (iDigit1);
-              }
-              iDigit = iDigit1;
-            }
-
-    //        if(lastDenominator >= 100000) {
-    //          *(lb++) = STD_SUB_0[0];
-    //          *(lb++) = STD_SUB_0[1] + (lastDenominator / 100000);
-    //        }
-    //        if(lastDenominator >= 10000) {
-    //          *(lb++) = STD_SUB_0[0];
-    //          *(lb++) = STD_SUB_0[1] + (lastDenominator % 100000 / 10000);
-    //        }
-    //        if(lastDenominator >= 1000) {
-    //          *(lb++) = STD_SUB_0[0];
-    //          *(lb++) = STD_SUB_0[1] + (lastDenominator % 10000 / 1000);
-    //        }
-    //        if(lastDenominator >= 100) {
-    //          *(lb++) = STD_SUB_0[0];
-    //          *(lb++) = STD_SUB_0[1] + (lastDenominator % 1000 / 100);     // 210 % 1000 / 100 ==> 210/100 = 2
-    //        }
-    //        if(lastDenominator >= 10) {
-    //          *(lb++) = STD_SUB_0[0];
-    //          *(lb++) = STD_SUB_0[1] + (lastDenominator % 100 / 10);       // 50 % 100 / 10  ==> 50 / 10 = 5
-    //        }
-    //        *(lb++) = STD_SUB_0[0];
-    //        *(lb++) = STD_SUB_0[1] + (lastDenominator % 10);
-
-            *(lb++) = 0;
-            wLastBaseNumeric  = stringWidth(lastBase, &numericFont,  true, true);
-            wLastBaseStandard = stringWidth(lastBase, &standardFont, true, true);
-          }
-          else {
-            wLastBaseNumeric  = 0;
-            wLastBaseStandard = 0;
-          }
+          nimHint(lastBase);
+          wLastBaseNumeric  = stringWidth(lastBase, &numericFont,  true, true);
+          wLastBaseStandard = stringWidth(lastBase, &standardFont, true, true);
 
           displayBaseMode(regist);
           //printStringToConsole(nimBufferDisplay,"XX: nimBufferDisplay:","\n");
@@ -4490,6 +4434,9 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
 /*Main type dtReal34 FLAG_FRACT*/
         else if(getSystemFlag(FLAG_FRACT)
                     && (    getRegisterDataType(regist) == dtReal34
+                         #if defined(OPTION_DRG_CFG)
+                           && getRegisterAngularMode(regist) != amDMS            // a D.MS angle keeps its degrees, minutes and seconds
+                         #endif // OPTION_DRG_CFG
                          && (
                                 real34CompareAbsLessThan(REGISTER_REAL34_DATA(regist), const34_1e6)
                              || real34IsZero(REGISTER_REAL34_DATA(regist))
@@ -5984,46 +5931,38 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
   }
 
   static void _showAngularModeGlyph(angularMode_t angularMode, const font_t *font, uint32_t x, uint32_t y) {
-    switch(angularMode) {
-      case amMultPi: {
-        showString(STD_SUP_pir, font, x, y, vmNormal, true, true);
-        break;
-      }
-      case amRadian: {
-        showString(STD_SUP_BOLD_r, font, x, y, vmNormal, true, true);
-        break;
-      }
-      case amGrad: {
-        showString(STD_SUP_BOLD_g, font, x, y, vmNormal, true, true);
-        break;
-      }
-      case amDegree: {
-        showString(STD_DEGREE, font, x, y, vmNormal, true, true);
-        break;
-      }
-      case amSecond: {
-        showString("s", font, x, y, vmNormal, true, true);
-        break;
-      }
-      default: {
-      }
-    }
+    #if defined(OPTION_DRG_CFG)
+      showString(angularMode == amDMS ? nimDmsMark() : angularUnitGlyph(angularMode), font, x, y, vmNormal, true, true);  // a D.MS entry shows the mark the next digit takes
+    #else // !OPTION_DRG_CFG
+      showString(angularUnitGlyph(angularMode), font, x, y, vmNormal, true, true);
+    #endif // OPTION_DRG_CFG
   }
 
 
   void displayNim(const char *nim, const char *lastBase, int16_t wLastBaseNumeric, int16_t wLastBaseStandard) {
     int16_t w;
-    angularMode_t xangularMode = getRegisterAngularMode(REGISTER_X);
+    bool_t showLastBase = lastIntegerBase != 0 || (aimBuffer[0] != 0 && aimBuffer[strlen(aimBuffer)-1] == '/');
+    angularMode_t xangularMode = (getRegisterDataType(REGISTER_X) == dtReal34) ? getRegisterAngularMode(REGISTER_X) : amNone;
+    #if defined(OPTION_DRG_CFG)
+      if(nimPolarAngularMode != amNone && nimComplexPart()) {
+        xangularMode = nimPolarAngularMode;  // a polar entry shows the unit DRG chose for its angle
+      }
+    #else // !OPTION_DRG_CFG
+      if(showLastBase) {
+        xangularMode = amNone;  // the base or the denominator takes the place of the unit
+      }
+    #endif // OPTION_DRG_CFG
     if(stringWidth(nim, &numericFont, true, true) + wLastBaseNumeric <= SCREEN_WIDTH - 16) { // 16 is the numeric font cursor width
       xCursor = showString(nim, &numericFont, 0, Y_POSITION_OF_NIM_LINE - checkHPoffset, vmNormal, true, true);
       yCursor = Y_POSITION_OF_NIM_LINE;
       cursorFont = &numericFont;
 
-      if(lastIntegerBase != 0 || (aimBuffer[0] != 0 && aimBuffer[strlen(aimBuffer)-1]=='/')) {
-        showString(lastBase, &numericFont, xCursor + 16, Y_POSITION_OF_NIM_LINE - checkHPoffset, vmNormal, true, true);
+      uint32_t xUnit = xCursor + 16;
+      if(showLastBase) {
+        xUnit = showString(lastBase, &numericFont, xCursor + 16, Y_POSITION_OF_NIM_LINE - checkHPoffset, vmNormal, true, true);
       }
-      else if((getRegisterDataType(REGISTER_X) == dtReal34) && (xangularMode < amNone)) {
-        _showAngularModeGlyph(xangularMode, &numericFont, xCursor + 16, Y_POSITION_OF_NIM_LINE - checkHPoffset);
+      if(xangularMode < amNone) {
+        _showAngularModeGlyph(xangularMode, &numericFont, xUnit, Y_POSITION_OF_NIM_LINE - checkHPoffset);
       }
     }
     else if(stringWidth(nim, &standardFont, true, true) + wLastBaseStandard <= SCREEN_WIDTH - 8) { // 8 is the standard font cursor width
@@ -6031,11 +5970,12 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
       yCursor = Y_POSITION_OF_NIM_LINE + 6;
       cursorFont = &standardFont;
 
-      if(lastIntegerBase != 0 || (aimBuffer[0] != 0 && aimBuffer[strlen(aimBuffer)-1]=='/')) {
-        showString(lastBase, &standardFont, xCursor + 8, Y_POSITION_OF_NIM_LINE + 6, vmNormal, true, true);
+      uint32_t xUnit = xCursor + 8;
+      if(showLastBase) {
+        xUnit = showString(lastBase, &standardFont, xCursor + 8, Y_POSITION_OF_NIM_LINE + 6, vmNormal, true, true);
       }
-      else if((getRegisterDataType(REGISTER_X) == dtReal34) && (xangularMode < amNone)) {
-        _showAngularModeGlyph(xangularMode, &standardFont, xCursor + 8, Y_POSITION_OF_NIM_LINE + 6);
+      if(xangularMode < amNone) {
+        _showAngularModeGlyph(xangularMode, &standardFont, xUnit, Y_POSITION_OF_NIM_LINE + 6);
       }
     }
     else {
@@ -6057,11 +5997,12 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
         yCursor = Y_POSITION_OF_NIM_LINE + 18;
         cursorFont = &standardFont;
 
-        if(lastIntegerBase != 0 || (aimBuffer[0] != 0 && aimBuffer[strlen(aimBuffer)-1] == '/')) {
-          showString(lastBase, &standardFont, xCursor + 8, Y_POSITION_OF_NIM_LINE + 18, vmNormal, true, true);
+        uint32_t xUnit = xCursor + 8;
+        if(showLastBase) {
+          xUnit = showString(lastBase, &standardFont, xCursor + 8, Y_POSITION_OF_NIM_LINE + 18, vmNormal, true, true);
         }
-        else if((getRegisterDataType(REGISTER_X) == dtReal34) && (xangularMode < amNone)) {
-          _showAngularModeGlyph(xangularMode, &standardFont, xCursor + 8, Y_POSITION_OF_NIM_LINE + 18);
+        if(xangularMode < amNone) {
+          _showAngularModeGlyph(xangularMode, &standardFont, xUnit, Y_POSITION_OF_NIM_LINE + 18);
         }
       }
     }

@@ -22,6 +22,12 @@ void fn_cnst_1_cpx  (uint16_t unusedButMandatoryParameter);
 void fnJM_2SI       (uint16_t unusedButMandatoryParameter);
 void fnAngularModeJM(uint16_t unusedButMandatoryParameter);
 void fnDRG          (uint16_t unusedButMandatoryParameter);
+void fnDrgToggle    (uint16_t bit);
+#if defined(OPTION_DRG_CFG)
+  void DRG_cycNim   (uint16_t *dest);
+  void drgAutoAdm   (uint16_t unit);
+  uint16_t drgXfnUnit(uint16_t unit);
+#endif // OPTION_DRG_CFG
 void fnChangeBaseMode (uint16_t unusedButMandatoryParameter);
 void fnChangeBaseJM (uint16_t unusedButMandatoryParameter);
 void fnChangeBaseMNU(uint16_t unusedButMandatoryParameter);

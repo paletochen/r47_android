@@ -136,6 +136,16 @@
   #define ATF_FNCT           CAT_NONE
 #endif //OPTION_ATEXT_FONTS
 
+#if defined(OPTION_DRG_CFG)
+  #define DRC_fnDrgToggle    fnDrgToggle
+  #define DRC_FNCT           CAT_FNCT
+  #define DRC_MENU           CAT_MENU
+#else //OPTION_DRG_CFG
+  #define DRC_fnDrgToggle    itemToBeCoded
+  #define DRC_FNCT           CAT_NONE
+  #define DRC_MENU           CAT_NONE
+#endif //OPTION_DRG_CFG
+
 #if defined(OPTION_LP_DP_TIMING)
   #define LPDP_fnGetLP       fnGetLPFCT
   #define LPDP_fnSetLP       fnSetLPFCT
@@ -1556,13 +1566,13 @@ TO_QSPI const item_t indexOfItems[] = {
 /* 1348 */  { NULL, 0,                     "1348",                                        "1348",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
 /* 1349 */  { NULL, 0,                     "1349",                                        "1349",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
 /* 1350 */  { NULL, 0,                     "1350",                                        "1350",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
-/* 1351 */  { NULL, 0,                     "1351",                                        "1351",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
-/* 1352 */  { NULL, 0,                     "1352",                                        "1352",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
-/* 1353 */  { NULL, 0,                     "1353",                                        "1353",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
-/* 1354 */  { NULL, 0,                     "1354",                                        "1354",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
-/* 1355 */  { NULL, 0,                     "1355",                                        "1355",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
-/* 1356 */  { NULL, 0,                     "1356",                                        "1356",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
-/* 1357 */  { NULL, 0,                     "1357",                                        "1357",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
+/* 1351 */  { NULL, 0,                    "A.DEG",                                       "DEG",                                         (0 << TAM_MAX_BITS) |     0, DRC_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
+/* 1352 */  { NULL, 0,                    "A.RAD",                                       "RAD",                                         (0 << TAM_MAX_BITS) |     0, DRC_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
+/* 1353 */  { NULL, 0,                      "A.GRAD",                                      "GRAD",                                        (0 << TAM_MAX_BITS) |     0, DRC_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
+/* 1354 */  { NULL, 0,                       "A.DMS",                                       "D.MS",                                        (0 << TAM_MAX_BITS) |     0, DRC_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
+/* 1355 */  { NULL, 0,                    "A.MUL" STD_pi,                                "MUL" STD_pi,                                  (0 << TAM_MAX_BITS) |     0, DRC_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
+/* 1356 */  { NULL, 0,                 "NIMDRG",                                      "NIM",                                         (0 << TAM_MAX_BITS) |     0, DRC_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
+/* 1357 */  { NULL, 0,            "A.AUTO",                                      "AUTO",                                        (0 << TAM_MAX_BITS) |     0, DRC_FNCT | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
 /* 1358 */  { NULL, 0,                     "1358",                                        "1358",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
 /* 1359 */  { NULL, 0,                     "1359",                                        "1359",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
 /* 1360 */  { NULL, 0,                     "1360",                                        "1360",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
@@ -3408,7 +3418,7 @@ TO_QSPI const item_t indexOfItems[] = {
 /* 3151 */  { NULL, 0,                     "3151",                                        "3151",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         }, // reserved: FIN12C, dynamic softmenu spare
 /* 3152 */  { NULL, 0,                     "RMODE",                                       "RMODE",                                       (0 << TAM_MAX_BITS) |     0, CAT_MENU | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
 /* 3153 */  { NULL, 0,                     "EEXPFX",                                      "EEXPFX",                                      (0 << TAM_MAX_BITS) |     0, CAT_MENU | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         }, //JM EEX SI prefix menu
-/* 3154 */  { NULL, 0,                     "3154",                                        "3154",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         }, // reserved: Menus
+/* 3154 */  { NULL, 0,                     "DRG",                                         "DRG",                                         (0 << TAM_MAX_BITS) |     0, DRC_MENU | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
 /* 3155 */  { NULL, 0,                     "3155",                                        "3155",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         }, // reserved: Menus
 /* 3156 */  { NULL, 0,                     "DRMODE",                                      "DRMODE",                                      (0 << TAM_MAX_BITS) |     0, CAT_MENU | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
 /* 3157 */  { NULL, 0,                     "RMODES",                                      "RMODES",                                      (0 << TAM_MAX_BITS) |     0, CAT_MENU | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },

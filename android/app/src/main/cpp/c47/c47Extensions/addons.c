@@ -166,8 +166,8 @@ static void _hmsTimeToReal() {
 
 
 static void _real34ToNim(const real34_t *real34, char *nimInput, char *nimDisplay) {
-// nimInput   : used to fill aimBuffer
-// nimDisplay : used to fill nimBufferDisplay
+// nimInput   : the text EDIT types for the real, with its sign and a radix mark
+// nimDisplay : scratch for the digits
   uint16_t i;
   uint8_t grpGroupingLeftOld  = grpGroupingLeft;
   uint8_t grpGroupingRightOld = grpGroupingRight;
@@ -224,53 +224,35 @@ static void _real34ToNim(const real34_t *real34, char *nimInput, char *nimDispla
   }
   //printf("**[DL]** _real34ToNim nimInput %s\n", nimInput);
   //fflush(stdout);
-  bool exponentFound = false;
   dotFound = false;
   for(i = 0; i < strlen(nimInput); i++) {
     if(nimInput[i] == 'E') {
       nimInput[i] = 'e';
       dotFound = true;
-      exponentFound = true;
-      exponentSignLocation = i + 1;
-      nimNumberPart = NP_REAL_EXPONENT;
     }
     if(nimInput[i] == '.') {
       dotFound = true;
-      nimNumberPart = NP_REAL_FLOAT_PART;
     }
   }
   if(!dotFound) {
     nimInput[i] = '.';
-    nimNumberPart = NP_REAL_FLOAT_PART;
+    nimInput[i + 1] = 0;
   }
-  strcpy(nimDisplay, STD_SPACE_HAIR);
-  nimBufferToDisplayBuffer(nimInput, nimDisplay + 2);
-  //printf("**[DL]** _real34ToNim nimDisplay %s\n", nimDisplay+2);
-  //fflush(stdout);
-  for(i=stringByteLength(nimDisplay) - 1; i>0; i--) {
-    if(nimDisplay[i] == (char)0xab) {    //token
-      nimDisplay[i] = SEPARATOR_LEFT[0];
-      if(nimDisplay[i+1] == 1) {
-        nimDisplay[i+1] = SEPARATOR_LEFT[1];
-      }
-    }
-    if(nimDisplay[i] == (char)0xbb) {    //token
-      nimDisplay[i] = SEPARATOR_RIGHT[0];
-      if(nimDisplay[i+1] == 1) {
-        nimDisplay[i+1] = SEPARATOR_RIGHT[1];
-      }
-    }
-  }
-  if(exponentFound) {
-    exponentToDisplayString(stringToInt32(nimInput + exponentSignLocation), nimDisplay + stringByteLength(nimDisplay), NULL, true);
-    if(nimInput[exponentSignLocation + 1] == 0 && nimInput[exponentSignLocation] == '-') {
-      strcat(nimDisplay, STD_SUP_MINUS);
-    }
-    else if(nimInput[exponentSignLocation + 1] == '0' && nimInput[exponentSignLocation] == '+') {
-      strcat(nimDisplay, STD_SUP_0);
+}
+
+#if defined(OPTION_DRG_CFG)
+static void _dmsToNim(const real34_t *degrees, char *nimInput) {  // the text EDIT types for a D.MS angle: its D.MS digits, or its degrees when the digits need an exponent, since an exponent makes a D.MS entry degrees
+  real34_t digits;
+  real34FromDegToDms(degrees, &digits);
+  _real34ToNim(&digits, nimInput, nimBufferDisplay);
+  if(strchr(nimInput, 'e') != NULL) {
+    _real34ToNim(degrees, nimInput, nimBufferDisplay);
+    if(strchr(nimInput, 'e') == NULL) {
+      strcat(nimInput, "e0");
     }
   }
 }
+#endif // OPTION_DRG_CFG
 
 //static void _angle34ToNim(const real34_t *angle34, uint8_t mode, char *nimInput, char *nimDisplay) {
 // nimInput   : used to fill aimBuffer
@@ -280,20 +262,276 @@ static void _real34ToNim(const real34_t *real34, char *nimInput, char *nimDispla
 #endif // OPTION_EDIT_X
 
 
+#if defined(OPTION_EDIT_X) || defined(OPTION_EDIT_PEM)
+static void _editAddItem(int16_t item) {  // a key of the number EDIT types, to the program step in PEM and to X otherwise
+  if(calcMode == CM_PEM) {
+    pemAddNumber(item, false);
+  }
+  else {
+    addItemToNimBuffer(item);
+  }
+}
+
+
+static void _editReplay(const char *tempBuffer, uint8_t opParam, uint8_t base) {  // the number in tempBuffer typed as the keys that enter it, so the entry and its display are those of the keys
+  bool chsNeeded = false;
+  bool isDate = (opParam == STRING_DATE ? true : false);
+  uint16_t i;
+  uint16_t iMax = strlen(tempBuffer);
+  bool decimalflag = false;
+  lastIntegerBase = base;
+  hexDigits = 0;
+  for(i = 0; i < iMax; i++) {
+    //printf("**[DL]** fnEdit tempBuffer[%2d] %02x aimBuffer %s\n", i, tempBuffer[i]&0xff, aimBuffer);
+    //fflush(stdout);
+    switch((uint8_t) tempBuffer[i]) {
+      case '0':
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+      case '5':
+      case '6':
+      case '7':
+      case '8':
+      case '9':
+        _editAddItem(ITM_0 + tempBuffer[i] - '0');
+        break;
+      case 'A':
+      case 'B':
+      case 'C':
+      case 'D':
+      case 'E':
+      case 'F':
+        _editAddItem(ITM_A + tempBuffer[i] - 'A');
+        break;
+      case '.':
+        if(!decimalflag) {
+          decimalflag = true;
+          _editAddItem(ITM_PERIOD);
+        }
+        break;
+      case ':' :
+        if(!decimalflag) {
+          decimalflag = true;
+          _editAddItem(ITM_PERIOD);
+        }
+        break;
+      case '+':
+        if(chsNeeded) {
+          _editAddItem(ITM_CHS);  // '-' was already encountered, let's first negate the real part
+        }
+        chsNeeded = false;
+        if(opParam == BINARY_COMPLEX34) {
+          //printf("**[DL]** fnEdit pemAddNumber ITM_CC aimBuffer %s\n", aimBuffer);
+          //fflush(stdout);
+          _editAddItem(ITM_CC);
+          decimalflag = false;
+        }
+        break;
+      case '-':
+        if(isDate) {
+          if(!decimalflag) {
+            decimalflag = true;
+            _editAddItem(ITM_PERIOD);
+          }
+        }
+        else {
+          if(chsNeeded) {
+            _editAddItem(ITM_CHS);  // second time '-' is encountered, let's first negate the real part
+          }
+          chsNeeded = true;
+          if(opParam == BINARY_COMPLEX34) {
+            //printf("**[DL]** fnEdit pemAddNumber ITM_CC aimBuffer %s\n", aimBuffer);
+            //fflush(stdout);
+            _editAddItem(ITM_CC);
+            decimalflag = false;
+          }
+        }
+        break;
+      case '/':
+        if(isDate) {
+          if(!decimalflag) {
+            decimalflag = true;
+            _editAddItem(ITM_PERIOD);
+          }
+        }
+        else {                  // a fraction: 1 2/3 is typed 1.2.3 and 2/3 is typed 2..3
+          if(!decimalflag) {
+            _editAddItem(ITM_PERIOD);
+          }
+          decimalflag = true;
+          _editAddItem(ITM_PERIOD);
+        }
+        break;
+      case ' ':                 // the gap of the fraction 1 2/3
+        decimalflag = true;
+        _editAddItem(ITM_PERIOD);
+        break;
+      case 'e':
+        if(chsNeeded) {
+          _editAddItem(ITM_CHS);           // change mantissa sign before entering exponent
+        }
+        chsNeeded = false;
+        _editAddItem(ITM_EXPONENT);
+        break;
+      case 'i':
+        _editAddItem(ITM_CC);
+        decimalflag = false;
+        break;
+      case 0x80:
+        i++;
+        //printf("**[DL]**        tempBuffer[%2d] %02x\n", i, tempBuffer[i]&0xff);
+        //fflush(stdout);
+        if((tempBuffer[i] == STD_CROSS[1]) && (nimNumberPart != NP_COMPLEX_INT_PART)) {
+          i += 2; // Skip next character (STD_BASE_10)
+          if(chsNeeded) {
+            _editAddItem(ITM_CHS);         // change mantissa sign before entering exponent
+          }
+          chsNeeded = false;
+          _editAddItem(ITM_EXPONENT);
+        }
+        else if((tempBuffer[i] == STD_DEGREE[1]) && (opParam == STRING_ANGLE_DMS)) {
+          decimalflag = true;  // the radix mark of the seconds is not a second one
+          _editAddItem(ITM_PERIOD);
+        }
+        break;
+      case 0xa1:
+        i++;
+        //printf("**[DL]**        tempBuffer[%2d] %02x\n", i, tempBuffer[i]&0xff);
+        //fflush(stdout);
+        if((tempBuffer[i] >= STD_SUP_0[1]) && (tempBuffer[i] <= STD_SUP_9[1])) {
+          _editAddItem(ITM_0 + tempBuffer[i] - STD_SUP_0[1]);
+        }
+        else if(tempBuffer[i] == STD_SUP_MINUS[1]) {
+          chsNeeded = true;
+        }
+        else if(((tempBuffer[i] == STD_op_i[1]) || (tempBuffer[i] == STD_op_j[1])) && (nimNumberPart != NP_COMPLEX_INT_PART)) {
+          //printf("**[DL]** fnEdit pemAddNumber ITM_op_j aimBuffer %s\n", aimBuffer);
+          //fflush(stdout);
+          _editAddItem(ITM_CC);
+          decimalflag = false;
+        }
+        //printf("**[DL]** fnEdit pemAddNumber %02x aimBuffer %s\n", tempBuffer[i],aimBuffer);
+        //fflush(stdout);
+        break;
+      case 0x81:
+      case 0x82:
+      case 0x83:
+      case 0x9d:
+      case 0x9e:
+      case 0xa0:
+      case 0xa2:
+      case 0xa3:
+      case 0xa4:
+      case 0xa5:
+      case 0xa6:
+      case 0xa7:
+      case 0xa9:
+      case 0xab:
+      case 0xac:
+        i++;   // Ignore non supported unicode characters, including base subscripts
+        //printf("**[DL]**        tempBuffer[%2d] %02x\n", i, tempBuffer[i]&0xff);
+        //fflush(stdout);
+        break;
+      default:
+        //printf("**[DL]** dflt   tempBuffer[%2d] %02x\n", i, tempBuffer[i]&0xff);
+        //fflush(stdout);
+        break;
+    }
+    lastIntegerBase = base;
+  }
+  if(chsNeeded) {
+    _editAddItem(ITM_CHS);
+  }
+}
+#endif // OPTION_EDIT_X || OPTION_EDIT_PEM
+
+#if defined(OPTION_EDIT_X)
+static void _editX(void) {  // X opens in NIM as its number typed from the keys; a long integer wider than the two lines NIM shows stays in X unedited
+  char *text = errorMessage + 3000;
+  uint16_t dataType = getRegisterDataType(REGISTER_X);
+  angularMode_t xangularMode = amNone;
+  uint8_t base = 0;
+
+  if(dataType == dtLongInteger) {
+    longInteger_t lgInt;
+    convertLongIntegerRegisterToLongInteger(REGISTER_X, lgInt);
+    longIntegerToAllocatedString(lgInt, text, WRITE_BUFFER_LEN - 3000);
+    longIntegerFree(lgInt);
+    if(stringByteLength(text) > 200) {  // far wider than the two lines, so the digits are not typed
+      return;
+    }
+    copySourceRegisterToDestRegister(REGISTER_X, TEMP_REGISTER_1);
+  }
+  else if(dataType == dtShortInteger) {
+    base = getRegisterTag(REGISTER_X);
+    _shortIntegerToString(REGISTER_X, text);
+  }
+  else {  // a real, and a time or a date in the real form it is edited in
+    xangularMode = getRegisterAngularMode(REGISTER_X);
+    int16_t lessEqualGreater = 1;
+    #if defined(OPTION_DRG_CFG)
+      if(xangularMode == amDMS) {  // a D.MS angle keeps its degrees, minutes and seconds, as on the display
+        _dmsToNim(REGISTER_REAL34_DATA(REGISTER_X), text);
+        lessEqualGreater = 0;
+      }
+      else if(getSystemFlag(FLAG_FRACT)) {
+    #else // !OPTION_DRG_CFG
+      if(xangularMode == amDMS) {
+        real34FromDegToDms(REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X));
+      }
+      if(getSystemFlag(FLAG_FRACT)) {
+    #endif // OPTION_DRG_CFG
+      _fractionToString(REGISTER_X, text, &lessEqualGreater);
+    }
+    if(lessEqualGreater != 0) {  // not a fraction, or one only near the value
+      _real34ToNim(REGISTER_REAL34_DATA(REGISTER_X), text, nimBufferDisplay);
+    }
+  }
+
+  freeRegisterData(REGISTER_X);
+  setRegisterDataPointer(REGISTER_X, allocC47Blocks(REAL34_SIZE_IN_BLOCKS));
+  setRegisterDataType(REGISTER_X, (dataType == dtTime || dataType == dtDate) ? dataType : dtReal34, xangularMode);  // time and date keep their types for the close
+  real34SetZero(REGISTER_REAL34_DATA(REGISTER_X));
+
+  uint8_t inputDefault = Input_Default;
+  Input_Default = ID_DP;  // i LI refuses a radix mark from the keyboard, not one in the number of X
+  calcMode = CM_NIM;      // the entry is open, so the keys do not lift the stack
+  nimStartNumber(ITM_0);
+  hexDigits = 0;
+  _editReplay(text, base == 0 ? 0 : BINARY_SHORT_INTEGER, base);
+  Input_Default = inputDefault;
+
+  if(dataType == dtLongInteger && stringWidth(nimBufferDisplay + 2, &standardFont, true, true) >= SCREEN_WIDTH * 2 - 8) {  // 8 is the standard font cursor width
+    copySourceRegisterToDestRegister(TEMP_REGISTER_1, REGISTER_X);
+    calcMode = CM_NORMAL;
+    aimBuffer[0] = 0;
+    nimBufferDisplay[0] = 0;
+    nimNumberPart = NP_EMPTY;
+    return;
+  }
+
+  clearSystemFlag(FLAG_ALPHA);
+  if(!checkHP) {
+    clearRegisterLine(NIM_REGISTER_LINE, true, true);
+  }
+  xCursor = 1;
+  cursorEnabled = true;
+  cursorFont = &numericFont;
+}
+#endif // OPTION_EDIT_X
+
+
 void fnEdit (uint16_t unusedParamButMandatory) {
   //fnEdit: this is simply the stub with the currently working edit routines, linked via ITM_EDIT, which is also located on long press Backspace.
   //All might have to be changed have a propoer generic EDIT function.
-    #if defined(OPTION_EDIT_X) || defined(OPTION_EDIT_PEM)
+    #if defined(OPTION_EDIT_PEM)
       int16_t index;
-    #endif //defined(OPTION_EDIT_X) || defined(OPTION_EDIT_PEM)
-
-    #if defined(OPTION_EDIT_X) || defined(OPTION_EDIT_PEM)
       uint8_t grpGroupingLeftOld;
       uint8_t grpGroupingRightOld;
-    #endif
-    #if defined(OPTION_EDIT_PEM)
       char    varOrLblName[32];
-    #endif
+    #endif // OPTION_EDIT_PEM
 
     if(tam.mode != 0) {
       goto err;
@@ -308,133 +546,17 @@ void fnEdit (uint16_t unusedParamButMandatory) {
         else {
           switch(getRegisterDataType(REGISTER_X)) {
 #if defined(OPTION_EDIT_X)
-            case dtLongInteger: {
-              #define NIM_BUFFER_EXTENDED_LENGTH    1400      // provision for very long integers (up to 1000 digits + separators)
-              memset(nimBufferDisplay, 0, NIM_BUFFER_EXTENDED_LENGTH);
-              longInteger_t lgInt;
-              convertLongIntegerRegisterToLongInteger(REGISTER_X, lgInt);
-              longIntegerToAllocatedString(lgInt, nimBufferDisplay, NIM_BUFFER_EXTENDED_LENGTH);
-              if(longIntegerIsPositiveOrZero(lgInt)) {
-                aimBuffer[0] = '+';
-                strcpy(aimBuffer + 1, nimBufferDisplay);
-              }
-              else {
-                strcpy(aimBuffer, nimBufferDisplay);
-              }
-              longIntegerFree(lgInt);
-              if(grpGroupingLeft > 0) {
-                int16_t len = strlen(nimBufferDisplay);
-                for(int16_t i=len - grpGroupingLeft; i>0; i-=grpGroupingLeft) {
-                  if(i != 1 || nimBufferDisplay[0] != '-') {
-                    if(gapItemLeft != ITM_NULL) {  // insert gapCharLeft
-                      uint8_t lenGapItem = strlen(indexOfItems[gapItemLeft].itemSoftmenuName);
-                      xcopy(nimBufferDisplay + i + lenGapItem, nimBufferDisplay + i, len - i + 1);
-                      xcopy(nimBufferDisplay + i , indexOfItems[gapItemLeft].itemSoftmenuName, lenGapItem);
-                      len += lenGapItem;
-                    }
-                  }
-                }
-              }
-
-              // Test if long inter number display string will fit on two lines in standard font, if not do nothing (cannot edit)
-              if(stringWidth(nimBufferDisplay, &standardFont, true, true) < (SCREEN_WIDTH * 2)  - 8) { // 8 is the standard font cursor width
-                //printf("**[DL]** aimBuffer %s \n nimBufferDisplay %s\n", aimBuffer, nimBufferDisplay);
-                //fflush(stdout);
-                calcMode = CM_NIM;
-                clearSystemFlag(FLAG_ALPHA);
-                freeRegisterData(REGISTER_X);
-                setRegisterDataPointer(REGISTER_X, allocC47Blocks(REAL34_SIZE_IN_BLOCKS));
-                setRegisterDataType(REGISTER_X, dtReal34, amNone);
-                real34SetZero(REGISTER_REAL34_DATA(REGISTER_X));
-                hexDigits = 0;
-                nimNumberPart = NP_INT_10;
-                //clearRegisterLine(NIM_REGISTER_LINE, true, true);
-                if(!checkHP) {
-                  clearRegisterLine(NIM_REGISTER_LINE, true, true);
-                }
-                xCursor = 1;
-                cursorEnabled = true;
-                cursorFont = &numericFont;
-              }
-              else {
-                memset(nimBufferDisplay, 0, NIM_BUFFER_EXTENDED_LENGTH);
-                aimBuffer[0] = 0;
-                nimBufferDisplay[0] = 0;
-              }
+            case dtLongInteger:
+            case dtShortInteger: {
+              _editX();
               break;
             }
 
             case dtReal34: {
-              edit_dtReal34:
-              grpGroupingLeftOld  = grpGroupingLeft;
-              grpGroupingRightOld = grpGroupingRight;
-              angularMode_t xangularMode = getRegisterAngularMode(REGISTER_X);
-
-              //printf("**[DL]** xangularMode %d\n", xangularMode);
-              //fflush(stdout);
-              memset(aimBuffer, 0, AIM_BUFFER_LENGTH);
-              memset(nimBufferDisplay, 0, NIM_BUFFER_LENGTH);
-
-              if(xangularMode == amDMS) {
-                real34FromDegToDms(REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X));
+              if(real34IsSpecial(REGISTER_REAL34_DATA(REGISTER_X))) {  // infinity and NaN have no digits to type
+                goto err;
               }
-
-              uint16_t lessEqualGreater = 0;
-              if(getSystemFlag(FLAG_FRACT)) {
-                grpGroupingLeft  = 0;
-                grpGroupingRight = 0;
-                _fractionToString(REGISTER_X, aimBuffer, (int16_t *)&lessEqualGreater);
-                grpGroupingRight = grpGroupingRightOld;
-                grpGroupingLeft  = grpGroupingLeftOld;
-
-                if(lessEqualGreater == 0) {         // display fraction
-                  nimNumberPart = NP_FRACTION_DENOMINATOR;
-                  strcpy(nimBufferDisplay, STD_SPACE_HAIR);
-                  nimBufferToDisplayBuffer(aimBuffer, nimBufferDisplay + 2);
-                  strcat(nimBufferDisplay, STD_SPACE_4_PER_EM);
-                  for(index=2; aimBuffer[index]!=' '; index++) {
-                  }
-                  supNumberToDisplayString(stringToInt32(aimBuffer + index + 1), nimBufferDisplay + stringByteLength(nimBufferDisplay), NULL, true);
-
-                  strcat(nimBufferDisplay, "/");
-
-                  for(; aimBuffer[index]!='/'; index++) {
-                  }
-                  if(aimBuffer[++index] != 0) {
-                    subNumberToDisplayString(stringToInt32(aimBuffer + index), nimBufferDisplay + stringByteLength(nimBufferDisplay), NULL);
-                  }
-                }
-                else {    // display real34
-                  _real34ToNim(REGISTER_REAL34_DATA(REGISTER_X), aimBuffer, nimBufferDisplay);
-                }
-              }
-              else {  // display real34
-                _real34ToNim(REGISTER_REAL34_DATA(REGISTER_X), aimBuffer, nimBufferDisplay);
-              }
-              //printf("**[DL]** dtReal34 aimBuffer %s nimBufferDisplay %s\n", aimBuffer, nimBufferDisplay);
-              //fflush(stdout);
-
-              calcMode = CM_NIM;
-              clearSystemFlag(FLAG_ALPHA);
-              uint16_t dataType = getRegisterDataType(REGISTER_X);
-              freeRegisterData(REGISTER_X);
-              setRegisterDataPointer(REGISTER_X, allocC47Blocks(REAL34_SIZE_IN_BLOCKS));
-              if((dataType == dtTime) || (dataType == dtDate)) {
-                setRegisterDataType(REGISTER_X, dataType, xangularMode);   // Keep time and date datatypes
-              }
-              else {
-                setRegisterDataType(REGISTER_X, dtReal34, xangularMode);
-              }
-              real34SetZero(REGISTER_REAL34_DATA(REGISTER_X));
-              //printf("**[DL]** AngularMode %d\n", getRegisterAngularMode(REGISTER_X));
-              //fflush(stdout);
-              hexDigits = 0;
-              if(!checkHP) {
-                clearRegisterLine(NIM_REGISTER_LINE, true, true);
-              }
-              xCursor = 1;
-              cursorEnabled = true;
-              cursorFont = &numericFont;
+              _editX();
               break;
             }
 
@@ -544,14 +666,14 @@ void fnEdit (uint16_t unusedParamButMandatory) {
             case dtTime: {
               _hmsTimeToReal();
               setRegisterDataType(REGISTER_X, dtTime, amNone);  // Force time data type to preserve it when closing NIM
-              goto edit_dtReal34;
+              _editX();
               break;
             }
 
             case dtDate: {
               convertDateRegisterToReal34Register(REGISTER_X, REGISTER_X);
               setRegisterDataType(REGISTER_X, dtDate, amNone);  // Force date data type to preserve it when closing NIM
-              goto edit_dtReal34;
+              _editX();
               break;
             }
 #endif // OPTION_EDIT_X
@@ -576,58 +698,6 @@ void fnEdit (uint16_t unusedParamButMandatory) {
               break;
             }
 
-#if defined(OPTION_EDIT_X)
-            case dtShortInteger: {
-              uint16_t i;
-              grpGroupingLeftOld  = grpGroupingLeft;
-              grpGroupingRightOld = grpGroupingRight;
-
-              memset(aimBuffer, 0, AIM_BUFFER_LENGTH);
-              memset(nimBufferDisplay, 0, NIM_BUFFER_LENGTH);
-
-              lastIntegerBase  = getRegisterTag(REGISTER_X);
-              nimNumberPart = (lastIntegerBase <= 10 ? NP_INT_10 : NP_INT_16);
-
-              grpGroupingLeft  = 0;
-              grpGroupingRight = 0;
-              _shortIntegerToString(REGISTER_X, aimBuffer);
-              grpGroupingRight = grpGroupingRightOld;
-              grpGroupingLeft  = grpGroupingLeftOld;
-
-              hexDigits   = 0;
-              for(i = 0; i < strlen(aimBuffer); i++) {
-                if((aimBuffer[i] >= 'A') && (aimBuffer[i] <= 'F')) {
-                  hexDigits++;
-                }
-              }
-
-              strcpy(nimBufferDisplay, STD_SPACE_HAIR);
-              nimBufferToDisplayBuffer(aimBuffer, nimBufferDisplay + 2);
-              for(i=stringByteLength(nimBufferDisplay) - 1; i>0; i--) {
-                if(nimBufferDisplay[i] == (char)0xab) {    //token
-                  nimBufferDisplay[i] = SEPARATOR_LEFT[0];
-                  if(nimBufferDisplay[i+1] == 1) {
-                    nimBufferDisplay[i+1] = SEPARATOR_LEFT[1];
-                  }
-                }
-              }
-              //printf("**[DL]** dtShortInteger aimBuffer %s nimBufferDisplay %s\n", aimBuffer, nimBufferDisplay);
-              //fflush(stdout);
-
-              calcMode = CM_NIM;
-              clearSystemFlag(FLAG_ALPHA);
-              freeRegisterData(REGISTER_X);
-              setRegisterDataPointer(REGISTER_X, allocC47Blocks(REAL34_SIZE_IN_BLOCKS));
-              setRegisterDataType(REGISTER_X, dtReal34, amNone);
-              if(!checkHP) {
-                clearRegisterLine(NIM_REGISTER_LINE, true, true);
-              }
-              xCursor = 1;
-              cursorEnabled = true;
-              cursorFont = &numericFont;
-              break;
-            }
-#endif // OPTION_EDIT_X
 
             // case dtConfig: Not relevant for EDIT
             default: {
@@ -677,8 +747,6 @@ void fnEdit (uint16_t unusedParamButMandatory) {
                   (opParam == STRING_ANGLE_RADIAN)  || (opParam == STRING_ANGLE_GRAD)    ||
                   (opParam == STRING_ANGLE_DEGREE)  || (opParam == STRING_ANGLE_MULTPI)) {
             char *tempBuffer = errorMessage + 3000;
-            bool chsNeeded = false;
-            bool isDate = (opParam == STRING_DATE ? true : false);
 
             if((opParam == STRING_REAL34)|| (opParam == STRING_COMPLEX34))  {
               getStringLabelOrVariableName(&currentStep[2]);
@@ -693,167 +761,24 @@ void fnEdit (uint16_t unusedParamButMandatory) {
               grpGroupingRight = grpGroupingRightOld;
               grpGroupingLeft  = grpGroupingLeftOld;
               strcpy(tempBuffer, tmpString);
+              #if defined(OPTION_DRG_CFG) && defined(OPTION_EDIT_X)
+                if(opParam == STRING_ANGLE_DMS) {
+                  getStringLabelOrVariableName(&currentStep[2]);
+                  if(strpbrk(tmpStringLabelOrVariableName, "eE") != NULL) {  // D.MS digits with an exponent open as degrees
+                    real34_t degrees;
+                    stringToReal34(tmpStringLabelOrVariableName, &degrees);
+                    real34FromDmsToDeg(&degrees, &degrees);
+                    _dmsToNim(&degrees, tempBuffer);
+                  }
+                }
+              #endif // OPTION_DRG_CFG && OPTION_EDIT_X
             }
             lastIntegerBase = (opParam == BINARY_SHORT_INTEGER ? opParam2 : opParam == STRING_SHORT_INTEGER ? opParam2 : 0);
             //printf("**[DL]** fnEdit lastIntegerBase %d tempBuffer %s\n", lastIntegerBase, tempBuffer);
             //fflush(stdout);
             deleteStepsFromTo(currentStep, findNextStep(currentStep));
 
-            uint16_t i;
-            uint16_t iMax = strlen(tempBuffer);
-            bool decimalflag = false;
-            hexDigits = 0;
-            for(i = 0; i < iMax; i++) {
-              //printf("**[DL]** fnEdit tempBuffer[%2d] %02x aimBuffer %s\n", i, tempBuffer[i]&0xff, aimBuffer);
-              //fflush(stdout);
-              switch((uint8_t) tempBuffer[i]) {
-                case '0':
-                case '1':
-                case '2':
-                case '3':
-                case '4':
-                case '5':
-                case '6':
-                case '7':
-                case '8':
-                case '9':
-                  pemAddNumber(ITM_0 + tempBuffer[i] - '0', false);
-                  break;
-                case 'A':
-                case 'B':
-                case 'C':
-                case 'D':
-                case 'E':
-                case 'F':
-                  pemAddNumber(ITM_A + tempBuffer[i] - 'A', false);
-                  break;
-                case '.':
-                  if(!decimalflag) {
-                    decimalflag = true;
-                    pemAddNumber(ITM_PERIOD, false);
-                  }
-                  break;
-                case ':' :
-                  if(!decimalflag) {
-                    decimalflag = true;
-                    pemAddNumber(ITM_PERIOD, false);
-                  }
-                  break;
-                case '+':
-                  if(chsNeeded) {
-                    pemAddNumber(ITM_CHS, false);  // '-' was already encountered, let's first negate the real part
-                  }
-                  chsNeeded = false;
-                  if(opParam == BINARY_COMPLEX34) {
-                    //printf("**[DL]** fnEdit pemAddNumber ITM_CC aimBuffer %s\n", aimBuffer);
-                    //fflush(stdout);
-                    pemAddNumber(ITM_CC, false);
-                    decimalflag = false;
-                  }
-                  break;
-                case '-':
-                  if(isDate) {
-                    if(!decimalflag) {
-                      decimalflag = true;
-                      pemAddNumber(ITM_PERIOD, false);
-                    }
-                  }
-                  else {
-                    if(chsNeeded) {
-                      pemAddNumber(ITM_CHS, false);  // second time '-' is encountered, let's first negate the real part
-                    }
-                    chsNeeded = true;
-                    if(opParam == BINARY_COMPLEX34) {
-                      //printf("**[DL]** fnEdit pemAddNumber ITM_CC aimBuffer %s\n", aimBuffer);
-                      //fflush(stdout);
-                      pemAddNumber(ITM_CC, false);
-                      decimalflag = false;
-                    }
-                  }
-                  break;
-                case '/':
-                  if(isDate) {
-                    if(!decimalflag) {
-                      decimalflag = true;
-                      pemAddNumber(ITM_PERIOD, false);
-                    }
-                  }
-                  break;
-                case 'e':
-                  if(chsNeeded) {
-                    pemAddNumber(ITM_CHS, false);           // change mantissa sign before entering exponent
-                  }
-                  chsNeeded = false;
-                  pemAddNumber(ITM_EXPONENT, false);
-                  break;
-                case 'i':
-                  pemAddNumber(ITM_CC, false);
-                  decimalflag = false;
-                  break;
-                case 0x80:
-                  i++;
-                  //printf("**[DL]**        tempBuffer[%2d] %02x\n", i, tempBuffer[i]&0xff);
-                  //fflush(stdout);
-                  if((tempBuffer[i] == STD_CROSS[1]) && (nimNumberPart != NP_COMPLEX_INT_PART)) {
-                    i += 2; // Skip next character (STD_BASE_10)
-                    if(chsNeeded) {
-                      pemAddNumber(ITM_CHS, false);         // change mantissa sign before entering exponent
-                    }
-                    chsNeeded = false;
-                    pemAddNumber(ITM_EXPONENT, false);
-                  }
-                  else if((tempBuffer[i] == STD_DEGREE[1]) && (opParam == STRING_ANGLE_DMS)) {
-                    pemAddNumber(ITM_PERIOD, false);
-                  }
-                  break;
-                case 0xa1:
-                  i++;
-                  //printf("**[DL]**        tempBuffer[%2d] %02x\n", i, tempBuffer[i]&0xff);
-                  //fflush(stdout);
-                  if((tempBuffer[i] >= STD_SUP_0[1]) && (tempBuffer[i] <= STD_SUP_9[1])) {
-                    pemAddNumber(ITM_0 + tempBuffer[i] - STD_SUP_0[1], false);
-                  }
-                  else if(tempBuffer[i] == STD_SUP_MINUS[1]) {
-                    chsNeeded = true;
-                  }
-                  else if(((tempBuffer[i] == STD_op_i[1]) || (tempBuffer[i] == STD_op_j[1])) && (nimNumberPart != NP_COMPLEX_INT_PART)) {
-                    //printf("**[DL]** fnEdit pemAddNumber ITM_op_j aimBuffer %s\n", aimBuffer);
-                    //fflush(stdout);
-                    pemAddNumber(ITM_CC, false);
-                    decimalflag = false;
-                  }
-                  //printf("**[DL]** fnEdit pemAddNumber %02x aimBuffer %s\n", tempBuffer[i],aimBuffer);
-                  //fflush(stdout);
-                  break;
-                case 0x81:
-                case 0x82:
-                case 0x83:
-                case 0x9d:
-                case 0x9e:
-                case 0xa0:
-                case 0xa2:
-                case 0xa3:
-                case 0xa4:
-                case 0xa5:
-                case 0xa6:
-                case 0xa7:
-                case 0xa9:
-                case 0xab:
-                case 0xac:
-                  i++;   // Ignore non supported unicode characters, including base subscripts
-                  //printf("**[DL]**        tempBuffer[%2d] %02x\n", i, tempBuffer[i]&0xff);
-                  //fflush(stdout);
-                  break;
-                default:
-                  //printf("**[DL]** dflt   tempBuffer[%2d] %02x\n", i, tempBuffer[i]&0xff);
-                  //fflush(stdout);
-                  break;
-              }
-              lastIntegerBase = (opParam == BINARY_SHORT_INTEGER ? opParam2 : opParam == STRING_SHORT_INTEGER ? opParam2 : 0);
-            }
-            if(chsNeeded) {
-              pemAddNumber(ITM_CHS, false);
-            }
+            _editReplay(tempBuffer, opParam, lastIntegerBase);
             switch(opParam) {
               case STRING_DATE:
               case STRING_TIME:
@@ -2279,18 +2204,65 @@ void fnAngularModeJM(uint16_t AMODE) { //Setting to HMS does not change AM
 
 
 
+#if defined(OPTION_DRG_CFG)
+  TO_QSPI static const uint8_t drgNextUnit[] = { amGrad, amDMS, amRadian, amMultPi, amDegree };  // indexed by angularMode_t, the order of the DRG menu: D, R, G, D.MS, MULπ, D
+
+  static __attribute__((noinline)) uint16_t drgNextSetUnit(uint16_t unit, uint16_t stop, bool_t noDms) {  // the first unit after unit in the order of the DRG menu that is set in drgConfig, or stop when none comes before it; noDms skips D.MS, and DEG takes its place when no other unit is set
+    uint16_t units = drgConfig;
+    if(noDms) {
+      units &= ((1 << DRG_NIM_BIT) - 1) & ~(1 << amDMS);
+      if(units == 0) {
+        units = 1 << amDegree;
+      }
+    }
+    do {
+      unit = drgNextUnit[unit];
+    } while(unit != stop && !(units & (1 << unit)));
+    return unit;
+  }
+#else // !OPTION_DRG_CFG
+  TO_QSPI static const uint8_t drgNextUnit[] = { amGrad, amDegree, amRadian, amDegree, amRadian };  // indexed by angularMode_t: R, G, D, R, and D.MS to D, MULπ to R
+#endif // OPTION_DRG_CFG
+
 void DRG_cyc(uint16_t * dest) {
     DRG_Cycling = 1;
-    switch(*dest) {
-      case amNone:   *dest = currentAngularMode; break; //converts from to the same, i.e. get to current angle mode
-      case amRadian: *dest = amGrad;             break;
-      case amGrad:   *dest = amDegree;           break;
-      case amDegree: *dest = amRadian;           break;
-      case amDMS:    *dest = amDegree;           break;
-      case amMultPi: *dest = amRadian;           break; //do not support Mulpi but at least get out of it
-      default: ;
+    if(*dest == amNone) {
+      *dest = currentAngularMode; //converts from to the same, i.e. get to current angle mode
     }
+    else if(*dest <= amMultPi) {  // the next unit set in drgConfig, or the same unit when no other is set
+      #if defined(OPTION_DRG_CFG)
+        *dest = drgNextSetUnit(*dest, *dest, false);
+      #else // !OPTION_DRG_CFG
+        *dest = drgNextUnit[*dest];
+      #endif // OPTION_DRG_CFG
+    }
+    #if defined(OPTION_DRG_CFG)
+      drgAutoAdm(*dest);
+    #endif // OPTION_DRG_CFG
   }
+
+#if defined(OPTION_DRG_CFG)
+void drgAutoAdm(uint16_t unit) {  // AUTADM: the unit DRG chose becomes ADM
+  if((drgConfig & (1 << DRG_AUTO_ADM_BIT)) && unit <= amMultPi && unit != currentAngularMode) {
+    fnAngularMode(unit);
+  }
+}
+
+void DRG_cycNim(uint16_t *dest) {  // DRG in number entry: ADM first, then the next units set in drgConfig, and no unit before ADM again; AUTADM waits for the entry to close
+  if(*dest == amNone) {
+    *dest = currentAngularMode;
+    return;
+  }
+  uint16_t unit = drgNextSetUnit(*dest, currentAngularMode, false);
+  *dest = (unit == currentAngularMode ? amNone : unit);
+}
+
+uint16_t drgXfnUnit(uint16_t unit) {  // XDRG on a value with a unit: the next unit set in drgConfig; D.MS is never chosen and DEG takes its place
+  unit = drgNextSetUnit(unit, unit, true);
+  drgAutoAdm(unit);
+  return unit;
+}
+#endif // OPTION_DRG_CFG
 
 
 void fnDRG(uint16_t unusedButMandatoryParameter) {
@@ -2347,6 +2319,13 @@ void fnDRG(uint16_t unusedButMandatoryParameter) {
   to_return_noLastX:
   return;
 }
+
+
+#if defined(OPTION_DRG_CFG)
+void fnDrgToggle(uint16_t bit) {
+  drgConfig ^= 1 << bit;
+}
+#endif // OPTION_DRG_CFG
 
 
 void shrinkNimBuffer(void) {                      //JMNIM vv

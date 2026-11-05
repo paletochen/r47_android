@@ -566,29 +566,9 @@ void showMatrixEditor() {
     showString(tmpString, &numericFont, 0, Y_POSITION_OF_NIM_LINE, vmNormal, true, false);
   }
   else {
-    if(aimBuffer[0] != 0 && aimBuffer[strlen(aimBuffer)-1]=='/') {
-      char lastBase[12];
-      char *lb = lastBase;
-      if(lastDenominator >= 1000) {
-        *(lb++) = STD_SUB_0[0];
-        *(lb++) = STD_SUB_0[1] + (lastDenominator / 1000);
-      }
-      if(lastDenominator >= 100) {
-        *(lb++) = STD_SUB_0[0];
-        *(lb++) = STD_SUB_0[1] + (lastDenominator % 1000 / 100);
-      }
-      if(lastDenominator >= 10) {
-        *(lb++) = STD_SUB_0[0];
-        *(lb++) = STD_SUB_0[1] + (lastDenominator % 100 / 10);
-      }
-      *(lb++) = STD_SUB_0[0];
-      *(lb++) = STD_SUB_0[1] + (lastDenominator % 10);
-      *(lb++) = 0;
-      displayNim(tmpString, lastBase, stringWidth(lastBase, &numericFont, true, true), stringWidth(lastBase, &standardFont, true, true));
-    }
-    else {
-      displayNim(tmpString, "", 0, 0);
-    }
+    char hint[20];
+    nimHint(hint);
+    displayNim(tmpString, hint, stringWidth(hint, &numericFont, true, true), stringWidth(hint, &standardFont, true, true));
   }
 
   if(temporaryInformation == TI_SHOW_REGISTER && calcMode == CM_MIM) {
@@ -607,7 +587,6 @@ void showMatrixEditor() {
 }
 
 void mimEnter(bool_t commit) {
-  bool_t realChanged = false;
   int cols = openMatrixMIMPointer.header.matrixColumns;
 #if defined(OPTION_VECTOR_EDIT)
   int rows = openMatrixMIMPointer.header.matrixRows;
@@ -617,6 +596,7 @@ void mimEnter(bool_t commit) {
   int16_t col = getJRegisterAsInt(true);
 
   if(aimBuffer[0] != 0) {
+    nimCompleteNumber();
     #if defined(OPTION_IR_PRINTING)
       if(aimBuffer[0] == '+') {
         printTraceString(aimBuffer + 1, LINE_NOLF);
@@ -625,94 +605,64 @@ void mimEnter(bool_t commit) {
         printTraceString(aimBuffer, LINE_NOLF);
       }
     #endif //OPTION_IR_PRINTING
-    if(getRegisterDataType(matrixIndex) == dtReal34Matrix) {
+    if(getRegisterDataType(matrixIndex) == dtReal34Matrix && !nimComplexPart()) {
       real34_t real34tmp;
       real34_t *real34Ptr = &openMatrixMIMPointer.realMatrix.matrixElements[row * cols + col];
 
-      switch(nimNumberPart) {
-        case NP_FRACTION_DENOMINATOR:
-        case NP_HP32SII_DENOMINATOR:
-          closeNimWithFraction(&real34tmp);
-          realChanged = true;
-          break;
-        case NP_COMPLEX_INT_PART:
-        case NP_COMPLEX_FLOAT_PART:
-        case NP_COMPLEX_EXPONENT:
-        case NP_COMPLEX_FRACTION_DENOMINATOR:
-        case NP_COMPLEX_HP32SII_DENOMINATOR: {
-          complex34_t *complex34Ptr;
-          complex34Matrix_t cxma;
-          convertReal34MatrixToComplex34Matrix(&openMatrixMIMPointer.realMatrix, &cxma);
-          realMatrixFree(&openMatrixMIMPointer.realMatrix);
-          convertComplex34MatrixToComplex34MatrixRegister(&cxma, matrixIndex);
-          openMatrixMIMPointer.complexMatrix.header.matrixRows = cxma.header.matrixRows;
-          openMatrixMIMPointer.complexMatrix.header.matrixColumns = cxma.header.matrixColumns;
-          openMatrixMIMPointer.complexMatrix.matrixElements = cxma.matrixElements;
-          complex34Ptr = &openMatrixMIMPointer.complexMatrix.matrixElements[row * cols + col];
-          closeNimWithComplex(VARIABLE_REAL34_DATA(complex34Ptr), VARIABLE_IMAG34_DATA(complex34Ptr));
-          break;
-        }
-        default:
-          stringToReal34(aimBuffer, &real34tmp);
-          realChanged = true;
-      }
-
-      if(realChanged) {
+      nimRealValue(&real34tmp);
 #if defined(OPTION_VECTOR_EDIT)
-        if(isMatrixVector(rows, cols)) {
-          if(isMatrix2dVectorPOL(rows, cols, tag)) {
-            cplx_t z;
-            int ang = (tag & 0x07) == amNone ? currentAngularMode : (tag & 0x07);
-            real34ToReal(&openMatrixMIMPointer.realMatrix.matrixElements[0], &z.Real);
-            real34ToReal(&openMatrixMIMPointer.realMatrix.matrixElements[1], &z.Imag);
-            realRectangularToPolar(&z, &z.Mag, &z.Arg, &ctxtReal39);                     // theta in radian
-            convertAngleFromTo(&z.Arg, amRadian, ang, &ctxtReal39);
-            if(col == 0) {
-              real34ToReal(&real34tmp, &z.Mag);
-            }
-            if(col == 1) {
-              real34ToReal(&real34tmp, &z.Arg);
-            }
-            realPolarToRectangularInUnit(&z.Mag, &z.Arg, ang, &z, &ctxtReal39);
-            realToReal34(&z.Real, &openMatrixMIMPointer.realMatrix.matrixElements[0]);
-            realToReal34(&z.Imag, &openMatrixMIMPointer.realMatrix.matrixElements[1]);
+      if(isMatrixVector(rows, cols)) {
+        if(isMatrix2dVectorPOL(rows, cols, tag)) {
+          cplx_t z;
+          int ang = (tag & 0x07) == amNone ? currentAngularMode : (tag & 0x07);
+          real34ToReal(&openMatrixMIMPointer.realMatrix.matrixElements[0], &z.Real);
+          real34ToReal(&openMatrixMIMPointer.realMatrix.matrixElements[1], &z.Imag);
+          realRectangularToPolar(&z, &z.Mag, &z.Arg, &ctxtReal39);                     // theta in radian
+          convertAngleFromTo(&z.Arg, amRadian, ang, &ctxtReal39);
+          if(col == 0) {
+            real34ToReal(&real34tmp, &z.Mag);
           }
-          else if(isMatrix3dVectorSPH(rows, cols, tag)) {
-//add code for SPH editing           //
+          if(col == 1) {
+            real34ToReal(&real34tmp, &z.Arg);
           }
-          else if(isMatrix3dVectorCYL(rows, cols, tag)) {
-//add code for CYL editing           //
-          }
-          else {
-            real34Copy(&real34tmp, real34Ptr);
-          }
+          realPolarToRectangularInUnit(&z.Mag, &z.Arg, ang, &z, &ctxtReal39);
+          realToReal34(&z.Real, &openMatrixMIMPointer.realMatrix.matrixElements[0]);
+          realToReal34(&z.Imag, &openMatrixMIMPointer.realMatrix.matrixElements[1]);
         }
-        else
-#endif //OPTION_VECTOR_EDIT
-        {
+        else if(isMatrix3dVectorSPH(rows, cols, tag)) {
+//add code for SPH editing           //
+        }
+        else if(isMatrix3dVectorCYL(rows, cols, tag)) {
+//add code for CYL editing           //
+        }
+        else {
           real34Copy(&real34tmp, real34Ptr);
         }
       }
+      else
+#endif //OPTION_VECTOR_EDIT
+      {
+        real34Copy(&real34tmp, real34Ptr);
+      }
     }
     else {
+      if(getRegisterDataType(matrixIndex) == dtReal34Matrix) {  // a complex number makes the matrix complex
+        complex34Matrix_t cxma;
+        convertReal34MatrixToComplex34Matrix(&openMatrixMIMPointer.realMatrix, &cxma);
+        realMatrixFree(&openMatrixMIMPointer.realMatrix);
+        convertComplex34MatrixToComplex34MatrixRegister(&cxma, matrixIndex);
+        openMatrixMIMPointer.complexMatrix.header.matrixRows = cxma.header.matrixRows;
+        openMatrixMIMPointer.complexMatrix.header.matrixColumns = cxma.header.matrixColumns;
+        openMatrixMIMPointer.complexMatrix.matrixElements = cxma.matrixElements;
+      }
       complex34_t *complex34Ptr = &openMatrixMIMPointer.complexMatrix.matrixElements[row * cols + col];
 
-      switch(nimNumberPart) {
-        case NP_FRACTION_DENOMINATOR:
-        case NP_HP32SII_DENOMINATOR:
-          closeNimWithFraction(VARIABLE_REAL34_DATA(complex34Ptr));
-          real34SetZero(VARIABLE_IMAG34_DATA(complex34Ptr));
-          break;
-        case NP_COMPLEX_INT_PART:
-        case NP_COMPLEX_FLOAT_PART:
-        case NP_COMPLEX_EXPONENT:
-        case NP_COMPLEX_FRACTION_DENOMINATOR:
-        case NP_COMPLEX_HP32SII_DENOMINATOR:
-          closeNimWithComplex(VARIABLE_REAL34_DATA(complex34Ptr), VARIABLE_IMAG34_DATA(complex34Ptr));
-          break;
-        default:
-          stringToReal34(aimBuffer, VARIABLE_REAL34_DATA(complex34Ptr));
-          real34SetZero(VARIABLE_IMAG34_DATA(complex34Ptr));
+      if(nimComplexPart()) {
+        closeNimWithComplex(VARIABLE_REAL34_DATA(complex34Ptr), VARIABLE_IMAG34_DATA(complex34Ptr));
+      }
+      else {
+        nimRealValue(VARIABLE_REAL34_DATA(complex34Ptr));
+        real34SetZero(VARIABLE_IMAG34_DATA(complex34Ptr));
       }
     }
 
@@ -752,29 +702,8 @@ void mimAddNumber(int16_t item) {
   const int16_t col = getJRegisterAsInt(true);
 
   switch(item) {
-    case ITM_EXPONENT: {
-      if(aimBuffer[0] == 0) {
-        aimBuffer[0] = '+';
-        aimBuffer[1] = '1';
-        aimBuffer[2] = '.';
-        aimBuffer[3] = 0;
-        nimNumberPart = NP_REAL_FLOAT_PART;
-        _resetCursorPos();
-      }
-      break;
-    }
-
-    case ITM_PERIOD: {
-      if(aimBuffer[0] == 0) {
-        aimBuffer[0] = '+';
-        aimBuffer[1] = '0';
-        aimBuffer[2] = 0;
-        nimNumberPart = NP_INT_10;
-        _resetCursorPos();
-      }
-      break;
-    }
-
+    case ITM_EXPONENT:
+    case ITM_PERIOD:
     case ITM_0 :
     case ITM_1 :
     case ITM_2 :
@@ -786,9 +715,7 @@ void mimAddNumber(int16_t item) {
     case ITM_8 :
     case ITM_9: {
       if(aimBuffer[0] == 0) {
-        aimBuffer[0] = '+';
-        aimBuffer[1] = 0;
-        nimNumberPart = NP_INT_10;
+        nimStartNumber(item);
         _resetCursorPos();
       }
       break;
@@ -842,7 +769,7 @@ void mimAddNumber(int16_t item) {
           convertReal34MatrixToComplex34Matrix(&openMatrixMIMPointer.realMatrix, &cxma);
           realMatrixFree(&openMatrixMIMPointer.realMatrix);
           convertComplex34MatrixToComplex34MatrixRegister(&cxma, matrixIndex);
-          if((getSystemFlag(FLAG_POLAR) && !temporaryFlagRect) || temporaryFlagPolar) { // polar mode
+          if(nimPolarEntry()) { // polar mode
             setRegisterTag(matrixIndex, currentAngularMode | amPolar);
           }
           openMatrixMIMPointer.complexMatrix.header.matrixRows = cxma.header.matrixRows;
@@ -851,7 +778,7 @@ void mimAddNumber(int16_t item) {
         }
         else {
           complex34_t *elm = &openMatrixMIMPointer.complexMatrix.matrixElements[row * cols + col];
-          if((getSystemFlag(FLAG_POLAR) && !temporaryFlagRect) || temporaryFlagPolar) { // polar mode
+          if(nimPolarEntry()) { // polar mode
             real_t theta;
             realCopy(const39_piOn2, &theta);
             convertAngleFromTo(&theta, amRadian, currentAngularMode, &ctxtReal39);
@@ -871,6 +798,15 @@ void mimAddNumber(int16_t item) {
       break;
     }
 
+    #if defined(OPTION_DRG_CFG)
+      case ITM_DRG: {
+        if(!nimDrgChoosesUnit()) {  // DRG chooses the angular unit of a complex element being entered, and does nothing otherwise
+          return;
+        }
+        break;
+      }
+    #endif // OPTION_DRG_CFG
+
     case ITM_CONSTpi: {
       if(aimBuffer[0] == 0) {
         if(getRegisterDataType(matrixIndex) == dtReal34Matrix) {
@@ -881,8 +817,7 @@ void mimAddNumber(int16_t item) {
           real34SetZero(VARIABLE_IMAG34_DATA(&openMatrixMIMPointer.complexMatrix.matrixElements[row * cols + col]));
         }
       }
-      else if(nimNumberPart == NP_COMPLEX_INT_PART && aimBuffer[strlen(aimBuffer) - 1] == 'i') {
-        strcat(aimBuffer, "3.141592653589793238462643383279503");
+      else if(nimPiAfterI()) {
         reallyRunFunction(ITM_ENTER, NOPARAM);
       }
       return;

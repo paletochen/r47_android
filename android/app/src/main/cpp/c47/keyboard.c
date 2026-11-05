@@ -1283,6 +1283,11 @@ endReturnTrue:
           else if((calcMode == CM_NIM) && ((/*item==ITM_DRG ||*/ item == ITM_DMS2 || item == ITM_dotD) && !catalog)) {   //JM Remove DRG from here, there seems to be no need to send DRG to the buffer
             addItemToNimBuffer(item);
           }                                                                                      //JM
+          #if defined(OPTION_DRG_CFG)
+            else if(calcMode == CM_NIM && item == ITM_DRG && !catalog && nimDrgChoosesUnit()) {  // DRG chooses the unit of the number and leaves the input open
+              addItemToNimBuffer(item);
+            }
+          #endif // OPTION_DRG_CFG
           else if(calcMode == CM_MIM && currentMenu() != -MNU_M_EDIT && (item != ITM_CC && item != ITM_op_j && item != ITM_op_j_pol)) { //JM added ITM_CC to let it work in matrix edit
             addItemToBuffer(item);
           }
@@ -2253,6 +2258,11 @@ void btnPressed(GtkWidget *notUsed, GdkEvent *event, gpointer data) {
             recallShowStatus();
             fnC47Show(ITM_NOP);
           }
+#if defined(OPTION_EEX_PREFIX)
+          if(currentMenu() == -MNU_EEXPFX) {                                    //JM the EEX long press ran out to NOP: close the SI prefix menu so none is left open; NIM stays
+            popSoftmenu();
+          }
+#endif // OPTION_EEX_PREFIX
           goto RELEASE_END;
         }
 

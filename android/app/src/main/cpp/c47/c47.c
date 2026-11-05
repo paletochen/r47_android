@@ -218,6 +218,9 @@ bool_t                tvmIChanges;
 normKey_t             Norm_Key_00;                             //JM USER NORMAL
 uint8_t               Input_Default;                           //JM Input Default
 uint8_t               DRG_Cycling = 0;
+#if defined(OPTION_DRG_CFG)
+  uint8_t             drgConfig;
+#endif // OPTION_DRG_CFG
 uint8_t               DM_Cycling = 0;
 #if defined(INLINE_TEST)                                             //vv dr
   bool_t                testEnabled;                             //
@@ -365,6 +368,9 @@ calcRegister_t         regStatsXY;
 
 bool_t                 temporaryFlagRect;
 bool_t                 temporaryFlagPolar;
+#if defined(OPTION_DRG_CFG)
+  uint8_t              nimPolarAngularMode = amNone;
+#endif // OPTION_DRG_CFG
 int                    vbatVIntegrated = 3000;
 uint32_t               timeLastOp = 0;
 uint32_t               timeLastOp0 = 0;

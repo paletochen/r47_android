@@ -382,7 +382,7 @@ typedef struct {
   uint8_t        grpGroupingBin;                                           //  BINGRP
   uint8_t        graMod;                                                   //  GRAMOD
   uint8_t        graFont;                                                  //  GRFNT
-  bool_t         compatibility_byte6;               //Spare Byte           //
+  uint8_t        drgConfig;                                                //  DRG menu
   bool_t         compatibility_byte7;               //Spare Byte           //
   bool_t         compatibility_byte8;               //Spare Byte           //
   bool_t         compatibility_byte9;               //Spare Byte           //
