@@ -245,7 +245,7 @@ generateTestPgms_src = files(
 )
 
 
-c47_inc = include_directories('.', '../generated')
+c47_inc = include_directories('.')
 
 vcs_h = vcs_tag(
   command        : ['git', 'describe', '--match=NeVeRmAtCh', '--always', '--abbrev=8', '--dirty=-mod'],

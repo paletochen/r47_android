@@ -539,6 +539,9 @@ void showMatrixEditor() {
   else if(matSelRow > scrollRow + 3) {
     scrollRow = matSelRow - 3;
   }
+  if(rows > 5 && scrollRow > rows - 5) {  // the 5 rows displayed from the offset end on the last row when DELR shortens the matrix
+    scrollRow = rows - 5;
+  }
 
   if(aimBuffer[0] == 0) {
     clearRegisterLine(NIM_REGISTER_LINE, true, true);
@@ -1763,10 +1766,10 @@ int16_t getRealMatrixColumnWidths(const real34Matrix_t *matrix, int16_t prefixWi
   const int actualCols = verticalVector ? 1 : colVector ? matrix->header.matrixRows : matrix->header.matrixColumns;
   const int cols = (actualCols > maxCols) ? maxCols : actualCols;   // clamp for safety
   const int rowLimit = showPage ? MATRIX_MAX_ROWS_ON_SHOW : MATRIX_MAX_ROWS;   // SHOW takes more rows
-  const int maxRows = rows > rowLimit ? rowLimit : rows;
   const bool_t forEditor = matrix == &openMatrixMIMPointer.realMatrix;
   const uint16_t sRow = forEditor ? scrollRow : 0;
   const uint16_t sCol = forEditor ? scrollColumn : 0;
+  const int maxRows = rows - sRow > rowLimit ? rowLimit : rows - sRow;  // the rows from the scroll offset to the last row
   // The width budget
   const int16_t maxWidth = verticalVector ? showsVerticalVectorMaxWidth(&matrix->header, font, prefixWidth) : MATRIX_LINE_WIDTH - prefixWidth;
   int16_t totalWidth = 0;
@@ -2247,10 +2250,10 @@ int16_t getComplexMatrixColumnWidths(const complex34Matrix_t *matrix, int16_t pr
   const int actualCols = verticalVector ? 1 : colVector ? matrix->header.matrixRows : matrix->header.matrixColumns;
   const int cols = (actualCols > maxCols) ? maxCols : actualCols;   // clamp for safety
   const int rowLimit = showPage ? MATRIX_MAX_ROWS_ON_SHOW : MATRIX_MAX_ROWS;   // SHOW takes more rows
-  const int maxRows = rows > rowLimit ? rowLimit : rows;
   const bool_t forEditor = matrix == &openMatrixMIMPointer.complexMatrix;
   const uint16_t sRow = forEditor ? scrollRow : 0;
   const uint16_t sCol = forEditor ? scrollColumn : 0;
+  const int maxRows = rows - sRow > rowLimit ? rowLimit : rows - sRow;  // the rows from the scroll offset to the last row
   // The width budget
   // widened by one figure space
   const int16_t maxWidth = verticalVector ? showsVerticalVectorMaxWidth(&matrix->header, font, prefixWidth) + stringWidth(STD_SPACE_FIGURE, font, true, true) : MATRIX_LINE_WIDTH - prefixWidth;

@@ -1375,7 +1375,51 @@ void addzeroes(char *st, uint8_t ix) {
 }
 
 
+// Converts a long integer or a short integer in the register to a Real34 in place. A long integer of more than 34 digits is rounded to 34; a short integer takes
+// its value in any base. No test and no error: a caller that needs the out-of-range gate uses convertIntRegisterToRealOrError instead.
+void convertIntRegisterToReal(calcRegister_t regist) {
+  if(getRegisterDataType(regist) == dtLongInteger) {
+    convertLongIntegerRegisterToReal34Register(regist, regist);
+  }
+  else if(getRegisterDataType(regist) == dtShortInteger) {
+    convertShortIntegerRegisterToReal34Register(regist, regist);
+  }
+}
+
+// Converts as convertIntRegisterToReal, but refuses a value that would lose data: a long integer of more than 34 digits, or a short integer in a base other than ten.
+// Such a value is left unchanged and the out-of-range error is displayed; returns false then.
+bool_t convertIntRegisterToRealOrError(calcRegister_t regist) {
+  if(getRegisterDataType(regist) == dtLongInteger) {
+    longInteger_t value, boundary;
+    longIntegerInit(value);
+    longIntegerInit(boundary);
+    convertLongIntegerRegisterToLongInteger(regist, value);
+    longIntegerPowerUIntUInt(10u, 34u, boundary);                                  // 10^34 is the first 35-digit magnitude; a smaller value fits a Real34's 34 digits exactly
+    bool_t fits = (longIntegerCompareAbs(value, boundary) < 0);
+    longIntegerFree(value);
+    longIntegerFree(boundary);
+    if(!fits) {
+      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+      return false;
+    }
+  }
+  else if(getRegisterDataType(regist) == dtShortInteger) {
+    if(getRegisterShortIntegerBase(regist) != 10) {
+      displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+      return false;
+    }
+  }
+  convertIntRegisterToReal(regist);
+  return true;
+}
+
+
 void fnMultiplySI(uint16_t multiplier) {
+  if(getRegisterDataType(REGISTER_X) == dtLongInteger || getRegisterDataType(REGISTER_X) == dtShortInteger) {
+    if(!convertIntRegisterToRealOrError(REGISTER_X)) {
+      return;                                                                      // X is out of range for the conversion: the error is shown and X is unchanged
+    }
+  }
   copySourceRegisterToDestRegister(REGISTER_L, TEMP_REGISTER_1); // STO TMP
   char mult[64];
   char divi[64];
@@ -2019,20 +2063,15 @@ void fnJM_2SI(uint16_t unusedButMandatoryParameter) { //Convert Real to Longint;
   switch(getRegisterDataType(REGISTER_X)) {
     case dtLongInteger:
       convertLongIntegerRegisterToLongInteger(REGISTER_X, tmp3);
-      if(shortIntegerMode == SIM_UNSIGN && longIntegerIsNegative(tmp3)) {
-        temporaryInformation = TI_DATA_NEG_OVRFL;
-      }
       convertLongIntegerRegisterToShortIntegerRegister(REGISTER_X, REGISTER_X); //default to 10
       if(lastIntegerBase >= 2 && lastIntegerBase <= 16 && lastIntegerBase != 10) {
         fnChangeBase(lastIntegerBase);
       }
       convertShortIntegerRegisterToLongInteger(REGISTER_X, tmp1);
 
-      if(longIntegerCompare(tmp1, tmp3) != 0) {
-        if(temporaryInformation != TI_DATA_NEG_OVRFL) {
-          temporaryInformation = TI_DATA_LOSS;             // I cannot think of which condition will reach here, without other overflows overriding, but leaving it in
-        }
-        setSystemFlag(FLAG_OVERFLOW);
+      if(longIntegerCompare(tmp1, tmp3) != 0) {                                // the short integer does not round-trip back to the original: the value does not fit the word size
+        displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);         // refuse and leave X unchanged
+        convertLongIntegerToLongIntegerRegister(tmp3, REGISTER_X);             // put the long integer back, the overflowed short integer is discarded
       }
       longIntegerFree(tmp1);
       longIntegerFree(tmp3);

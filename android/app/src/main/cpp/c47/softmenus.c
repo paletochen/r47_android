@@ -3230,9 +3230,6 @@ static void setScreenUpdateFromMenu(int16_t id, menuOps_t op) {
     case -MNU_DISTR :
     case -MNU_EQ_EDIT :
     case -MNU_Solver_TOOL : {
-      if(op == closeMenu) {
-        solverEstimatesUsed = false;
-      }
       screenUpdatingMode = SCRUPD_AUTO;
       screenUpdatingMode |= SCRUPD_SKIP_STATUSBAR_ONE_TIME;
       break;
@@ -3245,6 +3242,29 @@ static void setScreenUpdateFromMenu(int16_t id, menuOps_t op) {
     default:;
   }
 //printf("setScreenUpdateFromMenu: solverEstimatesUsed = %d: id=%d %s\n",solverEstimatesUsed, id, indexOfItems[-id].itemCatalogName);
+}
+
+
+/* The single point for softmenu close teardown. It is called from every route that removes an entry from the softmenu stack: the normal pop in
+ * popSoftmenu(), the overflow eviction where a full stack shifts a menu off the bottom in pushSoftmenu(), and the two stack-removal helpers
+ * removeMenuFromStack() and removeUserMenuFromStack(). A close action keyed by menu item is written in its case here, not in setScreenUpdateFromMenu(),
+ * which runs only on the visible pop and so is not reached by the other three routes. setScreenUpdateFromMenu() keeps the open actions and the screen
+ * repaint. The re-open collapse in pushSoftmenu() lifts an already-open menu to slot 0 without removing it, so it closes nothing and does not call this.
+ *
+ * \param[in] id Menu item of the softmenu leaving the stack
+ */
+static void softmenuCloseHandler(int16_t id) {
+  switch(id) {
+    case -MNU_XXFCNS :
+    case -MNU_EQN :
+    case -MNU_DISTR :
+    case -MNU_EQ_EDIT :
+    case -MNU_Solver_TOOL : {
+      solverEstimatesUsed = false;                         // leaving a solver menu clears the estimates-used mark, whatever route takes the menu off the stack
+      break;
+    }
+    default:;
+  }
 }
 
 
@@ -3852,6 +3872,7 @@ void showSoftmenuCurrentPart(void) {
     }
 
     if(i == SOFTMENU_STACK_SIZE) { // The menu to push was not found on the stack
+      softmenuCloseHandler(softmenu[softmenuStack[SOFTMENU_STACK_SIZE - 1].softmenuId].menuItem); // the bottom entry falls off the full stack, so its close handler runs before the shift overwrites it
       xcopy(softmenuStack + 1, softmenuStack, (SOFTMENU_STACK_SIZE - 1) * sizeof(softmenuStack_t)); // shifting the entire stack
     }
 
@@ -3885,6 +3906,7 @@ void showSoftmenuCurrentPart(void) {
   void popSoftmenu(void) {
     screenUpdatingMode &= ~(SCRUPD_MANUAL_MENU | SCRUPD_SKIP_MENU_ONE_TIME);
     setScreenUpdateFromMenu(currentMenu(), closeMenu);
+    softmenuCloseHandler(currentMenu());                 // the top menu is leaving the stack, so its close handler runs before the shift drops it
 
     xcopy(softmenuStack, softmenuStack + 1, (SOFTMENU_STACK_SIZE - 1) * sizeof(softmenuStack_t)); // shifting the entire stack
     memset(softmenuStack + SOFTMENU_STACK_SIZE - 1, 0, sizeof(softmenuStack_t)); // Put MyMenu in the last stack element
@@ -4081,6 +4103,7 @@ void showSoftmenuCurrentPart(void) {
           #if defined(PC_BUILD) && (VERBOSE_LEVEL > 0)
             printf("*** Remove userMenuId %d\n", softmenuStack[i].userMenuId);
           #endif // PC_BUILD
+          softmenuCloseHandler(softmenu[softmenuStack[i].softmenuId].menuItem); // this entry is leaving the stack, so its close handler runs before the shift drops it
           xcopy(softmenuStack + i, softmenuStack + i + 1, (SOFTMENU_STACK_SIZE - i) * sizeof(softmenuStack_t));
           softmenuStack[SOFTMENU_STACK_SIZE - 1].softmenuId = 0;  // Put MyMenu in the last stack element
           softmenuStack[SOFTMENU_STACK_SIZE - 1].firstItem = 0;
@@ -4103,6 +4126,7 @@ void showSoftmenuCurrentPart(void) {
     for(int i=SOFTMENU_STACK_SIZE-1; i>=0; i--) { // Searching the stack for specified menu (JM: reversed action to prevent a possible endless loop +1, -1, ...)
       //printf("-%1i-",i);
       if(menu(i) == userMenuId) { // if found, remove it
+        softmenuCloseHandler(menu(i));                   // this entry is leaving the stack, so its close handler runs before the shift drops it
         xcopy(softmenuStack + i, softmenuStack + i + 1, (SOFTMENU_STACK_SIZE - i - 1) * sizeof(softmenuStack_t));
         memset(softmenuStack + SOFTMENU_STACK_SIZE - 1, 0, sizeof(softmenuStack_t)); // Put MyMenu in the last stack element
         doRefreshSoftMenu = true;

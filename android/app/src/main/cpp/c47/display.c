@@ -3,7 +3,7 @@
 
 #include "c47.h"
 
-#define EEX_NO_CONVERT_LI_SI    //JM when not defined, <-ENG and ENG-> will permanently with data loss convert LI and SI to real
+//#define EEX_NO_CONVERT_LI_SI    //JM defined = <-ENG/ENG-> leave LI and SI unchanged; undefined = convert a LI of 34 digits or fewer, or a base-ten SI, to Real, and refuse a longer or non-decimal one
 #define isComplex true
 #define isReal    false
 static void real34ToDisplayString2(const real34_t *real34, char *displayString, int16_t displayHasNDigits, bool_t limitExponent, bool_t noFix, bool_t frontSpace, bool_t complex, irfracOption_t limitIrfrac);
@@ -76,11 +76,10 @@ static void engExpShift(int16_t direction) {
       return;
     }
   #else //!EEX_NO_CONVERT_LI_SI
-    if(getRegisterDataType(REGISTER_X) == dtLongInteger) {
-      convertLongIntegerRegisterToReal34Register(REGISTER_X, REGISTER_X);   // the feature acts on a Real: a long integer in X is converted to a Real permanently
-    }
-    else if(getRegisterDataType(REGISTER_X) == dtShortInteger) {
-      convertShortIntegerRegisterToReal34Register(REGISTER_X, REGISTER_X);  // and a short integer, permanently
+    if(getRegisterDataType(REGISTER_X) == dtLongInteger || getRegisterDataType(REGISTER_X) == dtShortInteger) {
+      if(!convertIntRegisterToRealOrError(REGISTER_X)) {
+        return;                                                     // X is out of range for the conversion: the error is shown and X is unchanged
+      }
     }
   #endif //EEX_NO_CONVERT_LI_SI
 

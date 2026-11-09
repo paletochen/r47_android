@@ -2507,8 +2507,8 @@ static inline uint8_t regCtoKS(const int16_t regC) {
 #define SHOWMODE                             (showModeActive())
 #define GRAPHMODE                            (calcMode == CM_PLOT_STAT || calcMode == CM_GRAPH)
 
-#define SNAP_REGISTERS_OK                    (currentMenu() != -MNU_SHOW && calcMode == CM_NORMAL && !tam.mode)  // X register capture
-#define SNAP_MENUS_OK                        (currentMenu() != -MNU_SHOW && calcMode == CM_NORMAL && !tam.mode)  // menu capture
+#define SNAP_REGISTERS_OK                    (currentMenu() != -MNU_SHOW)                                        // X register capture, any mode bar a SHOW page
+#define SNAP_MENUS_OK                        (currentMenu() != -MNU_SHOW)                                        // menu capture, any mode bar a SHOW page
 #define SNAP_PROPER_OK                       true                                                                // full screen snap: valid in every mode
 
 #define COMPLEX_UNIT                         (getSystemFlag(FLAG_CPXj)   ? STD_op_j  : STD_op_i)  //Do not change back to single byte character - code must also change accordingly

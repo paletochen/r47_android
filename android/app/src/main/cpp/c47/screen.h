@@ -70,6 +70,7 @@
   gboolean drawScreen                         (GtkWidget *widget, cairo_t *cr, gpointer data);
   void     copyScreenToClipboard              (void);
   void     copyMenuToClipboard                (void);
+  void     copyRegisterXImageToClipboard      (void);
   void     copyRegisterXToClipboard           (void);
   void     copyStackRegistersToClipboard      (void);
   void     copyAllRegistersToClipboard        (void);

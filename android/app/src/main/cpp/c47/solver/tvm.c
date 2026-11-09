@@ -78,7 +78,8 @@ static void doubleExp(const real_t *x, real_t *exp, real_t *expm1, realContext_t
       "TVM: Compound frequency cannot be zero",   // 6
       "TVM: Present value cannot be zero",        // 7
       "TCM: Invalid variable requested",          // 8
-      "TCM: Exit to proceed to old solver"        // 9
+      "TCM: Exit to proceed to old solver",       // 9
+      "TVM: Division by zero"                     // 10
     };
   #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
 
@@ -88,7 +89,8 @@ static int tvmRangeError(int errorCode) {
   #if (EXTRA_INFO_ON_CALC_ERROR == 1)
     moreInfoOnError("In function tvmRangeError:", tvmErrorMessages[errorCode], " Out of range error", NULL);
   #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
-  return errorCode;
+  // code 0 is the caller's success return, so a div-by-zero is reported as the nonzero stop code 10 that fnTvmVar does not retry
+  return (errorCode == 0) ? 10 : errorCode;
 }
 
 
@@ -800,6 +802,11 @@ void fnTvmVar(uint16_t variable) {
                 #endif //PC_BUILD
                 temporaryInformation = TI_SOLVER_VARIABLE;
                 return;   // Try analytic solution, if successful, return
+              }
+              else if(err == 10) {
+                adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);  // code 10: the TVM equation has no solution, error already displayed, so do not retry with the iterative solver
+                setSystemFlag(FLAG_ASLIFT);
+                return;
               }
               else {
                 lastErrorCode = 0;  // Failure in analytical solver section, error is on the PC screen but continue to retry using the old solver without erroring

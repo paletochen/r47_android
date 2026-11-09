@@ -140,8 +140,9 @@ t47:
 	@:
 endif
 
+# The reconfigure runs only where Mem is given: it reruns GMP's configure, which rewrites gmp.h, and every C47 object that includes it is then compiled again.
 dmcp: build.dmcp
-	meson setup --reconfigure build.dmcp.p$(DMCP_PACKAGE) -Dmem=$(if $(filter-out 0,$(Mem)),true,false) $(DEVNULL)
+	$(if $(Mem),meson setup --reconfigure build.dmcp.p$(DMCP_PACKAGE) -Dmem=$(if $(filter-out 0,$(Mem)),true,false) $(DEVNULL))
 	cd build.dmcp.p$(DMCP_PACKAGE) && ninja dmcp
 
 dmcpr47: build.dmcp
@@ -359,7 +360,7 @@ build.dmcp.p$(PKG):
 	  -Dmem=$(if $(filter-out 0,$(Mem)),true,false)
 
 dmcp_pkg$(PKG): build.dmcp.p$(PKG)
-	meson setup --reconfigure build.dmcp.p$(PKG) -Dmem=$(if $(filter-out 0,$(Mem)),true,false) $(DEVNULL)
+	$(if $(Mem),meson setup --reconfigure build.dmcp.p$(PKG) -Dmem=$(if $(filter-out 0,$(Mem)),true,false) $(DEVNULL))
 	cd build.dmcp.p$(PKG) && ninja dmcp
 
 dist_dmcp_pkg$(PKG): dmcp_pkg$(PKG)

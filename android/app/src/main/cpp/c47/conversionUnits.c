@@ -793,10 +793,15 @@ void runConversionToSI(int16_t itemNr) {
   if(!entry) {
     return;                                                                      // not a conversion item; nothing to do
   }
+  if(entry->exponent < -100 || entry->exponent > 99) {
+    displayBugScreen("In function runConversionToSI: conversion exponent out of range");   // 100 + exponent must stay below fnMultiplySI's base-2 span and not go negative
+    return;
+  }
   if(entry->unity != ITM_NULL) {
     runFunction(entry->unity);                                                   // execute a conversion
   }
   if(entry->exponent != 0) {
+    convertIntRegisterToReal(REGISTER_X);                                        // a conversion acts on a Real: convert a long or short integer in X, with no out-of-range refusal
     fnMultiplySI(100 + entry->exponent);                                         // scale by 10^exponent
   }
 }
@@ -806,7 +811,12 @@ void runConversionFromSI(int16_t itemNr) {
   if(!entry) {
     return;
   }
+  if(entry->exponent < -99 || entry->exponent > 100) {
+    displayBugScreen("In function runConversionFromSI: conversion exponent out of range");   // 100 - exponent must stay below fnMultiplySI's base-2 span and not go negative
+    return;
+  }
   if(entry->exponent != 0) {
+    convertIntRegisterToReal(REGISTER_X);                                        // a conversion acts on a Real: convert a long or short integer in X, with no out-of-range refusal
     fnMultiplySI(100 - entry->exponent);                                         // undo the exponent
   }
   if(entry->unity != ITM_NULL) {
