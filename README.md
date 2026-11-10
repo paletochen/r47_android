@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # R47 Android Port: High-Precision RPN Scientific Calculator
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
@@ -297,4 +296,3 @@ The C47 Community Wiki, which every user can help to create, can be found [here]
 The page where you can order the bezel to glue it on a DM42 to make it a C47 can be found [here](https://47calc.com).
 
 A comprehensive reference to all functions of the C47 as PDF downloads can be found [here](https://47calc.com/documentation/combined/doc.html).
->>>>>>> 8e872462c930f2575d2ffe34cfe20369fa4eca00
