@@ -240,20 +240,6 @@ static void _real34ToNim(const real34_t *real34, char *nimInput, char *nimDispla
   }
 }
 
-#if defined(OPTION_DRG_CFG)
-static void _dmsToNim(const real34_t *degrees, char *nimInput) {  // the text EDIT types for a D.MS angle: its D.MS digits, or its degrees when the digits need an exponent, since an exponent makes a D.MS entry degrees
-  real34_t digits;
-  real34FromDegToDms(degrees, &digits);
-  _real34ToNim(&digits, nimInput, nimBufferDisplay);
-  if(strchr(nimInput, 'e') != NULL) {
-    _real34ToNim(degrees, nimInput, nimBufferDisplay);
-    if(strchr(nimInput, 'e') == NULL) {
-      strcat(nimInput, "e0");
-    }
-  }
-}
-#endif // OPTION_DRG_CFG
-
 //static void _angle34ToNim(const real34_t *angle34, uint8_t mode, char *nimInput, char *nimDisplay) {
 // nimInput   : used to fill aimBuffer
 // nimDisplay : used to fill nimBufferDisplay
@@ -470,17 +456,13 @@ static void _editX(void) {  // X opens in NIM as its number typed from the keys;
   }
   else {  // a real, and a time or a date in the real form it is edited in
     xangularMode = getRegisterAngularMode(REGISTER_X);
+    if(xangularMode == amDMS) {
+      real34FromDegToDms(REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X));
+    }
     int16_t lessEqualGreater = 1;
     #if defined(OPTION_DRG_CFG)
-      if(xangularMode == amDMS) {  // a D.MS angle keeps its degrees, minutes and seconds, as on the display
-        _dmsToNim(REGISTER_REAL34_DATA(REGISTER_X), text);
-        lessEqualGreater = 0;
-      }
-      else if(getSystemFlag(FLAG_FRACT)) {
+      if(getSystemFlag(FLAG_FRACT) && xangularMode != amDMS) {  // a D.MS angle keeps its degrees, minutes and seconds, as on the display
     #else // !OPTION_DRG_CFG
-      if(xangularMode == amDMS) {
-        real34FromDegToDms(REGISTER_REAL34_DATA(REGISTER_X), REGISTER_REAL34_DATA(REGISTER_X));
-      }
       if(getSystemFlag(FLAG_FRACT)) {
     #endif // OPTION_DRG_CFG
       _fractionToString(REGISTER_X, text, &lessEqualGreater);
@@ -761,17 +743,6 @@ void fnEdit (uint16_t unusedParamButMandatory) {
               grpGroupingRight = grpGroupingRightOld;
               grpGroupingLeft  = grpGroupingLeftOld;
               strcpy(tempBuffer, tmpString);
-              #if defined(OPTION_DRG_CFG) && defined(OPTION_EDIT_X)
-                if(opParam == STRING_ANGLE_DMS) {
-                  getStringLabelOrVariableName(&currentStep[2]);
-                  if(strpbrk(tmpStringLabelOrVariableName, "eE") != NULL) {  // D.MS digits with an exponent open as degrees
-                    real34_t degrees;
-                    stringToReal34(tmpStringLabelOrVariableName, &degrees);
-                    real34FromDmsToDeg(&degrees, &degrees);
-                    _dmsToNim(&degrees, tempBuffer);
-                  }
-                }
-              #endif // OPTION_DRG_CFG && OPTION_EDIT_X
             }
             lastIntegerBase = (opParam == BINARY_SHORT_INTEGER ? opParam2 : opParam == STRING_SHORT_INTEGER ? opParam2 : 0);
             //printf("**[DL]** fnEdit lastIntegerBase %d tempBuffer %s\n", lastIntegerBase, tempBuffer);

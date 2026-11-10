@@ -115,6 +115,7 @@ mkdir -p "$CPP_DIR"
 rm -rf "$CPP_DIR/c47"
 mkdir -p "$CPP_DIR/c47"
 cp -r src/c47/* "$CPP_DIR/c47/"
+find "$CPP_DIR/c47" -type f \( -name "*.orig" -o -name "*.rej" \) -delete 2>/dev/null || true
 
 # PATCH Headers for Android Compatibility
 echo "--- Patching headers for Android ---"

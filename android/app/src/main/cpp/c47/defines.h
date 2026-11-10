@@ -326,7 +326,7 @@
     #define OPTION_ATEXT                 // ✓   504 bytes // ATEXT: the string in a register, displayed from the PIXEL position
     #define OPTION_ATEXT_FONTS           // ✓   592 bytes // GRFNT, GRFNT#: the ATEXT font
     #define OPTION_LP_DP_TIMING          // ✓   296 bytes // LP%, DP% long press and double press timing in percent
-    #define OPTION_DRG_CFG               // ✓  1824 bytes // DRG menu: A.DEG to A.MULπ choose the units DRG steps through, NIMDRG sets DRG in NIM, A.AUTO makes the unit ADM
+    #define OPTION_DRG_CFG               // ✓  2304 bytes // DRG menu: A.DEG to A.MULπ choose the units DRG steps through, NIMDRG sets DRG in NIM, A.AUTO makes the unit ADM
     #define OPTION_EEX_PREFIX            // ✓   288 bytes // EEX SI prefix menu on the EEX key, and the centi deci deca hecto items
   //Large packages developed for DM42/DM42n. Could arguably work on DM42.
             #undef  OPTION_CUBIC_159     // ✓  2880 bytes // C47 SLVC function is 159 digits internally

@@ -927,10 +927,62 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
     return calcMode == CM_NIM && getRegisterAngularMode(REGISTER_X) == amDMS;
   }
 
+  static int16_t nimDmsExponentDigits(const char *number, char *digits, int16_t *integerDigits) {  // the digits of a D.MS number with an exponent, without its radix mark; returns how many of them are degrees once the exponent moves the radix mark, below 0 or above their count included
+    int16_t count = 0;
+    *integerDigits = -1;
+    for(; *number != 'e' && *number != 0; number++) {
+      if(*number == '.') {
+        *integerDigits = count;
+      }
+      else {
+        digits[count++] = *number;
+      }
+    }
+    digits[count] = 0;
+    if(*integerDigits < 0) {
+      *integerDigits = count;
+    }
+    return *integerDigits + (*number == 'e' ? atoi(number + 1) : 0);
+  }
+
+  static char *nimDmsDigit(char *text, char digit, int16_t count, bool_t radixMark) {  // the count-th D.MS digit after the degree mark, then the minute mark after the second digit and, with radixMark, the radix mark after the fourth
+    *(text++) = digit;
+    if(count == 2) {
+      text = stringCopy(text, STD_RIGHT_SINGLE_QUOTE);
+    }
+    else if(count == 4 && radixMark) {
+      *(text++) = RADIX34_MARK_STRING[0];
+      if(RADIX34_MARK_STRING[1] != 1) {  // a radix mark of two bytes
+        *(text++) = RADIX34_MARK_STRING[1];
+      }
+    }
+    return text;
+  }
+
   const char *nimDmsMark(void) {  // the marks after the cursor in a D.MS entry: all three with no radix mark, minutes and seconds until two digits follow it, then seconds
     const char *marks = STD_DEGREE STD_RIGHT_SINGLE_QUOTE STD_RIGHT_DOUBLE_QUOTE;
-    if(nimNumberPart == NP_INT_10 || nimNumberPart == NP_COMPLEX_INT_PART || nimNumberPart == NP_REAL_EXPONENT || nimNumberPart == NP_COMPLEX_EXPONENT) {  // an exponent makes the number degrees
+    if(nimNumberPart == NP_INT_10 || nimNumberPart == NP_COMPLEX_INT_PART) {
       return marks;
+    }
+    if(nimNumberPart == NP_REAL_EXPONENT || nimNumberPart == NP_COMPLEX_EXPONENT) {  // the exponent moves the radix mark, so the digits after it are shown as the minutes and seconds they become
+      static char tail[64];  // the degree mark, up to 34 digits and three marks
+      char digits[48];
+      int16_t integerDigits;
+      int16_t degrees = nimDmsExponentDigits(nimComplexPart() ? aimBuffer + imaginaryMantissaSignLocation + 2 : aimBuffer + 1, digits, &integerDigits);
+      int16_t count = strlen(digits);
+      int16_t shown = 0;
+      char *t = stringCopy(tail, STD_DEGREE);
+      for(int16_t i = degrees; i < count && (shown < 4 || i >= 0); i++, shown++) {  // the zeros the exponent puts in front fill the minutes and seconds only
+        t = nimDmsDigit(t, (i < 0 ? '0' : digits[i]), shown + 1, i + 1 < count && i + 1 >= 0);  // the radix mark only when a digit follows it
+      }
+      if(shown == 1 || shown == 3) {  // a lone digit is the tens of the minutes or of the seconds
+        *(t++) = '0';
+      }
+      if(shown < 2) {
+        t = stringCopy(t, STD_RIGHT_SINGLE_QUOTE);
+      }
+      strcpy(t, STD_RIGHT_DOUBLE_QUOTE);
+      return tail;
     }
     if(nimNumberPart == NP_REAL_FLOAT_PART || nimNumberPart == NP_COMPLEX_FLOAT_PART || nimPartIsFraction(nimNumberPart)) {
       bool_t barIsMark = (nimNumberPart == NP_HP32SII_DENOMINATOR || nimNumberPart == NP_COMPLEX_HP32SII_DENOMINATOR);  // 5/3 has no gap, so its bar is the degree mark
@@ -2312,6 +2364,37 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
     }
     buffer++;
 
+    #if defined(OPTION_DRG_CFG)
+      char degrees[52];  // up to 34 digits, the radix mark and the 'e' that ends them
+      if((nimNumberPart == NP_REAL_EXPONENT || nimNumberPart == NP_COMPLEX_EXPONENT) && nimDmsDigits()) {  // the mantissa shows the degrees the exponent leaves, and nimDmsMark the minutes and seconds
+        char digits[48];
+        int16_t integerDigits;
+        int16_t whole = nimDmsExponentDigits(buffer, digits, &integerDigits);
+        int16_t count = strlen(digits);
+        if(whole < count) {
+          char *d = degrees;
+          if(whole <= 0) {
+            *(d++) = '0';
+          }
+          else if(whole <= integerDigits) {  // the digits after the degrees become zeros, so the mantissa times the power of ten is the degrees
+            memcpy(d, digits, whole);
+            memset(d + whole, '0', integerDigits - whole);
+            d += integerDigits;
+          }
+          else {
+            memcpy(d, digits, integerDigits);
+            d += integerDigits;
+            *(d++) = '.';
+            memcpy(d, digits + integerDigits, whole - integerDigits);
+            d += whole - integerDigits;
+          }
+          *d = 'e';
+          d[1] = 0;
+          buffer = degrees;
+        }
+      }
+    #endif // OPTION_DRG_CFG
+
     int16_t GROUPWIDTH_LEFTM = GROUPWIDTH_LEFT;                       //JMGAP vv
     switch(nimNumberPart) {
       case NP_INT_10:                    // +12345 longint; Do not change GROUPWIDTH_LEFT. Leave at user setting, default 3.
@@ -2383,15 +2466,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
         #if defined(OPTION_DRG_CFG)
           if(dms) {
             if(buffer[source] != '/') {  // a later bar is no D.MS digit
-              displayBuffer[dest++] = buffer[source];
-              dmsDigits++;
-              if(dmsDigits == 2) {
-                strcpy(displayBuffer + dest, STD_RIGHT_SINGLE_QUOTE);
-                dest += 2;
-              }
-              else if(dmsDigits == 4) {
-                displayBuffer[dest++] = '.';
-              }
+              dest = nimDmsDigit(displayBuffer + dest, buffer[source], ++dmsDigits, true) - displayBuffer;
             }
             continue;
           }
@@ -2669,21 +2744,20 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
 
   void nimCompleteNumber(void) {  // before a close: an exponent without digits is left out, an empty imaginary part becomes 1 and an empty angle 0
     #if defined(OPTION_DRG_CFG)
-      bool_t complexPart = nimComplexPart();
-      char *digits = (complexPart ? aimBuffer + imaginaryMantissaSignLocation + 2 : aimBuffer + 1);
       if(nimPartIsFraction(nimNumberPart) && nimDmsDigits()) {  // a fraction in D.MS closes as its digits: the gap, or a bar with no gap before it, is the radix mark and a later bar is skipped
+        bool_t complexPart = nimComplexPart();
+        char *digits = (complexPart ? aimBuffer + imaginaryMantissaSignLocation + 2 : aimBuffer + 1);
         bool_t mark = false;
-        char *write = digits;
         for(const char *source = digits; *source != 0; source++) {
           if(*source != ' ' && *source != '/') {
-            *(write++) = *source;
+            *(digits++) = *source;
           }
           else if(!mark) {
-            *(write++) = '.';
+            *(digits++) = '.';
             mark = true;
           }
         }
-        *write = 0;
+        *digits = 0;
         nimNumberPart = (complexPart ? NP_COMPLEX_FLOAT_PART : NP_REAL_FLOAT_PART);
       }
     #endif // OPTION_DRG_CFG
@@ -2696,17 +2770,32 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
       aimBuffer[lastChar--] = 0;
     }
     #if defined(OPTION_DRG_CFG)
-      if((nimNumberPart == NP_REAL_EXPONENT || nimNumberPart == NP_COMPLEX_EXPONENT) && strchr(digits, 'e') != NULL && nimDmsDigits()) {  // a D.MS number with an exponent is degrees, written over as its D.MS digits for the close
-        real34_t angle;
-        stringToReal34(digits, &angle);
-        real34FromDegToDms(&angle, &angle);
-        real34ToString(&angle, digits);
-        char *exponent = strchr(digits, 'E');
-        if(exponent != NULL) {
-          *exponent = 'e';
+      if((nimNumberPart == NP_REAL_EXPONENT || nimNumberPart == NP_COMPLEX_EXPONENT) && nimDmsDigits()) {  // the exponent moves the radix mark of the D.MS digits, so the number is written without it when at most 34 digits result
+        bool_t complexPart = nimComplexPart();
+        char *number = (complexPart ? aimBuffer + imaginaryMantissaSignLocation + 2 : aimBuffer + 1);
+        char digits[48];
+        int16_t integerDigits;
+        int16_t whole = nimDmsExponentDigits(number, digits, &integerDigits);
+        int16_t count = strlen(digits);
+        if((whole > 0 ? whole : 1) + (whole < count ? count - whole : 0) <= 34) {
+          char *write = number;
+          if(whole <= 0) {
+            *(write++) = '0';
+          }
+          for(int16_t i = 0; i < whole; i++) {
+            *(write++) = (i < count ? digits[i] : '0');
+          }
+          *(write++) = '.';
+          for(int16_t i = whole; i < count; i++) {
+            *(write++) = (i < 0 ? '0' : digits[i]);
+          }
+          *write = 0;
+          while(number[0] == '0' && number[1] != '.') {  // the zeros in front of the degrees
+            memmove(number, number + 1, strlen(number));
+          }
+          nimNumberPart = (complexPart ? NP_COMPLEX_FLOAT_PART : NP_REAL_FLOAT_PART);
+          lastChar = strlen(aimBuffer) - 1;
         }
-        nimNumberPart = (complexPart ? NP_COMPLEX_FLOAT_PART : NP_REAL_FLOAT_PART);
-        lastChar = strlen(aimBuffer) - 1;
       }
     #endif // OPTION_DRG_CFG
     bool_t is_i     = nimNumberPart == NP_COMPLEX_INT_PART && aimBuffer[lastChar] == 'i';
