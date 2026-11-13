@@ -948,7 +948,7 @@ void execTimerApp(uint16_t timerType) {
         lineSetWhiteRange(xPos - FUNC_FRAME_MARGIN, xStart + FUNC_FRAME_MIN_WIDTH - FUNC_FRAME_MARGIN);   //   because only the glyph cells and the two margins are
         xPos = xStart + FUNC_FRAME_MIN_WIDTH;                   //   cleared to blank part of the register line showing through the widened box
       }
-      if(yRel == 0 || yRel == STANDARD_FONT_HEIGHT) {          // the top row and the bottom row 
+      if(yRel == 0 || yRel == STANDARD_FONT_HEIGHT) {          // the top row and the bottom row
         uint16_t fx;
         for(fx = xStart; fx < xPos; fx++) {
           lineSetBlackPixel(fx);
@@ -3896,7 +3896,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
           showStringEnhanced(whoStr1, &standardFont, 1, Y_POSITION_OF_REGISTER_T_LINE +30 -33, vmNormal, true, true, NO_compress, NO_raise, DO_Show, NO_Bold, DO_LF);
           showStringEnhanced(whoStr2, &tinyFont,     1, Y_POSITION_OF_REGISTER_X_LINE +50 -78, vmNormal, true, true, NO_compress, NO_raise, DO_Show, NO_Bold, DO_LF);
           screenUpdatingMode |=  SCRUPD_MANUAL_MENU;
-        } 
+        }
         if(regist == REGISTER_T || regist == REGISTER_Z || regist == REGISTER_Y || regist == REGISTER_X) {
           return;
         }
@@ -6330,6 +6330,16 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
           #endif //TEST_BATTERY_POWERED_SIMULATION
 
       #endif//!DMCP_BUILD PC_BUILD
+
+      if(temporaryInformation == TI_ARE_YOU_SURE) {
+        uint16_t id = getConfirmationTiId();
+        showString(confirmationTI[id].string, &standardFont, 1, Y_POSITION_OF_MENU_TOP + 6, vmNormal, true, true);
+      }
+      else if(temporaryInformation == TI_DEL_ALL_PRGMS) {
+        sprintf(tmpString, "%s", errorMessageOf(TI_All_user_prgms_deleted));
+        int32_t w = stringWidth(tmpString, &standardFont, true, true);
+        showString(tmpString, &standardFont, SCREEN_WIDTH - w, Y_POSITION_OF_REGISTER_X_LINE + 6, vmNormal, true, true);
+      }
     doRefreshSoftMenu = false;
 
     force_refresh(force);

@@ -237,6 +237,8 @@ static decFloat * decFinalize(decFloat *df, bcdnum *num,
   uByte *ulsd=num->lsd;       // ..
   uInt   encode;              // encoding accumulator
   Int    length;              // coefficient length
+  uByte  buffer[ROUNDUP(DECPMAX+3, 4)]; // fold-down copy of the coefficient [+3 allows uInt padding]; umsd and ulsd
+                              // point into it after the fold-down block, so it is a local of the function
 
   #if DECCHECK
   Int clen=ulsd-umsd+1;
@@ -457,7 +459,6 @@ static decFloat * decFinalize(decFloat *df, bcdnum *num,
           // fold down needed; must copy to buffer in order to pad
           // with zeros safely; fortunately this is not the worst case
           // path because cannot have had a round
-          uByte buffer[ROUNDUP(DECPMAX+3, 4)]; // [+3 allows uInt padding]
           uByte *s=umsd;                // source
           uByte *t=buffer;              // safe target
           uByte *tlsd=buffer+(ulsd-umsd)+shift; // target LSD

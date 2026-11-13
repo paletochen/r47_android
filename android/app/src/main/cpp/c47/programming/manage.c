@@ -531,7 +531,7 @@ void fnPem(uint16_t unusedButMandatoryParameter) {
     uint16_t linesOfCurrentStep = 1;
     lastIntegerBase = 0;
 
-    if(calcMode != CM_PEM) {
+    if((calcMode != CM_PEM) && (calcMode != CM_CONFIRMATION)) {
       calcMode = CM_PEM;
       showSoftmenu(-MNU_PFN);
       screenUpdatingMode &= ~SCRUPD_MANUAL_MENU;
