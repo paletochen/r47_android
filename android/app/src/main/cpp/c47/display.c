@@ -361,10 +361,6 @@ void real34ToDisplayString(const real34_t *real34, uint32_t tag, char *displaySt
     displayFormat       = (displayFormat == DF_UN) ? DF_UN : DF_ENG;
   }
 
-  #if (REAL34_WIDTH_TEST == 1)
-    maxWidth = largeur;
-  #endif // (REAL34_WIDTH_TEST == 1)
-
   if(displayFormat == DF_SF && checkHP) {        //This portion limits the SIGFIG digits to really n digits, even in the case of SIG3 12345000000000 to be displayed as 1.2340 x 10^5
     displayHasNDigits =  10;
   }

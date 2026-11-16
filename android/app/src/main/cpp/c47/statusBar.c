@@ -24,7 +24,7 @@ void drawBattery(uint16_t voltage);
   uint8_t  SBlastIntegerBaseShown = 0xFF;
   uint16_t SBAlphaModeLastShown = 0xFFFF;
   uint16_t SBbatteryLastShown = 0xFFFF;        // drawn battery bar level, not the raw voltage
-  char     SBhourglassShown[2];
+  const char *SBhourglassShown = NULL;         // the glyph last drew on hourglass area, "" for blank, NULL not known
   char     alphaOutput[3];
   bool_t   reInstateIntegerModeDisplay;
   bool_t   reInstateOCModeDisplay;
@@ -41,8 +41,7 @@ void drawBattery(uint16_t voltage);
     SBAlphaModeLastShown = 0xFFFF;
     SBbatteryLastShown = 0xFFFF;
     SBasmShown = 0xFF;
-    SBhourglassShown[0]  = 0xFF;
-    SBhourglassShown[1]  = 0xFF;               // note terminating 0 never used. Byte comparison done on content only.
+    SBhourglassShown = NULL;
     oldTime[0] = 0;
     alphaOutput[0] = 0xFF;
     alphaOutput[1] = 0xFF;
@@ -604,39 +603,39 @@ void drawBattery(uint16_t voltage);
       }
     }
 
-    char statusMessage[4];
-    statusMessage[0]=0;
-    statusMessage[1]=0;
-    statusMessage[2]=0;
-    statusMessage[3]=0;
+    const char *glyph = "";
     int32_t offs = 0;
     int32_t yoffs = 0;
     switch(programRunStop) {
       case PGM_WAITING: {
-        strcpy(statusMessage, STD_NEG_EXCLAMATION_MARK);
-        offs = 0;
+        glyph = STD_NEG_EXCLAMATION_MARK;
         break;
       }
       case PGM_RUNNING: {
-        sprintf(statusMessage, STD_SPACE_HAIR STD_P);
-        offs = +1;
+        glyph = STD_P;
+        offs = +2;
         break;
       }
       default: {
         if(hourGlassIconEnabled) {
-          strcpy(statusMessage, STD_HOURGLASS_WH);
+          glyph = STD_HOURGLASS_WH;
           offs = +1;
           yoffs = +5;
         }
       }
     }
-    //statusMessage is now 0/!/P/H
-    #define XX  (GRAPHMODE ? X_HOURGLASS_GRAPHS : X_HOURGLASS)
-    #define XXX (GRAPHMODE ? ((SBARUPD_ComplexResult ? X_COMPLEX_MODE : X_COMPLEX_MODE + X_COMPLEX_MODE_ADJ)) : X_SSIZE_BEGIN)
-    if((SBhourglassShown[0] != statusMessage[0] || SBhourglassShown[1] != statusMessage[1])  ) {
-      SBhourglassShown[0] = statusMessage[0];
-      SBhourglassShown[1] = statusMessage[1];
-      showStringAndClear(statusMessage, &standardFont, XX + offs, yoffs, XXX - XX, 20, vmNormal, false, false);
+    if(SBhourglassShown != glyph) {
+      uint32_t x = X_HOURGLASS;
+      uint32_t xEnd = X_SSIZE_BEGIN;
+      if(GRAPHMODE) {
+        x = X_HOURGLASS_GRAPHS;
+        xEnd = SBARUPD_ComplexResult ? X_COMPLEX_MODE : X_COMPLEX_MODE + X_COMPLEX_MODE_ADJ;
+      }
+      SBhourglassShown = glyph;
+      lcd_fill_rect(x, 0, xEnd - x, 20, LCD_SET_VALUE);
+      if(glyph[0] != 0) {
+        showGlyph(glyph, &standardFont, x + offs, yoffs, vmNormal, false, false, false);
+      }
       force_SBrefresh(force);
     }
   }

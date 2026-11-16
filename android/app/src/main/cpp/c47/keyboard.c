@@ -240,7 +240,7 @@ static void executeFunction(const char *data, int16_t item_);
         sm = &softmenu[menuId];
         row = min(3, (sm->numItems + modulo(firstItem - sm->numItems, 6))/6 - firstItem/6) - 1;
         if(itemShift/6 <= row && firstItem + itemShift + fn < sm->numItems) {
-          item = (sm->softkeyItem)[firstItem + itemShift + fn] % 10000;
+          item = (sm->softkeyItem)[firstItem + itemShift + fn];
 
           if(item == ITM_PROD_SIGN) {
             item = (getSystemFlag(FLAG_MULTx) ? ITM_DOT : ITM_CROSS);
@@ -2555,11 +2555,6 @@ RELEASE_END:
       programRunStop = PGM_STOPPED;
     }
 
-    #if (REAL34_WIDTH_TEST == 1)
-      longInteger_t lgInt;
-      longIntegerInit(lgInt);
-    #endif // (REAL34_WIDTH_TEST == 1)
-
     if(item == KEY_COMPLEX && calcMode == CM_MIM) {   //JM Allow COMPLEX to function as CC if in Matrix
       item = ITM_CC;
     }
@@ -2627,13 +2622,6 @@ RELEASE_END:
               refreshScreen(118);
             }
             keyActionProcessed = true;
-            #if (REAL34_WIDTH_TEST == 1)
-              if(++largeur > SCREEN_WIDTH) {
-                largeur--;
-              }
-              uInt32ToLongInteger(largeur, lgInt);
-              convertLongIntegerToLongIntegerRegister(lgInt, REGISTER_Z);
-            #endif // (REAL34_WIDTH_TEST == 1)
           }
           else {
             keyActionProcessed = true;
@@ -2653,13 +2641,6 @@ RELEASE_END:
               refreshScreen(119);
             }
             keyActionProcessed = true;
-            #if (REAL34_WIDTH_TEST == 1)
-              if(--largeur < 20) {
-                largeur++;
-              }
-              uInt32ToLongInteger(largeur, lgInt);
-              convertLongIntegerToLongIntegerRegister(lgInt, REGISTER_Z);
-            #endif // (REAL34_WIDTH_TEST == 1)
           }
           else {
             keyActionProcessed = true;
@@ -3472,9 +3453,6 @@ RELEASE_END:
         }
       }
     }
-    #if (REAL34_WIDTH_TEST == 1)
-      longIntegerFree(lgInt);
-    #endif // (REAL34_WIDTH_TEST == 1)
   }
 
 

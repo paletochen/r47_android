@@ -578,9 +578,6 @@
   extern uint16_t               userKeyLabelSize;
   extern uint16_t               currentInputVariable;
   extern uint16_t               currentMvarLabel;
-  #if (REAL34_WIDTH_TEST == 1)
-    extern uint16_t             largeur;
-  #endif // (REAL34_WIDTH_TEST == 1)
 
   extern int32_t                numberOfFreeMemoryRegions;
 

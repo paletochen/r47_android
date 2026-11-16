@@ -6530,12 +6530,6 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
           lcd_refresh_dma();               //the whole repaint reaches the display, not only the menu: a screen drawn with the menu suppressed never left the buffer
         #endif //DMCP_BUILD
 
-        #if (REAL34_WIDTH_TEST == 1)
-          for(int y=Y_POSITION_OF_REGISTER_Y_LINE; y<Y_POSITION_OF_REGISTER_Y_LINE + 2*REGISTER_LINE_HEIGHT; y++ ) {
-            setBlackPixel(SCREEN_WIDTH - largeur - 1, y);
-          }
-        #endif // (REAL34_WIDTH_TEST == 1)
-
 
 //2023-07-26 this is new and to be tested for stability
         RETURN_NORMAL:

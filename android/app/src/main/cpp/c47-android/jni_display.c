@@ -536,11 +536,11 @@ static bool_t isSoftkeyStrikeOut(int16_t itemNr) {
   }
 
   if (itemNr > 0) {
-    return indexOfItems[itemNr % 10000].func == itemToBeCoded || savedspace(itemNr);
+    return indexOfItems[itemNr].func == itemToBeCoded || savedspace(itemNr);
   }
 
   if (itemNr < 0) {
-    int16_t menu = findSoftmenuIndexByItem(itemNr % 10000);
+    int16_t menu = findSoftmenuIndexByItem(itemNr);
     if (menu >= 0 && menu >= NUMBER_OF_DYNAMIC_SOFTMENUS) {
       return (softmenu[menu].numItems == 0) || savedspace(itemNr);
     }
@@ -872,7 +872,7 @@ static void resolveSoftkeyScene(int16_t fnKeyIndex, keypadSoftkeyScene_t *scene,
     scene->enabled = scene->primaryLabel[0] != 0;
   }
 
-  int16_t strikeItem = sceneItem > 0 ? sceneItem % 10000 : sceneItem;
+  int16_t strikeItem = sceneItem;
   if (sceneItem != 0 && isSoftkeyStrikeOut(sceneItem)) {
     scene->sceneFlags |= KEYPAD_SCENE_FLAG_STRIKE_OUT;
   }

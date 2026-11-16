@@ -17,10 +17,7 @@
   void   fnSetInlineTestXToBs(uint16_t unusedButMandatoryParameter) {}
   void   fnSysFreeMem        (uint16_t unusedButMandatoryParameter) {}
   bool_t fnTestBitIsSet      (uint8_t bit) { return false; }
-#endif // !INLINE_TEST
-
-
-#if defined(INLINE_TEST)
+#else // INLINE_TEST
   uint32_t swStart[4];
   uint32_t swStop[4];
   /********************************************//**
@@ -209,4 +206,4 @@
 
     return (new_num & 1);
   }
-#endif // INLINE_TEST
+#endif // !INLINE_TEST

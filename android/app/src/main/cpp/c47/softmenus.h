@@ -27,12 +27,11 @@ void      fnPseudoMenu           (uint16_t target);
  * \param[in] ySoftKey   y location of softkey: from 0 (bottom) to 2 (top)
  * \param[in] videoMode  Video mode normal or reverse
  * \param[in] topLine    Draw a top line
- * \param[in] bottomLine Draw a bottom line
  * \param[in] showCb     Show options for in-key live texts
  * \param[in] showValue  Show options for in-key live texts
  * \param[in] showText   Show options for in-key live texts
  */
-void      showKey                (const char *label, int16_t x1, int16_t x2, int16_t y1, int16_t y2, videoMode_t videoMode, bool_t topLine, bool_t bottomLine, int8_t showCb, int16_t showValue, const char *showText);
+void      showKey                (const char *label, int16_t x1, int16_t x2, int16_t y1, int16_t y2, videoMode_t videoMode, bool_t topLine, int8_t showCb, int16_t showValue, const char *showText);
 
 /**
  * Displays the current part of the displayed softmenu.

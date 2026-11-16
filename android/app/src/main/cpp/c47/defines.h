@@ -737,7 +737,6 @@
 #define DECNUMDIGITS                    75 // Default number of digits used in the decNumber library
 #define BIG_SCREEN_COEF                  1 // 2 = 2 times the standard screen, that is 800x480. Can be a decimal like 1.333
 #define SIMULATOR_ON_SCREEN_KEYBOARD     1 // Set to 0 if you don't want an onscreen keyboard in addition to the screen
-#define NARROW_SCREEN                    1 // 400x1280 portrait screen
 #undef  USECURVES                          // activate spline curve option in the plot menu
 #define XFN_EXTENDED_2PI_FOR_MOD         1 // for X_MOD only, if detect precise X_PI 1034 digits, it extends pi to 2139 (or as per contxt up to 6147) in XFN only. Needs to by exact, to 0 ULP difference.
 #define YYSystem                         true // Enable the shortcut system to allow two-digit year defaults, i.e. 23.1212 [.d] to decode to 2023.1212
@@ -785,17 +784,10 @@
   #define SIMULATOR_ON_SCREEN_KEYBOARD 0
 #endif // BIG_SCREEN_COEF > 1 && SIMULATOR_ON_SCREEN_KEYBOARD == 1
 
-#if !defined(RASPBERRY) && (NARROW_SCREEN == 1)
-  #undef NARROW_SCREEN
-  #define NARROW_SCREEN 0
-#endif // !RASPBERRY && NARROW_SCREEN == 1
-
 #if defined(PC_BUILD) && !defined(RASPBERRY)
   #undef SIMULATOR_ON_SCREEN_KEYBOARD
   #define SIMULATOR_ON_SCREEN_KEYBOARD 1
 #endif // PC_BUILD && !RASPBERRY
-
-#define REAL34_WIDTH_TEST 0 // For debugging real34 ALL 0 formating. Use UP/DOWN to shrink or enlarge the available space. The Z register holds the available width.
 
 //Norm_Key_00_VAR, using -1 output for not applicable, purposely out of range
 #define Norm_Key_00_key   (getNormKey00Key())
@@ -1191,43 +1183,23 @@
 
 
 // PC GUI
-#if NARROW_SCREEN == 1
-  #define CSSFILE "res/c47_narrow_screen_pre.css"
-  #define GAP                                        6 //JM original GUI legacy
-  #define Y_OFFSET_LETTER                           18 //JM original GUI legacy
-  #define X_OFFSET_LETTER                            3 //JM original GUI legacy
-  #define Y_OFFSET_Aim                              25 //JM original GUI legacy
+#define CSSFILE "res/c47_pre.css"
+#define GAP                                        6 //JM original GUI legacy
+#define Y_OFFSET_LETTER                           18 //JM original GUI legacy
+#define X_OFFSET_LETTER                            3 //JM original GUI legacy
+#define Y_OFFSET_Aim                              25 //JM original GUI legacy
 
-  #define DELTA_KEYS_X                              67 // Horizontal key step in pixel (row of 6 keys)
-  #define DELTA_KEYS_Y                              74 // Vertical key step in pixel
-  #define KEY_WIDTH_1                               44 // Width of small keys (STO, RCL, ...)
-  #define KEY_WIDTH_2                               54 // Width of large keys (1, 2, 3, ...)
-  #define LARGE_KEY_SPACING_1                       12 // Spacing 1st large key --> 7, 4, 1 and 0
-  #define LARGE_KEY_SPACING_2                       15 // Spacing next large keys --> 8, 9, ÷, 5, 6, …
+#define DELTA_KEYS_X                              78 // Horizontal key step in pixel (row of 6 keys)
+#define DELTA_KEYS_Y                              74 // Vertical key step in pixel
+#define KEY_WIDTH_1                               47 // Width of small keys (STO, RCL, ...)
+#define KEY_WIDTH_2                               56 // Width of large keys (1, 2, 3, ...)
+#define LARGE_KEY_SPACING_1                       18 // Spacing 1st large key --> 7, 4, 1 and 0
+#define LARGE_KEY_SPACING_2                       17 // Spacing next large keys --> 8, 9, ÷, 5, 6, …
 
-  #define X_LEFT_PORTRAIT                           10 // Horizontal offset for a portrait calculator
-  #define X_LEFT_LANDSCAPE                         544 // Horizontal offset for a landscape calculator
-  #define Y_TOP_PORTRAIT                           267 // Vertical offset for a portrait calculator
-  #define Y_TOP_LANDSCAPE                           30 // vertical offset for a landscape calculator
-#else // NARROW_SCREEN != 1
-  #define CSSFILE "res/c47_pre.css"
-  #define GAP                                        6 //JM original GUI legacy
-  #define Y_OFFSET_LETTER                           18 //JM original GUI legacy
-  #define X_OFFSET_LETTER                            3 //JM original GUI legacy
-  #define Y_OFFSET_Aim                              25 //JM original GUI legacy
-
-  #define DELTA_KEYS_X                              78 // Horizontal key step in pixel (row of 6 keys)
-  #define DELTA_KEYS_Y                              74 // Vertical key step in pixel
-  #define KEY_WIDTH_1                               47 // Width of small keys (STO, RCL, ...)
-  #define KEY_WIDTH_2                               56 // Width of large keys (1, 2, 3, ...)
-  #define LARGE_KEY_SPACING_1                       18 // Spacing 1st large key --> 7, 4, 1 and 0
-  #define LARGE_KEY_SPACING_2                       17 // Spacing next large keys --> 8, 9, ÷, 5, 6, …
-
-  #define X_LEFT_PORTRAIT                           45 // Horizontal offset for a portrait calculator
-  #define X_LEFT_LANDSCAPE                         544 // Horizontal offset for a landscape calculator
-  #define Y_TOP_PORTRAIT                           376 // Vertical offset for a portrait calculator
-  #define Y_TOP_LANDSCAPE                           30 // vertical offset for a landscape calculator
-#endif // NARROW_SCREEN == 1
+#define X_LEFT_PORTRAIT                           45 // Horizontal offset for a portrait calculator
+#define X_LEFT_LANDSCAPE                         544 // Horizontal offset for a landscape calculator
+#define Y_TOP_PORTRAIT                           376 // Vertical offset for a portrait calculator
+#define Y_TOP_LANDSCAPE                           30 // vertical offset for a landscape calculator
 
 
 #define TAM_MAX_BITS                              14
