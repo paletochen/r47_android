@@ -961,6 +961,7 @@ bool_t isFunctionOldParam16(uint16_t func) {
   void fnLog10                     (uint16_t unusedButMandatoryParameter) {}
   void fnLn                        (uint16_t unusedButMandatoryParameter) {}
   void fnLogXY                     (uint16_t unusedButMandatoryParameter) {}
+  void fnEML                       (uint16_t unusedButMandatoryParameter) {}
   void fnLnP1                      (uint16_t unusedButMandatoryParameter) {}
   void fnLnGamma                   (uint16_t unusedButMandatoryParameter) {}
   void fnLnBeta                    (uint16_t unusedButMandatoryParameter) {}
@@ -1869,6 +1870,14 @@ bool_t isFunctionOldParam16(uint16_t func) {
   #define INF_FNCT           CAT_NONE
   #define INF_TM             NOPARAM
 #endif //OPTION_INFSUMS
+
+#if defined(OPTION_EML)
+  #define EML_fnEML          fnEML
+  #define EML_FNCT           CAT_FNCT
+#else //OPTION_EML
+  #define EML_fnEML          itemToBeCoded
+  #define EML_FNCT           CAT_NONE
+#endif //OPTION_EML
 
 #if defined(OPTION_ATEXT)
   #define ATX_fnAText        fnAText
@@ -4591,7 +4600,7 @@ TO_QSPI const item_t indexOfItems[] = {
 /* 2595 */  { fnSwapN,                         4,                           "4SWAP",                                       "4SWAP",                                       (0 << TAM_MAX_BITS) |     0, CAT_FNCT | SLS_ENABLED   | US_ENABLED   | EIM_DISABLED | PTP_NONE         | HG_ENABLED         | RESULT_IN_X },
 
 /* 2596 */  { itemToBeCoded,                   NOPARAM,                     "2596",                                        "2596",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
-/* 2597 */  { itemToBeCoded,                   NOPARAM,                     "2597",                                        "2597",                                        (0 << TAM_MAX_BITS) |     0, CAT_FREE | SLS_UNCHANGED | US_UNCHANGED | EIM_DISABLED | PTP_DISABLED     | HG_ENABLED         },
+/* 2597 */  { EML_fnEML,                       NOPARAM,                     "EML",                                         "EML",                                         (0 << TAM_MAX_BITS) |     0, EML_FNCT | SLS_ENABLED   | US_ENABLED   | EIM_ENABLED  | PTP_NONE         | HG_ENABLED         | RESULT_IN_X },
 
 /* 2598 */  { fnMtoTheta,                    NOPARAM,                       "m" STD_RIGHT_ARROW STD_theta_m,               "m" STD_RIGHT_ARROW STD_theta_m,               (0 << TAM_MAX_BITS) |     0, CAT_FNCT | SLS_ENABLED   | US_ENABLED   | EIM_DISABLED | PTP_NONE         | HG_ENABLED         },
 /* 2599 */  { fnThetatoM,                    NOPARAM,                       STD_theta_m STD_RIGHT_ARROW "m",               STD_theta_m STD_RIGHT_ARROW "m",               (0 << TAM_MAX_BITS) |     0, CAT_FNCT | SLS_ENABLED   | US_ENABLED   | EIM_DISABLED | PTP_NONE         | HG_ENABLED         },

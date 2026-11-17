@@ -65,7 +65,8 @@
 #define OPTION_ZETA_BETA               //                   // ZETA, BETA, LNBETA
 #define OPTION_SLVQ_SLVC               //                   // SLVQ, SLVC quadratic and cubic roots
 #define OPTION_SLVP_POLY               //                   // SLVP general polynomial roots (companion matrix through the EIGEN QR solver; requires OPTION_EIGEN)
-#define OPTION_INFSUMS                 // TEMPORARY         // Infinity sum with the early stop; the plain programmable sum and product stay
+#define OPTION_INFSUMS                 //                   // Infinity sum with the early stop; the plain programmable sum and product stay
+#define OPTION_EML                     //                   // EML: e^Y - Ln X, the universal function
 #define OPTION_ATEXT                   //                   // ATEXT: the string in a register, displayed from the PIXEL position
 #define OPTION_ATEXT_FONTS             //                   // GRFNT, GRFNT#: the ATEXT font (requires OPTION_ATEXT)
 #define OPTION_LP_DP_TIMING            //                   // LP%, DP% long press and double press timing in percent
@@ -322,7 +323,8 @@
     #define OPTION_EDIT_X                // ✓  1560 bytes // Without number editing in X-register. Not complete EDIT removal.
     #define OPTION_EDIT_PEM              // ✓  1368 bytes // Without number and function parameter editing in PEM. Not complete EDIT removal.
     #define OPTION_LONGPRESS_CFG         // ✓  1248 bytes // Logic for longpress assignment to the f/g key
-    #define OPTION_INFSUMS               // ?   400 bytes // Infinity sum with the early stop; the plain programmable sum and product stay
+    #define OPTION_INFSUMS               // ✓   376 bytes // Infinity sum with the early stop; the plain programmable sum and product stay
+    #define OPTION_EML                   // ✓   368 bytes // EML: e^Y - Ln X, the universal function
     #define OPTION_ATEXT                 // ✓   504 bytes // ATEXT: the string in a register, displayed from the PIXEL position
     #define OPTION_ATEXT_FONTS           // ✓   592 bytes // GRFNT, GRFNT#: the ATEXT font
     #define OPTION_LP_DP_TIMING          // ✓   296 bytes // LP%, DP% long press and double press timing in percent

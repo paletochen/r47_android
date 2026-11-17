@@ -88,6 +88,7 @@ c47_src = files(
   'mathematics/dot.c',
   'mathematics/elec.c',
   'mathematics/elliptic.c',
+  'mathematics/eml.c',
   'mathematics/erf.c',
   'mathematics/erfc.c',
   'mathematics/eulersFormula.c',

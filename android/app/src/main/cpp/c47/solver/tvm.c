@@ -746,6 +746,10 @@ int solveTvmVariable51(uint16_t variable) {
 
   TO_QSPI static const char bugScreenNotForTvm[] = "In function fnTvmVar: this variable is not intended for TVM application!";
 
+// Root guard for cp/a and pp/a: after the solve the converged value is accepted only where the balance changes sign across a wide probe and is the smallest there; a shelf keeps one sign, a pole is a peak.
+// tvmRootGuardOtherModes extends the guard to other solves and stays off by default.
+static bool_t tvmRootGuardOtherModes = false;
+
 void fnTvmVar(uint16_t variable) {
     ensureTvmContext();
     #if defined(PC_BUILD) && defined(TVMDEBUG2)
@@ -794,7 +798,7 @@ void fnTvmVar(uint16_t variable) {
           tvmIKnown = false;
 
           #if defined(OPTION_TVM_FORMULAS)
-            if(variable != RESERVED_VARIABLE_IPONA) {
+            if(variable != RESERVED_VARIABLE_IPONA && variable != RESERVED_VARIABLE_CPERONA && variable != RESERVED_VARIABLE_PPERONA) {   // cp/a and pp/a go to the general solver, seeded with a wide bracket below
               int err = solveTvmVariable51(variable);
               if( err == 0) {
                 #if defined(PC_BUILD) && defined(TVMDEBUG2)
@@ -865,10 +869,8 @@ void fnTvmVar(uint16_t variable) {
 
             case RESERVED_VARIABLE_CPERONA:
             case RESERVED_VARIABLE_PPERONA: {
-              if(real34CompareLessThan(REGISTER_REAL34_DATA(variable), const34_3)) {
-                real34Copy(const34_24, &y);
-                real34Copy(const34_9, &x);
-              }
+              int32ToReal34(1000000, &y);                                   // a two-sided seed straddling the cp/a or pp/a root, 1e-4 below and 1e6 above, so the solver brackets the
+              real34Copy(const34_1e_4, &x);                                 // single root at once instead of marching one way from a register-scaled start into the rate asymptote
               break;
             }
 
@@ -955,6 +957,31 @@ void fnTvmVar(uint16_t variable) {
             #if (EXTRA_INFO_ON_CALC_ERROR == 1)
               moreInfoOnError("In function fnTvmVar:", "cannot compute TVM equation", "with current parameters", NULL);
             #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+          }
+
+          if((variable == RESERVED_VARIABLE_CPERONA || variable == RESERVED_VARIABLE_PPERONA || tvmRootGuardOtherModes) && lastErrorCode == ERROR_NONE) {
+            real_t xval, fM, fL, fR, hstep;                                                       // accept the converged value only where the balance changes sign across it and is smallest there; a shelf keeps one sign, a pole peaks there
+            real34ToReal(REGISTER_REAL34_DATA(REGISTER_X), &xval);
+            if(!realIsZero(&xval)) {
+              realCopy(&xval, &hstep);
+              realSetPositiveSign(&hstep);
+              hstep.exponent -= 1;                                                                // a step of |value| times 0.1 either side: wide enough to leave a pole's spike, so a root is a valley of |balance| and a pole a peak
+              realCopy(&xval, &fM);
+              tvmEquation(variable, &fM, NULL);                                                   // balance at the returned value
+              realSubtract(&xval, &hstep, &fL, &ctxtTvm);
+              tvmEquation(variable, &fL, NULL);                                                   // balance a step below
+              realAdd(&xval, &hstep, &fR, &ctxtTvm);
+              tvmEquation(variable, &fR, NULL);                                                   // balance a step above
+              if(realIsSpecial(&fM) || realIsSpecial(&fL) || realIsSpecial(&fR)) {
+                displayCalcErrorMessage(ERROR_NO_ROOT_FOUND, ERR_REGISTER_LINE);
+              }
+              else if(realIsNegative(&fL) == realIsNegative(&fR)) {                               // no sign change across the value: a shelf or an asymptote, not a root
+                displayCalcErrorMessage(ERROR_NO_ROOT_FOUND, ERR_REGISTER_LINE);
+              }
+              else if(realCompareAbsLessThan(&fL, &fM) || realCompareAbsLessThan(&fR, &fM)) {     // the value is not the smallest of the three: a peak of |balance|, a pole whose terms are out of range, not a zero crossing
+                displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
+              }
+            }
           }
 
           adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);

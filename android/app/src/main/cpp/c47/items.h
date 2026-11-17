@@ -2674,7 +2674,7 @@
 
 
 #define ITM_2596                    2596 // General items / any items spare
-#define ITM_2597                    2597 // General items / any items spare
+#define ITM_EML                     2597
 #define ITM_MtoTH                   2598
 #define ITM_THtoM                   2599
 

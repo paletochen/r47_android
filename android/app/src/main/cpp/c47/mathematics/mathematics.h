@@ -46,6 +46,7 @@
   #include "erfc.h"
   #include "elec.h"
   #include "elliptic.h"
+  #include "eml.h"
   #include "eulersFormula.h"
   #include "exp.h"
   #include "expMOne.h"

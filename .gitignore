@@ -192,6 +192,9 @@ compile_commands.json
 
 # End of https://www.toptal.com/developers/gitignore/api/meson
 
+# The page list latexdiff-build.py writes beside a diff or redline job, in tex/ or a note folder
+*.difpages
+
 # LaTeX byproducts from building an application note in docs/appnotes/sources
 docs/appnotes/sources/**/*.aux
 docs/appnotes/sources/**/*.log
