@@ -10,6 +10,8 @@
 #include <time.h>
 #include <pthread.h>
 #include <dirent.h>
+#include <errno.h>
+#include <stdatomic.h>
 
 // Environment emulation for Android build on PC host
 #ifndef ANDROID_BUILD
@@ -73,11 +75,30 @@ void scanLabelsAndPrograms(void) {}
 void resizeProgramMemory(uint16_t newSizeInBlocks) { (void)newSizeInBlocks; }
 void goToGlobalStep(int32_t step) { (void)step; }
 bool_t reDraw = false;
+bool_t backToDMCP = false;
+bool_t shiftF = false;
+bool_t shiftG = false;
+bool_t cancelFilename = false;
+uint8_t *lcd_buffer = NULL;
 uint8_t screenUpdatingMode = 0;
 uint8_t programRunStop = PGM_STOPPED;
+static int mock_save_calc_count = 0;
+static int mock_trigger_quit_count = 0;
+static int mock_stop_timer_app_count = 0;
 void refreshScreen(uint16_t reason) { (void)reason; }
 void refreshLcd(void) {}
-void lcd_refresh(void) {}
+void saveCalc(void) {
+  mock_save_calc_count++;
+}
+void triggerQuit(void) {
+  mock_trigger_quit_count++;
+}
+void fnStopTimerApp(void) {
+  mock_stop_timer_app_count++;
+}
+void fnScreenDump(uint16_t unusedButMandatoryParameter) {
+  (void)unusedButMandatoryParameter;
+}
 
 pthread_mutex_t screenMutex;
 static bool     mock_runtime_ready = false;
@@ -102,21 +123,67 @@ void processCoreTasksNative(void) {
 uint32_t sys_current_ms(void) { return fake_current_ms; }
 gint64 g_get_monotonic_time(void) { return fake_monotonic_us; }
 gint64 g_get_real_time(void) { return fake_real_us; }
-void keyBuffer_pop(void) {}
+static uint8_t mock_kb_ring[16];
+static uint8_t mock_kb_read = 0u;
+static uint8_t mock_kb_write = 0u;
+static int mock_processed_keys[32];
+static int mock_processed_key_count = 0;
+static int mock_clear_kb_count = 0;
+static bool mock_process_key_triggers_off_on_33 = false;
+
+void clearKeyBuffer(void) {
+  mock_kb_read = mock_kb_write;
+  mock_clear_kb_count++;
+}
+
+void keyBuffer_pop(void) {
+  for(;;) {
+    const uint8_t nextWrite = (uint8_t)((mock_kb_write + 1u) & 15u);
+    if(nextWrite == mock_kb_read) {
+      break;
+    }
+    const int k = keyPopForMainLoop();
+    if(k < 0) {
+      break;
+    }
+    mock_kb_ring[mock_kb_write] = (uint8_t)k;
+    mock_kb_write = nextWrite;
+  }
+}
+
+static uint8_t popMockKbRing(uint8_t *pByte) {
+  if(mock_kb_read == mock_kb_write) {
+    return BUFFER_FAIL;
+  }
+  if(pByte != NULL) {
+    *pByte = mock_kb_ring[mock_kb_read];
+  }
+  mock_kb_read = (uint8_t)((mock_kb_read + 1u) & 15u);
+  return BUFFER_SUCCESS;
+}
+
 #if defined(BUFFER_CLICK_DETECTION)
   #if defined(BUFFER_KEY_COUNT)
-    uint8_t outKeyBuffer(uint8_t *pByte, uint8_t *pByteCount, uint32_t *pTime, uint32_t *pTimeSpan_1, uint32_t *pTimeSpan_B) { (void)pByte; (void)pByteCount; (void)pTime; (void)pTimeSpan_1; (void)pTimeSpan_B; return BUFFER_FAIL; }
+    uint8_t outKeyBuffer(uint8_t *pByte, uint8_t *pByteCount, uint32_t *pTime, uint32_t *pTimeSpan_1, uint32_t *pTimeSpan_B) { (void)pByteCount; (void)pTime; (void)pTimeSpan_1; (void)pTimeSpan_B; return popMockKbRing(pByte); }
   #else // !defined(BUFFER_KEY_COUNT)
-    uint8_t outKeyBuffer(uint8_t *pByte, uint32_t *pTime, uint32_t *pTimeSpan_1, uint32_t *pTimeSpan_B) { (void)pByte; (void)pTime; (void)pTimeSpan_1; (void)pTimeSpan_B; return BUFFER_FAIL; }
+    uint8_t outKeyBuffer(uint8_t *pByte, uint32_t *pTime, uint32_t *pTimeSpan_1, uint32_t *pTimeSpan_B) { (void)pTime; (void)pTimeSpan_1; (void)pTimeSpan_B; return popMockKbRing(pByte); }
   #endif // defined(BUFFER_KEY_COUNT)
 #else // !defined(BUFFER_CLICK_DETECTION)
   #if defined(BUFFER_KEY_COUNT)
-    uint8_t outKeyBuffer(uint8_t *pByte, uint8_t *pByteCount) { (void)pByte; (void)pByteCount; return BUFFER_FAIL; }
+    uint8_t outKeyBuffer(uint8_t *pByte, uint8_t *pByteCount) { (void)pByteCount; return popMockKbRing(pByte); }
   #else // !defined(BUFFER_KEY_COUNT)
-    uint8_t outKeyBuffer(uint8_t *pByte) { (void)pByte; return BUFFER_FAIL; }
+    uint8_t outKeyBuffer(uint8_t *pByte) { return popMockKbRing(pByte); }
   #endif // defined(BUFFER_KEY_COUNT)
 #endif // defined(BUFFER_CLICK_DETECTION)
-void processKeyCode(int key) { (void)key; }
+
+void processKeyCode(int key) {
+  if(mock_processed_key_count < (int)(sizeof(mock_processed_keys) / sizeof(mock_processed_keys[0]))) {
+    mock_processed_keys[mock_processed_key_count++] = key;
+  }
+  if(mock_process_key_triggers_off_on_33 && key == 33) {
+    fnOff(NOPARAM);
+  }
+}
 int32_t compareString(const char *stra, const char *strb, int32_t comparisonType) {
     (void)comparisonType;
     return strcasecmp(stra, strb);
@@ -1128,9 +1195,9 @@ void test_state_save_and_restore_commands(void) {
     TEST_ASSERT(mock_direct_last_category == 2, "SAVEAUT must target category 2 (SAVFILES)");
     #if (CALCMODEL == USER_R47)
     TEST_ASSERT(strcmp(mock_direct_last_fileName, "R47auto.sav") == 0, "SAVEAUT must write to R47auto.sav on R47");
-    #else
+    #else // !(CALCMODEL == USER_R47)
     TEST_ASSERT(strcmp(mock_direct_last_fileName, "C47auto.sav") == 0, "SAVEAUT must write to C47auto.sav on C47");
-    #endif
+    #endif // (CALCMODEL == USER_R47)
     TEST_ASSERT(strcmp(mock_direct_last_mode, "wt") == 0, "SAVEAUT must open R47auto.sav with mode 'wt'");
     TEST_ASSERT(temporaryInformation == TI_SAVED, "SAVEAUT must set temporaryInformation = TI_SAVED on completion");
 
@@ -1149,9 +1216,9 @@ void test_state_save_and_restore_commands(void) {
     TEST_ASSERT(mock_delete_last_category == 2, "fnDeleteBackup must delete from category 2 (SAVFILES)");
     #if (CALCMODEL == USER_R47)
     TEST_ASSERT(strcmp(mock_delete_last_fileName, "R47auto.sav") == 0, "Second delete in fnDeleteBackup must remove R47auto.sav");
-    #else
+    #else // !(CALCMODEL == USER_R47)
     TEST_ASSERT(strcmp(mock_delete_last_fileName, "C47auto.sav") == 0, "Second delete in fnDeleteBackup must remove C47auto.sav");
-    #endif
+    #endif // (CALCMODEL == USER_R47)
 }
 
 // --------------------------------------------------------------------------
@@ -1221,9 +1288,15 @@ static void resetMockKeyRuntimeState(void) {
     mock_last_yield_ms = -1;
     mock_yield_call_count = 0;
     g_release_callback_Step = 0;
+    mock_kb_read = 0u;
+    mock_kb_write = 0u;
+    mock_processed_key_count = 0;
+    mock_clear_kb_count = 0;
+    mock_process_key_triggers_off_on_33 = false;
     clearCoreShutdownRequested();
     programRunStop = PGM_STOPPED;
     key_pop_all();
+    resetInputGestures();
 }
 
 // --------------------------------------------------------------------------
@@ -2776,6 +2849,462 @@ static void test_c47_character_set_conversion_and_math_ops(void) {
     calcMode = CM_NORMAL;
 }
 
+#include "jni_bridge.h"
+
+/**
+ * Copies simulated JNI int-array regions into the destination C buffer wired via jintArray.
+ */
+static void mockJniSetIntArrayRegion(JNIEnv *env, jintArray array, jsize start, jsize len, const jint *buf) {
+  (void)env;
+  if(array != NULL && buf != NULL && start >= 0 && len > 0) {
+    memcpy((jint *)array + start, buf, (size_t)len * sizeof(jint));
+  }
+}
+
+/**
+ * Verifies real upstream fnOff and backToSystem (SYSTEM) against real handlePendingPowerOffLocked, keyDispatchNow, dispatchKeyGesture rollover, and lcd_refresh.
+ */
+void test_power_off_and_system_exit_invariants(void) {
+  static uint32_t dummyPowerRam[64];
+  static jint pixelOut[SCREEN_WIDTH * SCREEN_HEIGHT];
+  static struct JNINativeInterface jniTable;
+  memset(&jniTable, 0, sizeof(jniTable));
+  jniTable.SetIntArrayRegion = mockJniSetIntArrayRegion;
+  JNIEnv envTable = &jniTable;
+  JNIEnv *env = &envTable;
+
+  init_lcd_buffers();
+  TEST_ASSERT(lcd_buffer != NULL && screenData != NULL, "init_lcd_buffers must allocate lcd_buffer and screenData");
+  TEST_ASSERT(copyDirtyDisplayPixels(env, (jintArray)pixelOut), "init_lcd_buffers must mark screenDataDirty");
+  init_lcd_buffers();
+  TEST_ASSERT(copyDirtyDisplayPixels(env, (jintArray)pixelOut), "Repeated init_lcd_buffers call must also mark screenDataDirty");
+
+  resetMockKeyRuntimeState();
+  mock_save_calc_count = 0;
+  mock_trigger_quit_count = 0;
+  mock_stop_timer_app_count = 0;
+  ram = dummyPowerRam;
+  shiftF = true;
+  shiftG = true;
+  programRunStop = PGM_RUNNING;
+  SET_ST(STAT_SUSPENDED);
+  SET_ST(STAT_OFF);
+  backToDMCP = false;
+
+  // Drain initial dirty flag and arm row 0 dirty in lcd_buffer so real lcd_refresh() rasterises it.
+  lcd_refresh();
+  (void)copyDirtyDisplayPixels(env, (jintArray)pixelOut);
+  TEST_ASSERT(!copyDirtyDisplayPixels(env, (jintArray)pixelOut), "Second copyDirtyDisplayPixels call must return false when clean");
+  memset(&lcd_buffer[2], 0xAA, 50);
+  lcd_buffer[0] = 1u;
+  lcd_buffer[1] = SCREEN_HEIGHT - 1;
+
+  // 1. Real fnOff(NOPARAM) from src/c47/calcMode.c + real handlePendingPowerOffLocked() with ram != NULL
+  fnOff(NOPARAM);
+  TEST_ASSERT(!shiftF && !shiftG, "fnOff must clear shiftF and shiftG");
+  TEST_ASSERT(mock_stop_timer_app_count == 1, "fnOff must stop the timer app");
+  TEST_ASSERT(ST(STAT_PGM_END) != 0, "fnOff(NOPARAM) must set STAT_PGM_END");
+
+  pthread_mutex_lock(&screenMutex);
+  TEST_ASSERT(handlePendingPowerOffLocked(), "handlePendingPowerOffLocked must return true when STAT_PGM_END triggers power-off");
+  pthread_mutex_unlock(&screenMutex);
+
+  TEST_ASSERT(!ST(STAT_PGM_END) && !ST(STAT_SUSPENDED) && !ST(STAT_OFF) && !backToDMCP,
+              "handlePendingPowerOffLocked must clear STAT_PGM_END, STAT_SUSPENDED, STAT_OFF, and backToDMCP");
+  TEST_ASSERT(programRunStop == PGM_WAITING, "handlePendingPowerOffLocked must transition PGM_RUNNING to PGM_WAITING");
+  TEST_ASSERT(mock_save_calc_count == 1, "handlePendingPowerOffLocked must invoke saveCalc when ram != NULL");
+  TEST_ASSERT(lcd_buffer[0] == 0u && copyDirtyDisplayPixels(env, (jintArray)pixelOut),
+              "handlePendingPowerOffLocked must flush dirty scanlines via lcd_refresh");
+  TEST_ASSERT(mock_trigger_quit_count == 1, "handlePendingPowerOffLocked must invoke triggerQuit once");
+
+  // Second call is a no-op so resuming from moveTaskToBack(true) cannot re-quit the app.
+  pthread_mutex_lock(&screenMutex);
+  TEST_ASSERT(!handlePendingPowerOffLocked(), "Repeated handlePendingPowerOffLocked call must return false after flags are cleared");
+  pthread_mutex_unlock(&screenMutex);
+  TEST_ASSERT(mock_save_calc_count == 1 && mock_trigger_quit_count == 1,
+              "Repeated handlePendingPowerOffLocked call must be a no-op after flags are cleared");
+
+  // 2. Real fnOff(NOPARAM) when ram == NULL skips saveCalc() while transitioning PGM_PAUSED -> PGM_WAITING and quitting once.
+  ram = NULL;
+  programRunStop = PGM_PAUSED;
+  fnOff(NOPARAM);
+  pthread_mutex_lock(&screenMutex);
+  TEST_ASSERT(handlePendingPowerOffLocked(), "handlePendingPowerOffLocked must return true on fnOff even when ram == NULL");
+  pthread_mutex_unlock(&screenMutex);
+  TEST_ASSERT(programRunStop == PGM_WAITING, "handlePendingPowerOffLocked must transition PGM_PAUSED to PGM_WAITING");
+  TEST_ASSERT(mock_save_calc_count == 1, "handlePendingPowerOffLocked must skip saveCalc when ram == NULL");
+  TEST_ASSERT(mock_trigger_quit_count == 2, "handlePendingPowerOffLocked must still invoke triggerQuit when ram == NULL");
+
+  // 3. Real backToSystem(CONFIRMED) (SYSTEM -> backToDMCP = true) saves state, refreshes LCD, and quits once.
+  ram = dummyPowerRam;
+  programRunStop = PGM_PAUSED;
+  cancelFilename = false;
+  SET_ST(STAT_SUSPENDED);
+  SET_ST(STAT_OFF);
+  (void)copyDirtyDisplayPixels(env, (jintArray)pixelOut);
+  lcd_buffer[52 * 4] = 1u;
+  lcd_buffer[52 * 4 + 1] = SCREEN_HEIGHT - 5;
+
+  backToSystem(CONFIRMED);
+  TEST_ASSERT(cancelFilename && backToDMCP && !ST(STAT_PGM_END),
+              "backToSystem(CONFIRMED) must set cancelFilename and backToDMCP without setting STAT_PGM_END");
+
+  pthread_mutex_lock(&screenMutex);
+  TEST_ASSERT(handlePendingPowerOffLocked(), "handlePendingPowerOffLocked must return true on SYSTEM exit");
+  pthread_mutex_unlock(&screenMutex);
+  TEST_ASSERT(!backToDMCP && !ST(STAT_PGM_END) && !ST(STAT_SUSPENDED) && !ST(STAT_OFF),
+              "handlePendingPowerOffLocked must clear backToDMCP and power-off status bits");
+  TEST_ASSERT(programRunStop == PGM_WAITING, "SYSTEM exit must transition PGM_PAUSED to PGM_WAITING");
+  TEST_ASSERT(mock_save_calc_count == 2, "SYSTEM exit must call saveCalc when ram != NULL");
+  TEST_ASSERT(lcd_buffer[52 * 4] == 0u && copyDirtyDisplayPixels(env, (jintArray)pixelOut),
+              "SYSTEM exit must flush dirty scanlines via lcd_refresh");
+  TEST_ASSERT(mock_trigger_quit_count == 3, "SYSTEM exit must call triggerQuit once");
+
+  pthread_mutex_lock(&screenMutex);
+  TEST_ASSERT(!handlePendingPowerOffLocked(), "Repeated handlePendingPowerOffLocked after SYSTEM exit must return false");
+  pthread_mutex_unlock(&screenMutex);
+  TEST_ASSERT(mock_save_calc_count == 2 && mock_trigger_quit_count == 3,
+              "Repeated handlePendingPowerOffLocked after SYSTEM exit must be a no-op");
+
+  // 4. keyDispatchNow() stops immediately when key 33 triggers fnOff and flushes trailing buffered keys ([0, 17, 0]).
+  resetMockKeyRuntimeState();
+  ram = dummyPowerRam;
+  programRunStop = PGM_STOPPED;
+  mock_process_key_triggers_off_on_33 = true;
+  key_push(33);
+  key_push(0);
+  key_push(17);
+  key_push(0);
+  pthread_mutex_lock(&screenMutex);
+  keyDispatchNow();
+  pthread_mutex_unlock(&screenMutex);
+  TEST_ASSERT(mock_processed_key_count == 1 && mock_processed_keys[0] == 33,
+              "keyDispatchNow must stop immediately after OFF without executing trailing buffered key 17");
+  TEST_ASSERT(key_empty() == 1 && mock_kb_read == mock_kb_write && mock_clear_kb_count >= 1,
+              "handlePendingPowerOffLocked must flush both DMCP FIFO and kb_buffer_t ring buffer on OFF");
+  TEST_ASSERT(mock_save_calc_count == 3 && mock_trigger_quit_count == 4,
+              "keyDispatchNow OFF must invoke saveCalc and triggerQuit exactly once");
+
+  // 5. Direct touch/sim gesture routing, cross-source rollover, invalid-keycode release, and busy queueing.
+  resetMockKeyRuntimeState();
+  ram = dummyPowerRam;
+  programRunStop = PGM_STOPPED;
+  pthread_mutex_lock(&screenMutex);
+  dispatchTouchKeyGesture(10, false);
+  dispatchSimKeyGesture(12, false);
+  dispatchSimKeyGesture(12, true);
+  dispatchTouchKeyGesture(15, false);
+  releaseTouchKeyGesture();
+  pthread_mutex_unlock(&screenMutex);
+  TEST_ASSERT(mock_processed_key_count == 6 &&
+              mock_processed_keys[0] == 10 && mock_processed_keys[1] == 0 &&
+              mock_processed_keys[2] == 12 && mock_processed_keys[3] == 0 &&
+              mock_processed_keys[4] == 15 && mock_processed_keys[5] == 0,
+              "Cross-source rollover and releaseTouchKeyGesture must emit balanced processKeyCode(0) releases");
+
+  programRunStop = PGM_RUNNING;
+  pthread_mutex_lock(&screenMutex);
+  dispatchTouchKeyGesture(33, false);
+  dispatchTouchKeyGesture(0, true);
+  pthread_mutex_unlock(&screenMutex);
+  TEST_ASSERT(mock_processed_key_count == 6 && key_pop() == 33 && key_pop() == 0,
+              "Busy-core gestures must enqueue into DMCP FIFO without calling processKeyCode directly");
+
+  // 6. External Activity teardown via notifyCoreShutdownRequested() sets shutdown + STAT_PGM_END without saveCalc() or triggerQuit().
+  programRunStop = PGM_RUNNING;
+  backToDMCP = true;
+  notifyCoreShutdownRequested();
+  TEST_ASSERT(isCoreShutdownRequested(), "notifyCoreShutdownRequested must set g_coreShutdownRequested");
+  TEST_ASSERT(ST(STAT_PGM_END) != 0, "notifyCoreShutdownRequested must set STAT_PGM_END");
+  TEST_ASSERT(programRunStop == PGM_WAITING, "notifyCoreShutdownRequested must transition PGM_RUNNING to PGM_WAITING");
+
+  pthread_mutex_lock(&screenMutex);
+  TEST_ASSERT(!handlePendingPowerOffLocked(), "External shutdown teardown must return false from handlePendingPowerOffLocked");
+  pthread_mutex_unlock(&screenMutex);
+  TEST_ASSERT(mock_save_calc_count == 3 && mock_trigger_quit_count == 4,
+              "External shutdown teardown must not invoke saveCalc or triggerQuit inside handlePendingPowerOffLocked");
+
+  ram = NULL;
+  resetMockKeyRuntimeState();
+}
+
+typedef struct {
+  atomic_bool lockedReady;
+  atomic_bool finished;
+  atomic_int  framesPushed;
+} lcdConcurrencyWorkerState_t;
+
+typedef struct {
+  atomic_bool overlayReady;
+  atomic_bool releaseMutex;
+} lcdOverlayWorkerState_t;
+
+/**
+ * Sleeps for the requested duration in milliseconds using wall-clock nanosleep.
+ */
+static void hostSleepMs(uint32_t ms) {
+  struct timespec req = {
+    .tv_sec  = (time_t)(ms / 1000u),
+    .tv_nsec = (long)(ms % 1000u) * 1000000L
+  };
+  struct timespec rem = {0, 0};
+  while(nanosleep(&req, &rem) == -1 && errno == EINTR) {
+    req = rem;
+  }
+}
+
+/**
+ * Returns monotonic clock time in nanoseconds using integer arithmetic.
+ */
+static uint64_t hostMonotonicNs(void) {
+  struct timespec ts = {0, 0};
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
+}
+
+/**
+ * Simulates a long core operation (such as FACTORS) that owns screenMutex continuously for ~80 ms while pushing distinct full frames.
+ */
+static void *lcdFullFrameProducerThread(void *arg) {
+  lcdConcurrencyWorkerState_t *state = (lcdConcurrencyWorkerState_t *)arg;
+  static const uint8_t framePatterns[4] = {0x00u, 0xFFu, 0xAAu, 0x55u};
+
+  pthread_mutex_lock(&screenMutex);
+  atomic_store(&state->lockedReady, true);
+
+  for(int frame = 0; frame < 20; frame++) {
+    const uint8_t pat = framePatterns[frame & 3];
+    for(int r = 0; r < SCREEN_HEIGHT; r++) {
+      lcd_buffer[r * 52] = 1u;
+      lcd_buffer[r * 52 + 1] = (uint8_t)(SCREEN_HEIGHT - r - 1);
+      memset(&lcd_buffer[r * 52 + 2], pat, 50);
+    }
+    lcd_refresh();
+    atomic_fetch_add(&state->framesPushed, 1);
+    hostSleepMs(4u);
+  }
+
+  pthread_mutex_unlock(&screenMutex);
+  atomic_store(&state->finished, true);
+  return NULL;
+}
+
+/**
+ * Pushes a direct overlay scanline via LCD_write_line while owning screenMutex until the main thread signals completion.
+ */
+static void *lcdOverlayProducerThread(void *arg) {
+  lcdOverlayWorkerState_t *state = (lcdOverlayWorkerState_t *)arg;
+  uint8_t overlayLine[52];
+
+  pthread_mutex_lock(&screenMutex);
+  lcd_clear_buf();
+  overlayLine[0] = 1u;
+  overlayLine[1] = (uint8_t)(SCREEN_HEIGHT - 1);
+  memset(&overlayLine[2], 0xF0u, 50);
+  LCD_write_line(overlayLine);
+  atomic_store(&state->overlayReady, true);
+
+  while(!atomic_load(&state->releaseMutex)) {
+    hostSleepMs(1u);
+  }
+  pthread_mutex_unlock(&screenMutex);
+  return NULL;
+}
+
+/**
+ * Checks that all 96000 pixels in pixels[] belong to one palette and match one uniform 8-bit scanline pattern across all 240 rows.
+ */
+static bool verifyCoherentNonTornFrame(const jint *pixels, uint8_t *outPattern) {
+  const uint32_t vintageFg = 0xFF303030u;
+  const uint32_t vintageBg = 0xFFDFF5CCu;
+  const uint32_t bwFg      = 0xFF000000u;
+  const uint32_t bwBg      = 0xFFE0E0E0u;
+
+  const uint32_t p0 = (uint32_t)pixels[0];
+  uint32_t fg = 0u;
+  uint32_t bg = 0u;
+  if(p0 == vintageFg || p0 == vintageBg) {
+    fg = vintageFg;
+    bg = vintageBg;
+  } else if(p0 == bwFg || p0 == bwBg) {
+    fg = bwFg;
+    bg = bwBg;
+  } else {
+    return false;
+  }
+
+  uint8_t detectedPattern = 0u;
+  for(int bit = 0; bit < 8; bit++) {
+    const uint32_t px = (uint32_t)pixels[bit];
+    if(px == fg) {
+      detectedPattern |= (uint8_t)(1u << (7 - bit));
+    } else if(px != bg) {
+      return false;
+    }
+  }
+
+  if(detectedPattern != 0x00u && detectedPattern != 0xFFu && detectedPattern != 0xAAu && detectedPattern != 0x55u) {
+    return false;
+  }
+
+  for(int idx = 0; idx < SCREEN_WIDTH * SCREEN_HEIGHT; idx += 8) {
+    for(int bit = 0; bit < 8; bit++) {
+      const uint32_t expected = (detectedPattern & (1u << (7 - bit))) ? fg : bg;
+      if((uint32_t)pixels[idx + bit] != expected) {
+        return false;
+      }
+    }
+  }
+
+  *outPattern = detectedPattern;
+  return true;
+}
+
+/**
+ * Verifies real hal/lcd.c multi-threaded pixel delivery, non-tearing, EBUSY trylock latency, and setLcdColors safety while screenMutex is locked.
+ */
+void test_lcd_pixel_mutex_concurrency_under_locked_screen_mutex(void) {
+  static jint outPixels[SCREEN_WIDTH * SCREEN_HEIGHT];
+  static struct JNINativeInterface jniTable;
+  memset(&jniTable, 0, sizeof(jniTable));
+  jniTable.SetIntArrayRegion = mockJniSetIntArrayRegion;
+  JNIEnv envTable = &jniTable;
+  JNIEnv *env = &envTable;
+
+  const jint vintageFg = (jint)0xFF303030u;
+  const jint vintageBg = (jint)0xFFDFF5CCu;
+  const jint bwFg      = (jint)0xFF000000u;
+  const jint bwBg      = (jint)0xFFE0E0E0u;
+
+  init_lcd_buffers();
+  Java_org_rpncalculators_r47_MainActivity_setLcdColors(env, NULL, vintageFg, vintageBg);
+  lcd_clear_buf();
+  (void)copyDirtyDisplayPixels(env, (jintArray)outPixels);
+
+  // Phase 1: Continuous ~80 ms background screenMutex ownership with live lcd_refresh frames and concurrent UI polling + setLcdColors.
+  lcdConcurrencyWorkerState_t workerState;
+  atomic_init(&workerState.lockedReady, false);
+  atomic_init(&workerState.finished, false);
+  atomic_init(&workerState.framesPushed, 0);
+
+  pthread_t workerThread;
+  TEST_ASSERT(pthread_create(&workerThread, NULL, lcdFullFrameProducerThread, &workerState) == 0,
+              "Background core simulation thread must start");
+
+  while(!atomic_load(&workerState.lockedReady)) {
+    hostSleepMs(1u);
+  }
+
+  int busyTrylockCount = 0;
+  int liveFramesWhileLocked = 0;
+  uint32_t observedPatternMask = 0u;
+  int paletteToggleStep = 0;
+
+  while(!atomic_load(&workerState.finished)) {
+    const uint64_t t0 = hostMonotonicNs();
+    const int trylockRc = pthread_mutex_trylock(&screenMutex);
+    const uint64_t trylockNs = hostMonotonicNs() - t0;
+
+    if(trylockRc == 0) {
+      pthread_mutex_unlock(&screenMutex);
+      break;
+    }
+
+    TEST_ASSERT(trylockRc == EBUSY, "pthread_mutex_trylock on locked screenMutex must return EBUSY");
+    TEST_ASSERT(trylockNs < 5000000ULL, "pthread_mutex_trylock must return within 5 ms without blocking UI thread");
+    busyTrylockCount++;
+
+    const uint64_t copyStartNs = hostMonotonicNs();
+    const bool copied = copyDirtyDisplayPixels(env, (jintArray)outPixels);
+    const uint64_t copyElapsedNs = hostMonotonicNs() - copyStartNs;
+    TEST_ASSERT(copyElapsedNs < 15000000ULL, "copyDirtyDisplayPixels must complete promptly while screenMutex is locked");
+
+    if(copied) {
+      uint8_t framePattern = 0u;
+      TEST_ASSERT(verifyCoherentNonTornFrame(outPixels, &framePattern),
+                  "Copied frame must be tear-free and palette-coherent across all 240 scanlines");
+      liveFramesWhileLocked++;
+      if(framePattern == 0x00u) {
+        observedPatternMask |= 1u;
+      } else if(framePattern == 0xFFu) {
+        observedPatternMask |= 2u;
+      } else if(framePattern == 0xAAu) {
+        observedPatternMask |= 4u;
+      } else if(framePattern == 0x55u) {
+        observedPatternMask |= 8u;
+      }
+
+      paletteToggleStep++;
+      if((paletteToggleStep % 3) == 0) {
+        const bool useBw = ((paletteToggleStep / 3) & 1) != 0;
+        const uint64_t colorStartNs = hostMonotonicNs();
+        Java_org_rpncalculators_r47_MainActivity_setLcdColors(env, NULL, useBw ? bwFg : vintageFg, useBw ? bwBg : vintageBg);
+        const uint64_t colorElapsedNs = hostMonotonicNs() - colorStartNs;
+        TEST_ASSERT(colorElapsedNs < 15000000ULL, "setLcdColors must recolour screenData without blocking on screenMutex");
+      }
+    }
+
+    hostSleepMs(2u);
+  }
+
+  pthread_join(workerThread, NULL);
+  TEST_ASSERT(busyTrylockCount >= 5, "Main thread must observe EBUSY on screenMutex across multiple UI poll cycles");
+  TEST_ASSERT(liveFramesWhileLocked >= 4, "copyDirtyDisplayPixels must deliver live frame updates while screenMutex remains locked");
+  TEST_ASSERT(observedPatternMask != 0u && (observedPatternMask & (observedPatternMask - 1u)) != 0u,
+              "Main thread must observe at least two distinct live frame patterns while screenMutex is locked");
+
+  // Phase 2: Direct LCD_write_line overlay scanline + setLcdColors recolouring while screenMutex remains locked, plus lcd_refresh_lines bounds clamp.
+  Java_org_rpncalculators_r47_MainActivity_setLcdColors(env, NULL, vintageFg, vintageBg);
+  lcdOverlayWorkerState_t overlayState;
+  atomic_init(&overlayState.overlayReady, false);
+  atomic_init(&overlayState.releaseMutex, false);
+
+  pthread_t overlayThread;
+  TEST_ASSERT(pthread_create(&overlayThread, NULL, lcdOverlayProducerThread, &overlayState) == 0,
+              "Overlay producer thread must start");
+  while(!atomic_load(&overlayState.overlayReady)) {
+    hostSleepMs(1u);
+  }
+
+  TEST_ASSERT(pthread_mutex_trylock(&screenMutex) == EBUSY, "Overlay thread must keep screenMutex locked");
+  TEST_ASSERT(copyDirtyDisplayPixels(env, (jintArray)outPixels), "Overlay scanline written via LCD_write_line must mark screenDataDirty");
+  for(int col = 0; col < 4; col++) {
+    TEST_ASSERT(outPixels[col] == vintageFg, "Overlay 0xF0 upper nibble must render with vintage foreground");
+    TEST_ASSERT(outPixels[col + 4] == vintageBg, "Overlay 0xF0 lower nibble must render with vintage background");
+  }
+  TEST_ASSERT(outPixels[SCREEN_WIDTH] == vintageBg, "Non-overlay scanline must remain vintage background");
+
+  Java_org_rpncalculators_r47_MainActivity_setLcdColors(env, NULL, bwFg, bwBg);
+  TEST_ASSERT(copyDirtyDisplayPixels(env, (jintArray)outPixels), "setLcdColors must mark screenDataDirty after recolouring");
+  for(int col = 0; col < 4; col++) {
+    TEST_ASSERT(outPixels[col] == bwFg, "setLcdColors must recolour LCD_write_line overlay foreground to BW palette");
+    TEST_ASSERT(outPixels[col + 4] == bwBg, "setLcdColors must recolour LCD_write_line overlay background to BW palette");
+  }
+  TEST_ASSERT(outPixels[SCREEN_WIDTH] == bwBg, "setLcdColors must recolour non-overlay scanlines to BW background");
+
+  atomic_store(&overlayState.releaseMutex, true);
+  pthread_join(overlayThread, NULL);
+
+  // Verify lcd_refresh_lines clamps ln + cnt > 255 / SCREEN_HEIGHT to rows 235..239 without touching row 234 or wrapping uint8_t.
+  lcd_clear_buf();
+  (void)copyDirtyDisplayPixels(env, (jintArray)outPixels);
+  for(uint32_t r = 235u; r < SCREEN_HEIGHT; r++) {
+    lcd_buffer[r * 52] = 1u;
+    lcd_buffer[r * 52 + 1] = (uint8_t)(SCREEN_HEIGHT - r - 1);
+    memset(&lcd_buffer[r * 52 + 2], 0xFFu, 50);
+  }
+  lcd_refresh_lines(235u, 25u);
+  TEST_ASSERT(copyDirtyDisplayPixels(env, (jintArray)outPixels), "lcd_refresh_lines(235, 25) must mark screenDataDirty");
+  TEST_ASSERT(outPixels[234 * SCREEN_WIDTH] == bwBg && outPixels[235 * SCREEN_WIDTH] == bwFg && outPixels[239 * SCREEN_WIDTH] == bwFg,
+              "lcd_refresh_lines(235, 25) must clamp to rows 235..239 without modifying row 234");
+  TEST_ASSERT(lcd_buffer[235 * 52] == 0u && lcd_buffer[239 * 52] == 0u,
+              "lcd_refresh_lines(235, 25) must clear per-row dirty bytes for rows 235..239");
+  lcd_refresh_lines(240u, 5u);
+  lcd_refresh_lines(0u, 0u);
+  TEST_ASSERT(!copyDirtyDisplayPixels(env, (jintArray)outPixels), "Out-of-range or zero-count lcd_refresh_lines must be a no-op");
+  Java_org_rpncalculators_r47_MainActivity_setLcdColors(env, NULL, vintageFg, vintageBg);
+}
+
 // --------------------------------------------------------------------------
 // MAIN RUNNER
 // --------------------------------------------------------------------------
@@ -2801,6 +3330,8 @@ int main(void) {
     RUN_TEST(test_state_save_and_restore_commands);
     RUN_TEST(test_execution_yielding_hooks);
     RUN_TEST(test_dmcp_key_queue_invariants);
+    RUN_TEST(test_power_off_and_system_exit_invariants);
+    RUN_TEST(test_lcd_pixel_mutex_concurrency_under_locked_screen_mutex);
     RUN_TEST(test_battery_and_disk_info);
     RUN_TEST(test_pip_mode_invariants);
     RUN_TEST(test_r47_last_key_code_mapping);

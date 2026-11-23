@@ -3,92 +3,6 @@
 #include <stdio.h>
 #include <string.h>
 
-typedef enum {
-  KEY_GESTURE_IDLE = 0,
-  KEY_GESTURE_QUEUED,
-  KEY_GESTURE_DIRECT
-} keyGestureMode_t;
-
-typedef struct {
-  keyGestureMode_t mode;
-  char keyStr[4];
-  bool isFn;
-} keyGestureState_t;
-
-static keyGestureState_t touchGesture = {KEY_GESTURE_IDLE, {0}, false};
-static keyGestureState_t simGesture   = {KEY_GESTURE_IDLE, {0}, false};
-
-/**
- * Resets tracked touch and physical-keyboard gesture states on runtime startup or session re-attachment.
- */
-void resetInputGestures(void) {
-  touchGesture.mode = KEY_GESTURE_IDLE;
-  touchGesture.keyStr[0] = '\0';
-  touchGesture.isFn = false;
-  simGesture.mode = KEY_GESTURE_IDLE;
-  simGesture.keyStr[0] = '\0';
-  simGesture.isFn = false;
-}
-
-/**
- * Routes a press or release event symmetrically for one input source while screenMutex is locked.
- * Presses arriving while the core is busy enqueue into hal/keys.c; overlapping rollover presses complete
- * the prior gesture first; releases match their press mode and suppress re-entrant btnReleased calls when
- * btnPressed synchronously launched a program or yield.
- */
-static void dispatchKeyGesture(keyGestureState_t *g, int dmcpCode, const char *keyStr, bool isFn, bool isRelease) {
-  const bool_t shouldQueue = shouldQueueInputToDmcp();
-  if(!isRelease) {
-    if(g->mode == KEY_GESTURE_QUEUED) {
-      key_push(0);
-      g->mode = KEY_GESTURE_IDLE;
-    } else if(g->mode == KEY_GESTURE_DIRECT) {
-      if(!shouldQueue) {
-        if(g->isFn) {
-          btnFnReleased(g->keyStr);
-        } else {
-          btnReleased(g->keyStr);
-        }
-      }
-      g->mode = KEY_GESTURE_IDLE;
-    }
-    if(dmcpCode < 1 || dmcpCode > 43 || keyStr == NULL || keyStr[0] == '\0') {
-      return;
-    }
-    snprintf(g->keyStr, sizeof(g->keyStr), "%s", keyStr);
-    g->isFn = isFn;
-    if(shouldQueue) {
-      g->mode = KEY_GESTURE_QUEUED;
-      key_push(dmcpCode);
-      return;
-    }
-    g->mode = KEY_GESTURE_DIRECT;
-    if(isFn) {
-      btnFnPressed(g->keyStr);
-    } else {
-      btnPressed(g->keyStr);
-    }
-    lcd_refresh();
-    return;
-  }
-
-  if(keyStr != NULL && g->mode != KEY_GESTURE_IDLE && (g->isFn != isFn || strcmp(g->keyStr, keyStr) != 0)) {
-    return;
-  }
-  const keyGestureMode_t prevMode = g->mode;
-  g->mode = KEY_GESTURE_IDLE;
-  if(prevMode == KEY_GESTURE_QUEUED) {
-    key_push(0);
-  } else if(prevMode == KEY_GESTURE_DIRECT && !shouldQueue) {
-    if(g->isFn) {
-      btnFnReleased(g->keyStr);
-    } else {
-      btnReleased(g->keyStr);
-    }
-    lcd_refresh();
-  }
-}
-
 JNIEXPORT void JNICALL
 Java_org_rpncalculators_r47_MainActivity_sendSimFuncNative(
     JNIEnv *env, jobject thiz, jint funcId) {
@@ -101,7 +15,11 @@ Java_org_rpncalculators_r47_MainActivity_sendSimFuncNative(
   if(!shouldQueueInputToDmcp()) {
     extern void runFunction(int16_t id);
     runFunction((int16_t)funcId);
+    if(!screenHoldsDrawnPixels && !graphToRemainOnScreen) {
+      refreshScreen(192);
+    }
     lcd_refresh();
+    (void)handlePendingPowerOffLocked();
   }
   pthread_mutex_unlock(&screenMutex);
 }
@@ -126,6 +44,7 @@ Java_org_rpncalculators_r47_MainActivity_sendSimMenuNative(
 
 JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_sendSimKeyNative(JNIEnv *env, jobject thiz, jstring keyId, jboolean isFn, jboolean isRelease) {
   (void)thiz;
+  (void)isFn;
   if(!ram || isCoreBlockingForIo) {
     return;
   }
@@ -136,9 +55,11 @@ JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_sendSimKeyNative
   }
 
   const int dmcpCode = parseCalculatorKeyId(nativeKeyId);
-  pthread_mutex_lock(&screenMutex);
-  dispatchKeyGesture(&simGesture, dmcpCode, nativeKeyId, isFn != JNI_FALSE, isRelease != JNI_FALSE);
-  pthread_mutex_unlock(&screenMutex);
+  if(dmcpCode > 0) {
+    pthread_mutex_lock(&screenMutex);
+    dispatchSimKeyGesture(dmcpCode, isRelease != JNI_FALSE);
+    pthread_mutex_unlock(&screenMutex);
+  }
   (*env)->ReleaseStringUTFChars(env, keyId, nativeKeyId);
 }
 
@@ -149,21 +70,17 @@ JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_sendKey(JNIEnv *
     return;
   }
 
-  char charKey[4];
-  bool isFn = false;
   onUIActivity();
 
   pthread_mutex_lock(&screenMutex);
-  if(keyCode > 0) {
-    if(formatCalculatorKeyId((int)keyCode, charKey, &isFn)) {
-      LOGI("sendKey: DOWN %d", keyCode);
-      dispatchKeyGesture(&touchGesture, (int)keyCode, charKey, isFn, false);
-    } else {
-      touchGesture.mode = KEY_GESTURE_IDLE;
-    }
-  } else {
+  if(keyCode >= 1 && keyCode <= 43) {
+    LOGI("sendKey: DOWN %d", keyCode);
+    dispatchTouchKeyGesture((int)keyCode, false);
+  } else if(keyCode <= 0) {
     LOGI("sendKey: UP");
-    dispatchKeyGesture(&touchGesture, 0, NULL, false, true);
+    dispatchTouchKeyGesture(0, true);
+  } else {
+    releaseTouchKeyGesture();
   }
   pthread_mutex_unlock(&screenMutex);
 }

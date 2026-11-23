@@ -127,7 +127,9 @@ JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_tick(
   JNIEnv *env, jobject thiz) {
   (void)env;
   (void)thiz;
-  uint32_t now = sys_current_ms();
+  if (!ram) {
+    return;
+  }
   if (pthread_mutex_trylock(&screenMutex) != 0) {
     return;
   }
@@ -135,15 +137,20 @@ JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_tick(
   if (!shouldQueueInputToDmcp() && !isCoreShutdownRequested()) {
     keyDispatchNow();
   }
+  uint32_t now = sys_current_ms();
   if (nextTimerRefresh != 0 && nextTimerRefresh <= now) {
     refreshTimer();
     lcd_refresh();
   }
+  now = sys_current_ms();
   if (nextScreenRefresh <= now) {
-    refreshLcd();
-    lcd_refresh();
-    nextScreenRefresh = now + 100;
+    nextScreenRefresh = now + SCREEN_REFRESH_PERIOD;
+    if ((calcMode != CM_TIMER) || (fnTimerGetStatus(TO_TIMER_APP) != TMR_RUNNING)) {
+      refreshLcd();
+      lcd_refresh();
+    }
   }
+  handlePendingPowerOffLocked();
 
   pthread_mutex_unlock(&screenMutex);
 }
@@ -235,9 +242,13 @@ Java_org_rpncalculators_r47_MainActivity_forceRefreshNative(
   }
 
   pthread_mutex_lock(&screenMutex);
-  refreshScreen(190);
-  refreshLcd();
-  lcd_refresh();
+  if (shouldQueueInputToDmcp() || screenHoldsDrawnPixels || graphToRemainOnScreen) {
+    lcd_forced_refresh();
+  } else {
+    refreshScreen(190);
+    refreshLcd();
+    lcd_forced_refresh();
+  }
   pthread_mutex_unlock(&screenMutex);
 }
 

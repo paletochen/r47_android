@@ -9,6 +9,7 @@ CFLAGS += $(shell pkg-config --cflags gtk+-3.0)
 SRC = test_android_invariants.c \
       ../../android/app/src/main/cpp/c47-android/hal/io.c \
       ../../android/app/src/main/cpp/c47-android/hal/keys.c \
+      ../../android/app/src/main/cpp/c47-android/hal/lcd.c \
       ../../android/app/src/main/cpp/c47-android/android_helpers.c \
       ../../android/app/src/main/cpp/c47-android/hal/print_ir.c
 
@@ -35,6 +36,13 @@ items_table_full.o: items_table_full.c
 keyboard_keycode.c: ../../src/c47/keyboard.c
 	(echo '#include "c47.h"'; echo 'extern uint8_t lastKeyCode;'; echo 'extern uint8_t calcModel;'; sed -n '/^void setLastKeyCode/,/^}/p' ../../src/c47/keyboard.c) > $@
 
+calcmode_off.c: ../../src/c47/calcMode.c ../../src/c47/config.c
+	(echo '#include "c47.h"'; \
+	 echo 'extern void setConfirmationMode(void (*func)(uint16_t));'; \
+	 awk '/^[[:space:]]*void fnOff\(/{p=1} p{print; d+=gsub(/\{/,"{")-gsub(/\}/,"}"); if(p && d==0) exit}' ../../src/c47/calcMode.c; \
+	 awk '/^void backToSystem\(/{p=1} p{print; d+=gsub(/\{/,"{")-gsub(/\}/,"}"); if(p && d==0) exit}' ../../src/c47/config.c) > $@
+	grep -q "void fnOff(" $@ && grep -q "void backToSystem(" $@
+
 save_restore_android.c: ../../src/c47/saveRestoreCalcState.c ../../build_android.sh
 	(echo '#include "c47.h"'; \
 	 echo '#include "hal/io.h"'; \
@@ -49,9 +57,9 @@ save_restore_android.c: ../../src/c47/saveRestoreCalcState.c ../../build_android
 		sed -i '/^void fnDeleteBackup(/,/^}/ s/#else \/\/ !DMCP_BUILD/#elif defined(ANDROID_BUILD)\n      extern int ioFileRemove(ioFilePath_t path, uint32_t *errorNumber);\n      uint32_t err;\n      ioFileRemove(ioPathManualSave, \&err);\n      ioFileRemove(ioPathAutoSave, \&err);\n    #else \/\/ !DMCP_BUILD/' $@; \
 	fi
 
-$(TARGET): items_android.c items_table_full.o keyboard_keycode.c save_restore_android.c $(SRC)
-	$(CC) $(CFLAGS) -o $@ $(SRC) items_table_full.o keyboard_keycode.c save_restore_android.c $(shell pkg-config --libs gtk+-3.0) -lm
+$(TARGET): items_android.c items_table_full.o keyboard_keycode.c calcmode_off.c save_restore_android.c $(SRC)
+	$(CC) $(CFLAGS) -o $@ $(SRC) items_table_full.o keyboard_keycode.c calcmode_off.c save_restore_android.c $(shell pkg-config --libs gtk+-3.0) -lm
 
 clean:
-	rm -f $(TARGET) items_android.c items_table_full.c items_table_full.o keyboard_keycode.c save_restore_android.c *.o
+	rm -f $(TARGET) items_android.c items_table_full.c items_table_full.o keyboard_keycode.c calcmode_off.c save_restore_android.c *.o
 

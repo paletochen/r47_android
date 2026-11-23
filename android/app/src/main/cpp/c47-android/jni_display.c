@@ -1304,10 +1304,12 @@ Java_org_rpncalculators_r47_MainActivity_isProgramModeNative(
   if (!ram || isCoreBlockingForIo) {
     return JNI_FALSE;
   }
-  pthread_mutex_lock(&screenMutex);
-  bool pem = isProgramMode();
-  pthread_mutex_unlock(&screenMutex);
-  return pem ? JNI_TRUE : JNI_FALSE;
+  if (pthread_mutex_trylock(&screenMutex) == 0) {
+    bool pem = !shouldQueueInputToDmcp() && isProgramMode();
+    pthread_mutex_unlock(&screenMutex);
+    return pem ? JNI_TRUE : JNI_FALSE;
+  }
+  return JNI_FALSE;
 }
 
 JNIEXPORT jstring JNICALL
@@ -1336,13 +1338,10 @@ Java_org_rpncalculators_r47_MainActivity_getButtonLabelNative(JNIEnv *env,
                                                               jint type,
                                                               jboolean isDynamic) {
   (void)thiz;
-  if (!ram) {
+  if (!ram || keyCode < 1 || keyCode > 37) {
     return (*env)->NewStringUTF(env, "");
   }
-
-  pthread_mutex_lock(&screenMutex);
-  if (keyCode < 1 || keyCode > 37) {
-    pthread_mutex_unlock(&screenMutex);
+  if (pthread_mutex_trylock(&screenMutex) != 0) {
     return (*env)->NewStringUTF(env, "");
   }
 
@@ -1365,8 +1364,10 @@ Java_org_rpncalculators_r47_MainActivity_getSoftkeyLabelNative(JNIEnv *env,
   if (!ram || fnKeyIndex < 1 || fnKeyIndex > 6) {
     return (*env)->NewStringUTF(env, "");
   }
+  if (pthread_mutex_trylock(&screenMutex) != 0) {
+    return (*env)->NewStringUTF(env, "");
+  }
 
-  pthread_mutex_lock(&screenMutex);
   char label[64] = {0};
   bool_t enabled = false;
   resolveSoftkeyLabel(fnKeyIndex, label, sizeof(label), &enabled);
@@ -1383,18 +1384,19 @@ Java_org_rpncalculators_r47_MainActivity_getKeyboardStateNative(JNIEnv *env,
   if (!ram) {
     return NULL;
   }
-
-  pthread_mutex_lock(&screenMutex);
-  jintArray result = (*env)->NewIntArray(env, 5);
-  if (result == NULL) {
-    pthread_mutex_unlock(&screenMutex);
+  if (pthread_mutex_trylock(&screenMutex) != 0) {
     return NULL;
   }
 
   jint fill[5];
   fillKeyboardState(fill);
-  (*env)->SetIntArrayRegion(env, result, 0, 5, fill);
   pthread_mutex_unlock(&screenMutex);
+
+  jintArray result = (*env)->NewIntArray(env, 5);
+  if (result == NULL) {
+    return NULL;
+  }
+  (*env)->SetIntArrayRegion(env, result, 0, 5, fill);
   return result;
 }
 
@@ -1404,21 +1406,23 @@ Java_org_rpncalculators_r47_MainActivity_getKeypadMetaNative(JNIEnv *env,
                                                              jboolean isDynamicShift,
                                                              jboolean isDynamicUser) {
   (void)thiz;
-  jintArray result = (*env)->NewIntArray(env, KEYPAD_META_LENGTH);
-  if (result == NULL) {
+  if (!ram) {
+    return NULL;
+  }
+  if (pthread_mutex_trylock(&screenMutex) != 0) {
     return NULL;
   }
 
   jint fill[KEYPAD_META_LENGTH];
   memset(fill, 0, sizeof(fill));
-  if (ram) {
-    pthread_mutex_lock(&screenMutex);
-    g_isDynamicShiftEnabled = isDynamicShift;
-    fillKeypadMeta(fill, isDynamicShift, isDynamicUser);
-    pthread_mutex_unlock(&screenMutex);
+  g_isDynamicShiftEnabled = isDynamicShift;
+  fillKeypadMeta(fill, isDynamicShift, isDynamicUser);
+  pthread_mutex_unlock(&screenMutex);
+
+  jintArray result = (*env)->NewIntArray(env, KEYPAD_META_LENGTH);
+  if (result == NULL) {
+    return NULL;
   }
-
-
   (*env)->SetIntArrayRegion(env, result, 0, KEYPAD_META_LENGTH, fill);
   return result;
 }
@@ -1429,9 +1433,16 @@ Java_org_rpncalculators_r47_MainActivity_getKeypadLabelsNative(JNIEnv *env,
                                                                jboolean isDynamicShift,
                                                                jboolean isDynamicUser) {
   (void)thiz;
+  if (!ram) {
+    return NULL;
+  }
+  if (pthread_mutex_trylock(&screenMutex) != 0) {
+    return NULL;
+  }
 
   jclass stringClass = (*env)->FindClass(env, "java/lang/String");
   if (stringClass == NULL) {
+    pthread_mutex_unlock(&screenMutex);
     return NULL;
   }
 
@@ -1441,15 +1452,10 @@ Java_org_rpncalculators_r47_MainActivity_getKeypadLabelsNative(JNIEnv *env,
   (*env)->DeleteLocalRef(env, stringClass);
   if (result == NULL) {
     (*env)->DeleteLocalRef(env, empty);
+    pthread_mutex_unlock(&screenMutex);
     return NULL;
   }
 
-  if (!ram) {
-    (*env)->DeleteLocalRef(env, empty);
-    return result;
-  }
-
-  pthread_mutex_lock(&screenMutex);
   g_isDynamicShiftEnabled = isDynamicShift;
   __android_log_print(ANDROID_LOG_INFO, "R47Native", "getKeypadLabelsNative: isDynamicShift=%d, isDynamicUser=%d", isDynamicShift, isDynamicUser);
   bool_t alphaOn = isAlphaKeyboardActive();
@@ -1488,22 +1494,7 @@ Java_org_rpncalculators_r47_MainActivity_getDisplayPixels(
   if (!g_mainActivityObj || !(*env)->IsSameObject(env, thiz, g_mainActivityObj)) {
     return;
   }
-  if (!screenData) {
-    return;
-  }
-
-  extern bool screenDataDirty;
-  if (!screenDataDirty) {
-    return;
-  }
-
-  if (pthread_mutex_trylock(&screenMutex) != 0) {
-    return;
-  }
-
-  (*env)->SetIntArrayRegion(env, pixels, 0, 400 * 240, (jint *)screenData);
-  screenDataDirty = false;
-  pthread_mutex_unlock(&screenMutex);
+  copyDirtyDisplayPixels(env, pixels);
 }
 
 void LCD_power_on(void) {}

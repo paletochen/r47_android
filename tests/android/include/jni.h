@@ -69,6 +69,8 @@ struct JNINativeInterface {
     jobject (*NewGlobalRef)(JNIEnv *, jobject);
     void (*DeleteGlobalRef)(JNIEnv *, jobject);
     void (*DeleteLocalRef)(JNIEnv *, jobject);
+    jboolean (*IsSameObject)(JNIEnv *, jobject, jobject);
+    void (*SetIntArrayRegion)(JNIEnv *, jintArray, jsize, jsize, const jint *);
     void (*CallVoidMethod)(JNIEnv *, jobject, jmethodID, ...);
     jint (*CallIntMethod)(JNIEnv *, jobject, jmethodID, ...);
     jobject (*CallObjectMethod)(JNIEnv *, jobject, jmethodID, ...);

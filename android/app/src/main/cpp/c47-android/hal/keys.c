@@ -35,6 +35,20 @@ static uint32_t        g_lastKeyPollMs         = 0;
 static atomic_int      g_inCoreYield           = 0;
 static atomic_bool     g_coreShutdownRequested = false;
 
+typedef enum {
+  KEY_GESTURE_IDLE = 0,
+  KEY_GESTURE_QUEUED,
+  KEY_GESTURE_DIRECT
+} keyGestureMode_t;
+
+typedef struct {
+  keyGestureMode_t mode;
+  int dmcpCode;
+} keyGestureState_t;
+
+static keyGestureState_t touchGesture = {KEY_GESTURE_IDLE, 0};
+static keyGestureState_t simGesture   = {KEY_GESTURE_IDLE, 0};
+
 static bool_t pushLocked(int key) {
   // Reserve the final slot for a matching 0 release so every accepted press can record its release.
   const int limit = (key > 0) ? (KEY_BUFFER_SIZE - 1) : KEY_BUFFER_SIZE;
@@ -161,11 +175,40 @@ void notifyCoreShutdownRequested(void) {
 }
 
 /**
- * Clears the shutdown latch and STAT_PGM_END when starting or re-attaching a fresh core session.
+ * Saves calculator state and requests app exit when an interactive or programmed OFF or SYSTEM command sets STAT_PGM_END or backToDMCP without an external
+ * Activity teardown in progress. Must run while screenMutex is locked.
+ */
+bool handlePendingPowerOffLocked(void) {
+  if(!isCoreShutdownRequested() && (ST(STAT_PGM_END) || backToDMCP)) {
+    CLR_ST(STAT_PGM_END);
+    CLR_ST(STAT_SUSPENDED);
+    CLR_ST(STAT_OFF);
+    backToDMCP = false;
+    if(programRunStop == PGM_RUNNING || programRunStop == PGM_PAUSED) {
+      programRunStop = PGM_WAITING;
+    }
+    key_pop_all();
+    clearKeyBuffer();
+    resetInputGestures();
+    if(ram != NULL) {
+      saveCalc();
+    }
+    lcd_refresh();
+    triggerQuit();
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Clears the shutdown latch and power-off flags when starting or re-attaching a fresh core session.
  */
 void clearCoreShutdownRequested(void) {
   atomic_store(&g_coreShutdownRequested, false);
   CLR_ST(STAT_PGM_END);
+  CLR_ST(STAT_SUSPENDED);
+  CLR_ST(STAT_OFF);
+  backToDMCP = false;
 }
 
 /**
@@ -504,16 +547,96 @@ void keyPushPcEvent(const GdkEventKey *event, bool_t press) {
 }
 
 /**
- * Moves idle queued keys into kb_buffer_t and dispatches each one via processKeyCode.
+ * Resets tracked touch and physical-keyboard gesture states on runtime startup or session re-attachment.
+ */
+void resetInputGestures(void) {
+  touchGesture.mode = KEY_GESTURE_IDLE;
+  touchGesture.dmcpCode = 0;
+  simGesture.mode = KEY_GESTURE_IDLE;
+  simGesture.dmcpCode = 0;
+}
+
+static void releaseKeyGestureLocked(keyGestureState_t *g) {
+  const keyGestureMode_t prevMode = g->mode;
+  g->mode = KEY_GESTURE_IDLE;
+  g->dmcpCode = 0;
+  if(prevMode == KEY_GESTURE_QUEUED) {
+    key_push(0);
+  } else if(prevMode == KEY_GESTURE_DIRECT && !shouldQueueInputToDmcp()) {
+    processKeyCode(0);
+  }
+}
+
+/**
+ * Routes a press or release event symmetrically for one input source while screenMutex is locked. Presses arriving while the core is busy enqueue into
+ * hal/keys.c; direct presses and releases execute processKeyCode so LCD refresh, TO_KB_ACTV timers, and PEM shift cleanup match mainLoop; overlapping rollover
+ * presses complete the prior gesture first; and any pending OFF or SYSTEM state is handled.
+ */
+static void dispatchKeyGestureLocked(keyGestureState_t *g, keyGestureState_t *other, int dmcpCode, bool isRelease) {
+  if(!isRelease) {
+    releaseKeyGestureLocked(g);
+    releaseKeyGestureLocked(other);
+    if(dmcpCode < 1 || dmcpCode > 43) {
+      (void)handlePendingPowerOffLocked();
+      return;
+    }
+    if(shouldQueueInputToDmcp()) {
+      g->mode = KEY_GESTURE_QUEUED;
+      g->dmcpCode = dmcpCode;
+      key_push(dmcpCode);
+      return;
+    }
+    g->mode = KEY_GESTURE_DIRECT;
+    g->dmcpCode = dmcpCode;
+    processKeyCode(dmcpCode);
+    (void)handlePendingPowerOffLocked();
+    return;
+  }
+
+  if(dmcpCode > 0 && g->mode != KEY_GESTURE_IDLE && g->dmcpCode != dmcpCode) {
+    return;
+  }
+  releaseKeyGestureLocked(g);
+  (void)handlePendingPowerOffLocked();
+}
+
+/**
+ * Routes a touch-keypad press or release event while screenMutex is locked.
+ */
+void dispatchTouchKeyGesture(int dmcpCode, bool isRelease) {
+  dispatchKeyGestureLocked(&touchGesture, &simGesture, dmcpCode, isRelease);
+}
+
+/**
+ * Routes a physical-keyboard press or release event while screenMutex is locked.
+ */
+void dispatchSimKeyGesture(int dmcpCode, bool isRelease) {
+  dispatchKeyGestureLocked(&simGesture, &touchGesture, dmcpCode, isRelease);
+}
+
+/**
+ * Releases any active touch-keypad gesture cleanly while screenMutex is locked.
+ */
+void releaseTouchKeyGesture(void) {
+  releaseKeyGestureLocked(&touchGesture);
+  (void)handlePendingPowerOffLocked();
+}
+
+/**
+ * Moves idle queued keys into kb_buffer_t and dispatches each one via processKeyCode, stopping immediately if OFF or SYSTEM triggers exit.
  */
 void keyDispatchNow(void) {
   uint8_t key;
   for(;;) {
     keyBuffer_pop();
     if(outKeyBuffer(&key) != BUFFER_SUCCESS) {
+      (void)handlePendingPowerOffLocked();
       return;
     }
     processKeyCode(key);
     lcd_refresh();
+    if(handlePendingPowerOffLocked()) {
+      return;
+    }
   }
 }

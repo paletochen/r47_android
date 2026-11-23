@@ -1,31 +1,29 @@
-#include "c47.h"
-#include <jni.h>
+#if !defined(LOG_TAG)
+#define LOG_TAG "R47Lcd"
+#endif // !defined(LOG_TAG)
+
+#include "jni_bridge.h"
 #include <string.h>
 #include <stdlib.h>
-#include <android/log.h>
-
-#ifndef LOG_TAG
-#define LOG_TAG "R47Lcd"
-#endif
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 
 // Android specific globals for display
 uint32_t *screenData = NULL; // ARGB8888 buffer: 400x240
 extern uint8_t *lcd_buffer; // Defined in c47.c
 
-// Dirty flags for Kotlin layer
-bool screenDataDirty = false;
+// Pixel state guarded by lcdPixelMutex (lock order: screenMutex -> lcdPixelMutex)
+static bool screenDataDirty = false;
+static pthread_mutex_t lcdPixelMutex = PTHREAD_MUTEX_INITIALIZER;
 
 // bits=1 -> BACKGROUND (Light), bits=0 -> TEXT (Dark)
-uint32_t textPixel = 0xFF303030;       // Default Black-ish
-uint32_t backgroundPixel = 0xFFDFF5CC; // Default Vintage BG
+static uint32_t textPixel = 0xFF303030;       // Default Black-ish
+static uint32_t backgroundPixel = 0xFFDFF5CC; // Default Vintage BG
 
 // Precomputed lookup table for 8-pixel expansion
 // Converts 1 byte (8 bits) into 8 uint32_t pixels
 static uint32_t pixelLookup[256][8];
 static bool lookupInitialized = false;
 
-static void updateLookupTable() {
+static void updateLookupTableLocked(void) {
     for (int i = 0; i < 256; i++) {
         for (int j = 0; j < 8; j++) {
             // R47 core bit-order: Bit 0 is the RIGHTMOST pixel in the 8-pixel segment.
@@ -38,42 +36,102 @@ static void updateLookupTable() {
     screenDataDirty = true;
 }
 
+/**
+ * Expands one 52-byte 1-bpp scanline record into ARGB8888 screenData while lcdPixelMutex is locked.
+ */
+static void writeLineLocked(uint8_t *line_buf, bool clearDirtyByte) {
+  if(!screenData || !lookupInitialized) {
+    return;
+  }
+  int row = line_buf[1];
+  if(row < 0 || row >= SCREEN_HEIGHT) {
+    return;
+  }
+
+  uint32_t *lineStart = screenData + (SCREEN_HEIGHT - row - 1) * SCREEN_WIDTH;
+  for(int i = 0; i < 50; i++) {
+    uint8_t val = line_buf[i + 2];
+    uint32_t *chunk = pixelLookup[val];
+    uint32_t *dest = lineStart + (49 - i) * 8;
+    memcpy(dest, chunk, 8 * sizeof(uint32_t));
+  }
+  if(clearDirtyByte) {
+    line_buf[0] = 0u;
+  }
+  screenDataDirty = true;
+}
+
 JNIEXPORT void JNICALL
 Java_org_rpncalculators_r47_MainActivity_setLcdColors(JNIEnv* env,
                                                       jobject thiz,
                                                       jint text,
                                                       jint bg) {
-    textPixel = (uint32_t)text;
-    backgroundPixel = (uint32_t)bg;
-    updateLookupTable();
-    // Force a full redraw of screenData from lcd_buffer
-    if (lcd_buffer) {
-        for (int r=0; r<SCREEN_HEIGHT; r++) {
-            lcd_buffer[r*52] = 1u; // Mark all rows dirty
-        }
-        lcd_refresh();
+  (void)env;
+  (void)thiz;
+  pthread_mutex_lock(&lcdPixelMutex);
+  const uint32_t prevText = textPixel;
+  const uint32_t prevBg = backgroundPixel;
+  textPixel = (uint32_t)text;
+  backgroundPixel = (uint32_t)bg;
+  updateLookupTableLocked();
+  if(screenData) {
+    if(prevText != prevBg) {
+      for(int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++) {
+        screenData[i] = (screenData[i] == prevText) ? textPixel : backgroundPixel;
+      }
+      screenDataDirty = true;
+    } else if(lcd_buffer) {
+      for(int r = 0; r < SCREEN_HEIGHT; r++) {
+        writeLineLocked(&lcd_buffer[r * 52], false);
+      }
     }
+  }
+  pthread_mutex_unlock(&lcdPixelMutex);
 }
 
 void init_lcd_buffers() {
-    if (!screenData) {
-        screenData = (uint32_t*)malloc(SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(uint32_t));
-    }
-    
-    if (!lookupInitialized) {
-        updateLookupTable();
-    }
+  pthread_mutex_lock(&lcdPixelMutex);
+  if(!screenData) {
+    screenData = (uint32_t *)malloc(SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(uint32_t));
+  }
 
-    for(int i=0; i<SCREEN_WIDTH*SCREEN_HEIGHT; i++) screenData[i] = backgroundPixel;
+  if(!lookupInitialized) {
+    updateLookupTableLocked();
+  }
 
-    if (!lcd_buffer) {
-        lcd_buffer = (uint8_t*)malloc(SCREEN_HEIGHT * 52);
-        memset(lcd_buffer, 255, SCREEN_HEIGHT * 52);
-        for(int r=0; r<SCREEN_HEIGHT; r++) {
-            lcd_buffer[r*52] = 1u; // Dirty
-            lcd_buffer[r*52 + 1] = SCREEN_HEIGHT - r - 1; 
-        }
+  if(screenData) {
+    for(int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++) {
+      screenData[i] = backgroundPixel;
     }
+    screenDataDirty = true;
+  }
+
+  if(!lcd_buffer) {
+    lcd_buffer = (uint8_t *)malloc(SCREEN_HEIGHT * 52);
+    if(lcd_buffer) {
+      memset(lcd_buffer, 255, SCREEN_HEIGHT * 52);
+      for(int r = 0; r < SCREEN_HEIGHT; r++) {
+        lcd_buffer[r * 52] = 1u;  // Dirty
+        lcd_buffer[r * 52 + 1] = SCREEN_HEIGHT - r - 1;
+      }
+    }
+  }
+  pthread_mutex_unlock(&lcdPixelMutex);
+}
+
+/**
+ * Copies screenData into pixels under lcdPixelMutex when dirty, without contending on screenMutex.
+ */
+bool copyDirtyDisplayPixels(JNIEnv *env, jintArray pixels) {
+  pthread_mutex_lock(&lcdPixelMutex);
+  if(!screenData || !screenDataDirty) {
+    pthread_mutex_unlock(&lcdPixelMutex);
+    return false;
+  }
+  (*env)->SetIntArrayRegion(env, pixels, 0, SCREEN_WIDTH * SCREEN_HEIGHT, (const jint *)screenData);
+  screenDataDirty = false;
+  pthread_mutex_unlock(&lcdPixelMutex);
+  return true;
 }
 
 uint8_t * lcd_line_addr (int row) {
@@ -95,29 +153,14 @@ bool_t lcd_buffer_pixel_on(uint32_t x, uint32_t y) {
 }
 
 void LCD_write_line (uint8_t *line_buf) {
-  if (!screenData || !lookupInitialized) return;
-  int i, row = line_buf[1];
-  if (row < 0 || row >= SCREEN_HEIGHT) return;
-  
-  // Mapping core row to Android screen row (Top-to-Bottom)
-  uint32_t *lineStart = screenData + (SCREEN_HEIGHT - row - 1) * SCREEN_WIDTH;
-  
-  for (i=0; i<50; i++) {
-    // Expand 1 byte to 8 pixels using precomputed table
-    uint8_t val = line_buf[i+2];
-    uint32_t *chunk = pixelLookup[val];
-    // R47 core packs bytes 0..49 from RIGHT to LEFT.
-    // i=0 (byte 0) goes to pixels 392..399
-    // i=49 (byte 49) goes to pixels 0..7
-    uint32_t *dest = lineStart + (49 - i) * 8;
-    memcpy(dest, chunk, 8 * sizeof(uint32_t));
-  }
-  line_buf[0] = 0u; 
-  screenDataDirty = true;
+  pthread_mutex_lock(&lcdPixelMutex);
+  writeLineLocked(line_buf, true);
+  pthread_mutex_unlock(&lcdPixelMutex);
 }
 
 void lcd_clear_buf () {
   if (!lcd_buffer) return;
+  pthread_mutex_lock(&lcdPixelMutex);
   for (uint8_t row = 0; row < SCREEN_HEIGHT; row++) {
     uint8_t *line_buf = lcd_buffer + 52 * row;
     for (uint8_t c = 2; c < 52; c++) {
@@ -125,24 +168,37 @@ void lcd_clear_buf () {
     }
     line_buf[1] = SCREEN_HEIGHT - row - 1;
     line_buf[0] = 1u; 
-    LCD_write_line(line_buf);
+    writeLineLocked(line_buf, true);
   }
+  pthread_mutex_unlock(&lcdPixelMutex);
 }
 
 void lcd_refresh () {
-  if (!lcd_buffer) return;
-  for (uint8_t row = 0; row < SCREEN_HEIGHT; row++) {
-    if (lcd_buffer[52 * row]) { 
-      LCD_write_line(&lcd_buffer[52 * row]);
+  if(!lcd_buffer) {
+    return;
+  }
+  pthread_mutex_lock(&lcdPixelMutex);
+  for(uint8_t row = 0; row < SCREEN_HEIGHT; row++) {
+    if(lcd_buffer[52 * row]) {
+      writeLineLocked(&lcd_buffer[52 * row], true);
     }
   }
+  pthread_mutex_unlock(&lcdPixelMutex);
 }
 
 void lcd_refresh_lines (uint8_t ln, uint8_t cnt) {
-  if (!lcd_buffer) return;
-  for (uint8_t row = ln; row < ln + cnt; row++) {
-    LCD_write_line(&lcd_buffer[52 * row]);
+  if(!lcd_buffer || ln >= SCREEN_HEIGHT || cnt == 0) {
+    return;
   }
+  uint32_t endRow = (uint32_t)ln + (uint32_t)cnt;
+  if(endRow > SCREEN_HEIGHT) {
+    endRow = SCREEN_HEIGHT;
+  }
+  pthread_mutex_lock(&lcdPixelMutex);
+  for(uint32_t row = ln; row < endRow; row++) {
+    writeLineLocked(&lcd_buffer[52 * row], true);
+  }
+  pthread_mutex_unlock(&lcdPixelMutex);
 }
 
 void bitblt24(uint32_t x, uint32_t dx, uint32_t y, uint32_t val, int blt_op, int fill) {
@@ -218,14 +274,14 @@ void lcd_fill_rect(uint32_t x, uint32_t y, uint32_t dx, uint32_t dy, int val) {
 static int bufCleared = 0;
 
 /**
- * Rasterizes dirty 1-bpp lcd_buffer scanlines into the ARGB8888 screenData frame for the UI refresh loop.
+ * Rasterises dirty 1-bpp lcd_buffer scanlines into the ARGB8888 screenData frame for the UI refresh cycle.
  */
 void lcd_refresh_dma(void) {
   lcd_refresh();
 }
 
 /**
- * Rasterizes dirty 1-bpp lcd_buffer scanlines into the ARGB8888 screenData frame for the UI refresh loop.
+ * Rasterises dirty 1-bpp lcd_buffer scanlines into the ARGB8888 screenData frame for the UI refresh cycle.
  */
 void lcd_refresh_wait(void) {
   lcd_refresh();
@@ -238,9 +294,11 @@ void lcd_forced_refresh(void) {
   if(!lcd_buffer) {
     return;
   }
+  pthread_mutex_lock(&lcdPixelMutex);
   for(uint8_t row = 0; row < SCREEN_HEIGHT; row++) {
-    LCD_write_line(&lcd_buffer[52 * row]);
+    writeLineLocked(&lcd_buffer[52 * row], true);
   }
+  pthread_mutex_unlock(&lcdPixelMutex);
 }
 
 /**

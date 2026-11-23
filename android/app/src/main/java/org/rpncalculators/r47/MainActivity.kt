@@ -363,11 +363,21 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) return false
         if (keyCode == KeyEvent.KEYCODE_SHIFT_LEFT || keyCode == KeyEvent.KEYCODE_SHIFT_RIGHT) {
-            if (!interceptedWhileHeld) { sendSimKeyNative("10", false, false); sendSimKeyNative("10", false, true) }
+            if (!interceptedWhileHeld) {
+                offerCoreTask {
+                    sendSimKeyNative("10", false, false)
+                    sendSimKeyNative("10", false, true)
+                }
+            }
             isPhysicalShiftHeld = false; return true
         }
         if (keyCode == KeyEvent.KEYCODE_CTRL_LEFT || keyCode == KeyEvent.KEYCODE_CTRL_RIGHT) {
-            if (!interceptedWhileHeld) { sendSimKeyNative("11", false, false); sendSimKeyNative("11", false, true) }
+            if (!interceptedWhileHeld) {
+                offerCoreTask {
+                    sendSimKeyNative("11", false, false)
+                    sendSimKeyNative("11", false, true)
+                }
+            }
             isPhysicalCtrlHeld = false; return true
         }
         activeKeyIdMap.remove(keyCode)?.let { action ->
@@ -379,17 +389,32 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         return super.onKeyUp(keyCode, event)
     }
 
-    internal fun currentKeypadSnapshot(meta: IntArray? = null): KeypadSnapshot {
-        val resolvedMeta = meta ?: getKeypadMetaNative(isDynamicShiftEnabled, isDynamicUserEnabled)
-        return KeypadSnapshot.fromNative(
-            resolvedMeta,
-            getKeypadLabelsNative(isDynamicShiftEnabled, isDynamicUserEnabled),
-        )
+    private var lastKeypadSnapshot: KeypadSnapshot? = null
+
+    internal fun currentKeypadSnapshot(meta: IntArray? = null): KeypadSnapshot? {
+        val resolvedMeta = meta ?: getKeypadMetaNative(isDynamicShiftEnabled, isDynamicUserEnabled) ?: return null
+        val labels = getKeypadLabelsNative(isDynamicShiftEnabled, isDynamicUserEnabled) ?: return null
+        return KeypadSnapshot.fromNative(resolvedMeta, labels).also { lastKeypadSnapshot = it }
     }
 
+    internal fun currentKeypadSnapshotOrCached(): KeypadSnapshot? {
+        currentKeypadSnapshot()?.let { return it }
+        invalidateKeypadRefreshCache()
+        return lastKeypadSnapshot
+    }
+
+    private fun invalidateKeypadRefreshCache() {
+        if (::coreRuntime.isInitialized) {
+            coreRuntime.invalidateKeypadCache()
+        }
+    }
 
     private fun updateDynamicKeys(snapshot: KeypadSnapshot? = null) {
-        val resolvedSnapshot = snapshot ?: currentKeypadSnapshot()
+        val resolvedSnapshot = snapshot ?: currentKeypadSnapshot() ?: run {
+            invalidateKeypadRefreshCache()
+            return
+        }
+        lastKeypadSnapshot = resolvedSnapshot
         ReplicaKeypadLayout.updateDynamicKeys(replicaOverlay, resolvedSnapshot)
     }
 
@@ -746,11 +771,11 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     // Legacy keypad getters kept for bridge compatibility.
     private external fun getButtonLabelNative(keyCode: Int, type: Int, isDynamic: Boolean): String
     private external fun getSoftkeyLabelNative(fnKeyIndex: Int): String
-    private external fun getKeyboardStateNative(): IntArray // returns [shiftF, shiftG, calcMode, userMode, alphaFlag]
+    private external fun getKeyboardStateNative(): IntArray? // returns [shiftF, shiftG, calcMode, userMode, alphaFlag]
 
     // Snapshot keypad APIs used by the default Android-native keypad.
-    private external fun getKeypadMetaNative(isDynamicShift: Boolean, isDynamicUser: Boolean): IntArray
-    private external fun getKeypadLabelsNative(isDynamicShift: Boolean, isDynamicUser: Boolean): Array<String>
+    private external fun getKeypadMetaNative(isDynamicShift: Boolean, isDynamicUser: Boolean): IntArray?
+    private external fun getKeypadLabelsNative(isDynamicShift: Boolean, isDynamicUser: Boolean): Array<String>?
 
     @Keep fun onFileSelected(fd: Int) { onFileSelectedNative(fd) }
     @Keep fun onFileCancelled() { onFileCancelledNative() }

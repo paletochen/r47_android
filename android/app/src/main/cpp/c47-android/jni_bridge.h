@@ -10,7 +10,9 @@
 #include <stdint.h>
 #include <time.h>
 
+#if !defined(LOG_TAG)
 #define LOG_TAG "R47Native"
+#endif // !defined(LOG_TAG)
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
@@ -46,6 +48,7 @@ extern void init_lcd_buffers(void);
 extern void setupUI(void);
 extern void lcd_clear_buf(void);
 extern void lcd_refresh(void);
+extern bool copyDirtyDisplayPixels(JNIEnv *env, jintArray pixels);
 
 extern void JNICALL Java_org_rpncalculators_r47_MainActivity_setLcdColors(
     JNIEnv *env, jobject thiz, jint text, jint bg);

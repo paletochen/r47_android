@@ -40,7 +40,7 @@ internal object ReplicaKeypadLayout {
         chromeMode: String,
         performHapticClick: () -> Unit,
         dispatchKey: (Int) -> Unit,
-        initialSnapshotProvider: () -> KeypadSnapshot = { activity.currentKeypadSnapshot() },
+        initialSnapshotProvider: () -> KeypadSnapshot? = { activity.currentKeypadSnapshotOrCached() },
     ) {
         overlay.removeAllViews()
         if (chromeMode == CHROME_MODE_TEXTURE || chromeMode == ReplicaOverlay.CHROME_MODE_DAS_KALKULATOR) {
@@ -95,14 +95,14 @@ internal object ReplicaKeypadLayout {
         chromeMode: String,
         performHapticClick: () -> Unit,
         dispatchKey: (Int) -> Unit,
-        initialSnapshotProvider: () -> KeypadSnapshot,
+        initialSnapshotProvider: () -> KeypadSnapshot?,
     ) {
         val fonts = KeypadFontSet(
             standard = loadTypeface(activity, "fonts/C47__StandardFont.ttf"),
             numeric = loadTypeface(activity, "fonts/C47__NumericFont.ttf"),
             tiny = loadTypeface(activity, "fonts/C47__TinyFont.ttf"),
         )
-        val initialSnapshot = initialSnapshotProvider().takeIf {
+        val initialSnapshot = initialSnapshotProvider()?.takeIf {
             it.sceneContractVersion > 0
         }
 

@@ -86,9 +86,9 @@ internal class NativeCoreRuntime(
     private val saveStateNative: () -> Unit,
     private val forceRefreshNative: () -> Unit,
     private val getDisplayPixels: (IntArray) -> Unit,
-    private val getKeypadMetaNative: (Boolean, Boolean) -> IntArray,
+    private val getKeypadMetaNative: (Boolean, Boolean) -> IntArray?,
     private val useSceneDrivenKeypadProvider: () -> Boolean,
-    private val getKeypadSnapshot: (IntArray) -> KeypadSnapshot,
+    private val getKeypadSnapshot: (IntArray) -> KeypadSnapshot?,
     private val onLcdPixels: (IntArray) -> Unit,
     private val onDynamicRefresh: (KeypadSnapshot) -> Unit,
     private val requestNativeShutdown: () -> Unit = {},
@@ -226,6 +226,10 @@ internal class NativeCoreRuntime(
             val target = session.activeRuntime ?: this
             offerTask(Runnable { target.forceRefreshNative() })
         }
+    }
+
+    fun invalidateKeypadCache() {
+        displayRefreshLoop.invalidateKeypadCache()
     }
 
     fun saveStateOnPause(autoSaveEnabled: Boolean, timeoutSeconds: Long = 2) {
