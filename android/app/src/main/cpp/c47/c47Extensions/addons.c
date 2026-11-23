@@ -967,7 +967,6 @@ err:
 }
 
 
-#if defined(DMCP_BUILD)
   void standardScreenDump(void) {
   resetShiftState();                  //JM To avoid f or g top left of the screen, clear to make sure
   paintDateTimeForCapture();
@@ -992,24 +991,16 @@ err:
   #endif // OUT_VOL_MAX
   free(savedBuffers);
 }
-#endif // DMCP_BUILD
 
 
 bool_t anyKeyWaiting(void) {
-  #if defined(DMCP_BUILD)
     return key_empty() == 0 || key_tail() != -1;
-  #elif defined(PC_BUILD) // !DMCP_BUILD
-    //printf("KeyWaiting keyCode=%u", currentKeyCode);
-    return currentKeyCode == 32; //EXIT1 / EXIT key //Do not us gtk_events_pending() as it triggers for timers too
-  #endif // PC_BUILD
-  return false;
 }
 
 
 
 // EXIT (32) or R/S (35) both stop a long computation (solver, integrator, grapher, prime, matrix, ...)
 bool_t exitKeyWaiting(void) {
-  #if defined(DMCP_BUILD)
     int interruptKey = C47PopKeyNoBuffer(DISPLAY_WAIT_FOR_RELEASE);                   // drains and checks the DMCP SDK buffer (EXIT/R/S priority)
     bool_t ringInterrupt = interruptKeyInBuffer();                                    // EXIT (33) / R/S (36) that a refresh's keyBuffer_pop parked in the C47 ring buffer, where C47PopKeyNoBuffer (SDK buffer only) cannot see it
     bool_t checkKey = (interruptKey == 32 || interruptKey == 35) || ringInterrupt;    // 32 = EXIT, 35 = R/S (SDK buffer, in the -1 scheme, C47PopKeyNoBuffer returns)
@@ -1021,21 +1012,11 @@ bool_t exitKeyWaiting(void) {
       clearKeyBuffer();                  // consume the ring-buffer interrupt key so a queued R/S cannot later relaunch fnRunProgram; the original EXIT-in-SDK path is left untouched
     }
     return checkKey;
-  #elif defined(PC_BUILD) // !DMCP_BUILD
-    //printf("KeyWaiting keyCode=%u", currentKeyCode);
-    if(currentKeyCode == 35) {           // R/S: interrupt, and consume the key (R/S is a run/stop toggle; a surviving press was being re-read as "run" and relaunched the operation)
-      currentKeyCode = 255;
-      return true;
-    }
-    return currentKeyCode == 32;         // EXIT1 / EXIT key //Do not us gtk_events_pending() as it triggers for timers too
-  #endif // PC_BUILD
-  return false;
 }
 
 
 int C47PopKeyNoBuffer(bool_t displayWaitForRelease) {
   int tmpf = -1;
-  #if defined(DMCP_BUILD)
     if(!anyKeyWaiting()) {
       return -1;
     }
@@ -1081,11 +1062,6 @@ int C47PopKeyNoBuffer(bool_t displayWaitForRelease) {
       tmpf = 33;
     }
     return tmpf - 1;        //EXIT = 33-1
-  #else // !DMCP_BUILD
-    tmpf = currentKeyCode;
-    currentKeyCode = 255;
-    return tmpf;           //EXIT = 32
-  #endif // DMCP_BUILD
 }
 
 

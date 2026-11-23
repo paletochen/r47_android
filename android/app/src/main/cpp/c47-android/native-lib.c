@@ -31,12 +31,6 @@ int currentBezel = 0;
 calcKeyboard_t calcKeyboard[43];
 gboolean ui_is_active = FALSE;
 
-uint32_t nextTimerRefresh = 0;
-uint32_t nextScreenRefresh = 0;
-
-GdkEvent pressEvent;
-GdkEvent releaseEvent;
-
 uint16_t getBeepVolume(void) {
   if (g_mainActivityObj && g_jvm && g_getBeeperVolumeId) {
     JNIEnv* env;
@@ -157,39 +151,50 @@ void processCoreTasksNative(void) {
   (*env)->CallVoidMethod(env, g_mainActivityObj, g_processCoreTasksId);
 }
 
+/**
+ * Returns true once both calculator RAM and the Android JVM bridge are initialised.
+ */
+bool isAndroidRuntimeReady(void) {
+  return ram != NULL && g_jvm != NULL;
+}
+
+static void cancelBlockingFileIoForShutdown(void) {
+  pthread_mutex_lock(&fileMutex);
+  if(isCoreBlockingForIo) {
+    fileCancelled = true;
+    pthread_cond_broadcast(&fileCond);
+  }
+  pthread_mutex_unlock(&fileMutex);
+}
+
+/**
+ * Refreshes active timers and LCD buffers, then cooperatively yields screenMutex and drains queued core tasks.
+ */
 void yieldToAndroidWithMs(int ms) {
-  if (!ram) {
+  if(!ram) {
+    return;
+  }
+  if(isCoreShutdownRequested()) {
+    applyPendingCoreShutdownOnCoreThread();
     return;
   }
 
   uint32_t now = sys_current_ms();
-  if (nextTimerRefresh <= now) {
-    refreshTimer(NULL);
-    nextTimerRefresh = now + 5;
+  if(nextTimerRefresh != 0 && nextTimerRefresh <= now) {
+    refreshTimer();
   }
 
-  refreshLcd(NULL);
+  refreshLcd();
   lcd_refresh();
-
-  int lockCount = 0;
-  while (pthread_mutex_unlock(&screenMutex) == 0) {
-    lockCount++;
-  }
-
-  processCoreTasksNative();
-  if (ms > 0) {
-    usleep(ms * 1000);
-  } else {
-    usleep(1000);
-  }
-
-  while (lockCount > 0) {
-    pthread_mutex_lock(&screenMutex);
-    lockCount--;
-  }
+  unlockScreenMutexAndPump(ms > 0 ? (uint32_t)ms : 0u, true);
 }
 
-void yieldToAndroid(void) { yieldToAndroidWithMs(1); }
+/**
+ * Yields to Android for one 1 ms cooperative slice.
+ */
+void yieldToAndroid(void) {
+  yieldToAndroidWithMs(1);
+}
 
 void fnSetVolume(uint16_t volume) {
   if (volume > 11) {
@@ -309,14 +314,6 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   pthread_mutex_init(&screenMutex, &attr);
   pthread_mutexattr_destroy(&attr);
 
-  memset(&pressEvent, 0, sizeof(GdkEvent));
-  pressEvent.type = GDK_BUTTON_PRESS;
-  pressEvent.button.button = 1;
-
-  memset(&releaseEvent, 0, sizeof(GdkEvent));
-  releaseEvent.type = GDK_BUTTON_RELEASE;
-  releaseEvent.button.button = 1;
-
   if (register_main_activity_natives(env) != JNI_OK) {
     return JNI_ERR;
   }
@@ -342,10 +339,23 @@ void releaseNativeActivityReferences(JNIEnv* env) {
   g_deleteDirectDocumentId = NULL;
 }
 
-JNIEXPORT void JNICALL
-Java_org_rpncalculators_r47_MainActivity_releaseNativeRuntime(JNIEnv* env,
-                                                              jobject thiz) {
+/**
+ * Signals the native core to abort any active pause, delay, file wait, solver, or program before waiting for thread exit.
+ */
+JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_requestNativeShutdown(JNIEnv *env, jobject thiz) {
+  (void)env;
   (void)thiz;
+  cancelBlockingFileIoForShutdown();
+  notifyCoreShutdownRequested();
+}
+
+/**
+ * Signals shutdown and releases cached MainActivity JNI references after the core thread stops.
+ */
+JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_releaseNativeRuntime(JNIEnv *env, jobject thiz) {
+  (void)thiz;
+  cancelBlockingFileIoForShutdown();
+  notifyCoreShutdownRequested();
   releaseNativeActivityReferences(env);
 }
 
@@ -358,6 +368,8 @@ int register_main_activity_natives(JNIEnv* env) {
       {"initNative", "(Ljava/lang/String;I)V",
        (void*)Java_org_rpncalculators_r47_MainActivity_initNative},
       {"tick", "()V", (void*)Java_org_rpncalculators_r47_MainActivity_tick},
+      {"requestNativeShutdown", "()V",
+       (void*)Java_org_rpncalculators_r47_MainActivity_requestNativeShutdown},
       {"releaseNativeRuntime", "()V",
        (void*)Java_org_rpncalculators_r47_MainActivity_releaseNativeRuntime},
       {"sendKey", "(I)V",

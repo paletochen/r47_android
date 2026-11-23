@@ -11,6 +11,7 @@
 void calcModeNormalGui (void) {}
 void calcModeAimGui    (void) {}
 void calcModeTamGui    (void) {}
+void guiSetClipboardText(const char *text) { (void)text; }
 
 // Android specific implementation of setupUI
 // This must handle the core allocations that GTK version does in setupUI.

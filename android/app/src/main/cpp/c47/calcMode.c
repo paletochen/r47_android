@@ -9,28 +9,7 @@
 
     fnStopTimerApp();
 
-    #if defined(PC_BUILD)
-      if(matrixIndex != INVALID_VARIABLE) {
-        if(getRegisterDataType(matrixIndex) == dtReal34Matrix) {
-          if(openMatrixMIMPointer.realMatrix.matrixElements) {
-          realMatrixFree(&openMatrixMIMPointer.realMatrix);
-        }
-        }
-        else if(getRegisterDataType(matrixIndex) == dtComplex34Matrix) {
-          if(openMatrixMIMPointer.complexMatrix.matrixElements) {
-          complexMatrixFree(&openMatrixMIMPointer.complexMatrix);
-        }
-      }
-      }
-      saveCalc();
-      if(!headlessMode) {
-        gtk_main_quit();
-      }
-    #endif // PC_BUILD
-
-    #if defined(DMCP_BUILD)
-      SET_ST(STAT_PGM_END);
-    #endif // DMCP_BUILD
+    SET_ST(STAT_PGM_END);
   }
 
 

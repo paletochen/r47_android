@@ -10,6 +10,7 @@
   #define FT_DYADIC   102
   #define FT_SINGLEX  103
   #define FT_EXTERNAL 104
+  #define FT_MONADICOUT1  105
 
 bool_t  exitKeyWaiting(void);
 #define DISPLAY_WAIT_FOR_RELEASE true
@@ -56,5 +57,8 @@ void fnXXfn_YRTX    (uint16_t registerNo);
 void fnXXfn_RDP     (uint16_t digits);
 void fnXXfn_RSD     (uint16_t digits);
 void fnXXfn_CHS     (uint16_t registerNo);
+void fnXXfn_ABS     (uint16_t registerNo);
+void fnXXfn_toREAL  (uint16_t registerNo);
+void fnXShow        (uint16_t unusedButMandatoryParameter);
 
 #endif // !XFN_H

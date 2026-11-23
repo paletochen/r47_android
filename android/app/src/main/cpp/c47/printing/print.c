@@ -401,7 +401,6 @@
       printExitPressed = false;
       return true;
     }
-    #if defined(DMCP_BUILD)
       int key = C47PopKeyNoBuffer(!DISPLAY_WAIT_FOR_RELEASE) + 1;
       if(key == 36 || key == 33 ) {  // R/S or EXIT
         key_pop();
@@ -413,18 +412,12 @@
         clearKeyBuffer();
         return(false);
       }
-    #elif defined(PC_BUILD) // !DMCP_BUILD
-      //printf("KeyWaiting keyCode=%u",currentKeyCode);
-      return currentKeyCode == 32; //EXIT1 / EXIT key //Do not us gtk_events_pending() as it triggers for timers too
-    #endif // PC_BUILD
   }
 
   static void setPrinterSBI(bool_t status) {
     printerIconEnabled = status;
     setSystemFlagChanged(SETTING_PRINTERICON);
-    printerIconRefresh = true;   // the GTK simulator does not wait for a painted frame for the print annunciator, which changes twice per printed line
     refreshStatusBar();
-    printerIconRefresh = false;
   }
 
 
@@ -1207,10 +1200,10 @@ void cmdPrint(uint16_t arg, printArgument_t op) {
   if(!getSystemFlag(FLAG_PRTACT)) {
     if(getSystemFlag(FLAG_PRTEN) || ((programRunStop != PGM_RUNNING) && (programRunStop != PGM_SINGLE_STEP))) {
       displayCalcErrorMessage(ERROR_PRINTING_DISABLED, ERR_REGISTER_LINE);
-      #if defined(PC_BUILD)
+      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "Printing is disabled");
         moreInfoOnError("In function cmdPrint:", errorMessage, NULL, NULL);
-      #endif // PC_BUILD
+      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
     }
     return;
   }
@@ -1931,11 +1924,11 @@ static uint16_t _getUnicodeValue(calcRegister_t regist) {
     int32ToReal34(0x8000, &maxValue34);
     if(real34CompareLessThan(REGISTER_REAL34_DATA(regist), const34_0) || real34CompareLessEqual(&maxValue34, REGISTER_REAL34_DATA(regist))) {
       displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
-      #if defined(PC_BUILD)
+      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         real34ToString(REGISTER_REAL34_DATA(regist), errorMessage);
         sprintf(tmpString, "x %" PRId16 " = %s:", regist, errorMessage);
         moreInfoOnError("In function _getPositionFromRegister:", tmpString, "this value is negative or too big!", NULL);
-      #endif // PC_BUILD
+      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
       return -1;
     }
     value = real34ToInt32(REGISTER_REAL34_DATA(regist));
@@ -1947,11 +1940,11 @@ static uint16_t _getUnicodeValue(calcRegister_t regist) {
     convertLongIntegerRegisterToLongInteger(regist, lgInt);
     if(longIntegerCompareUInt(lgInt, 0) < 0 || longIntegerCompareUInt(lgInt, 0x8000) >= 0) {
       displayCalcErrorMessage(ERROR_OUT_OF_RANGE, ERR_REGISTER_LINE);
-      #if defined(PC_BUILD)
+      #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         longIntegerToAllocatedString(lgInt, errorMessage, ERROR_MESSAGE_LENGTH);
         sprintf(tmpString, "register %" PRId16 " = %s:", regist, errorMessage);
         moreInfoOnError("In function _getPositionFromRegister:", tmpString, "this value is negative or too big!", NULL);
-      #endif // PC_BUILD
+      #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
       longIntegerFree(lgInt);
       return -1;
     }
@@ -1969,10 +1962,10 @@ static uint16_t _getUnicodeValue(calcRegister_t regist) {
 
   else {
     displayCalcErrorMessage(ERROR_INVALID_DATA_TYPE_FOR_OP, ERR_REGISTER_LINE);
-    #if defined(PC_BUILD)
+    #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "register %" PRId16 " is %s:", regist, getRegisterDataTypeName(regist, true, false));
       moreInfoOnError("In function _getPositionFromRegister:", errorMessage, "not suited for addressing!", NULL);
-    #endif // PC_BUILD
+    #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
     return -1;
   }
 
@@ -2108,10 +2101,10 @@ void fnP_User(uint16_t unusedButMandatoryParameter) {
     if(!getSystemFlag(FLAG_PRTACT)) {
       if(getSystemFlag(FLAG_PRTEN) || ((programRunStop != PGM_RUNNING) && (programRunStop != PGM_SINGLE_STEP))) {
         displayCalcErrorMessage(ERROR_PRINTING_DISABLED, ERR_REGISTER_LINE);
-        #if defined(PC_BUILD)
+        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           sprintf(errorMessage, "Printing is disabled");
           moreInfoOnError("In function fnP_User:", errorMessage, NULL, NULL);
-        #endif // PC_BUILD
+        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
       }
       return;
     }
@@ -2328,10 +2321,10 @@ void fnP_Sigma(uint16_t unusedButMandatoryParameter) {
       uint16_t regist;
       if(!getSystemFlag(FLAG_PRTEN) && ((programRunStop == PGM_RUNNING) || (programRunStop == PGM_SINGLE_STEP))) {
         displayCalcErrorMessage(ERROR_PRINTING_DISABLED, ERR_REGISTER_LINE);
-        #if defined(PC_BUILD)
+        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
           sprintf(errorMessage, "Printing is disabled");
           moreInfoOnError("In function fnP_Sigma:", errorMessage, NULL, NULL);
-        #endif // PC_BUILD
+        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
         return;
       }
       for(regist = 0; regist < NUMBER_OF_STATISTICAL_SUMS; regist++) {

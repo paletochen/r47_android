@@ -48,29 +48,6 @@ uint8_t DXR = 0, DYR = 0, DXI = 0, DYI = 0;
       fnPlotSQ(0);
       //  C47 advanced plot ^^
   }
-
-
-    static void initialize_function(void){
-      if(graphVariabl1 > 0) {
-        #if defined(PC_BUILD)
-          //printf(">>> graphVariable = %i\n", graphVariable);
-          if(lastErrorCode != 0) {
-            #if defined(VERBOSE_SOLVER00)
-            printf("ERROR CODE in initialize_functionA: %u\n", lastErrorCode);
-            #endif // VERBOSE_SOLVER00
-            lastErrorCode = 0;
-          }
-        #endif //PC_BUILD
-      }
-      else {
-        #if defined(PC_BUILD)
-          //printf(">>> graphVariable = %i\n", graphVariable);
-          #if defined(VERBOSE_SOLVER00)
-            printf("ERROR CODE in initialize_functionB: %u\n", lastErrorCode);
-          #endif // VERBOSE_SOLVER00
-        #endif //PC_BUILD
-      }
-    }
   #endif // OPTION_GRAPHICS
 
 
@@ -1853,15 +1830,13 @@ bool_t detectTrueDiscontinuityWithAsymptote(const real_t *y0, const real_t *y1, 
         progressHalfSecUpdate_Integer(timed, "Iter: ", loop, halfSec_clearZ, halfSec_clearT, halfSec_disp); //timed
       }
 
-      #if defined(DMCP_BUILD)
-        if(exitKeyWaiting()) {
-          progressHalfSecUpdate_Integer(force+1, "Interrupted Iter:", loop, halfSec_clearZ, halfSec_clearT, halfSec_disp);
-          lastErrorCode = ERROR_SOLVER_ABORT;
-          if(programRunStop == PGM_RUNNING) { programRunStop = PGM_WAITING; }   // stop the outer program too, else it runs on and re-plots
-          plotAborted = true;
-          break;
-        }
-      #endif //DMCP_BUILD
+      if(exitKeyWaiting()) {
+        progressHalfSecUpdate_Integer(force+1, "Interrupted Iter:", loop, halfSec_clearZ, halfSec_clearT, halfSec_disp);
+        lastErrorCode = ERROR_SOLVER_ABORT;
+        if(programRunStop == PGM_RUNNING) { programRunStop = PGM_WAITING; }   // stop the outer program too, else it runs on and re-plots
+        plotAborted = true;
+        break;
+      }
 
       #if defined(GRAPHDEBUG)
         cnt++;
@@ -2731,7 +2706,6 @@ freeWork:
                                           }
                                           printf("xmin:%f, xmax:%f\n", realToDoubleVal(x_min), realToDoubleVal(x_max));
                                         #endif // VERBOSE_SOLVER00 || VERBOSE_SOLVER0
-    // initialize_function();
     cpxSlvUserRoundingMode = roundingMode;
     setRoundingMode(RM_ENGINE);                                        // the iteration takes no mode from RM
     complexSolver();
@@ -2802,11 +2776,7 @@ void fnEqSolvGraph (uint16_t func) {
       }
       hourGlassIconEnabled = true;
       showHideHourGlass();
-      #if defined(DMCP_BUILD)
         lcd_refresh();
-      #else // !DMCP_BUILD
-        refreshLcd(NULL);
-      #endif // DMCP_BUILD
 
       real_t x, y;
 
@@ -2955,7 +2925,6 @@ void fnEqSolvGraph (uint16_t func) {
             printf("xmin:%f, xmax:%f\n", realToDoubleVal(x_min), realToDoubleVal(x_max));
           #endif // VERBOSE_SOLVER00 || VERBOSE_SOLVER0
 
-          initialize_function();
           ++engineNestingDepth;                                // one engine level for the whole sweep
           ++plotEngineActive;
           eqnDrawLhsOnly = true;                               // Draw on an equation plots its left hand side; an expression has no = and plots unchanged

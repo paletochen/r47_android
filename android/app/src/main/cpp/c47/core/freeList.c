@@ -89,10 +89,6 @@ void *freeListRealloc(void *pcMemPtr, size_t oldSizeInBlocks, size_t newSizeInBl
     newSizeInBlocks = 1;
   }
 
-  #if !defined(DMCP_BUILD)
-    //printf("Allocating %zd bytes and freeing %zd blocks\n", newSizeInBlocks, oldSizeInBlocks);
-  #endif // !DMCP_BUILD
-
   if((newMemPtr = freeListAlloc(newSizeInBlocks))) {
     xcopy(newMemPtr, pcMemPtr, TO_BYTES(min(newSizeInBlocks, oldSizeInBlocks)));
     freeListFree(pcMemPtr, oldSizeInBlocks);

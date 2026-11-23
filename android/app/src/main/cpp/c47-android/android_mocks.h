@@ -20,6 +20,12 @@
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 
+#if !defined(TI_DISK_INFO)  // Fallback for public CI builds where defines.h stays upstream
+  #define TI_DISK_INFO 254
+#endif // !defined(TI_DISK_INFO)
+
+#define DMCP_KEY_EXIT 33
+
 // GMP needs to be here for stubs to be visible
 #include "gmp.h"
 

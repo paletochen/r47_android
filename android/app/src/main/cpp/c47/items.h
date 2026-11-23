@@ -2093,9 +2093,9 @@
 #define ITM_SYSTEM2                 2043
 #define ITM_ACTUSB                  2044
 #define ITM_2045                    2045 // General items / any items spare
-#define ITM_2046                    2046 // General items / any items spare
+#define ITM_USER_XFN_C47            2046 // KEYSETS
 #define ITM_2047                    2047 // General items / any items spare
-#define ITM_2048                    2048  //blank
+#define ITM_USER_XFN_R47            2048 // KEYSETS
 #define ITM_2049                    2049  //blank
 #define ITM_SIGZEROS                2050
 #define ITM_BOLD                    2051
@@ -2623,7 +2623,7 @@
 #define ITM_RNG                     2549
 #define ITM_YY_DFLT                 2550
 #define ITM_DENMAX2                 2551
-#define ITM_2552                    2552 // General items / any items spare
+#define ITM_XSHOW                   2552
 
 #define ITM_BITSp2                  2553
 #define ITM_DEG2_XFN                2554
@@ -2654,7 +2654,7 @@
 #define ITM_MODANG_XFN              2578
 #define ITM_TO_XFN                  2579
 #define ITM_CHS_XFN                 2580
-#define ITM_2581                    2581
+#define ITM_ABS_XFN                 2581
 #define ITM_DRG_XFN                 2582
 #define ITM_SQR_XFN                 2583
 #define ITM_XTHROOT_XFN             2584
@@ -2673,7 +2673,7 @@
 #define ITM_4SWAP                   2595
 
 
-#define ITM_2596                    2596 // General items / any items spare
+#define ITM_toREAL_XFN              2596
 #define ITM_EML                     2597
 #define ITM_MtoTH                   2598
 #define ITM_THtoM                   2599
@@ -2895,7 +2895,7 @@
 #define ITM_42KEYX                  2796
 #define ITM_42VRMNU                 2797
 #define ITM_42PROMPT                2798
-#define ITM_2799                    2799 //spares for 42s compatibility functions
+#define ITM_RTNSTP                  2799
 
 #define ITM_LBSFT2toPA              2800
 #define ITM_PAtoLBSFT2              2801
@@ -3275,7 +3275,7 @@
 #define ITM_3153                    3153 // General items / any items spare (reserved: Menus)
 #define MNU_EEXPFX                  3153 // EEX SI prefix menu; spare 3153, opened by the EEX long press
 #define MNU_DRG                     3154
-#define ITM_3155                    3155 // General items / any items spare (reserved: Menus)
+#define MNU_KEYSETS                 3155 // KEYSETS submenu, reuses the ITM_3155 Menus spare
 #define MNU_DRM                     3156
 #define MNU_RNDMODES                3157
 #define ITM_3158                    3158 // General items / any items spare (reserved: Menus)

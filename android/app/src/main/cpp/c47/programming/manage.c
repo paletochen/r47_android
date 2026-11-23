@@ -1694,10 +1694,6 @@ void insertStepInProgram(const int16_t newFunc) {
         }
 
         case ITM_GTOP: {         // 1482
-          #if !defined(DMCP_BUILD)
-            stringToUtf8(indexOfItems[func].itemCatalogName, (uint8_t *)tmpString);
-            printf("insertStepInProgram: %s\n", tmpString);
-          #endif // !DMCP_BUILD
           break;
         }
 

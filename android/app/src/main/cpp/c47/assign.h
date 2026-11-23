@@ -38,6 +38,7 @@
   uint8_t *getUserKeyLabelString  (int16_t n);
 
   void createMenu                 (const char *name);
+  bool_t createUserMenuFromList   (char *menuName, const int16_t *menuItems, uint16_t screenId);
 
   void assignEnterAlpha           (void);
   void assignLeaveAlpha           (void);

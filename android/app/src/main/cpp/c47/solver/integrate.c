@@ -413,9 +413,7 @@ void _showProgress(const real_t *ss, const real_t *bma2, const real_t *h, const 
   real34ToDisplayString(&rtmp34, amNone, tmpString, &standardFont, 9999, 34, !LIMITEXP, FRONTSPACE, NOIRFRAC);
   showString(tmpString, &standardFont, 1, Y_POSITION_OF_REGISTER_Y_LINE + 6, vmNormal, true, true);
   displayFormatDigits = savedDisplayFormatDigits;
-  #if defined(DMCP_BUILD)
-    lcd_refresh();
-  #endif //DMCP_BUILD
+  lcd_refresh();
 }
 
 
@@ -599,7 +597,7 @@ static void _integrate(calcRegister_t regist, const real_t *a, const real_t *b, 
         #endif
         loop++;
         if(checkHalfSec()) {
-          sprintf(tmps, "Level:  %i Iter: ", (int16_t)realToInt32C47(&lvl, NULL));
+          snprintf(tmps, sizeof(tmps), "Level:  %i Iter: ", (int16_t)realToInt32C47(&lvl, NULL));
           if(progressHalfSecUpdate_Integer(timed, tmps, loop, halfSec_clearZ, halfSec_clearT, halfSec_disp)) {; //timed
             #if defined(PC_BUILD)
               printf("%s %i\n", tmps, loop);
@@ -618,7 +616,7 @@ static void _integrate(calcRegister_t regist, const real_t *a, const real_t *b, 
             }
             if(interruptedLoop) {
               int16_t countdownTenths = 400 - 5 * (interruptedLoop++); //400 tenths = 40 s; counts down 0.5/1/2 s per loop pending setup
-              sprintf(tmps, "Level %i. %3d.%01ds or EXIT: Iter: ", (int16_t)k, countdownTenths / 10, countdownTenths % 10);
+              snprintf(tmps, sizeof(tmps), "Level %i. %3d.%01ds or EXIT: Iter: ", (int16_t)k, countdownTenths / 10, countdownTenths % 10);
               radixProcess(tmps, tmps);
               progressHalfSecUpdate_Integer(force+1, tmps, loop, halfSec_clearZ, halfSec_clearT, halfSec_disp);
               if(exitSignalled || interruptedLoop >= 40) {      // Direct exit by exiting and simulating the end values
@@ -950,7 +948,7 @@ static void _integrate_mm(calcRegister_t regist, const real_t *llim, const real_
         #endif
         loop++;
         if(checkHalfSec()) {
-          sprintf(tmps, "Level: %i/%i Iter: ", (int16_t)k, (int16_t)maxlevel);
+          snprintf(tmps, sizeof(tmps), "Level: %i/%i Iter: ", (int16_t)k, (int16_t)maxlevel);
           if(progressHalfSecUpdate_Integer(timed, tmps, loop, !interruptedLoop, !interruptedLoop, !interruptedLoop)) { ; //timed
             #if defined(PC_BUILD)
               printf("%s %i\n", tmps, loop);
@@ -968,7 +966,7 @@ static void _integrate_mm(calcRegister_t regist, const real_t *llim, const real_
             }
             if(interruptedLoop) {
               int16_t countdownTenths = 400 - 5 * (interruptedLoop++); //400 tenths = 40 s; counts down 0.5/1/2 s per loop pending setup
-              sprintf(tmps, "Level %i. %3d.%01ds or EXIT: Iter: ", (int16_t)k, countdownTenths / 10, countdownTenths % 10);
+              snprintf(tmps, sizeof(tmps), "Level %i. %3d.%01ds or EXIT: Iter: ", (int16_t)k, countdownTenths / 10, countdownTenths % 10);
               radixProcess(tmps, tmps);
               progressHalfSecUpdate_Integer(force+1, tmps, loop, halfSec_clearZ, halfSec_clearT, halfSec_disp);
               if(exitSignalled || interruptedLoop >= 40) {      // Direct exit by exiting and simulating the end values
@@ -1430,7 +1428,7 @@ static void dbl_exp_int_new(calcRegister_t regist, const real_t *a, const real_t
           #endif
           loop++;
           if(checkHalfSec()) {
-            sprintf(tmps, "Level: %i/%i Iter: ", (int16_t)k, (int16_t)maxlevel);
+            snprintf(tmps, sizeof(tmps), "Level: %i/%i Iter: ", (int16_t)k, (int16_t)maxlevel);
             if(progressHalfSecUpdate_Integer(timed, tmps, loop, !interruptedLoop, !interruptedLoop, !interruptedLoop)) { ; //timed
             #if defined(PC_BUILD)
               printf("%s %i\n", tmps, loop);
@@ -1448,7 +1446,7 @@ static void dbl_exp_int_new(calcRegister_t regist, const real_t *a, const real_t
               }
               if(interruptedLoop) {
                 int16_t countdownTenths = 400 - 5 * (interruptedLoop++); //400 tenths = 40 s; counts down 0.5/1/2 s per loop pending setup
-                sprintf(tmps, "Level %i. %3d.%01ds or EXIT: Iter: ", (int16_t)k, countdownTenths / 10, countdownTenths % 10);
+                snprintf(tmps, sizeof(tmps), "Level %i. %3d.%01ds or EXIT: Iter: ", (int16_t)k, countdownTenths / 10, countdownTenths % 10);
                 radixProcess(tmps, tmps);
                 progressHalfSecUpdate_Integer(force+1, tmps, loop, halfSec_clearZ, halfSec_clearT, halfSec_disp);
                 if(exitSignalled || interruptedLoop >= 40) {      // Direct exit
@@ -1520,7 +1518,7 @@ static void dbl_exp_int_new(calcRegister_t regist, const real_t *a, const real_t
           #endif
           loop++;
           if(checkHalfSec()) {
-            sprintf(tmps, "Level: %i/%i Iter: ", (int16_t)k, (int16_t)maxlevel);
+            snprintf(tmps, sizeof(tmps), "Level: %i/%i Iter: ", (int16_t)k, (int16_t)maxlevel);
             if(progressHalfSecUpdate_Integer(timed, tmps, loop, !interruptedLoop, !interruptedLoop, !interruptedLoop)) { ; //timed
               #if defined(PC_BUILD)
                 printf("%s %i\n", tmps, loop);
@@ -1538,7 +1536,7 @@ static void dbl_exp_int_new(calcRegister_t regist, const real_t *a, const real_t
               }
               if(interruptedLoop) {
                 int16_t countdownTenths = 400 - 5 * (interruptedLoop++); //400 tenths = 40 s; counts down 0.5/1/2 s per loop pending setup
-                sprintf(tmps, "Level %i. %3d.%01ds or EXIT: Iter: ", (int16_t)k, countdownTenths / 10, countdownTenths % 10);
+                snprintf(tmps, sizeof(tmps), "Level %i. %3d.%01ds or EXIT: Iter: ", (int16_t)k, countdownTenths / 10, countdownTenths % 10);
                 radixProcess(tmps, tmps);
                 progressHalfSecUpdate_Integer(force+1, tmps, loop, halfSec_clearZ, halfSec_clearT, halfSec_disp);
                 if(exitSignalled || interruptedLoop >= 40) {      // Direct exit

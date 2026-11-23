@@ -457,9 +457,7 @@ void _executeSolverReal(calcRegister_t variable, const real_t *val, real_t *res,
           showString(real34IsSpecial(fb) ? "?" : real34IsZero(fb) ? "" : real34IsPositive(fb) ? "+" : "-", &standardFont, SCREEN_WIDTH - 10 /* width of '+' */, Y_POSITION_OF_REGISTER_X_LINE + 6, vmNormal, true, true);
           displayFormatDigits = savedDisplayFormatDigits;
 
-        #if defined(DMCP_BUILD)
-          lcd_refresh();
-        #endif //DMCP_BUILD
+        lcd_refresh();
       }
     #endif // ENABLE_SOLVER_PROGRESS == 1
   }

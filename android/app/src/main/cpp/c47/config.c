@@ -467,6 +467,10 @@ void Sett(int16_t grp) {
     assignToMyMenu(7);
     itemToBeAssigned = -MNU_EE;
     assignToMyMenu(6);
+    if(setCurrentUserMenu(-MNU_DYNAMIC, "P.FN")) {
+      itemToBeAssigned = ITM_RTNSTP;
+      assignToUserMenu(3);
+    }
 
     cachedDynamicMenu = 0;
 
@@ -2239,8 +2243,6 @@ void doFnReset(uint16_t confirmation, bool_t autoSav) {
 
 
 
-#if defined(DMCP_BUILD)
-
   void dmcpResetAutoOff(void) {
     // Key is ready -> clear auto off timer
     if(!key_empty() || !emptyKeyBuffer() || ((calcMode == CM_TIMER) && timerStartTime != TIMER_APP_STOPPED) || !getSystemFlag(FLAG_AUTOFF) || getSystemFlag(FLAG_RUNTIM) || programRunStop == PGM_RUNNING || (nextTimerRefresh != 0)) {
@@ -2323,6 +2325,7 @@ void doFnReset(uint16_t confirmation, bool_t autoSav) {
   }
 
 
+#if defined(DMCP_BUILD)
   void checkBattery(void) {
     if(usb_powered() == 1) {
       if(!getSystemFlag(FLAG_USB)) {
@@ -2371,13 +2374,7 @@ void backToSystem(uint16_t confirmation) {
   }
   else {
     cancelFilename = true;
-    #if defined(PC_BUILD)
-      fnOff(NOPARAM);
-    #endif // PC_BUILD
-
-    #if defined(DMCP_BUILD)
-      backToDMCP = true;
-    #endif // DMCP_BUILD
+    backToDMCP = true;
   }
 }
 
@@ -2446,6 +2443,27 @@ void activateUSBdisk(uint16_t confirmation) {
   #endif //DMCP_BUILD
 }
 
+
+
+#if defined(OPTION_XFN_1000) || defined(OPTION_FIN12C)
+/********************************************//**
+ * \brief Copies a keyset template into the user key profile, taking only the keys the template changes from the standard layout
+ *
+ * Takes a key only where the template differs from the standard layout in a function or a label. A key equal to the standard at both is kept as the user profile has it,
+ * so a keyset load overlays the set's custom keys and leaves every key outside the set unchanged.
+ *
+ * \param[in] keyset const calcKey_t*
+ * \return void
+ ***********************************************/
+static void copyUserKeyset(const calcKey_t *keyset) {
+  const calcKey_t *std = kbd_std;
+  for(uint16_t i = 0; i < sizeof(kbd_std_C47) / sizeof(calcKey_t); i++) {
+    if(memcmp(&keyset[i], &std[i], sizeof(calcKey_t)) != 0) {
+      kbd_usr[i] = keyset[i];
+    }
+  }
+}
+#endif // OPTION_XFN_1000 || OPTION_FIN12C
 
 
 /********************************************//**
@@ -2517,6 +2535,21 @@ void fnKeysManagement(uint16_t choice) {
       fnShowVersion(choice);
       break;
 
+
+
+#if defined(OPTION_XFN_1000)
+    case USER_XFN_C47:
+      copyUserKeyset(kbd_xfn_C47);
+      fnSetFlag(FLAG_USER);
+      fnRefreshState();
+      break;
+
+    case USER_XFN_R47:
+      copyUserKeyset(kbd_xfn_R47);
+      fnSetFlag(FLAG_USER);
+      fnRefreshState();
+      break;
+#endif // OPTION_XFN_1000
 
     case USER_KRESET:
       fnShowVersion(choice);

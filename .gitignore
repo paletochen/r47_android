@@ -43,8 +43,7 @@ c47regdumpTest.txt
 !docs/appnotes/sources/
 !docs/appnotes/sources/*.*
 !docs/appnotes/sources/*/*.*
-!xfnToC47user.s47
-!xfnToR47user.s47
+!res/STATE/**
 20*.REGS.TSV
 20*.bmp
 c47plotTest*.bmp

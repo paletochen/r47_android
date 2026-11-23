@@ -215,7 +215,56 @@ void lcd_fill_rect(uint32_t x, uint32_t y, uint32_t dx, uint32_t dy, int val) {
   }
 }
 
-void _lcdRefresh(void) { lcd_refresh(); }
+static int bufCleared = 0;
+
+/**
+ * Rasterizes dirty 1-bpp lcd_buffer scanlines into the ARGB8888 screenData frame for the UI refresh loop.
+ */
+void lcd_refresh_dma(void) {
+  lcd_refresh();
+}
+
+/**
+ * Rasterizes dirty 1-bpp lcd_buffer scanlines into the ARGB8888 screenData frame for the UI refresh loop.
+ */
+void lcd_refresh_wait(void) {
+  lcd_refresh();
+}
+
+/**
+ * Re-renders all 1-bpp lcd_buffer scanlines into screenData regardless of per-row dirty flags.
+ */
+void lcd_forced_refresh(void) {
+  if(!lcd_buffer) {
+    return;
+  }
+  for(uint8_t row = 0; row < SCREEN_HEIGHT; row++) {
+    LCD_write_line(&lcd_buffer[52 * row]);
+  }
+}
+
+/**
+ * Records whether the 1-bpp lcd_buffer has been cleared.
+ */
+void lcd_set_buf_cleared(int val) {
+  bufCleared = val;
+}
+
+/**
+ * Returns the recorded cleared state of the 1-bpp lcd_buffer.
+ */
+int lcd_get_buf_cleared(void) {
+  return bufCleared;
+}
+
+/**
+ * Triggers a BMP screen capture via fnScreenDump.
+ */
+int create_screenshot(int report_error) {
+  (void)report_error;
+  fnScreenDump(NOPARAM);
+  return 0;
+}
+
 void _lcdBandRefresh(uint32_t y, uint32_t dy) { (void)y; (void)dy; lcd_refresh(); }
-void _lcdSBRefresh(void) { lcd_refresh(); }
 void refresh_gui(void) {}

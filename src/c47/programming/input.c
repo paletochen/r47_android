@@ -7,9 +7,6 @@
  ***********************************************/
 
 #include "c47.h"
-#if defined(ANDROID_BUILD)
-#include "jni_bridge.h"
-#endif
 
 void fnInput(uint16_t regist) {
   if(programRunStop == PGM_RUNNING) {
@@ -17,11 +14,7 @@ void fnInput(uint16_t regist) {
     currentInputVariable = regist;
     fnRecall(regist);
     refreshScreen(10);
-    #if defined(DMCP_BUILD)
       lcd_refresh();
-    #else // !DMCP_BUILD
-      refreshLcd(NULL);
-    #endif // DMCP_BUILD
     #if defined(OPTION_IR_PRINTING)
       printInputPrompt(ITM_INPUT, regist);
     #endif //OPTION_IR_PRINTING
@@ -83,21 +76,6 @@ void fn42VarMnu(uint16_t label) {
 }
 
 
-#if defined(PC_BUILD)
-  int32_t gTime = 0;
-  bool_t  gRemoveTimer = false;
-  guint   gTimerId = 0;
-  static gboolean gTimer(gpointer user_data) {
-    gTime++;
-    if(gRemoveTimer) {
-      return FALSE;
-    }
-    else {
-      return TRUE;
-    }
-  }
-#endif //PC_BUILD
-
 /*
 void monitorDmcpFlags(const char *sss) {
   char statStr[40];
@@ -136,7 +114,6 @@ void monitorDmcpFlags(const char *sss) {
 */
 
 
-#if defined(DMCP_BUILD)
 // sleepTime = 0 : do not time out, sleep only. Until a key is pressed.
 // sleepTime = 1 : return without sleep, without timer, with no delay.
 // sleepTime > 1 : means number of ms sleeping. Or until a key is pressed.
@@ -174,8 +151,6 @@ static bool_t pauseKeyExit(int key, uint8_t *prevStop) {
   return true;
 }
 
-#endif //DMCP_BUILD
-
 
 
 void fnPause(uint16_t dur) {
@@ -202,34 +177,22 @@ void fnPause(uint16_t dur) {
       leaveTamModeIfEnabled();
     }
 
-    #if defined(ANDROID_BUILD)
-      LOGI("fnPause: dur=%d, duration=%d, programRunStop=%d, previousProgramRunStop=%d", dur, duration, programRunStop, previousProgramRunStop);
-      if (duration > 0 && !screenHoldsDrawnPixels && !graphToRemainOnScreen) {
-        // Force refresh once to show the current state (e.g. intermediate measurements)
+      #if defined(ANDROID_BUILD)
+      if(duration > 0 && dur != 99 && !screenHoldsDrawnPixels && !graphToRemainOnScreen) {
         screenUpdatingMode &= ~SCRUPD_MANUAL_STATUSBAR;
         refreshScreen(12);
       }
-      // Android: 100ms loop for progress display (10x per second refresh)
-      for(int32_t i = 0; i < duration && (programRunStop == PGM_PAUSED || programRunStop == PGM_KEY_PRESSED_WHILE_PAUSED); ++i) {
-        // Fully unlock mutex for 100ms to allow UI thread to render the buffer
-        yieldToAndroidWithMs(100);
-        
-        if (i % 10 == 0) {
-          LOGI("fnPause loop: i=%d, programRunStop=%d", i, programRunStop);
-        }
-        if (programRunStop != PGM_PAUSED && programRunStop != PGM_KEY_PRESSED_WHILE_PAUSED) break;
-      }
-      LOGI("fnPause exit loop: programRunStop=%d", programRunStop);
-    #elif defined(DMCP_BUILD)
+      #else // !defined(ANDROID_BUILD)
       if(previousProgramRunStop != PGM_RUNNING && dur != 99) {
         screenUpdatingMode &= ~SCRUPD_MANUAL_STATUSBAR;
         refreshScreen(12);
       }
+      #endif // defined(ANDROID_BUILD)
       lcd_refresh();
       wait_for_key_release(0);
       key_pop();
       uint32_t targetMs = sys_current_ms() + (uint32_t)duration * 10;
-      for(int32_t i = 0; (dur == 99 ? true : i < duration) && (programRunStop == PGM_PAUSED || programRunStop == PGM_KEY_PRESSED_WHILE_PAUSED); ++i) {
+      for(int32_t i = 0; (dur == 99 ? true : i < duration) && programRunStop == PGM_PAUSED; ++i) {
         int key = key_pop();
         key = convertKeyCode(key);
         if(key > 0) {
@@ -279,37 +242,6 @@ void fnPause(uint16_t dur) {
         refreshScreen(1201);
         lcd_refresh();
       }
-
-
-    #else // !DMCP_BUILD  PC_BUILD
-      if(gTimerId != 0) {
-        g_source_remove(gTimerId);
-        gTimerId = 0;
-      }
-      if(duration == 0) {
-        g_main_context_iteration(g_main_context_default(), FALSE);
-      }
-      else {
-        gTime = 0;
-        gRemoveTimer = false;
-
-        gTimerId = g_timeout_add(100, (GSourceFunc) gTimer, NULL);
-        refreshLcd(NULL);
-        int32_t i = 1;
-        while(gTime <= duration && (programRunStop == PGM_PAUSED || programRunStop == PGM_KEY_PRESSED_WHILE_PAUSED)) {
-          g_main_context_iteration (g_main_context_default (), duration == 0 ? FALSE : TRUE);
-          if(gTime == i) { //arrive here every 100ms, do nothing, just increment the counter to trap the next 100ms
-            i++;
-            if(previousProgramRunStop != PGM_RUNNING && programRunStop != PGM_PAUSED) {
-              screenUpdatingMode &= ~SCRUPD_MANUAL_STATUSBAR;
-              refreshScreen(12);
-              refreshLcd(NULL);
-            }
-          }
-        }
-        gRemoveTimer = true;
-      } // duration == 0
-    #endif // PC_BUILD
     if(programRunStop == PGM_WAITING) {
       previousProgramRunStop = PGM_WAITING;
     }
@@ -317,11 +249,7 @@ void fnPause(uint16_t dur) {
     if(programRunStop != PGM_RUNNING) {
       screenUpdatingMode &= ~SCRUPD_MANUAL_STATUSBAR;
       refreshScreen(13);
-      #if defined(DMCP_BUILD)
         lcd_refresh();
-      #else // !DMCP_BUILD
-        refreshLcd(NULL);
-      #endif // DMCP_BUILD
         }
 }
 
@@ -374,16 +302,8 @@ void fnKey(uint16_t regist) {
   // no key was pressed
   if(lastKeyCode == 0) {
     temporaryInformation = TI_TRUE;
-    #if defined(PC_BUILD)
-      if(!headlessMode) {
-        while(gtk_events_pending()) {
-          gtk_main_iteration();
-        }
-      }
-    #elif defined(DMCP_BUILD)
       dmcpResetAutoOff(); //prevent auto off occurring within a GTO loop with KEY?, which causes an unrecoverable sleep and impossibility to switch calculator back on
       fnTimerStart(TO_KB_ACTV, TO_KB_ACTV, programRunStop == PGM_RUNNING ? PROGRAM_KB_ACTV : TO_KB_ACTV_MEDIUM); //prevent dying out of the activity timer
-    #endif //PC_BUILD
   }
 
   // a key was pressed

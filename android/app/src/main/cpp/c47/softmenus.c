@@ -19,7 +19,7 @@ TO_QSPI const int16_t menu_42[]          = { ITM_42STRING,                  ITM_
                                              ITM_42ALENG,                   ITM_42POSA,                 ITM_42AROT,               ITM_42ASHF,            ITM_42PROMPT,                ITM_42AIP,
                                              ITM_42KEYG,                    ITM_42KEYX,                 ITM_42VRMNU,              ITM_42PRA,             ITM_42ATOX,                  ITM_42XTOA,
 
-                                             ITM_M_DIMQ,                    ITM_42BITQ,                 ITM_42ROTXY,              ITM_NULL,              ITM_SET_42ALPHA,             ITM_GET_42ALPHA                };
+                                             ITM_M_DIMQ,                    ITM_NULL,                   ITM_NULL,                 ITM_RTNSTP,            ITM_SET_42ALPHA,             ITM_GET_42ALPHA                };
 
 
 TO_QSPI const int16_t menu_BITS[]        = { ITM_LOGICALAND,                ITM_LOGICALOR,              ITM_LOGICALXOR,           ITM_LOGICALNOT,        ITM_MASKL,                   ITM_MASKR,
@@ -494,16 +494,20 @@ TO_QSPI const int16_t menu_XXFCNS[]    =   { ITM_DEG2_XFN,                  ITM_
 #if (CALCMODEL != USER_R47)
                                              ITM_MOD_XFN,                   ITM_1ONX_XFN,               ITM_SQRT_XFN,             ITM_LOG_XFN,           ITM_LN_XFN,                  ITM_RDP_XFN,
                                              ITM_MODANG_XFN,                ITM_POWER_XFN,              ITM_SQR_XFN,              ITM_10X_XFN,           ITM_EXP_XFN,                 ITM_RSD_XFN,
-                                             ITM_TO_XFN,                    ITM_XTHROOT_XFN,            ITM_NULL,                 ITM_NULL,              ITM_NULL,                    ITM_CHS_XFN,
+                                             ITM_TO_XFN,                    ITM_XTHROOT_XFN,            ITM_ABS_XFN,              ITM_toREAL_XFN,        ITM_NULL,                    ITM_CHS_XFN,
 #else
                                              ITM_SQR_XFN,                   ITM_SQRT_XFN,               ITM_1ONX_XFN,             ITM_POWER_XFN,         ITM_LOG_XFN,                 ITM_LN_XFN,
                                              ITM_CHS_XFN,                   ITM_MOD_XFN,                ITM_MODANG_XFN,           ITM_XTHROOT_XFN,       ITM_10X_XFN,                 ITM_EXP_XFN,
-                                             ITM_TO_XFN,                    ITM_NULL,                   ITM_NULL,                 ITM_NULL,              ITM_RDP_XFN,                 ITM_RSD_XFN,
+                                             ITM_TO_XFN,                    ITM_NULL,                   ITM_ABS_XFN,              ITM_toREAL_XFN,        ITM_RDP_XFN,                 ITM_RSD_XFN,
 #endif
 
                                              ITM_3STO,                      ITM_3RCL,                   ITM_3DROP,                ITM_3SWAP,             ITM_3DUP,                    ITM_NULL,
                                              ITM_NULL,                      ITM_NULL,                   ITM_NULL,                 ITM_NULL,              ITM_NULL,                    ITM_NULL,
-                                             ITM_LARGELI,                   ITM_DREAL,                  ITM_NULL,                 ITM_NULL,              ITM_NULL,                    ITM_NULL                   };
+#if (CALCMODEL != USER_R47)
+                                             ITM_LARGELI,                   ITM_DREAL,                  ITM_NULL,                 ITM_NULL,              ITM_NULL,                    ITM_USER_XFN_C47           };
+#else
+                                             ITM_LARGELI,                   ITM_DREAL,                  ITM_NULL,                 ITM_NULL,              ITM_NULL,                    ITM_USER_XFN_R47           };
+#endif
 
 
 
@@ -991,9 +995,9 @@ TO_QSPI const int16_t menu_ASN_N[]       = { ITM_N_KEY_SIGMA,               ITM_
 //KEYS menu different for C47, R47
 TO_QSPI const int16_t menu_KEYS[]      =  {  -MNU_ASN_N,                -MNU_RIBBONS,              -MNU_RESETS,               ITM_ASSIGN,                ITM_USERMODE,              ITM_KEYMAP,
 #if (CALCMODEL != USER_R47)
-                                             ITM_USER_C47,              ITM_USER_DM42,             ITM_NULL,                  ITM_NULL,                  ITM_NULL,                  DRC_M            };
+                                             ITM_USER_C47,              ITM_USER_DM42,             ITM_NULL,                  ITM_NULL,                  -MNU_KEYSETS,              DRC_M            };
 #else
-                                             ITM_USER_R47f_g,           ITM_USER_R47fg_bk,         ITM_USER_R47fg_g,          ITM_USER_R47bk_fg,         ITM_NULL,                  DRC_M            };
+                                             ITM_USER_R47f_g,           ITM_USER_R47fg_bk,         ITM_USER_R47fg_g,          ITM_USER_R47bk_fg,         -MNU_KEYSETS,              DRC_M            };
 #endif
 
 
@@ -1090,6 +1094,23 @@ TO_QSPI const int16_t menu_GAP_R[]       = { ITM_GAPPER_R,                  ITM_
                                              ITM_GRP_R,                     ITM_NULL,                   ITM_NULL,                 ITM_NULL,              ITM_GAPNARSPC_R,             ITM_NULL                         };
 
 TO_QSPI const int16_t menu_SHOW[]        = {  };
+
+#if defined(OPTION_XFN_1000) || defined(OPTION_FIN12C)
+//KEYSETS menu: XFN copies a full key layout template to the user profile and sets USER. The outer guard admits OPTION_FIN12C too, where a FIN key is added. Different items for C47, R47
+#if (CALCMODEL != USER_R47)
+TO_QSPI const int16_t menu_KEYSETS[]     = {
+#if defined(OPTION_XFN_1000)
+                                             ITM_USER_XFN_C47,
+#endif // OPTION_XFN_1000
+                                             ITM_NULL,                  ITM_NULL,                  ITM_NULL,                  ITM_NULL                      };
+#else
+TO_QSPI const int16_t menu_KEYSETS[]     = {
+#if defined(OPTION_XFN_1000)
+                                             ITM_USER_XFN_R47,
+#endif // OPTION_XFN_1000
+                                             ITM_NULL,                  ITM_NULL,                  ITM_NULL,                  ITM_NULL                      };
+#endif
+#endif // OPTION_XFN_1000 || OPTION_FIN12C
 TO_QSPI const int16_t menu_CASHFL[]      = {  };
 
 
@@ -1298,6 +1319,9 @@ TO_QSPI const softmenu_t softmenu[] = {
 /* 221 */  {.menuItem = -MNU_DRG,           .numItems = sizeof(menu_DRG           )/sizeof(int16_t), .softkeyItem = menu_DRG            },       // NOTE !! do not add menus here, add them at the end. The menu numbers are fixed for the Wiki references.
 #endif // OPTION_DRG_CFG
 
+#if defined(OPTION_XFN_1000) || defined(OPTION_FIN12C)
+/* 222 */  {.menuItem = -MNU_KEYSETS,       .numItems = sizeof(menu_KEYSETS       )/sizeof(int16_t), .softkeyItem = menu_KEYSETS        },       // KEYSETS submenu, added at the end per the Wiki-reference numbering rule
+#endif // OPTION_XFN_1000 || OPTION_FIN12C
 /* 189 */  {.menuItem =  0,                 .numItems = 0,                                           .softkeyItem = NULL                }
 
 };
@@ -1773,9 +1797,6 @@ static void _dynmenuConstructMVarsFromPgm(uint16_t label, uint16_t *numberOfByte
   static void initVariableSoftmenu(int16_t menu) {
     int16_t i, numberOfBytes, numberOfGlobalLabels;
     uint8_t *ptr;
-    #if defined(PC_BUILD)
-      //printf("initvariableSoftMenu (cachedDynamicMenu=%i)",cachedDynamicMenu);
-    #endif // PC_BUILD
     free(dynamicSoftmenu[menu].menuContent);
 
     switch(-dynamicSoftmenu[menu].menuItem) {
@@ -3371,9 +3392,6 @@ void showSoftmenuCurrentPart(void) {
     }
 
     if(m < NUMBER_OF_DYNAMIC_SOFTMENUS) { // Dynamic softmenu
-      #if defined(PC_BUILD)
-        //printf("Dynamic menu: m=%i cachedDynamicMenu=%i softmenu[m].menuItem= %i \n",m, cachedDynamicMenu, softmenu[m].menuItem);
-      #endif // PC_BUILD
       if(softmenu[m].menuItem != cachedDynamicMenu || softmenu[m].menuItem == -MNU_DYNAMIC) {
         initVariableSoftmenu(m);
         cachedDynamicMenu = softmenu[m].menuItem;
@@ -3440,18 +3458,12 @@ void showSoftmenuCurrentPart(void) {
     bool_t convUserMenu = false;
 
     if(m < NUMBER_OF_DYNAMIC_SOFTMENUS) { // Dynamic softmenu
-      #if defined(PC_BUILD)
-        //printf("Dynamic menu: m=%i cachedDynamicMenu=%i softmenu[m].menuItem= %i \n",m, cachedDynamicMenu, softmenu[m].menuItem);
-      #endif // PC_BUILD
       if(numberOfItems == 0) {
         for(x=0; x<6; x++) {
           showSoftkey("", x, 0, vmNormal, NOVAL, NOVAL, NOTEXT);
         }
       }
       else {
-        #if defined(PC_BUILD)
-          //printf("Dynamic menu: populate\n");
-        #endif // PC_BUILD
         uint8_t *ptr = getNthString(dynamicSoftmenu[m].menuContent, currentFirstItem);
         for(y=0; y<3; y++) {
           for(x=0; x<6; x++) {
@@ -3981,67 +3993,11 @@ void showSoftmenuCurrentPart(void) {
 
 
   bool_t createHOME(void) {
-    int16_t itemToBeAssignedMeM = itemToBeAssigned;
-    if(!setCurrentUserMenu(-MNU_DYNAMIC, "HOME")) {
-      createMenu("HOME");
-      if(!setCurrentUserMenu(-MNU_DYNAMIC, "HOME")) {
-        itemToBeAssigned = itemToBeAssignedMeM;
-        return false;
-      }
-    }
-    #if defined(PC_BUILD) && defined(VERBOSE_MINIMUM)
-      printf("----------- ############################ CREATING HOME #########################\n");
-    #endif // PC_BUILD
-    bulkAssign = true;
-    for(uint16_t ii=0; ii<18; ii++) {
-      itemToBeAssigned = ITM_ENTER;
-      screenUpdatingMode = ~SCRUPD_AUTO;
-      doRefreshSoftMenu = false;
-      last_CM = 240;
-      assignToUserMenu(ii);
-      itemToBeAssigned = menu_HOME[ii];
-      screenUpdatingMode = ~SCRUPD_AUTO;
-      doRefreshSoftMenu = false;
-      last_CM = 240;
-      assignToUserMenu(ii);
-    }
-    bulkAssign = false;
-    screenUpdatingMode = SCRUPD_AUTO;
-    refreshScreen(170);
-    itemToBeAssigned = itemToBeAssignedMeM;
-    return true;
+    return createUserMenuFromList("HOME", menu_HOME, 170);
   }
 
   bool_t createPFN(void) {
-    int16_t itemToBeAssignedMeM = itemToBeAssigned;
-    if(!setCurrentUserMenu(-MNU_DYNAMIC, "P.FN")) {
-      createMenu("P.FN");
-      if(!setCurrentUserMenu(-MNU_DYNAMIC, "P.FN")) {
-        itemToBeAssigned = itemToBeAssignedMeM;
-        return false;
-      }
-    }
-    #if defined(PC_BUILD) && defined(VERBOSE_MINIMUM)
-      printf("----------- ############################ CREATING PFN #########################\n");
-    #endif // PC_BUILD
-    bulkAssign = true;
-    for(uint16_t ii=0; ii<18; ii++) {
-      itemToBeAssigned = ITM_ENTER;
-      screenUpdatingMode = ~SCRUPD_AUTO;
-      doRefreshSoftMenu = false;
-      last_CM = 240;
-      assignToUserMenu(ii);
-      itemToBeAssigned = menu_MyPFN[ii];
-      screenUpdatingMode = ~SCRUPD_AUTO;
-      doRefreshSoftMenu = false;
-      last_CM = 240;
-      assignToUserMenu(ii);
-    }
-    bulkAssign = false;
-    screenUpdatingMode = SCRUPD_AUTO;
-    refreshScreen(171);
-    itemToBeAssigned = itemToBeAssignedMeM;
-    return true;
+    return createUserMenuFromList("P.FN", menu_MyPFN, 171);
   }
 
 
@@ -4511,6 +4467,7 @@ void fnMenuDump(uint16_t menu, uint16_t item, uint16_t newFilenameformat, const 
   showSoftmenu(softmenu[menu].menuItem);
   softmenuStack[0].firstItem += item;
   showSoftmenuCurrentPart();
+  lcd_refresh();                        // the capture is taken from the pushed screen
 
   FILE *bmp;
   char bmpFileName[1024];

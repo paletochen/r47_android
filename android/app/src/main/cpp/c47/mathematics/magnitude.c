@@ -12,7 +12,9 @@
 
 
 static void magnitudeLonI(void) {
-  setRegisterLongIntegerSign(REGISTER_X, LI_POSITIVE);
+  if(getRegisterLongIntegerSign(REGISTER_X) == LI_NEGATIVE) {
+    setRegisterLongIntegerSign(REGISTER_X, LI_POSITIVE);
+  }
 }
 
 static void magnitudeCxma(void) {

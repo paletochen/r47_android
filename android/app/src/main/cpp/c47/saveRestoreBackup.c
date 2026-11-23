@@ -441,6 +441,9 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     saveStateValue(&yzero,                          sizeof(yzero),                                               "yzero",                          "uint32");
     saveStateValue(&regStatsXY,                     sizeof(regStatsXY),                                          "regStatsXY",                     "int16");
     saveStateValue(&matrixIndex,                    sizeof(matrixIndex),                                         "matrixIndex",                    "uint16");
+    saveStateValue(&openMatrixMIMPointer.header,    sizeof(openMatrixMIMPointer.header),                         "openMatrixMIMHeader",            "hexDump");
+    ramPtr = TO_C47MEMPTR(calcMode == CM_MIM ? openMatrixMIMPointer.realMatrix.matrixElements : NULL);  // the open matrix stays allocated in the saved ram, as it stays in RAM on the calculator
+    saveStateValue(&ramPtr,                         sizeof(ramPtr),                                              "openMatrixMIMElements",          "c47Ptr");
     saveStateValue(&shadowI,                        sizeof(shadowI),                                             "shadowI",                        "int16");
     saveStateValue(&shadowJ,                        sizeof(shadowJ),                                             "shadowJ",                        "int16");
     saveStateValue(&currentViewRegister,            sizeof(currentViewRegister),                                 "currentViewRegister",            "uint16");
@@ -1232,6 +1235,9 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     restoreStateValue(&yzero,                          sizeof(yzero),                                               "yzero",                          "uint32");
     restoreStateValue(&regStatsXY,                     sizeof(regStatsXY),                                          "regStatsXY",                     "int16");
     restoreStateValue(&matrixIndex,                    sizeof(matrixIndex),                                         "matrixIndex",                    "uint16");
+    restoreStateValue(&openMatrixMIMPointer.header,    sizeof(openMatrixMIMPointer.header),                         "openMatrixMIMHeader",            "hexDump");
+    bool_t mimElementsInThePool = true;
+    openMatrixMIMPointer.realMatrix.matrixElements = restoredPoolPointer(NULL, "openMatrixMIMElements", NULL, &mimElementsInThePool);  // NULL opens the matrix from its register again
     restoreStateValue(&shadowI,                        sizeof(shadowI),                                             "shadowI",                        "int16");
     restoreStateValue(&shadowJ,                        sizeof(shadowJ),                                             "shadowJ",                        "int16");
     restoreStateValue(&currentViewRegister,            sizeof(currentViewRegister),                                 "currentViewRegister",            "uint16");
@@ -1640,7 +1646,9 @@ static void convertOldMatrixHeaderToNewMatrixHeader(calcRegister_t regist) {
     }
     else if(calcMode == CM_MIM) {
       calcModeNormalGui();
-      mimRestore();
+      if(openMatrixMIMPointer.realMatrix.matrixElements == NULL) {
+        mimRestore();
+      }
     }
     else if(calcMode == CM_AIM) {
       calcModeNormalGui();

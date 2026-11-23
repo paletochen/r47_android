@@ -28,6 +28,7 @@
 #include <jni.h>
 #include "c47.h"
 #include "hal/io.h"
+#include "hal_key_runtime.h"
 
 printerState_t printerState = { .printer_model = PRINTER_MARTEL };
 char *tmpStringLabelOrVariableName = NULL;
@@ -73,9 +74,49 @@ void resizeProgramMemory(uint16_t newSizeInBlocks) { (void)newSizeInBlocks; }
 void goToGlobalStep(int32_t step) { (void)step; }
 bool_t reDraw = false;
 uint8_t screenUpdatingMode = 0;
+uint8_t programRunStop = PGM_STOPPED;
 void refreshScreen(uint16_t reason) { (void)reason; }
-gboolean refreshLcd(gpointer unusedData) { (void)unusedData; return 0; }
+void refreshLcd(void) {}
 void lcd_refresh(void) {}
+
+pthread_mutex_t screenMutex;
+static bool     mock_runtime_ready = false;
+static uint32_t fake_current_ms = 0;
+static gint64   fake_monotonic_us = 0;
+static gint64   fake_real_us = 0;
+static void (*mock_pump_callback)(void) = NULL;
+static void (*mock_yield_callback)(int ms) = NULL;
+static int      mock_last_yield_ms = -1;
+static int      mock_yield_call_count = 0;
+
+bool isAndroidRuntimeReady(void) {
+  return mock_runtime_ready;
+}
+
+void processCoreTasksNative(void) {
+  if(mock_pump_callback != NULL) {
+    mock_pump_callback();
+  }
+}
+
+uint32_t sys_current_ms(void) { return fake_current_ms; }
+gint64 g_get_monotonic_time(void) { return fake_monotonic_us; }
+gint64 g_get_real_time(void) { return fake_real_us; }
+void keyBuffer_pop(void) {}
+#if defined(BUFFER_CLICK_DETECTION)
+  #if defined(BUFFER_KEY_COUNT)
+    uint8_t outKeyBuffer(uint8_t *pByte, uint8_t *pByteCount, uint32_t *pTime, uint32_t *pTimeSpan_1, uint32_t *pTimeSpan_B) { (void)pByte; (void)pByteCount; (void)pTime; (void)pTimeSpan_1; (void)pTimeSpan_B; return BUFFER_FAIL; }
+  #else // !defined(BUFFER_KEY_COUNT)
+    uint8_t outKeyBuffer(uint8_t *pByte, uint32_t *pTime, uint32_t *pTimeSpan_1, uint32_t *pTimeSpan_B) { (void)pByte; (void)pTime; (void)pTimeSpan_1; (void)pTimeSpan_B; return BUFFER_FAIL; }
+  #endif // defined(BUFFER_KEY_COUNT)
+#else // !defined(BUFFER_CLICK_DETECTION)
+  #if defined(BUFFER_KEY_COUNT)
+    uint8_t outKeyBuffer(uint8_t *pByte, uint8_t *pByteCount) { (void)pByte; (void)pByteCount; return BUFFER_FAIL; }
+  #else // !defined(BUFFER_KEY_COUNT)
+    uint8_t outKeyBuffer(uint8_t *pByte) { (void)pByte; return BUFFER_FAIL; }
+  #endif // defined(BUFFER_KEY_COUNT)
+#endif // defined(BUFFER_CLICK_DETECTION)
+void processKeyCode(int key) { (void)key; }
 int32_t compareString(const char *stra, const char *strb, int32_t comparisonType) {
     (void)comparisonType;
     return strcasecmp(stra, strb);
@@ -266,7 +307,17 @@ void codePointToUtf8(uint32_t codePoint, uint8_t *utf8) {
 }
 
 void yieldToAndroid(void) {}
-void yieldToAndroidWithMs(int ms) { (void)ms; }
+void yieldToAndroidWithMs(int ms) {
+    mock_last_yield_ms = ms;
+    mock_yield_call_count++;
+    if(ms > 0) {
+        fake_current_ms += (uint32_t)ms;
+        fake_monotonic_us += (gint64)ms * 1000LL;
+    }
+    if(mock_yield_callback != NULL) {
+        mock_yield_callback(ms);
+    }
+}
 
 static bool_t mock_system_flags[256] = {0};
 bool_t getSystemFlag(int32_t flag) {
@@ -1136,21 +1187,227 @@ void test_execution_yielding_hooks(void) {
     pthread_mutex_destroy(&testMutex);
 }
 
+static int g_release_callback_Step = 0;
+static void mock_release_on_third_yield(int ms) {
+    (void)ms;
+    g_release_callback_Step++;
+    if(g_release_callback_Step == 3) {
+        key_push(0);
+    }
+}
+
+static void mock_pump_push_exit(void) {
+    TEST_ASSERT(shouldQueueInputToDmcp(), "shouldQueueInputToDmcp must be true during processCoreTasksNative pump");
+    key_push(33);
+    key_push(0);
+}
+
+static void mock_pump_request_shutdown(void) {
+    notifyCoreShutdownRequested();
+}
+
+static void mock_shutdown_on_first_yield(int ms) {
+    (void)ms;
+    notifyCoreShutdownRequested();
+}
+
+static void resetMockKeyRuntimeState(void) {
+    mock_runtime_ready = false;
+    fake_current_ms = 0;
+    fake_monotonic_us = 0;
+    fake_real_us = 0;
+    mock_pump_callback = NULL;
+    mock_yield_callback = NULL;
+    mock_last_yield_ms = -1;
+    mock_yield_call_count = 0;
+    g_release_callback_Step = 0;
+    clearCoreShutdownRequested();
+    programRunStop = PGM_STOPPED;
+    key_pop_all();
+}
+
+// --------------------------------------------------------------------------
+// TEST 14: DMCP Key FIFO Queue, Timer Sleep, and Shutdown Invariants
+// --------------------------------------------------------------------------
+void test_dmcp_key_queue_invariants(void) {
+    resetMockKeyRuntimeState();
+
+    TEST_ASSERT(key_empty() == 1, "Key queue must start empty after key_pop_all");
+    TEST_ASSERT(key_tail() == -1, "key_tail must return -1 when empty");
+    TEST_ASSERT(key_pop() == -1, "key_pop must return -1 when empty");
+
+    // Stray release on idle empty queue must not enqueue a spurious 0
+    key_push(0);
+    TEST_ASSERT(key_empty() == 1, "Stray release on empty idle queue must be ignored");
+
+    // Validate formatCalculatorKeyId and parseCalculatorKeyId bounds ("1".."6", "00".."36", reject out-of-range)
+    char keyBuf[4];
+    bool isFn = false;
+    TEST_ASSERT(formatCalculatorKeyId(1, keyBuf, &isFn) && strcmp(keyBuf, "00") == 0 && !isFn, "Key 1 must format as '00' (non-fn)");
+    TEST_ASSERT(formatCalculatorKeyId(37, keyBuf, &isFn) && strcmp(keyBuf, "36") == 0 && !isFn, "Key 37 must format as '36' (non-fn)");
+    TEST_ASSERT(formatCalculatorKeyId(38, keyBuf, &isFn) && strcmp(keyBuf, "1") == 0 && isFn, "Key 38 must format as '1' (fn)");
+    TEST_ASSERT(formatCalculatorKeyId(43, keyBuf, &isFn) && strcmp(keyBuf, "6") == 0 && isFn, "Key 43 must format as '6' (fn)");
+    TEST_ASSERT(!formatCalculatorKeyId(0, keyBuf, &isFn) && !formatCalculatorKeyId(44, keyBuf, &isFn), "Out-of-range keyCode must return false");
+    TEST_ASSERT(parseCalculatorKeyId("1") == 38, "Softkey '1' must map to 38");
+    TEST_ASSERT(parseCalculatorKeyId("6") == 43, "Softkey '6' must map to 43");
+    TEST_ASSERT(parseCalculatorKeyId("7") == 0, "Out-of-range softkey '7' must return 0");
+    TEST_ASSERT(parseCalculatorKeyId("00") == 1, "Key '00' must map to 1");
+    TEST_ASSERT(parseCalculatorKeyId("36") == 37, "Key '36' must map to 37");
+    TEST_ASSERT(parseCalculatorKeyId("37") == 0, "Out-of-range key '37' must return 0");
+    TEST_ASSERT(parseCalculatorKeyId("100") == 0, "3-char string '100' must return 0");
+
+    // Push R/S (36) press + release (0), EXIT (33), and F1 (38)
+    key_push(36);
+    key_push(0);
+    keyPushClick("32", 1); // "32" -> key 33 (EXIT) + 0
+    keyPushClick("1", 1);  // "1"  -> softkey F1 (38) + 0
+
+    TEST_ASSERT(key_empty() == 0, "Key queue must report non-empty after pushes");
+    TEST_ASSERT(key_tail() == 36, "key_tail must peek 36 without removing it");
+
+    // Verify keyPopForMainLoop returns -1 during PGM_RUNNING / PGM_PAUSED so screen.c keyBuffer_pop cannot steal interrupt keys
+    programRunStop = PGM_PAUSED;
+    TEST_ASSERT(keyPopForMainLoop() == -1, "keyPopForMainLoop must return -1 during PGM_PAUSED");
+    programRunStop = PGM_RUNNING;
+    TEST_ASSERT(keyPopForMainLoop() == -1, "keyPopForMainLoop must return -1 during PGM_RUNNING");
+    TEST_ASSERT(key_pop() == 36, "key_pop must still return 36 (R/S) during PGM_RUNNING");
+    TEST_ASSERT(key_pop() == 0, "key_pop must return 0 (release)");
+
+    programRunStop = PGM_STOPPED;
+    TEST_ASSERT(keyPopForMainLoop() == 33, "keyPopForMainLoop must pop 33 when idle");
+    TEST_ASSERT(key_pop() == 0, "Fourth pop must return 0");
+    TEST_ASSERT(key_pop() == 38, "Fifth pop must return 38 (F1)");
+    TEST_ASSERT(key_pop() == 0, "Sixth pop must return 0");
+    TEST_ASSERT(key_empty() == 1, "Key queue must be empty after draining all events");
+
+    // Verify KEY_BUFFER_SIZE (64) capacity reserves slot 63 for a matching 0 release
+    for(int i = 0; i < 63; i++) {
+        key_push(1 + (i % 37));
+    }
+    key_push(37); // 64th press at index 63 must be dropped so slot 63 stays free for release 0
+    key_push(0);  // Matching release for the 63rd press occupies slot 63
+    for(int i = 0; i < 63; i++) {
+        TEST_ASSERT(key_pop() == 1 + (i % 37), "FIFO order must be preserved across 63 presses");
+    }
+    TEST_ASSERT(key_pop() == 0, "Slot 63 must hold the matching 0 release");
+    TEST_ASSERT(key_pop() == -1, "64th press beyond KEY_BUFFER_SIZE - 1 must be dropped");
+
+    // Verify non-headless (isAndroidRuntimeReady() == true) active wait_for_key_release, sys_sleep, key_empty poll, and shutdown
+    mock_runtime_ready = true;
+    fake_current_ms = 1000;
+    fake_monotonic_us = 1000000LL;
+    fake_real_us = 120000000LL; // minute 2
+
+    // 1) wait_for_key_release(0) wakes when callback pushes release 0 on 3rd 10ms slice (30ms elapsed, not 2000ms timeout)
+    g_release_callback_Step = 0;
+    mock_yield_callback = mock_release_on_third_yield;
+    key_push(36); // pushedKeyDown = true
+    uint32_t before_ms = fake_current_ms;
+    wait_for_key_release(0);
+    mock_yield_callback = NULL;
+    TEST_ASSERT(fake_current_ms - before_ms == 30, "wait_for_key_release(0) must wake immediately upon key_push(0) callback");
+    key_pop_all();
+
+    // 2) wait_for_key_release(50) expires after 50ms when no release arrives and clears pushedKeyDown
+    key_push(33); // pushedKeyDown = true, no release callback
+    before_ms = fake_current_ms;
+    wait_for_key_release(50);
+    TEST_ASSERT(fake_current_ms - before_ms == 50, "wait_for_key_release(50) must bound wait to 50ms timeout");
+    before_ms = fake_current_ms;
+    wait_for_key_release(0);
+    TEST_ASSERT(fake_current_ms - before_ms == 0, "Expired wait_for_key_release must clear pushedKeyDown so subsequent call returns at once");
+    key_pop_all();
+
+    // 3) sys_sleep clamps yield duration to sys_timer_start(0, 7) deadline (7ms < 20ms) and updates STAT_CLK_WKUP_FLAG on minute change
+    SET_ST(STAT_CLK_WKUP_ENABLE);
+    CLR_ST(STAT_CLK_WKUP_FLAG);
+    sys_timer_start(0, 7);
+    mock_last_yield_ms = -1;
+    sys_sleep(); // sets initial lastMinute = 2, yields 7ms
+    TEST_ASSERT(mock_last_yield_ms == 7, "sys_sleep must clamp yield duration to active 7ms sys_timer_start deadline");
+    TEST_ASSERT(!ST(STAT_CLK_WKUP_FLAG), "First minute sample must initialize lastMinute without setting STAT_CLK_WKUP_FLAG");
+
+    fake_real_us += 60000000LL; // advance 1 minute -> minute 3
+    mock_last_yield_ms = -1;
+    sys_sleep(); // no active timer -> yields 20ms and sets STAT_CLK_WKUP_FLAG
+    TEST_ASSERT(mock_last_yield_ms == 20, "sys_sleep with no active timer must yield default 20ms");
+    TEST_ASSERT(ST(STAT_CLK_WKUP_FLAG) != 0, "Minute rollover with STAT_CLK_WKUP_ENABLE must set STAT_CLK_WKUP_FLAG");
+    CLR_ST(STAT_CLK_WKUP_ENABLE);
+    CLR_ST(STAT_CLK_WKUP_FLAG);
+
+    // 4) key_empty() throttled poll unwinds nested screenMutex, invokes pumpCoreTasksUnlocked() after >= 25ms, and detects newly pushed EXIT
+    pthread_mutex_lock(&screenMutex);
+    pthread_mutex_lock(&screenMutex);
+    fake_current_ms += 30;
+    mock_pump_callback = mock_pump_push_exit;
+    TEST_ASSERT(key_empty() == 0, "key_empty poll after 25ms must drain core tasks and report pushed EXIT");
+    mock_pump_callback = NULL;
+    pthread_mutex_unlock(&screenMutex);
+    pthread_mutex_unlock(&screenMutex);
+    TEST_ASSERT(pthread_mutex_trylock(&screenMutex) == 0, "Nested screenMutex depth must be restored cleanly after pumpCoreTasksUnlocked");
+    pthread_mutex_unlock(&screenMutex);
+    TEST_ASSERT(key_pop() == 33 && key_pop() == 0, "Polled EXIT press+release must be poppable from queue");
+
+    // 5) sys_delay(55) slices into 20+20+15 ms chunks and aborts early on shutdown without overflow
+    mock_yield_call_count = 0;
+    before_ms = fake_current_ms;
+    sys_delay(55);
+    TEST_ASSERT(fake_current_ms - before_ms == 55 && mock_yield_call_count == 3, "sys_delay(55) must yield in three <= 20ms slices (20+20+15)");
+
+    mock_yield_call_count = 0;
+    mock_yield_callback = mock_shutdown_on_first_yield;
+    before_ms = fake_current_ms;
+    sys_delay(2000);
+    mock_yield_callback = NULL;
+    TEST_ASSERT(fake_current_ms - before_ms == 20 && mock_yield_call_count == 1, "sys_delay(2000) must abort after first 20ms slice when shutdown is requested");
+    clearCoreShutdownRequested();
+    key_pop_all();
+
+    // 6) notifyCoreShutdownRequested replaces even a full queue with EXIT [33, 0], blocks keyPopForMainLoop, and returns key_empty == 1 once drained
+    for(int i = 0; i < 63; i++) {
+        key_push(10);
+    }
+    programRunStop = PGM_PAUSED;
+    notifyCoreShutdownRequested();
+    TEST_ASSERT(ST(STAT_PGM_END) != 0, "Shutdown request must set STAT_PGM_END");
+    TEST_ASSERT(programRunStop == PGM_WAITING, "Shutdown request must transition PGM_PAUSED to PGM_WAITING");
+    TEST_ASSERT(keyPopForMainLoop() == -1, "keyPopForMainLoop must return -1 during shutdown so refreshScreen cannot steal EXIT");
+    TEST_ASSERT(key_empty() == 0, "key_empty must return 0 while shutdown EXIT [33, 0] is buffered");
+    TEST_ASSERT(key_pop() == 33 && key_pop() == 0 && key_pop() == -1, "Shutdown request must replace queued keys with single [33, 0] pair");
+    TEST_ASSERT(key_empty() == 1, "key_empty must return 1 once shutdown [33, 0] is drained so C47PopKeyNoBuffer cannot spin");
+    mock_last_yield_ms = -1;
+    sys_sleep();
+    TEST_ASSERT(mock_last_yield_ms == -1, "sys_sleep must return immediately without yielding when shutdown is requested");
+
+    // 7) unlockScreenMutexAndPump(500u, true) aborts sleep immediately when processCoreTasksNative triggers shutdown
+    clearCoreShutdownRequested();
+    key_pop_all();
+    programRunStop = PGM_RUNNING;
+    mock_pump_callback = mock_pump_request_shutdown;
+    unlockScreenMutexAndPump(500u, true);
+    mock_pump_callback = NULL;
+    TEST_ASSERT(isCoreShutdownRequested() && programRunStop == PGM_WAITING, "unlockScreenMutexAndPump must abort 500ms sleep and transition PGM_RUNNING -> PGM_WAITING on shutdown");
+
+    resetMockKeyRuntimeState();
+}
+
 // --------------------------------------------------------------------------
 // TEST 11: Battery and Disk Info Temporary Information Messages
 // --------------------------------------------------------------------------
 void test_battery_and_disk_info(void) {
     #if !defined(TI_DISK_INFO)
-    #define TI_DISK_INFO 162
-    #endif
-    TEST_ASSERT(TI_DISK_INFO == 162, "TI_DISK_INFO must be defined for storage metric display");
+    #define TI_DISK_INFO 254
+    #endif // !defined(TI_DISK_INFO)
+    TEST_ASSERT(TI_DISK_INFO == 254, "TI_DISK_INFO must equal 254 across core and HAL translation units");
 
     extern void fnBatteryVoltage(uint16_t unused);
     extern void fnDiskInfo(uint16_t unused);
 
-    // Call functions to ensure no crashes or null pointer dereferences
+    // Call functions to ensure no crashes or null pointer dereferences and verify temporaryInformation assignment
+    temporaryInformation = 0;
     fnBatteryVoltage(0);
     fnDiskInfo(0);
+    TEST_ASSERT(temporaryInformation == 254, "fnDiskInfo must set temporaryInformation to TI_DISK_INFO (254)");
 }
 
 // --------------------------------------------------------------------------
@@ -2523,6 +2780,12 @@ static void test_c47_character_set_conversion_and_math_ops(void) {
 // MAIN RUNNER
 // --------------------------------------------------------------------------
 int main(void) {
+    pthread_mutexattr_t mutexAttr;
+    pthread_mutexattr_init(&mutexAttr);
+    pthread_mutexattr_settype(&mutexAttr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(&screenMutex, &mutexAttr);
+    pthread_mutexattr_destroy(&mutexAttr);
+
     printf("====================================================\n");
     printf("  R47 Android Features & Invariants Test Suite\n");
     printf("====================================================\n");
@@ -2537,6 +2800,7 @@ int main(void) {
     RUN_TEST(test_softmenu_rendering_bitblt24);
     RUN_TEST(test_state_save_and_restore_commands);
     RUN_TEST(test_execution_yielding_hooks);
+    RUN_TEST(test_dmcp_key_queue_invariants);
     RUN_TEST(test_battery_and_disk_info);
     RUN_TEST(test_pip_mode_invariants);
     RUN_TEST(test_r47_last_key_code_mapping);
@@ -2547,5 +2811,6 @@ int main(void) {
     printf("  Summary: %d Run, %d Passed, %d Failed\n", tests_run, tests_passed, tests_failed);
     printf("====================================================\n");
 
+    pthread_mutex_destroy(&screenMutex);
     return (tests_failed == 0) ? 0 : 1;
 }

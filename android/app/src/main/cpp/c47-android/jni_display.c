@@ -1506,9 +1506,7 @@ Java_org_rpncalculators_r47_MainActivity_getDisplayPixels(
   pthread_mutex_unlock(&screenMutex);
 }
 
-void dmcpResetAutoOff() {}
-void rtc_wakeup_delay() {}
-void LCD_power_on() {}
+void LCD_power_on(void) {}
 
 void triggerQuit() {
   LOGI("triggerQuit called");
@@ -1543,6 +1541,7 @@ void triggerQuit() {
 
 void LCD_power_off(int mode) {
   (void)mode;
+  backToDMCP = true;
   LOGI("LCD_power_off triggered");
   triggerQuit();
 }

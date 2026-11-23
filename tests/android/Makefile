@@ -8,6 +8,7 @@ CFLAGS += $(shell pkg-config --cflags gtk+-3.0)
 
 SRC = test_android_invariants.c \
       ../../android/app/src/main/cpp/c47-android/hal/io.c \
+      ../../android/app/src/main/cpp/c47-android/hal/keys.c \
       ../../android/app/src/main/cpp/c47-android/android_helpers.c \
       ../../android/app/src/main/cpp/c47-android/hal/print_ir.c
 
@@ -17,7 +18,10 @@ all: $(TARGET)
 	./$(TARGET)
 
 items_android.c: ../../src/c47/items.c
-	(sed -n '40,118p' ../../src/c47/items.c; echo "#endif") > $@
+	(sed -n '/^[[:space:]]*#define[[:space:]]\+_TO_ITM_NONE/,/^[[:space:]]*uint16_t[[:space:]]\+indirectionType(/p' ../../src/c47/items.c | sed '$$d'; \
+	 sed -n '/^[[:space:]]*#define[[:space:]]\+_TO_ITM_NONE/,/^[[:space:]]*uint16_t[[:space:]]\+indirectionType(/p' ../../src/c47/items.c | sed '$$d' | \
+	 awk '/^[[:space:]]*#if/{d++} /^[[:space:]]*#endif/{d--} END{while(d-- > 0) print "#endif"}') > $@
+	grep -q "isFunctionOldParam16" $@
 
 items_table_full.c: ../../src/c47/items.c
 	(echo '#include "c47.h"'; \

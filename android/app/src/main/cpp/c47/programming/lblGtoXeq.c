@@ -12,7 +12,7 @@
   #include <android/log.h>
   #define LOG_TAG "R47Native"
   #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
-#endif
+#endif // defined(ANDROID_BUILD)
 
 // Drop stale interrupt keys at top-level program start (a leftover key prior to pgm run can trip us). 1 = on, 0 = off.
 #define CLEAR_KEYS_ON_PGM_START 0
@@ -120,7 +120,6 @@ void goToGlobalStep(int32_t step) {
     }
     step = abs(labelList[lbl - FIRST_LABEL].step);
   }
-
   defineCurrentProgramFromGlobalStepNumber(step);
   currentLocalStepNumber = abs(step) - abs(programList[currentProgramNumber - 1].step) + 1;
 
@@ -221,7 +220,6 @@ void fnExecutePlusSkip(uint16_t label) {
   }
 }
 
-
 void fnReturn(uint16_t skip) {
   subroutineLevelHeader_t *oldCurrentSubroutineLevelData = currentSubroutineLevelData;
   uint16_t sizeToBeFreedInBlocks;
@@ -231,11 +229,7 @@ void fnReturn(uint16_t skip) {
     currentInputVariable = INVALID_VARIABLE;
     screenUpdatingMode = SCRUPD_AUTO; // &= ~SCRUPD_MANUAL_STATUSBAR;
     refreshScreen(3);
-    #if defined(DMCP_BUILD)
       lcd_refresh();
-    #else // !DMCP_BUILD
-      refreshLcd(NULL);
-    #endif // DMCP_BUILD
   }
 
   /* A subroutine is running */
@@ -270,26 +264,28 @@ void fnReturn(uint16_t skip) {
 
   /* Not in a subroutine */
   else {
-    #if PGMPTR_TO_NEXT_AFTER_RTN
-      // Rest one step past this RTN, staying inside the current main program.
-      if(isAtEndOfProgram(currentStep)            || isAtEndOfPrograms(currentStep)              // ended via END (the main program terminator)
-      || isAtEndOfProgram(findNextStep(currentStep)) || isAtEndOfPrograms(findNextStep(currentStep))) {   // or the RTN's next step is that END
-        goToPgmStep(currentProgramNumber, 1);   // wrap to the start of the active main program (never cross into the next one)
-        pemCursorIsZerothStep = true;
+    dynamicMenuItem = -1;  // to ensure return is correctly executed when picked from a dynamc menu
+    if((lastFunc == ITM_RTNSTP) && (programRunStop == PGM_RUNNING)) { // 42 RTN rest on the instruction after the RTN when executed in a program
+      // Rest one step past this RTN
+      int32_t rtnGlobalStep = 1;
+      for(uint8_t *stepScan = beginOfProgramMemory; stepScan != NULL && stepScan < currentStep; stepScan = findNextStep(stepScan)) {
+        rtnGlobalStep++;
       }
-      else {
-        int32_t rtnGlobalStep = 1;
-        for(uint8_t *stepScan = beginOfProgramMemory; stepScan != NULL && stepScan < currentStep; stepScan = findNextStep(stepScan)) {
-          rtnGlobalStep++;
-        }
-        goToGlobalStep(rtnGlobalStep + 1);   // rest on the instruction after the RTN (next routine in the same main program)
-      }
-    #else
+      goToGlobalStep(rtnGlobalStep + 1);   // rest on the instruction after the RTN (next routine in the same main program)
+    }
+    else {
       goToPgmStep(currentProgramNumber, 1);
       pemCursorIsZerothStep = true;
-    #endif // PGMPTR_TO_NEXT_AFTER_RTN
+    }
     cleanLocalFlagsAndRegisters();
   }
+}
+
+void fn42Return(uint16_t unusedButMandatoryParameter) {
+    uint16_t previousLastFunc = lastFunc;
+    lastFunc = ITM_RTNSTP;
+    fnReturn(0);
+    lastFunc = previousLastFunc;
 }
 
 void cleanLocalFlagsAndRegisters() {
@@ -388,7 +384,7 @@ static void _executeWithIndirectVariable(uint8_t *stringAddress, uint16_t op) {
     displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE);
     #if defined(ANDROID_BUILD)
       LOGE("ERROR_UNDEF_SOURCE_VAR in _executeWithIndirectVariable: variable '%s' not found (op=%u)", tmpStringLabelOrVariableName, op);
-    #endif
+    #endif // defined(ANDROID_BUILD)
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
       sprintf(errorMessage, "string '%s' is not a named variable", tmpStringLabelOrVariableName);
       moreInfoOnError("In function _executeWithIndirectVariable:", errorMessage, NULL, NULL);
@@ -540,7 +536,7 @@ static void _executeOp(uint8_t *paramAddress, uint16_t op, uint16_t paramMode) {
           displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE);
           #if defined(ANDROID_BUILD)
             LOGE("ERROR_UNDEF_SOURCE_VAR in _executeOp: variable '%s' not found (op=%u)", tmpStringLabelOrVariableName, op);
-          #endif
+          #endif // defined(ANDROID_BUILD)
           #if (EXTRA_INFO_ON_CALC_ERROR == 1)
             sprintf(errorMessage, "string '%s' is not a named variable", tmpStringLabelOrVariableName);
             moreInfoOnError("In function _executeOp:", errorMessage, NULL, NULL);
@@ -840,7 +836,8 @@ int16_t executeOneStep(uint8_t *step) {
 
     case ITM_RTN:         //     4
     case ITM_END:         //  1458
-    case ITM_RTNP1: {     //  1579
+    case ITM_RTNP1:       //  1579
+    case ITM_RTNSTP: {    //  2799
       runFunction(op);
       return 0;
     }
@@ -985,26 +982,27 @@ int16_t executeOneStep(uint8_t *step) {
 void runProgram(bool_t singleStep, uint16_t menuLabel) {
   bool_t nestedEngine = (programRunStop == PGM_RUNNING);
   uint16_t startingSubLevel = (nestedEngine && menuLabel == INVALID_VARIABLE) ? currentSubroutineLevel : 0;
-  #if defined(DMCP_BUILD) && CLEAR_KEYS_ON_PGM_START
+  #if (CLEAR_KEYS_ON_PGM_START == 1)
     if(!nestedEngine && !singleStep) {   // top-level run start: drop stale keys so the per-step keys buffers start clean
       key_pop_all();
       clearKeyBuffer();
     }
-  #endif
+  #endif // (CLEAR_KEYS_ON_PGM_START == 1)
   lastErrorCode = ERROR_NONE;
   hourGlassIconEnabled = true;
   programRunStop = PGM_RUNNING;
-  #if defined(DMCP_BUILD)
-    // a top level run start is a fresh load step, so the first dispatches sample undelayed; solver and grapher evaluations re-enter per evaluation and keep the schedule
-    if(!nestedEngine && !singleStep && !getSystemFlag(FLAG_INTING) && !getSystemFlag(FLAG_SOLVING) && !graphAccActive) {
-      resetVbatSampleSchedule();
-    }
-  #endif // DMCP_BUILD
+  // a top level run start is a fresh load step, so the first dispatches sample undelayed; solver and grapher evaluations re-enter per evaluation and keep the schedule
+  if(!nestedEngine && !singleStep && !getSystemFlag(FLAG_INTING) && !getSystemFlag(FLAG_SOLVING) && !graphAccActive) {
+    resetVbatSampleSchedule();
+  }
 
   if(!getSystemFlag(FLAG_INTING) && !getSystemFlag(FLAG_SOLVING) && !graphAccActive) {
     screenUpdatingMode = SCRUPD_AUTO;
     screenUpdatingMode |= SCRUPD_SKIP_STATUSBAR_ONE_TIME;
     showHideHourGlass();               // paints the P; a set SCRUPD_MANUAL_STATUSBAR makes it return unpainted, so it must follow the screenUpdatingMode writes above
+    if(!nestedEngine && !singleStep) {
+      lcd_refresh();                   // a run that draws nothing pushes only the status bar until it stops, so the rows the R/S or XEQ release marked go out
+    }
   }
 
   if(menuLabel != INVALID_VARIABLE) {
@@ -1025,18 +1023,18 @@ void runProgram(bool_t singleStep, uint16_t menuLabel) {
     if(opCode & 0x80) {
       opCode = ((uint16_t)(opCode & 0x7F) << 8) | *(currentStep + 1);
     }
-    if(temporaryInformation == TI_TRUE || temporaryInformation == TI_FALSE || temporaryInformation == TI_SOLVER_FAILED || (opCode != ITM_RTN && opCode != ITM_STOP && opCode != ITM_END && opCode != ITM_SNAP && opCode != 0x7fff)) {
+    if(temporaryInformation == TI_TRUE || temporaryInformation == TI_FALSE || temporaryInformation == TI_SOLVER_FAILED || (opCode != ITM_RTN && opCode != ITM_RTNSTP && opCode != ITM_STOP && opCode != ITM_END && opCode != ITM_SNAP && opCode != 0x7fff)) {
       temporaryInformation = TI_NO_INFO;
     }
     stepsToBeAdvanced = executeOneStep(currentStep);
     #if defined(ANDROID_BUILD)
       extern void yieldToAndroid(void);
       static int stepCount = 0;
-      if (++stepCount >= 10) {
-          stepCount = 0;
-          yieldToAndroid();
+      if(++stepCount >= 10) {
+        stepCount = 0;
+        yieldToAndroid();
       }
-    #endif
+    #endif // defined(ANDROID_BUILD)
     if((lastErrorCode != ERROR_NONE) && (getSystemFlag(FLAG_IGN1ER))) {  // to catch an opcode parameter error detected before reallyRunFunction is called
       lastErrorCode = ERROR_NONE;
       clearSystemFlag(FLAG_IGN1ER);
@@ -1063,7 +1061,6 @@ void runProgram(bool_t singleStep, uint16_t menuLabel) {
     else {
       break;
     }
-    #if defined(DMCP_BUILD)
       static uint32_t keyPollUptimeSlot = 0; // probe the key buffer when the ~128 ms uptime slot changes: the ~1500-cycle probe is skipped in fast loops for a
       // ~94-cycle uptime read, heavy steps keep per-step R/S response, and long operations self-poll via exitKeyWaiting(); the full 32-bit slot compare costs the
       // same as a one-bit flip test (the M4 barrel shifter folds the >>7 into the compare) and has no alias period: a one-bit test goes blind on any step near an
@@ -1093,7 +1090,6 @@ void runProgram(bool_t singleStep, uint16_t menuLabel) {
           }
         }
       }
-    #endif // DMCP_BUILD
     if(programRunStop != PGM_RUNNING) {
       break;
     }

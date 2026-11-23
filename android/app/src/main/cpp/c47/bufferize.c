@@ -1507,6 +1507,7 @@ TO_QSPI static const numStr NumMsg[] = { { "^0" }, { "^1" }, { "^2" }, { "^3" },
         break;
       }
 
+      case ITM_CHS_XFN:
       case ITM_CHS: { // +/-
         done = true;
 

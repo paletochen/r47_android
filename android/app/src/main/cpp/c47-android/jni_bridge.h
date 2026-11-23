@@ -1,7 +1,8 @@
-#ifndef JNI_BRIDGE_H
+#if !defined(JNI_BRIDGE_H)
 #define JNI_BRIDGE_H
 
 #include "c47.h"
+#include "hal_key_runtime.h"
 #include <android/log.h>
 #include <jni.h>
 #include <pthread.h>
@@ -38,25 +39,16 @@ extern bool fileCancelled;
 extern bool isCoreBlockingForIo;
 
 extern gboolean ui_is_active;
-
-extern uint32_t nextTimerRefresh;
 extern uint32_t nextScreenRefresh;
-
-extern GdkEvent pressEvent;
-extern GdkEvent releaseEvent;
 
 extern void set_android_base_path(const char *path);
 extern void init_lcd_buffers(void);
 extern void setupUI(void);
 extern void lcd_clear_buf(void);
 extern void lcd_refresh(void);
-extern void refreshScreen(uint16_t reason);
-extern gboolean refreshLcd(gpointer unusedData);
 
 extern void JNICALL Java_org_rpncalculators_r47_MainActivity_setLcdColors(
     JNIEnv *env, jobject thiz, jint text, jint bg);
-
-extern bool_t restoreRegister(calcRegister_t regist, char *type, char *value);
 
 void onUIActivity(void);
 gint64 g_get_monotonic_time(void);
@@ -80,6 +72,9 @@ JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_initNative(
     JNIEnv *env, jobject thiz, jstring pathObj, jint slotId);
 JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_tick(
     JNIEnv *env, jobject thiz);
+JNIEXPORT void JNICALL
+Java_org_rpncalculators_r47_MainActivity_requestNativeShutdown(JNIEnv *env,
+                                                               jobject thiz);
 JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_sendKey(
     JNIEnv *env, jobject thiz, jint keyCode);
 JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_sendSimKeyNative(
@@ -169,4 +164,4 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(JNIEnv *env,
 extern bool_t restoreRegister(calcRegister_t regist, char *type, char *value);
 extern bool_t reallocateRegister(calcRegister_t regist, uint32_t dataType, uint16_t dataSizeWithoutDataLenBlocks, uint32_t tag);
 
-#endif
+#endif // !defined(JNI_BRIDGE_H)

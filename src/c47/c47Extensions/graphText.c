@@ -3,6 +3,12 @@
 
 #include "c47.h"
 
+#if defined(ANDROID_BUILD)
+  #include <unistd.h>
+  #include <android/log.h>
+  extern int openDirectDocumentFd(int fileType, const char *fileName, const char *mode);
+#endif // defined(ANDROID_BUILD)
+
 void preventFilenameTimeout(void){
   uint32_t tmp__32;
   tmp__32 = getUptimeMs();
@@ -830,9 +836,6 @@ void preventFilenameTimeout(void){
     FILE *outfile;
 
     #if defined(ANDROID_BUILD)
-      #include <unistd.h>
-      #include <android/log.h>
-      extern int openDirectDocumentFd(int fileType, const char *fileName, const char *mode);
       int directFd = openDirectDocumentFd(4 /* DATA */, filename_csv, "wa");
       if(directFd < 0) {
         __android_log_print(ANDROID_LOG_INFO, "R47Native", "export_append_line: openDirectDocumentFd returned %d for %s", directFd, filename_csv);
@@ -844,7 +847,7 @@ void preventFilenameTimeout(void){
         close(directFd);
         return 1;
       }
-    #else
+    #else // !defined(ANDROID_BUILD)
       //strcpy(dirfile, "PROGRAMS/C47_LOG.TXT");
       outfile = fopen(filename_csv, "ab");
       if(outfile == NULL) {
@@ -852,7 +855,7 @@ void preventFilenameTimeout(void){
         fflush(stdout);
         return 1;
       }
-    #endif // ANDROID_BUILD
+    #endif // defined(ANDROID_BUILD)
     int frr = 0;
     char line[200]; // Line buffer
     frr = fputs(inputstring, outfile);
@@ -981,9 +984,7 @@ void print_linestr(const char *line1, bool_t line_init) {        //prints one li
       g_line_x += 4;
     }
     force_refresh(timed);
-    #if defined(DMCP_BUILD)
-      lcd_refresh_wait();
-    #endif //DMCP_BUILD
+    lcd_refresh_wait();
 }
 
 void print_numberstr(const char *line1, bool_t line_init) {     //ONLY N=ASCII NUMBERS AND E AND . //FIXED FONT
@@ -1004,9 +1005,7 @@ void print_numberstr(const char *line1, bool_t line_init) {     //ONLY N=ASCII N
     }
     g_line_x = 0;
     force_refresh(timed);
-    #if defined(DMCP_BUILD)
-      lcd_refresh_wait();
-    #endif //DMCP_BUILD
+    lcd_refresh_wait();
 }
 
 
@@ -1032,9 +1031,7 @@ void print_inlinestr(const char *line1, bool_t endline) {  //prints with or with
       t_line_x = 0;
     }
     force_refresh(force);
-    #if defined(DMCP_BUILD)
-      lcd_refresh_wait();
-    #endif //DMCP_BUILD
+    lcd_refresh_wait();
 }
 
 

@@ -509,6 +509,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
             getKeypadSnapshot = ::currentKeypadSnapshot,
             onLcdPixels = { pixels -> replicaOverlay.updateLcd(pixels) },
             onDynamicRefresh = ::updateDynamicKeys,
+            requestNativeShutdown = ::requestNativeShutdown,
         )
         
         replicaOverlay.post {
@@ -722,6 +723,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     private external fun nativePreInit(storagePath: String)
     private external fun initNative(storagePath: String, slotId: Int)
     private external fun tick()
+    private external fun requestNativeShutdown()
     private external fun releaseNativeRuntime()
     private external fun sendKey(keyCode: Int)
     private external fun sendSimKeyNative(keyId: String, isFn: Boolean, isRelease: Boolean)

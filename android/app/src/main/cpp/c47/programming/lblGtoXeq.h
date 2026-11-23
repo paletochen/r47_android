@@ -12,6 +12,7 @@
   void    fnExecute         (uint16_t label);
   void    fnExecutePlusSkip (uint16_t label);
   void    fnReturn          (uint16_t skip);
+  void    fn42Return        (uint16_t unusedButMandatoryParameter);
   void    fnRunProgram      (uint16_t unusedButMandatoryParameter);
   void    fnStopProgram     (uint16_t unusedButMandatoryParameter);
   void    fnFinish          (uint16_t unusedButMandatoryParameter);

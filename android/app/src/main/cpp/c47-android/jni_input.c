@@ -3,22 +3,106 @@
 #include <stdio.h>
 #include <string.h>
 
-extern void btnFnPressed(GtkWidget *notUsed, GdkEvent *event, gpointer data);
-extern void btnFnReleased(GtkWidget *notUsed, GdkEvent *event, gpointer data);
-extern void btnPressed(GtkWidget *notUsed, GdkEvent *event, gpointer data);
-extern void btnReleased(GtkWidget *notUsed, GdkEvent *event, gpointer data);
+typedef enum {
+  KEY_GESTURE_IDLE = 0,
+  KEY_GESTURE_QUEUED,
+  KEY_GESTURE_DIRECT
+} keyGestureMode_t;
 
-static char currentPressedKeyStr[4] = {0};
-static int currentPressedKeyCode = 0;
+typedef struct {
+  keyGestureMode_t mode;
+  char keyStr[4];
+  bool isFn;
+} keyGestureState_t;
+
+static keyGestureState_t touchGesture = {KEY_GESTURE_IDLE, {0}, false};
+static keyGestureState_t simGesture   = {KEY_GESTURE_IDLE, {0}, false};
+
+/**
+ * Resets tracked touch and physical-keyboard gesture states on runtime startup or session re-attachment.
+ */
+void resetInputGestures(void) {
+  touchGesture.mode = KEY_GESTURE_IDLE;
+  touchGesture.keyStr[0] = '\0';
+  touchGesture.isFn = false;
+  simGesture.mode = KEY_GESTURE_IDLE;
+  simGesture.keyStr[0] = '\0';
+  simGesture.isFn = false;
+}
+
+/**
+ * Routes a press or release event symmetrically for one input source while screenMutex is locked.
+ * Presses arriving while the core is busy enqueue into hal/keys.c; overlapping rollover presses complete
+ * the prior gesture first; releases match their press mode and suppress re-entrant btnReleased calls when
+ * btnPressed synchronously launched a program or yield.
+ */
+static void dispatchKeyGesture(keyGestureState_t *g, int dmcpCode, const char *keyStr, bool isFn, bool isRelease) {
+  const bool_t shouldQueue = shouldQueueInputToDmcp();
+  if(!isRelease) {
+    if(g->mode == KEY_GESTURE_QUEUED) {
+      key_push(0);
+      g->mode = KEY_GESTURE_IDLE;
+    } else if(g->mode == KEY_GESTURE_DIRECT) {
+      if(!shouldQueue) {
+        if(g->isFn) {
+          btnFnReleased(g->keyStr);
+        } else {
+          btnReleased(g->keyStr);
+        }
+      }
+      g->mode = KEY_GESTURE_IDLE;
+    }
+    if(dmcpCode < 1 || dmcpCode > 43 || keyStr == NULL || keyStr[0] == '\0') {
+      return;
+    }
+    snprintf(g->keyStr, sizeof(g->keyStr), "%s", keyStr);
+    g->isFn = isFn;
+    if(shouldQueue) {
+      g->mode = KEY_GESTURE_QUEUED;
+      key_push(dmcpCode);
+      return;
+    }
+    g->mode = KEY_GESTURE_DIRECT;
+    if(isFn) {
+      btnFnPressed(g->keyStr);
+    } else {
+      btnPressed(g->keyStr);
+    }
+    lcd_refresh();
+    return;
+  }
+
+  if(keyStr != NULL && g->mode != KEY_GESTURE_IDLE && (g->isFn != isFn || strcmp(g->keyStr, keyStr) != 0)) {
+    return;
+  }
+  const keyGestureMode_t prevMode = g->mode;
+  g->mode = KEY_GESTURE_IDLE;
+  if(prevMode == KEY_GESTURE_QUEUED) {
+    key_push(0);
+  } else if(prevMode == KEY_GESTURE_DIRECT && !shouldQueue) {
+    if(g->isFn) {
+      btnFnReleased(g->keyStr);
+    } else {
+      btnReleased(g->keyStr);
+    }
+    lcd_refresh();
+  }
+}
 
 JNIEXPORT void JNICALL
 Java_org_rpncalculators_r47_MainActivity_sendSimFuncNative(
     JNIEnv *env, jobject thiz, jint funcId) {
   (void)env;
   (void)thiz;
+  if(!ram || isCoreBlockingForIo) {
+    return;
+  }
   pthread_mutex_lock(&screenMutex);
-  extern void runFunction(int16_t id);
-  runFunction((int16_t)funcId);
+  if(!shouldQueueInputToDmcp()) {
+    extern void runFunction(int16_t id);
+    runFunction((int16_t)funcId);
+    lcd_refresh();
+  }
   pthread_mutex_unlock(&screenMutex);
 }
 
@@ -27,86 +111,61 @@ Java_org_rpncalculators_r47_MainActivity_sendSimMenuNative(
     JNIEnv *env, jobject thiz, jint menuId) {
   (void)env;
   (void)thiz;
+  if(!ram || isCoreBlockingForIo) {
+    return;
+  }
   pthread_mutex_lock(&screenMutex);
-  extern void showSoftmenu(int16_t id);
-  showSoftmenu((int16_t)menuId);
-  refreshScreen(1);
+  if(!shouldQueueInputToDmcp()) {
+    extern void showSoftmenu(int16_t id);
+    showSoftmenu((int16_t)menuId);
+    refreshScreen(1);
+    lcd_refresh();
+  }
   pthread_mutex_unlock(&screenMutex);
 }
 
-JNIEXPORT void JNICALL
-Java_org_rpncalculators_r47_MainActivity_sendSimKeyNative(
-    JNIEnv *env, jobject thiz, jstring keyId, jboolean isFn,
-    jboolean isRelease) {
+JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_sendSimKeyNative(JNIEnv *env, jobject thiz, jstring keyId, jboolean isFn, jboolean isRelease) {
   (void)thiz;
-  if (!ram || isCoreBlockingForIo) {
+  if(!ram || isCoreBlockingForIo) {
     return;
   }
 
   const char *nativeKeyId = (*env)->GetStringUTFChars(env, keyId, 0);
-  if (!nativeKeyId) {
+  if(!nativeKeyId) {
     return;
   }
 
+  const int dmcpCode = parseCalculatorKeyId(nativeKeyId);
   pthread_mutex_lock(&screenMutex);
-  if (isFn) {
-    if (isRelease) {
-      extern void btnFnClickedR(void *w, void *data);
-      btnFnClickedR(NULL, (void *)nativeKeyId);
-    } else {
-      extern void btnFnClickedP(void *w, void *data);
-      btnFnClickedP(NULL, (void *)nativeKeyId);
-    }
-  } else {
-    if (isRelease) {
-      extern void btnClickedR(void *w, void *data);
-      btnClickedR(NULL, (void *)nativeKeyId);
-    } else {
-      extern void btnClickedP(void *w, void *data);
-      btnClickedP(NULL, (void *)nativeKeyId);
-    }
-  }
+  dispatchKeyGesture(&simGesture, dmcpCode, nativeKeyId, isFn != JNI_FALSE, isRelease != JNI_FALSE);
   pthread_mutex_unlock(&screenMutex);
   (*env)->ReleaseStringUTFChars(env, keyId, nativeKeyId);
 }
 
-JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_sendKey(
-  JNIEnv *env, jobject thiz, jint keyCode) {
+JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_sendKey(JNIEnv *env, jobject thiz, jint keyCode) {
   (void)env;
   (void)thiz;
-  if (!ram) {
+  if(!ram) {
     return;
   }
 
   char charKey[4];
+  bool isFn = false;
   onUIActivity();
-  if (keyCode > 0) {
-    LOGI("sendKey: DOWN %d", keyCode);
-    currentPressedKeyCode = keyCode;
-    pthread_mutex_lock(&screenMutex);
-    if (keyCode >= 38 && keyCode <= 43) {
-      sprintf(charKey, "%c", keyCode - 38 + '1');
-      strcpy(currentPressedKeyStr, charKey);
-      btnFnPressed(NULL, &pressEvent, charKey);
-    } else if (keyCode >= 1 && keyCode <= 37) {
-      sprintf(charKey, "%02u", keyCode - 1);
-      strcpy(currentPressedKeyStr, charKey);
-      btnPressed(NULL, &pressEvent, charKey);
-    }
-    pthread_mutex_unlock(&screenMutex);
-    return;
-  }
 
-  LOGI("sendKey: UP (last=%d)", currentPressedKeyCode);
   pthread_mutex_lock(&screenMutex);
-  if (currentPressedKeyCode >= 38 && currentPressedKeyCode <= 43) {
-    btnFnReleased(NULL, &releaseEvent, currentPressedKeyStr);
-  } else if (currentPressedKeyCode >= 1 && currentPressedKeyCode <= 37) {
-    btnReleased(NULL, &releaseEvent, currentPressedKeyStr);
+  if(keyCode > 0) {
+    if(formatCalculatorKeyId((int)keyCode, charKey, &isFn)) {
+      LOGI("sendKey: DOWN %d", keyCode);
+      dispatchKeyGesture(&touchGesture, (int)keyCode, charKey, isFn, false);
+    } else {
+      touchGesture.mode = KEY_GESTURE_IDLE;
+    }
+  } else {
+    LOGI("sendKey: UP");
+    dispatchKeyGesture(&touchGesture, 0, NULL, false, true);
   }
   pthread_mutex_unlock(&screenMutex);
-  currentPressedKeyCode = 0;
-  currentPressedKeyStr[0] = 0;
 }
 
 static bool_t tryPasteMatrix(const char *str) {
@@ -383,11 +442,10 @@ static bool_t tryPasteMatrix(const char *str) {
   setSystemFlag(FLAG_ASLIFT);
 
   extern bool_t reDraw;
-  extern gboolean refreshLcd(gpointer unusedData);
   reDraw = true;
   screenUpdatingMode = SCRUPD_AUTO;
   refreshScreen(1);
-  refreshLcd(NULL);
+  refreshLcd();
   lcd_refresh();
   pthread_mutex_unlock(&screenMutex);
 
@@ -861,11 +919,10 @@ static bool_t tryPasteComplex(const char *rawInput) {
   setSystemFlag(FLAG_ASLIFT);
 
   extern bool_t reDraw;
-  extern gboolean refreshLcd(gpointer unusedData);
   reDraw = true;
   screenUpdatingMode = SCRUPD_AUTO;
   refreshScreen(1);
-  refreshLcd(NULL);
+  refreshLcd();
   lcd_refresh();
   pthread_mutex_unlock(&screenMutex);
 
@@ -876,7 +933,7 @@ JNIEXPORT void JNICALL
 Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
     JNIEnv *env, jobject thiz, jstring text) {
   (void)thiz;
-  if(!ram || isCoreBlockingForIo) {
+  if(!ram || isCoreBlockingForIo || shouldQueueInputToDmcp()) {
     return;
   }
 
@@ -917,11 +974,10 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
       setSystemFlag(FLAG_ASLIFT);
 
       extern bool_t reDraw;
-      extern gboolean refreshLcd(gpointer unusedData);
       reDraw = true;
       screenUpdatingMode = SCRUPD_AUTO;
       refreshScreen(1);
-      refreshLcd(NULL);
+      refreshLcd();
       lcd_refresh();
       pthread_mutex_unlock(&screenMutex);
 
@@ -1380,11 +1436,10 @@ Java_org_rpncalculators_r47_MainActivity_pasteTextNative(
   setSystemFlag(FLAG_ASLIFT);
 
   extern bool_t reDraw;
-  extern gboolean refreshLcd(gpointer unusedData);
   reDraw = true;
   screenUpdatingMode = SCRUPD_AUTO;
   refreshScreen(1);
-  refreshLcd(NULL);
+  refreshLcd();
   lcd_refresh();
   pthread_mutex_unlock(&screenMutex);
 
@@ -1396,8 +1451,8 @@ JNIEXPORT jstring JNICALL
 Java_org_rpncalculators_r47_MainActivity_pasteProgramNative(
     JNIEnv *env, jobject thiz, jstring codeTextObj) {
   (void)thiz;
-  if(!ram || isCoreBlockingForIo) {
-    return (*env)->NewStringUTF(env, "Calculator is not ready");
+  if(!ram || isCoreBlockingForIo || shouldQueueInputToDmcp()) {
+    return (*env)->NewStringUTF(env, "Calculator is busy");
   }
   if(codeTextObj == NULL) {
     return (*env)->NewStringUTF(env, "Empty program text");

@@ -188,10 +188,6 @@ void resizeProgramMemory(uint16_t newSizeInBlocks) {
   uint16_t deltaBlocks, blocksToMove = 0;
   uint8_t *newProgramMemoryPointer = NULL;
 
-  #if !defined(DMCP_BUILD)
-    //printf("currentSizeInBlocks = %u    newSizeInBlocks = %u\n", currentSizeInBlocks, newSizeInBlocks);
-    //printf("currentAddress      = %u\n", TO_C47MEMPTR(beginOfProgramMemory));
-  #endif // !DMCP_BUILD
   if(newSizeInBlocks == currentSizeInBlocks) { // Nothing to do
     return;
   }
@@ -214,9 +210,6 @@ void resizeProgramMemory(uint16_t newSizeInBlocks) {
       blocksToMove = currentSizeInBlocks;
       newProgramMemoryPointer = beginOfProgramMemory - TO_BYTES(deltaBlocks);
       firstFreeProgramByte -= TO_BYTES(deltaBlocks);
-      #if !defined(DMCP_BUILD)
-        //printf("Increasing program memory by copying %u blocks from %u to %u\n", currentSizeInBlocks, TO_C47MEMPTR(beginOfProgramMemory), TO_C47MEMPTR(newProgramMemoryPointer));
-      #endif // !DMCP_BUILD
       freeMemoryRegions[numberOfFreeMemoryRegions - 1].sizeInBlocks -= deltaBlocks;
     }
   }
@@ -225,9 +218,6 @@ void resizeProgramMemory(uint16_t newSizeInBlocks) {
     blocksToMove = newSizeInBlocks;
     newProgramMemoryPointer = beginOfProgramMemory + TO_BYTES(deltaBlocks);
     firstFreeProgramByte += TO_BYTES(deltaBlocks);
-    #if !defined(DMCP_BUILD)
-      //printf("Decreasing program memory by copying %u blocks from %u to %u\n", newSizeInBlocks, TO_C47MEMPTR(beginOfProgramMemory), TO_C47MEMPTR(newProgramMemoryPointer));
-    #endif // !DMCP_BUILD
     freeMemoryRegions[numberOfFreeMemoryRegions - 1].sizeInBlocks += deltaBlocks;
   }
 

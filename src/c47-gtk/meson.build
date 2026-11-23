@@ -5,6 +5,7 @@ c47_gtk_src = files(
   'hal/gui.c',
   'hal/lcd.c',
   'hal/io.c',
+  'hal/keys.c',
   'hal/print_ir.c',
   'hal/printerWindow.c')
 

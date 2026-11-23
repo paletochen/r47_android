@@ -17,12 +17,6 @@ static inline void print_caller(const char *format, ...) {}
   #define LCD_H
 
 #if defined(DMCP_BUILD)
-  static inline void _lcdRefresh(void) {
-    lcd_refresh();
-  }
-  static inline void _lcdSBRefresh(void) {
-    lcd_refresh_lines(0, 20);
-  }
   // lcd_fill_rect from dmcp.h
   // lcd_refresh   from dmcp.h
   // LCD_write_line from dmcp.h
@@ -35,15 +29,9 @@ static inline void print_caller(const char *format, ...) {}
   #define LCD_EMPTY_VALUE 255 // fills black, through BLT_OR, which clears the bits. drawSinglePixelFullWidthLine draws its rule with this one
   typedef enum { BLT_OR = 0, BLT_ANDN = 1, BLT_XOR = 2 } blt_op_t;
   typedef enum { BLT_NONE = 0, BLT_SET  = 1 } blt_fill_t;
-  extern gboolean ui_is_active;
 
 
   // void lcd_fill_ptrn(int x, int y, int dx, int dy, int ptrn1, int ptrn2);
-  /**
-   * Refresh the LCD with the draw buffer contents.
-   */
-  void _lcdRefresh    (void);
-  void _lcdSBRefresh  (void);
 
   // mimic DMCP functions
  /**
@@ -98,7 +86,22 @@ static inline void print_caller(const char *format, ...) {}
   // write cnt lines  starting with line ln regardless update mark
   void lcd_refresh_lines (uint8_t ln, uint8_t cnt);
 
-  void refresh_gui(void);
+  // lcd_refresh for the simulator, which pushes at once and has nothing to wait for
+  void lcd_refresh_dma   (void);
+  void lcd_refresh_wait  (void);
+
+  // write every line regardless update mark
+  void lcd_forced_refresh(void);
+
+  // the simulator window has no power state: switching the LCD off ends the main loop, and so the simulator
+  void LCD_power_on      (void);
+  void LCD_power_off     (int clear);
+  void draw_power_off_image(int allow_errors);
+  void lcd_set_buf_cleared(int val);
+  int  lcd_get_buf_cleared(void);
+
+  // write a capture of the screen, as SNAP does
+  int create_screenshot(int report_error);
 
   /**
    * True if the pixel at screen (x, y) is on in lcd_buffer (matches ON_PIXEL in BMP dumps).
@@ -106,6 +109,13 @@ static inline void print_caller(const char *format, ...) {}
    */
   bool_t lcd_buffer_pixel_on(uint32_t x, uint32_t y);
 #endif // DMCP_BUILD
+  static inline void _lcdRefresh(void) {
+    lcd_refresh();
+  }
+  static inline void _lcdSBRefresh(void) {
+    lcd_refresh_lines(0, 20);
+  }
+
  /**
   * Sets a single black pixel on the screen.
   *

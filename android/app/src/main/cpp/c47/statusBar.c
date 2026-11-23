@@ -782,7 +782,6 @@ void drawBattery(uint16_t voltage) {
 }
 
 
-  #if defined(DMCP_BUILD) || defined(BATTERYTEST)
     void showHideUsbLowBattery(void) {
       if(!getSystemFlag(FLAG_USB) && SBARUPD_BatVoltage) {
         #if defined(DMCP_BUILD)
@@ -806,7 +805,6 @@ void drawBattery(uint16_t voltage) {
         showGlyph(glyph, &standardFont, X_BATTERY, 0, vmNormal, true, false, false);
       }
     }
-  #endif // DMCP_BUILD || BATTERYTEST
 
 
   void refreshStatusBar(void) {

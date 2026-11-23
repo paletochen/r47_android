@@ -23,6 +23,8 @@
   }
   void fnXXfn(uint16_t function) {
   }
+  void fnXSHOW(uint16_t unusedButMandatoryParameter) {
+  }
   bool_t registerFMAOutputString(calcRegister_t regist, char* prefix, char *displayString) {
   return 0;
   }
@@ -85,6 +87,10 @@
   void fnXXfn_RSD                 (uint16_t digits) {
   }
   void fnXXfn_CHS                 (uint16_t registerNo) {
+  }
+  void fnXXfn_ABS                 (uint16_t registerNo) {
+  }
+  void fnXXfn_toREAL              (uint16_t registerNo) {
   }
 
 
@@ -190,6 +196,13 @@
 // **
 // ******************************************************
 
+
+void fnXShow(uint16_t unusedButMandatoryParameter) {
+  showSoftmenu(-MNU_XXFCNS);
+  fnC47Show(NOPARAM);
+}
+
+
 const bool_t use1071 = true;
 #define maxAllowedDigits  (use1071 ? 1000 : 68)
 #define maxContextDigits  (use1071 ? 1071 : 75)
@@ -197,7 +210,7 @@ const bool_t use1071 = true;
 
 
 int32_t realGetDigits(const real_t *x) {
-  return x->digits;
+  return realStoredDigits(x);
 }
 
 void decomposeReal(const real_t *x, longInteger_t integerPart, real_t *fractionalPart, realContext_t *c) {
@@ -208,6 +221,9 @@ void decomposeReal(const real_t *x, longInteger_t integerPart, real_t *fractiona
       printf("decomposeReal 000: input: %s\n", tmpString);
     #endif //DEBUG_XFN
 //--------//--------//--------//--------//-------- pre-check on original x
+    if(realIsSpecial(x) || realIsZero(x)) {
+      goto returnUnity;
+    }
     int32_t digits = realGetDigits(x);
     digits = (digits < c->digits) ? digits : c->digits;   // smaller of reported digits or context precision
     if(digits <= 34) {                                    // if the data fits a real, assign the integer to 1
@@ -216,9 +232,9 @@ void decomposeReal(const real_t *x, longInteger_t integerPart, real_t *fractiona
 
 //--------//--------//--------//--------//-------- normalize using realPlus() and re-check if it fits
     REAL_T_PTR(mantissa, 1071);
-    realPlus(x, mantissa, c);                           // Normalize to remove trailing zeros with full precision
+    realPlus(x, mantissa, c);
     int32_t actualDigits = realGetDigits(mantissa);      // Get actual significant digits after normalization
-    if(actualDigits <= 34) {                             // Fits in real34: integer = 1, fractional = original
+    if(actualDigits <= 34 || realIsZero(mantissa)) {     // Fits in real34: integer = 1, fractional = original
       goto returnUnity;
     }
 
@@ -228,36 +244,42 @@ void decomposeReal(const real_t *x, longInteger_t integerPart, real_t *fractiona
       actualDigits = maxAllowedDigits;
     }
     int32_t scaleAmount = actualDigits - 1 - actualExponent;  // Scale to make all digits into integer
-    mantissa->exponent += scaleAmount;
-    realContext_t cc = *c;                                    // convert scaled mantissa to integral part, and condition the string
+    realAdjustExponent(mantissa, scaleAmount);
+    realContext_t cc = *c;                                    // convert scaled mantissa to integral part
     cc.round = DEC_ROUND_HALF_UP;
     cc.status = 0;                                            // decNumberToIntegralExact folds the incoming status into its result, and an error flag turns it into NaN
     decNumberToIntegralExact(mantissa, mantissa, &cc);
     realSetPositiveSign(mantissa);
-    realToString(mantissa, tmpString);                    // Convert real to string and load string into integerPart
-
-    int32_t len = strlen(tmpString);                      // Trim all zeroes from the right side, regarless if there is a decimal point or not. No zeroas are needed in the longinteger as they will sit in the compensated Real exponent.
-    for(int32_t i = len - 1; i >= 0 && tmpString[i] == '0'; i--) {
-      if(i == actualExponent && i <= 34) {
-        break;
-      }
-      tmpString[i] = '\0';
-    }
-    if(strlen(tmpString) == 0) {                         // If all zeros were removed, keep at least one zero. Will be caught in the longinteger zero check
-      strcpy(tmpString, "0");
+    if(realIsZero(mantissa)) {
+      goto returnUnity;
     }
 
-    #if defined(DEBUG_XFN)
-      printf("decomposeReal: longintegerstring 002: %s\n", tmpString);
-    #endif //DEBUG_XFN
+    int32_t fullIntLen = realGetDigits(mantissa) + realGetUnadjustedExponent(mantissa);
+    realReduce(mantissa, mantissa, &cc);
+    int32_t redDigits = realGetDigits(mantissa);
+    const realHeader_t *mHdr = TO_REAL_HEADER(mantissa);
+    int32_t topUnit = (mHdr->digits + DECDPUN - 1) / DECDPUN - 1;
+    uInt32ToLongInteger((uint32_t)mantissa->lsu[topUnit], integerPart);
+    for(int32_t uIdx = topUnit - 1; uIdx >= 0; uIdx--) {
+      longIntegerMultiplyUInt(integerPart, 1000, integerPart);
+      longIntegerAddUInt(integerPart, (uint32_t)mantissa->lsu[uIdx], integerPart);
+    }
 
-    stringToLongInteger(tmpString, 10, integerPart);
-    if(longIntegerIsZero(integerPart)) {                  // failed string manipulation
+    if(actualExponent >= 0 && actualExponent <= 34 && fullIntLen > actualExponent && redDigits < actualExponent + 1) {
+      uint32_t padZeros = (uint32_t)(actualExponent + 1 - redDigits);
+      longInteger_t tenPad;
+      longIntegerInit(tenPad);
+      longIntegerPowerUIntUInt(10, padZeros, tenPad);
+      mpz_mul(integerPart, integerPart, tenPad);
+      longIntegerFree(tenPad);
+    }
+
+    if(longIntegerIsZero(integerPart)) {
       goto returnUnity;
     }
     REAL_T_PTR(integerAsReal, 1071);
-    convertLongIntegerToReal(integerPart, integerAsReal, c); // use the actual integer (from the text) that will be output
-    realDivide(x, integerAsReal, fractionalPart, c);         // to calculate the real multiplier, normally the exponent
+    convertLongIntegerToReal(integerPart, integerAsReal, c);
+    realDivide(x, integerAsReal, fractionalPart, c);
     return;
 
 returnUnity:
@@ -306,6 +328,8 @@ typedef struct {
       { ITM_RDP_XFN    , FT_MONADIC, NOANG},
       { ITM_RSD_XFN    , FT_MONADIC, NOANG},
       { ITM_CHS_XFN    , FT_MONADIC, NOANG},
+      { ITM_ABS_XFN    , FT_MONADIC, NOANG},
+      { ITM_toREAL_XFN , FT_MONADICOUT1, NOANG},
       { ITM_atan2_XFN  , FT_DYADIC , NOANG},
       { ITM_ADD_XFN    , FT_DYADIC , NOANG},
       { ITM_SUB_XFN    , FT_DYADIC , NOANG},
@@ -724,6 +748,12 @@ static void replaceSeparatorWithFigureSpace(char *displayString) {              
   void fnXXfn_CHS                 (uint16_t registerNo) {
     fnXfnIndirect(registerNo, ITM_CHS_XFN, 0);
   }
+  void fnXXfn_ABS                 (uint16_t registerNo) {
+    fnXfnIndirect(registerNo, ITM_ABS_XFN, 0);
+  }
+  void fnXXfn_toREAL              (uint16_t registerNo) {
+    fnXfnIndirect(registerNo, ITM_toREAL_XFN, 0);
+  }
 
 
   void processResultantLongReal(uint16_t registerNo, int function, int functionType, real_t *paramX, real_t *paramY, real_t *paramTemp, angularMode_t *angleMode, angularMode_t *tmpAngle) {
@@ -825,6 +855,52 @@ static void replaceSeparatorWithFigureSpace(char *displayString) {              
   }
 
 
+  void processResultantReal(uint16_t registerNo, int function, int functionType, real_t *paramX, real_t *paramY, real_t *paramTemp, angularMode_t *angleMode, angularMode_t *tmpAngle) {
+    realContext_t c = ctxtReal34;
+    c.round = roundingModeTable[displayRoundingMode];  // the SHOW string is X x Y + Z rounded once to 34 digits by DRM
+
+    realPlus(paramX, paramX, &c);
+
+    #if defined(DEBUG_XFN)
+      printRegisterToConsole(REGISTER_X, "\nX:", "\n");
+      realToString(paramX, tmpString);
+      tmpString[debugLongNumberLimit]=0;
+      printf("Output: %s\n", tmpString);
+    #endif //DEBUG_XFN
+
+
+//--------//--------//-- Processing stack output with paramX as the output --//--------//--------//--------
+
+    setSystemFlag(FLAG_ASLIFT);
+    liftStack();
+    reallocateRegister(REGISTER_X, dtReal34, 0, amNone);
+    convertRealToResultRegister(paramX, REGISTER_X, *angleMode);
+    adjustResult(REGISTER_X, false, false, REGISTER_X, -1, -1);
+
+    //debug stack output
+    #if defined(DEBUG_XFN)
+      printRegisterToConsole(REGISTER_Z, "\nZ:", "\n");
+      printRegisterToConsole(REGISTER_Y, "\nY:", "\n");
+      printRegisterToConsole(REGISTER_X, "\nX:", "\n");
+    #endif //DEBUG_XFN
+
+
+    //Step 6: drop T, A, B for a successful dyadic function
+    if(lastErrorCode == 0) {
+      fnDropY(NOPARAM);
+      fnDropY(NOPARAM);
+    }
+
+    #if defined(DEBUG_XFN) || defined(DEBUGRESULT_ONLY_XFN)
+      REAL_T_PTR(aa, 1071);
+      REAL_T_PTR(tt, 1071);
+      readThreeRegisters(registerNo, aa, tt, &c);
+      realToString(aa, tmpString);
+      printf("\nAfter Step4, combined register: =%s|...%d\n", tmpString, aa->digits);
+    #endif //DEBUG_XFN
+
+  }
+
 
   static void doXfn(uint16_t registerNo, int function, int functionType, int functionAngle, int functionParam, int ErrorLocation) {
     #if (EXTRA_INFO_ON_CALC_ERROR == 1)
@@ -861,7 +937,7 @@ static void replaceSeparatorWithFigureSpace(char *displayString) {              
         return;
       }
     }
-    else if(functionType == FT_MONADIC || functionType == FT_DYADIC) {
+    else if(functionType == FT_MONADIC || functionType == FT_DYADIC || functionType == FT_MONADICOUT1) {
       if(!getCombinedParameter(1, registerNo, paramX, paramTemp, &angleMode, &c)) {   //use the angle of the 1st param only, if set
         return;
       }
@@ -1006,9 +1082,7 @@ static void replaceSeparatorWithFigureSpace(char *displayString) {              
           break;
         }
         case ITM_LOG_XFN: {
-          realLn(paramX, paramX, &c);
-          realLn(const_10, paramTemp, &c);
-          realDivide(paramX, paramTemp, paramX, &c);
+          realLog10Dec(paramX, paramX, &c);
           break;
         }
         case ITM_EXP_XFN: {
@@ -1020,11 +1094,11 @@ static void replaceSeparatorWithFigureSpace(char *displayString) {              
           break;
         }
         case ITM_SQRT_XFN: {
-          realPower(paramX, const_1on2, paramX, &c);
+          realSquareRoot(paramX, paramX, &c);
           break;
         }
         case ITM_SQR_XFN : {
-          realPower(paramX, const_2, paramX, &c);
+          realMultiply(paramX, paramX, paramX, &c);
           break;
         }
         case ITM_1ONX_XFN: {
@@ -1050,10 +1124,19 @@ static void replaceSeparatorWithFigureSpace(char *displayString) {              
           break;
         }
         case ITM_CHS_XFN: {
-          realMultiply(const__1, paramX, paramX, &c);
+          if(!realIsNaN(paramX)) {
+            realChangeSign(paramX);
+          }
+          break;
+        }
+        case ITM_ABS_XFN: {
+          if(!realIsNaN(paramX)) {
+            realSetPositiveSign(paramX);
+          }
           break;
         }
   //--------//SINGLE REG FUNCTIONS
+        case ITM_toREAL_XFN:
         case ITM_TO_XFN: {
             //paramX input ->> output
           break;
@@ -1141,14 +1224,20 @@ static void replaceSeparatorWithFigureSpace(char *displayString) {              
     }
 
     //Step 0: Prep the stack
-    if((functionType == FT_MONADIC || functionType == FT_DYADIC)  && registerNo == REGISTER_X && lastErrorCode == 0) {       // If the base input register is X for XYZ bzw. TAB, then drop the stack input
+    if((functionType == FT_MONADIC || functionType == FT_DYADIC || functionType == FT_MONADICOUT1)  && registerNo == REGISTER_X && lastErrorCode == 0) {       // If the base input register is X for XYZ bzw. TAB, then drop the stack input
       fnDrop3();
     }
     else if(functionType == FT_SINGLEX) {
       fnDrop(NOPARAM);
     }
 
-    processResultantLongReal(registerNo, function, functionType, paramX, paramY, paramTemp, &angleMode, &tmpAngle);
+    //output processing
+    if(functionType == FT_MONADICOUT1) {
+      processResultantReal(registerNo, function, functionType, paramX, paramY, paramTemp, &angleMode, &tmpAngle);
+    }
+    else {
+      processResultantLongReal(registerNo, function, functionType, paramX, paramY, paramTemp, &angleMode, &tmpAngle);
+    }
 
 
     return;

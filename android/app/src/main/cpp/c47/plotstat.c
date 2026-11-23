@@ -2049,11 +2049,7 @@ void fnPlotStat(uint16_t plotMode){
           }
       }
 
-        #if defined(DMCP_BUILD)
         lcd_refresh();
-      #else // !DMCP_BUILD
-        refreshLcd(NULL);
-      #endif // DMCP_BUILD
 
         switch(plotMode) {
           case H_PLOT:

@@ -4114,7 +4114,7 @@ char *parseAndPasteProgram(const char *codeText) {
   reDraw = true;
   screenUpdatingMode = SCRUPD_AUTO;
   refreshScreen(1);
-  refreshLcd(NULL);
+  refreshLcd();
   lcd_refresh();
 
   return NULL;

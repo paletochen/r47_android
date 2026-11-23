@@ -223,9 +223,6 @@
     WP34S_Cdfu_Q(x, &tail, realContext);
     studentTNormalAdjustment(x, nu, &adjustment, realContext);
     realSubtract(&tail, &adjustment, res, realContext);
-    if(realCompareLessEqual(res, const_0)) {
-      realCopy(const_1e_10000, res);
-    }
   }
 
 
@@ -293,9 +290,6 @@
     realSubtract(&logPrefix, &logBeta, &logPrefix, calculationContext);
     studentTBetaUpper(const_1on2, &halfNu, &betaX, &betaComplement, &logPrefix, &tail, calculationContext);
     realMultiply(&tail, const_1on2, &tail, calculationContext);
-    if(realIsZero(&tail)) {
-      realCopy(const_1e_10000, &tail);
-    }
     realPlus(&tail, res, realContext);
   }
 
@@ -389,9 +383,6 @@
     realMultiply(&exponent, &coefficient, &exponent, calculationContext);
     realSubtract(&logNormalisation, &exponent, &exponent, calculationContext);
     realExp(&exponent, &exponent, calculationContext);
-    if(realIsZero(&exponent)) {
-      realCopy(const_1e_10000, &exponent);
-    }
     realPlus(&exponent, res, realContext);
   }
 

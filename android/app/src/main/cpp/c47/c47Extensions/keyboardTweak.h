@@ -43,13 +43,8 @@ uint16_t numlockReplacements(uint16_t id, int16_t item, bool_t NL, bool_t SHFT, 
 bool_t caseReplacements(uint8_t id, bool_t lowerCaseSelected, int16_t item, int16_t *itemOut);
 bool_t keyReplacements(int16_t item, int16_t * item1, bool_t NL, bool_t SHFT, bool_t GSHFT);
 
-#if defined(PC_BUILD)
-void     btnFnPressed_StateMachine (GtkWidget *unused, gpointer data);
-void     btnFnReleased_StateMachine(GtkWidget *unused, gpointer data);
-#endif // PC_BUILD
 
 
-#if defined(DMCP_BUILD)
 #define BUFFER_FAIL     0                                   //vv dr - internal keyBuffer POC
 #define BUFFER_SUCCESS  1
 #define BUFFER_MASK (BUFFER_SIZE-1) // Klammern auf keinen Fall vergessen
@@ -87,7 +82,6 @@ bool_t   interruptKeyInBuffer ();
 
 void     btnFnPressed_StateMachine (void *unused, void *data);
 void     btnFnReleased_StateMachine(void *unused, void *data);
-#endif // DMCP_BUILD
 
 void fnCla                   (uint16_t unusedButMandatoryParameter);
 void fnCln                   (uint16_t unusedButMandatoryParameter);

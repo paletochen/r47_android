@@ -58,43 +58,22 @@
   void       drawSinglePixelFullWidthLine     (int y);
 
   char       letteredRegisterName(calcRegister_t regist);
+  void       copyRegisterToClipboardString(calcRegister_t regist, char *clipboardString, bool_t forPrinter);
 
   #if defined(PC_BUILD)
-  /**
-   * Draws the calc's screen on the PC window widget.
-   *
-   * \param[in] widget Not used
-   * \param[in] cr
-   * \param[in] data   Not used
-   */
-  gboolean drawScreen                         (GtkWidget *widget, cairo_t *cr, gpointer data);
-  void     copyScreenToClipboard              (void);
-  void     copyMenuToClipboard                (void);
-  void     copyRegisterXImageToClipboard      (void);
   void     copyRegisterXToClipboard           (void);
   void     copyStackRegistersToClipboard      (void);
   void     copyAllRegistersToClipboard        (void);
-  void     copyRegisterToClipboardString      (calcRegister_t regist, char *clipboardString, bool_t forPrinter);
+  #endif // PC_BUILD
 
   /**
    * Refreshes calc's screen.
-   * This function is called every SCREEN_REFRESH_PERIOD ms by a GTK timer.
-   * - make the cursor blink if needed
+   * The main loop calls this function every SCREEN_REFRESH_PERIOD ms while a timer runs, and at the minute wake.
+   * - draw the cursor if needed
+   * - remove the function name when its time is up
    * - refresh date and time in the status bar if needed
-   * - refresh the whole screen if needed
-   *
-   * \param[in] unusedData Not used
-   * \return What will happen next?
-   *   - true  = timer will call this function again
-   *   - false = timer stops calling this function
    */
-  gboolean refreshLcd                         (gpointer unusedData);
-  #endif // PC_BUILD
-
-  #if defined(DMCP_BUILD)
-    void     copyRegisterToClipboardString      (calcRegister_t regist, char *clipboardString, bool_t forPrinter);                   //JMCSV Added for textfiles
-    void     refreshLcd                         (void);
-  #endif // DMCP_BUILD
+  void     refreshLcd                         (void);
 
   void     execTimerApp                         (uint16_t timerType);
 

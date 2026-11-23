@@ -15,21 +15,13 @@ static void _tonePlay(uint16_t toneNum) {
 }
 
 void fnTone(uint16_t toneNum) {
-  #if defined(DMCP_BUILD)
     lcd_refresh();
-  #else // !DMCP_BUILD
-    refreshLcd(NULL);
-  #endif // DMCP_BUILD
 
   _tonePlay(toneNum);
 }
 
 void fnBeep(uint16_t unusedButMandatoryParameter) {
-  #if defined(DMCP_BUILD)
     lcd_refresh();
-  #else // !DMCP_BUILD
-    refreshLcd(NULL);
-  #endif // DMCP_BUILD
 
   _tonePlay(8);
   _tonePlay(5);

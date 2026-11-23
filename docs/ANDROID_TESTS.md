@@ -41,10 +41,13 @@ To run individual suites:
 | **7** | `test_matrix_show_10x10_screen_fit` | Matrix `f-SHOW`, `OPTION_MX_SHOW`, dynamic font scaling | Verifies that `OPTION_MX_SHOW` is enabled, user display format stashing variables exist, and 10 rows fit completely within the 240px LCD canvas using the reduced 19px font height. |
 | **8** | `test_softmenu_rendering_bitblt24` | Softmenu grid rendering, `bitblt24`, `BLT_OR`, `BLT_SET` | Verifies bitblt raster logic: ensures border bitmasks are preserved under `BLT_OR` even when `fill == BLT_SET`, preventing disappearance of softkey outlines. |
 | **9** | `test_state_save_and_restore_commands` | `SAVEAUT`, `LOAD`, `SAVE`, `LOADST`, `SAVEST`, `READP`, `WRITEP`, `XPORTP` | Verifies that all state save/load and program transfer commands are active and mapped to valid execution functions. |
-| **10** | `test_execution_yielding_hooks` | Program execution loops (`Spiralk`, `FACTORs`), `yieldToAndroid` | Verifies that non-blocking execution yield hooks run safely, and recursive `screenMutex` unlocks permit the Android UI thread to acquire the lock and refresh the screen during long loops. |
-| **11** | `test_battery_and_disk_info` | `BATT`, `BATT#`, `DISK`, `TI_DISK_INFO` | Verifies that battery voltage and disk storage temporary info screens execute without crashing or null pointer dereferences, and `TI_DISK_INFO` constant (145) is defined. |
+| **10** | `test_execution_yielding_hooks` | Program execution (`Spiralk`, `FACTORs`), `yieldToAndroid` | Verifies that non-blocking execution yield hooks execute cleanly and recursive `screenMutex` unlocks permit the Android UI thread to acquire the lock and refresh the screen during long computations. |
+| **11** | `test_battery_and_disk_info` | `BATT`, `BATT#`, `DISK`, `TI_DISK_INFO` | Verifies that battery voltage and disk storage temporary info screens execute without crashing or null pointer dereferences, and `TI_DISK_INFO` (`254`) is assigned consistently across core and HAL units. |
 | **12** | `test_pip_mode_invariants` | Picture-in-Picture (PiP) window geometry | Verifies that the PiP aspect ratio in `MainActivity.kt` (`Rational(4860, 2667)` ~1.82) precisely matches the R47 hardware bezel ratio. |
 | **13** | `test_r47_last_key_code_mapping` | `lastKeyCode`, `KEY?`, R47 layout keycode parity | Verifies that `setLastKeyCode` maps R47 key layout indices (UP=23, DOWN=28, SHIFT=11, COS=18, +/-=16, E=15) to standard HP-42S/DM42 keycodes (UP=51, DOWN=61), ensuring HP-42S programs (e.g. Almanac) correctly navigate views without premature termination. |
+| **14** | `test_dmcp_key_queue_invariants` | `hal/keys.c` DMCP key FIFO queue, `wait_for_key_release`, `sys_sleep`, `sys_delay`, `sys_timer_start`, shutdown wakeup | Directly links and verifies production `hal/keys.c` key-ID parsing/formatting, 63-press + 1-release FIFO capacity, `keyPopForMainLoop` vs `key_pop` isolation (including during shutdown), `wait_for_key_release`, `sys_sleep` timer clamping, `sys_delay` slicing, recursive `screenMutex` unwinding, and post-drain `key_empty` shutdown termination. |
+| **15** | `test_program_copy_and_line_stripping` | `CM_PEM` program copy/paste, `stripProgramLinePrefix`, `parseAndPasteProgram` | Verifies stripping of numbered step prefixes and two-pass compilation of RPN program text into bytecode. |
+| **16** | `test_c47_character_set_conversion_and_math_ops` | C47 UTF-8 glyphs, RTF unwrapping, 90 `.p47u`/`.txt` + 69 `.rtf` programs | Verifies byte-level round-trip compilation and glyph parity across the repository's RPN program corpus. |
 
 
 ---
@@ -53,12 +56,17 @@ To run individual suites:
 
 | Test Class | Test Method | Target Features / Invariants Tested |
 |---|---|---|
-| `DisplayActionControllerTest` | `testPipActionTriggersCallback` | Verifies that clicking the PiP button triggers the `onEnterPipRequested` callback. |
-| `DisplayActionControllerTest` | `testCopyXRegisterQueuesActionAndReturnsResult` | Verifies that Copy X queues the native action, retrieves the formatted register string, and copies to clipboard. |
-| `DisplayActionControllerTest` | `testPasteNumberTranslatesComplexAndDigits` | Verifies that pasted text with complex components ('i', 'j', decimal points, signs) is properly translated into calculator keypad strokes. |
-| `WorkDirectoryCategoryTest` | `testCategorySubfolderNames` | Verifies SAF subfolder category integer-to-path mapping: `0: STATE`, `1: PROGRAMS`, `2: SAVFILES`, `3: SCREENS`, `4: DATA`, `5: PRINT`. |
-| `WorkDirectoryCategoryTest` | `testAutoSaveFilenamePriorities` | Verifies that `R47auto.sav` takes precedence over legacy `C47auto.sav` when auto-loading state from `SAVFILES/`. |
-| `WorkDirectoryCategoryTest` | `testCategoryDisplayFormatting` | Verifies that display paths are formatted cleanly for user presentation without trailing slashes. |
+| `DisplayActionControllerTest` | `testEnterPiPCallback` | Verifies that clicking the PiP button triggers the `onEnterPipRequested` callback. |
+| `DisplayActionControllerTest` | `testCopyXRegisterAction` | Verifies that Copy X queues the native action, retrieves the formatted register string, and copies to clipboard. |
+| `DisplayActionControllerTest` | `testCopyAllRegistersAction` | Verifies that Copy All Registers queues the native action and retrieves the multi-register text snapshot. |
+| `DisplayActionControllerTest` | `testPasteNumberMapping` | Verifies that pasted text with complex components ('i', 'j', decimal points, signs) is translated into calculator keypad strokes. |
+| `WorkDirectoryCategoryTest` | `testSubfolderCategories` | Verifies SAF subfolder category integer-to-path mapping: `0: STATE`, `1: PROGRAMS`, `2: SAVFILES`, `3: SCREENS`, `4: DATA`, `5: PRINT`. |
+| `WorkDirectoryCategoryTest` | `testAutoSaveFilePriorities` | Verifies that `R47auto.sav` takes precedence over legacy `C47auto.sav` when auto-loading state from `SAVFILES/`. |
+| `WorkDirectoryCategoryTest` | `testFormatDisplayPath` | Verifies that display paths are formatted cleanly for user presentation without trailing slashes. |
+| `AudioEngineTest` | `testVolumeClampingAndSettings` / `testBidirectionalVolumeMappingSteps0To11` | Verifies 0..100% clamping, 0..11 C47 volume step round-trip mapping, and mute behavior at step 0. |
+| `NativeCoreRuntimeTest` | `testDisposeStopAppWakesBlockedCoreThreadAndUpdatesRotatedOwnerCallbacks` | Verifies rotated Activity callback delegation across configuration changes and bounded core-thread shutdown wakeup via `requestNativeShutdown`. |
+| `NativeCoreRuntimeTest` | `testSameProcessRelaunchAfterDisposeStopAppReattachesCleanly` | Verifies that warm-process relaunch invokes `updateNativeActivityRef` to clear the prior shutdown latch without re-running `initNative`. |
+| `NativeCoreRuntimeTest` | `testShutdownTimeoutDefersCleanupUntilSlowTaskFinishes` | Verifies that when a slow step outlasts the shutdown wait budget, `onActualStop` (`releaseNativeRuntime`) is deferred until the core thread exits. |
 
 ---
 

@@ -758,10 +758,6 @@ void resetKeytimers(void) {
     func = determineFunctionKeyItem_C47(str, shiftF, shiftG);
     lastKeyItemDetermined = func;
 
-    #if defined(PC_BUILD)
-      //printf(">>> nameFunction fn=%i shifts=%u %u: %s %s\n", fn, shiftF, shiftG, indexOfItems[abs(func)].itemCatalogName, indexOfItems[abs(func)].itemSoftmenuName);
-    #endif // PC_BUILD
-
     return abs(func);
   }
 
@@ -861,12 +857,7 @@ void resetKeytimers(void) {
 
   //*************----------*************------- FN KEY PRESSED -------***************-----------------
   void btnFnPressed_StateMachine
-    #if defined(PC_BUILD)                                                           //JM LONGPRESS FN
-      (GtkWidget *unused, gpointer data)
-    #endif // PC_BUILD
-    #if defined(DMCP_BUILD)
-      (void *unused, void *data)
-    #endif // DMCP_BUILD
+      (void *unused, void *data)                                                           //JM LONGPRESS FN
     {
 
     bool_t exexute_double_g;
@@ -1002,12 +993,7 @@ void resetKeytimers(void) {
 
   //*************----------*************------- FN KEY RELEASED -------***************-----------------
   void btnFnReleased_StateMachine
-    #if defined(PC_BUILD)                                                             //JM LONGPRESS FN
-      (GtkWidget *unused, gpointer data)
-    #endif // PC_BUILD
-    #if defined(DMCP_BUILD)
-      (void *unused, void *data)
-    #endif // DMCP_BUILD
+      (void *unused, void *data)                                                             //JM LONGPRESS FN
     {
     //#if defined(INLINE_TEST)
     //  if(testEnabled) {
@@ -1204,7 +1190,7 @@ uint16_t numlockReplacements(uint16_t id, int16_t item, bool_t NL, bool_t FSHIFT
 }
 
 
-#if defined(DMCP_BUILD)                                           //vv dr - internal keyBuffer POC
+//vv dr - internal keyBuffer POC
   //#define JMSHOWCODES_KB0   // top line left    Key value from DM42. Not necessarily pushed to buffer.
   //#define JMSHOWCODES_KB1   // top line middle  Key and  dT value
   //#define JMSHOWCODES_KB2   // main screen      Telltales keys, times, etc.
@@ -1216,7 +1202,7 @@ uint16_t numlockReplacements(uint16_t id, int16_t item, bool_t NL, bool_t FSHIFT
     do {
       tmpKey = -1;
       if(!fullKeyBuffer()) {
-        tmpKey = key_pop();
+        tmpKey = keyPopForMainLoop();
         #if CALCMODEL == USER_R47
           tmpKey = convertKeyCode(tmpKey);
         #endif
@@ -1548,7 +1534,7 @@ bool_t interruptKeyInBuffer(void) {
   }
   return false;
 }
-#endif // DMCP_BUILD                                                    //^^
+//^^
 
 
 

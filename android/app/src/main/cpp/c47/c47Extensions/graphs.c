@@ -303,11 +303,7 @@ void fnPlotf(uint16_t unusedButMandatoryParameter) {
 
 
 void fnPlotSQ(uint16_t unusedButMandatoryParameter) {
-    #if defined(DMCP_BUILD)
       lcd_refresh();
-    #else // !DMCP_BUILD
-      refreshLcd(NULL);
-    #endif // DMCP_BUILD
 
     PLOT_AXIS = true;
 

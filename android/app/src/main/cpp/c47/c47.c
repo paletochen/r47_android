@@ -45,7 +45,6 @@ bool_t                 fnKeyInCatalog;
 bool_t                 hourGlassIconEnabled;
 bool_t                 watchIconEnabled;
 bool_t                 printerIconEnabled;
-bool_t                 printerIconRefresh;   // true while setPrinterSBI() refreshes the status bar
 bool_t                 serialIOIconEnabled;
 bool_t                 shiftF;
 bool_t                 shiftG;
@@ -414,11 +413,8 @@ bool_t                   varMenu42;
 #if defined(BUFFER_CLICK_DETECTION)
   uint32_t            timeStampKey;                         //dr - internal keyBuffer POC
 #endif // BUFFER_CLICK_DETECTION
-  bool_t              backToDMCP;
 //int                  keyAutoRepeat;
 //int16_t              previousItem;
-  uint32_t             nextTimerRefresh;
-  uint32_t             nextScreenRefresh; // timer substitute for refreshLcd(), which does cursor blinking and other stuff
   bool_t               wp43KbdLayout;
 
 
@@ -635,14 +631,6 @@ int convertKeyCode(int key) {
   #endif // DMCP_BUILD && TWO_FILE_PGM
 
   void program_main(void) {
-    int key = 0;
-    char charKey[3];
-                                                #if defined(BUFFER_KEY_COUNT)
-                                                    int keyCount = 0;                                       //dr - internal keyBuffer POC
-                                                #endif // BUFFER_KEY_COUNT
-                                                #if defined(BUFFER_CLICK_DETECTION)
-                                                    timeStampKey = (uint32_t)sys_current_ms();              //dr - internal keyBuffer POC
-                                                #endif // BUFFER_CLICK_DETECTION
                                                     /*bool_t wp43KbdLayout, inFastRefresh = 0, inDownUpPress = 0, repeatDownUpPress = 0*/;  // removed autorepeat stuff   //dr - no keymap is used
 
                                                   //uint32_t now, previousRefresh, nextAutoRepeat = 0;      // removed autorepeat stuff
@@ -673,7 +661,7 @@ int convertKeyCode(int key) {
         lcd_putsAt(t24, 4, qspiPairMsg[2]);
         lcd_putsAt(t24, 5, qspiPairMsg[3]);
         lcd_refresh();
-        key = -1;
+        int key = -1;
         while(key == -1) {
           sys_sleep();
           key = key_pop();
@@ -682,6 +670,7 @@ int convertKeyCode(int key) {
       }
     #endif // TWO_FILE_PGM
                                                 #if defined(NOKEYMAP)                                             //vv dr - no keymap is used
+                                                    int key = 0;
                                                     lcd_putsAt(t24, 4, "Press the bottom left key.");
                                                     lcd_refresh();
                                                     while(key != 33 && key != 37) {
@@ -819,6 +808,164 @@ int convertKeyCode(int key) {
                                                     longIntegerFree(li);
                                                   #endif // 0
 
+    mainLoop();
+  }
+#endif // DMCP_BUILD
+
+bool_t                 backToDMCP;
+uint32_t               nextTimerRefresh;
+uint32_t               nextScreenRefresh; // timer substitute for refreshLcd(), which does cursor blinking and other stuff
+
+
+#if !defined(GENERATE_CATALOGS) && !defined(GENERATE_TESTPGMS)
+  static char charKey[3];
+
+  /**
+   * Processes one key code from the key buffer, as the main loop does.
+   *
+   * \param[in] key 1 to 37 a key press, 38 to 43 a softkey press, 0 a release, 44 the screen capture code, KEY_HOST_EVENT_FIRST and up a host event
+   */
+  void processKeyCode(int key) {
+    if(key == 44) { //DISP for special SCREEN DUMP key code. To be 16 but shift decoding already done to 44 in DMCP
+      standardScreenDump();
+      wait_for_key_release(0);
+      charKey[0]=0;
+      charKey[1]=0;
+      resetShiftState();
+      resetKeytimers();
+      CLR_ST(STAT_KEYUP_WAIT);
+      dmcpResetAutoOff();
+      key = -1;
+
+      keyBuffer_pop();
+      uint8_t outKey;
+      while(!emptyKeyBuffer()) {
+        outKeyBuffer(&outKey);
+      }
+      lastItem = SCREENDUMP;
+    }
+
+                                                #if defined(JMSHOWCODES)
+                                                  fnDisplayStack(1);
+                                                  //Show key codes
+                                                  if(sys_last_key()!=telltale_lastkey) {
+                                                    telltale_lastkey = sys_last_key();
+                                                    telltale_pos++;
+                                                    telltale_pos = telltale_pos & 0x03;
+                                                    char aaa[100];
+                                                    #if defined(BUFFER_CLICK_DETECTION)
+                                                      sprintf   (aaa, "k=%d d=%ld  d=%ld", key, timeSpan_1, timeSpan_B);
+                                                    #endif
+                                                    showString(aaa, &standardFont, 300, Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(REGISTER_T - REGISTER_X), vmNormal, true, true);
+                                                    sprintf   (aaa, "Rel=%d, nop=%d, St=%d, Key=%d, FN_kp=%d   ", FN_timed_out_to_RELEASE_EXEC, FN_timed_out_to_NOP_or_Executed, FN_state, sys_last_key(), FN_key_pressed);
+                                                    showString(aaa, &standardFont, 1, Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(REGISTER_Z - REGISTER_X), vmNormal, true, true);
+                                                    #if defined(BUFFER_CLICK_DETECTION)
+                                                      sprintf   (aaa, "%4d(%4ld)(%4ld)<<", sys_last_key(), timeSpan_1, timeSpan_B);
+                                                    #endif
+                                                    showString(aaa, &standardFont, telltale_pos*90+ 1, Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(REGISTER_Y - REGISTER_X), vmNormal, true, true);
+                                                  }
+                                                #endif // JMSHOWCODES
+
+    if(38 <= key && key <=43) { // Function key
+                          #if defined(DM42_POWERMARK_KEYPRESS)
+                            powerMarkerMsF(1, 4000);
+                          #endif //DM42_POWERMARK_KEYPRESS
+      sprintf(charKey, "%c", key+11);
+      btnFnPressed(charKey);
+                          #if defined(DM42_KEYCLICK)
+                            keyClick(3);
+                          #endif //DM42_KEYCLICK
+    //lcd_refresh_dma();
+    }
+    else if(1 <= key && key <= 37) { // Not a function key
+                          #if defined(DM42_POWERMARK_KEYPRESS)
+                            powerMarkerMsF(1, 4000);
+                          #endif //DM42_POWERMARK_KEYPRESS
+      sprintf(charKey, "%02u", key - 1);
+      btnPressed(charKey);
+                          #if defined(DM42_KEYCLICK)
+                            keyClick(1);
+                          #endif //DM42_KEYCLICK
+    //lcd_refresh_dma();
+    }
+
+                                                #if defined(FN_RELEASE_CODE_WP43S)
+                                                      else if(key == 0) { // Autorepeat of UP/DOWN or key released
+                                                        if(charKey[1] == 0) { // Last key pressed was one of the 6 function keys
+                                                          btnFnReleased(charKey);
+                                                        }
+                                                        else { // Last key pressed was not one of the 6 function keys
+                                                          //beep(440, 50);
+                                                          btnReleased(charKey);
+                                                          if(calcMode == CM_PEM && shiftF && ((charKey[0] == '1' && charKey[1] == '7') || (charKey[0] == '2' && charKey[1] == '2'))) {    //JM C47
+                                                            shiftF = false;
+                                                            refreshScreen(73);
+                                                          }
+                                                        }
+                                                //      keyAutoRepeat = 0;
+                                                        lcd_refresh();
+                                                      }
+                                                #endif // FN_RELEASE_CODE_WP43S
+
+    else if(key == 0 && charKey[1] == 0) {            //JM, key=0 is release, therefore there must have been a press before that. If the press was a FN key, FN_key_pressed > 0 when it comes back here for release.
+                          #if defined(DM42_POWERMARK_KEYPRESS)
+                            powerMarkerMsF(1, 4000);
+                          #endif //DM42_POWERMARK_KEYPRESS
+      btnFnReleased(charKey);                                //    in short, it can only execute FN release after there was a FN press.
+                          #if defined(DM42_KEYCLICK)
+                            keyClick(4);
+                          #endif //DM42_KEYCLICK
+    //lcd_refresh_dma();
+    }
+    else if(key == 0) {
+                          #if defined(DM42_POWERMARK_KEYPRESS)
+                            powerMarkerMsF(1, 4000);
+                          #endif //DM42_POWERMARK_KEYPRESS
+      btnReleased(charKey);
+                          #if defined(DM42_KEYCLICK)
+                            keyClick(2);
+                          #endif //DM42_KEYCLICK
+      if(calcMode == CM_PEM && shiftF && ( (calcModel == USER_C47 && ((charKey[0] == '1' && charKey[1] == '7') || (charKey[0] == '2' && charKey[1] == '2')))
+                                          || (calcModel == USER_R47 && ((charKey[0] == '2' && charKey[1] == '2') || (charKey[0] == '2' && charKey[1] == '7')))
+                                               )) {
+        shiftF = false;
+        refreshScreen(74);
+      }
+      //lcd_refresh_dma();
+    }
+    else if(keyIsHostEvent(key)) {
+      keyDispatchHostEvent(key);
+    }
+
+    if(key >= 0) {                                        //dr
+      lcd_refresh_dma();
+      if(key > 0) {
+        fnTimerStart(TO_KB_ACTV, TO_KB_ACTV, TO_KB_ACTV_MEDIUM);     // Key pressed
+      }
+      else if(cursorEnabled == true) {
+                          #if defined(DM42_KEYCLICK)
+                            keyClick(6);
+                          #endif //DM42_KEYCLICK
+        fnTimerStart(TO_KB_ACTV, TO_KB_ACTV, TO_KB_ACTV_CURSOR);
+      }
+      else {
+                          #if defined(DM42_KEYCLICK)
+                            keyClick(7);
+                          #endif //DM42_KEYCLICK
+        fnTimerStart(TO_KB_ACTV, TO_KB_ACTV, skippedStackLines ? TO_KB_ACTV_MEDIUM/5 : TO_KB_ACTV_SHORT); // Key released
+      }
+    }
+  }
+
+
+  void mainLoop(void) {
+    int key;
+                                                #if defined(BUFFER_KEY_COUNT)
+                                                    int keyCount = 0;                                       //dr - internal keyBuffer POC
+                                                #endif // BUFFER_KEY_COUNT
+                                                #if defined(BUFFER_CLICK_DETECTION)
+                                                    timeStampKey = (uint32_t)sys_current_ms();              //dr - internal keyBuffer POC
+                                                #endif // BUFFER_CLICK_DETECTION
     backToDMCP = false;
 
     lcd_forced_refresh();                                   //JM
@@ -1154,132 +1301,7 @@ int convertKeyCode(int key) {
                                                     }
                                                   #endif // AUTOREPEAT_C47
 
-      if(key == 44) { //DISP for special SCREEN DUMP key code. To be 16 but shift decoding already done to 44 in DMCP
-        standardScreenDump();
-        wait_for_key_release(0);
-        charKey[0]=0;
-        charKey[1]=0;
-        resetShiftState();
-        resetKeytimers();
-        CLR_ST(STAT_KEYUP_WAIT);
-        dmcpResetAutoOff();
-        key = -1;
-
-        keyBuffer_pop();
-        uint8_t outKey;
-        while(!emptyKeyBuffer()) {
-          outKeyBuffer(&outKey);
-        }
-        lastItem = SCREENDUMP;
-      }
-
-                                                  #if defined(JMSHOWCODES)
-                                                    fnDisplayStack(1);
-                                                    //Show key codes
-                                                    if(sys_last_key()!=telltale_lastkey) {
-                                                      telltale_lastkey = sys_last_key();
-                                                      telltale_pos++;
-                                                      telltale_pos = telltale_pos & 0x03;
-                                                      char aaa[100];
-                                                      #if defined(BUFFER_CLICK_DETECTION)
-                                                        sprintf   (aaa, "k=%d d=%ld  d=%ld", key, timeSpan_1, timeSpan_B);
-                                                      #endif
-                                                      showString(aaa, &standardFont, 300, Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(REGISTER_T - REGISTER_X), vmNormal, true, true);
-                                                      sprintf   (aaa, "Rel=%d, nop=%d, St=%d, Key=%d, FN_kp=%d   ", FN_timed_out_to_RELEASE_EXEC, FN_timed_out_to_NOP_or_Executed, FN_state, sys_last_key(), FN_key_pressed);
-                                                      showString(aaa, &standardFont, 1, Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(REGISTER_Z - REGISTER_X), vmNormal, true, true);
-                                                      #if defined(BUFFER_CLICK_DETECTION)
-                                                        sprintf   (aaa, "%4d(%4ld)(%4ld)<<", sys_last_key(), timeSpan_1, timeSpan_B);
-                                                      #endif
-                                                      showString(aaa, &standardFont, telltale_pos*90+ 1, Y_POSITION_OF_REGISTER_X_LINE - REGISTER_LINE_HEIGHT*(REGISTER_Y - REGISTER_X), vmNormal, true, true);
-                                                    }
-                                                  #endif // JMSHOWCODES
-
-      if(38 <= key && key <=43) { // Function key
-                            #if defined(DM42_POWERMARK_KEYPRESS)
-                              powerMarkerMsF(1, 4000);
-                            #endif //DM42_POWERMARK_KEYPRESS
-        sprintf(charKey, "%c", key+11);
-        btnFnPressed(charKey);
-                            #if defined(DM42_KEYCLICK)
-                              keyClick(3);
-                            #endif //DM42_KEYCLICK
-      //lcd_refresh_dma();
-      }
-      else if(1 <= key && key <= 37) { // Not a function key
-                            #if defined(DM42_POWERMARK_KEYPRESS)
-                              powerMarkerMsF(1, 4000);
-                            #endif //DM42_POWERMARK_KEYPRESS
-        sprintf(charKey, "%02u", key - 1);
-        btnPressed(charKey);
-                            #if defined(DM42_KEYCLICK)
-                              keyClick(1);
-                            #endif //DM42_KEYCLICK
-      //lcd_refresh_dma();
-      }
-
-                                                  #if defined(FN_RELEASE_CODE_WP43S)
-                                                        else if(key == 0) { // Autorepeat of UP/DOWN or key released
-                                                          if(charKey[1] == 0) { // Last key pressed was one of the 6 function keys
-                                                            btnFnReleased(charKey);
-                                                          }
-                                                          else { // Last key pressed was not one of the 6 function keys
-                                                            //beep(440, 50);
-                                                            btnReleased(charKey);
-                                                            if(calcMode == CM_PEM && shiftF && ((charKey[0] == '1' && charKey[1] == '7') || (charKey[0] == '2' && charKey[1] == '2'))) {    //JM C47
-                                                              shiftF = false;
-                                                              refreshScreen(73);
-                                                            }
-                                                          }
-                                                  //      keyAutoRepeat = 0;
-                                                          lcd_refresh();
-                                                        }
-                                                  #endif // FN_RELEASE_CODE_WP43S
-
-      else if(key == 0 && charKey[1] == 0) {            //JM, key=0 is release, therefore there must have been a press before that. If the press was a FN key, FN_key_pressed > 0 when it comes back here for release.
-                            #if defined(DM42_POWERMARK_KEYPRESS)
-                              powerMarkerMsF(1, 4000);
-                            #endif //DM42_POWERMARK_KEYPRESS
-        btnFnReleased(charKey);                                //    in short, it can only execute FN release after there was a FN press.
-                            #if defined(DM42_KEYCLICK)
-                              keyClick(4);
-                            #endif //DM42_KEYCLICK
-      //lcd_refresh_dma();
-      }
-      else if(key == 0) {
-                            #if defined(DM42_POWERMARK_KEYPRESS)
-                              powerMarkerMsF(1, 4000);
-                            #endif //DM42_POWERMARK_KEYPRESS
-        btnReleased(charKey);
-                            #if defined(DM42_KEYCLICK)
-                              keyClick(2);
-                            #endif //DM42_KEYCLICK
-        if(calcMode == CM_PEM && shiftF && ( (calcModel == USER_C47 && ((charKey[0] == '1' && charKey[1] == '7') || (charKey[0] == '2' && charKey[1] == '2')))
-                                            || (calcModel == USER_R47 && ((charKey[0] == '2' && charKey[1] == '2') || (charKey[0] == '2' && charKey[1] == '7')))
-                                                 )) {
-          shiftF = false;
-          refreshScreen(74);
-        }
-        //lcd_refresh_dma();
-      }
-
-      if(key >= 0) {                                        //dr
-        lcd_refresh_dma();
-        if(key > 0) {
-          fnTimerStart(TO_KB_ACTV, TO_KB_ACTV, TO_KB_ACTV_MEDIUM);     // Key pressed
-        }
-        else if(cursorEnabled == true) {
-                            #if defined(DM42_KEYCLICK)
-                              keyClick(6);
-                            #endif //DM42_KEYCLICK
-          fnTimerStart(TO_KB_ACTV, TO_KB_ACTV, TO_KB_ACTV_CURSOR);
-        }
-        else {
-                            #if defined(DM42_KEYCLICK)
-                              keyClick(7);
-                            #endif //DM42_KEYCLICK
-          fnTimerStart(TO_KB_ACTV, TO_KB_ACTV, skippedStackLines ? TO_KB_ACTV_MEDIUM/5 : TO_KB_ACTV_SHORT); // Key released
-        }
-      }
+      processKeyCode(key);
 
                                                   //    // Compute refresh period
                                                   //    if(showFunctionNameCounter > 0) {
@@ -1320,4 +1342,4 @@ int convertKeyCode(int key) {
     }
   fnSaveAuto(NOPARAM);
   }
-#endif // DMCP_BUILD
+#endif // !GENERATE_CATALOGS && !GENERATE_TESTPGMS

@@ -971,9 +971,6 @@ void mimRunFunction(int16_t func, uint16_t param) {
     }
 
   updateMatrixHeightCache();
-    #if defined(PC_BUILD)
-    refreshLcd(NULL);
-  #endif // PC_BUILD
 }
 
 void mimFinalize(void) {

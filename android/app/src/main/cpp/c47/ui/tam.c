@@ -1383,23 +1383,21 @@ printf("tam.value: %d\n", tam.value);
       }
     }
 
-    #if defined(PC_BUILD)
-      switch(calcMode) {
-        case CM_NORMAL:
-        case CM_PEM:
-        case CM_MIM:
-        case CM_TIMER:
-        case CM_ASSIGN: {
-          calcModeNormalGui();
-          break;
-        }
-        case CM_AIM:
-        case CM_EIM: {
-          calcModeAimGui();
-          break;
-        }
+    switch(calcMode) {
+      case CM_NORMAL:
+      case CM_PEM:
+      case CM_MIM:
+      case CM_TIMER:
+      case CM_ASSIGN: {
+        calcModeNormalGui();
+        break;
       }
-    #endif // PC_BUILD
+      case CM_AIM:
+      case CM_EIM: {
+        calcModeAimGui();
+        break;
+      }
+    }
 
     if(calcMode == CM_PEM) {
       hourGlassIconEnabled = false;

@@ -83,9 +83,7 @@ static void systemFlagAction(uint16_t systemFlag, flagAction_t action) {
   // Check clearStatusBarFlags       //these flags need to clear the statusbar and start SB again
   for(uint_fast16_t i = 0; i < nbrOfElements(clearStatusBarFlags); i++) {
     if(systemFlag == clearStatusBarFlags[i]) {
-      #if defined(DMCP_BUILD)
-        reallyClearStatusBar(201);
-      #endif
+      reallyClearStatusBar(201);
       fnRefreshState();
       screenUpdatingMode &= ~SCRUPD_MANUAL_STATUSBAR;
       goto doInteractionFlags;
@@ -406,17 +404,6 @@ bool_t getFlag(uint16_t flag) {
     flag -= 99;
     return (globalFlags[flag/16] & (1u << (flag%16))) != 0;
   }
-
-  #if defined(PC_BUILD)
-  else {
-    if(flag < FLAG_M) {
-      sprintf(tmpString, "there is no local flag above .31 (%" PRIu16 ")", flag);
-    }
-    else {
-      sprintf(tmpString, "there is no flag beyond FLAG_W (%" PRIu16 ")", flag);
-    }
-  }
-  #endif // PC_BUILD
 
   return false;
  }

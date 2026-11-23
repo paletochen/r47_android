@@ -6,9 +6,9 @@
 
 #define FINISH_LOCATION_TI false                                  // false: the FINISH message sits at the ERR line, left-aligned, as a calc error; true: at the TI line on X, right-aligned
 
-#if !defined(TI_DISK_INFO)
-#define TI_DISK_INFO 162
-#endif
+#if !defined(TI_DISK_INFO)  // Fallback for public CI builds where defines.h stays upstream
+#define TI_DISK_INFO 254
+#endif // !defined(TI_DISK_INFO)
 
 static void refreshRegisterLineRestoreT(void);
 static bool_t shiftGlyphOnScreen = false;                        // set where the f or g glyph is drawn, cleared where it is taken off
@@ -196,82 +196,6 @@ TO_QSPI static const char *nameOfWday_pt[8] = {"dia inv" STD_a_ACUTE "lido da se
 */
 
 #if defined(PC_BUILD)
-  gboolean drawScreen(GtkWidget *widget, cairo_t *cr, gpointer data) {
-    if(headlessMode) return FALSE;
-    cairo_surface_t *imageSurface;
-
-    imageSurface = cairo_image_surface_create_for_data((unsigned char *)screenData, CAIRO_FORMAT_RGB24, SCREEN_WIDTH, SCREEN_HEIGHT, screenStride * 4);
-    #if (BIG_SCREEN_COEF != 1)
-      cairo_scale(cr, BIG_SCREEN_COEF, BIG_SCREEN_COEF);
-    #endif // BIG_SCREEN_COEF != 1
-    cairo_set_source_surface(cr, imageSurface, 0, 0);
-    cairo_surface_mark_dirty(imageSurface);
-    cairo_pattern_set_filter(cairo_get_source(cr), CAIRO_FILTER_FAST);  // Quartz antialiases GOOD at device scale, so a 1 px damage strip covers its row only in part.
-    cairo_paint(cr);
-    cairo_surface_destroy(imageSurface);
-
-    return FALSE;
-  }
-
-
-  void copyScreenToClipboard(void) {
-    cairo_surface_t *imageSurface;
-    GtkClipboard *clipboard;
-
-    clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
-    gtk_clipboard_clear(clipboard);
-    gtk_clipboard_set_text(clipboard, "", 0); //JM FOUND TIP TO PROPERLY CLEAR CLIPBOARD: https://stackoverflow.com/questions/2418487/clear-the-system-clipboard-using-the-gtk-lib-in-c/2419673#2419673
-
-    imageSurface = cairo_image_surface_create_for_data((unsigned char *)screenData, CAIRO_FORMAT_RGB24, SCREEN_WIDTH, SCREEN_HEIGHT, screenStride * 4);
-    gtk_clipboard_set_image(clipboard, gdk_pixbuf_get_from_surface(imageSurface, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT));
-  }
-  void copyMenuToClipboard(void) {
-    cairo_surface_t *imageSurface;
-    GtkClipboard *clipboard;
-
-    if(!SNAP_MENUS_OK) {
-      return;
-    }
-
-    clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
-    gtk_clipboard_clear(clipboard);
-    gtk_clipboard_set_text(clipboard, "", 0); //JM FOUND TIP TO PROPERLY CLEAR CLIPBOARD: https://stackoverflow.com/questions/2418487/clear-the-system-clipboard-using-the-gtk-lib-in-c/2419673#2419673
-
-    imageSurface = cairo_image_surface_create_for_data((unsigned char *)screenData, CAIRO_FORMAT_RGB24, SCREEN_WIDTH, SCREEN_HEIGHT-170, screenStride * 4);
-    gtk_clipboard_set_image(clipboard, gdk_pixbuf_get_from_surface(imageSurface, 0, 170, SCREEN_WIDTH, SCREEN_HEIGHT-170));
-  }
-
-  // The X register band to the clipboard, the bold numericFont band fnSNAPX writes to disk. BOLD is forced, the band repainted, grabbed, and the flag put back.
-  void copyRegisterXImageToClipboard(void) {
-    cairo_surface_t *imageSurface;
-    GtkClipboard *clipboard;
-
-    if(!SNAP_REGISTERS_OK) {
-      return;
-    }
-
-    bool_t boldWasSet = getSystemFlag(FLAG_BOLD);
-    int32_t bandFirst = Y_POSITION_OF_REGISTER_X_LINE - (getRegisterDataType(REGISTER_X) == dtString ? 0 : 0+3);
-    int32_t bandLast  = Y_POSITION_OF_MENU_TOP        - (getRegisterDataType(REGISTER_X) == dtString ? 1 : 1+3);
-    setSystemFlag(FLAG_BOLD);
-    screenUpdatingMode = SCRUPD_AUTO;                                            // paint the bold X line into screenData before the grab, as fnSNAPX paints it before the disk capture
-    refreshScreen(165);
-
-    clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
-    gtk_clipboard_clear(clipboard);
-    gtk_clipboard_set_text(clipboard, "", 0); //JM FOUND TIP TO PROPERLY CLEAR CLIPBOARD: https://stackoverflow.com/questions/2418487/clear-the-system-clipboard-using-the-gtk-lib-in-c/2419673#2419673
-
-    imageSurface = cairo_image_surface_create_for_data((unsigned char *)screenData, CAIRO_FORMAT_RGB24, SCREEN_WIDTH, SCREEN_HEIGHT, screenStride * 4);
-    gtk_clipboard_set_image(clipboard, gdk_pixbuf_get_from_surface(imageSurface, 0, bandFirst, SCREEN_WIDTH, bandLast - bandFirst + 1));
-
-    if(!boldWasSet) {
-      clearSystemFlag(FLAG_BOLD);
-      screenUpdatingMode = SCRUPD_AUTO;                                          // force a full repaint, else the X line stays bold on screen
-      refreshScreen(166);
-    }
-  }
-
-
   #define CLIPSTR 30000                                         //JMCSV
 
   /**
@@ -294,7 +218,6 @@ TO_QSPI static const char *nameOfWday_pt[8] = {"dia inv" STD_a_ACUTE "lido da se
   #define clipboardBytes(regist) CLIPSTR
 #endif // PC_BUILD                                            //JMCSV
 
-#if defined(PC_BUILD) || defined(DMCP_BUILD)        //JMCSV
   static void angularUnitToString(angularMode_t angularMode, char *string) {
     switch(angularMode) {
       case amRadian: strcpy(string, "r");        break;
@@ -498,7 +421,6 @@ TO_QSPI static const char *nameOfWday_pt[8] = {"dia inv" STD_a_ACUTE "lido da se
     }
     free(string);
   }
-#endif // PC_BUILD || DMCP_BUILD                              //JMCSV
 
 #define checkHPoffset (checkHP && temporaryInformation == TI_NO_INFO ? 50 : 0)
 
@@ -509,19 +431,14 @@ char letteredRegisterName(calcRegister_t regist) {
 
 #if defined(PC_BUILD)                                         //JMCSV
   void copyRegisterXToClipboard(void) {
-    GtkClipboard *clipboard;
     char *clipboardString = malloc(clipboardBytes(REGISTER_X));
 
     if(clipboardString == NULL) {
       return;
     }
 
-    clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
-    gtk_clipboard_clear(clipboard);
-    gtk_clipboard_set_text(clipboard, "", 0); //JM FOUND TIP TO PROPERLY CLEAR CLIPBOARD: https://stackoverflow.com/questions/2418487/clear-the-system-clipboard-using-the-gtk-lib-in-c/2419673#2419673
-
     copyRegisterToClipboardString(REGISTER_X, clipboardString, false);
-    gtk_clipboard_set_text(clipboard, clipboardString, -1);
+    guiSetClipboardText(clipboardString);
     free(clipboardString);
   }
 
@@ -550,26 +467,20 @@ char letteredRegisterName(calcRegister_t regist) {
 
 
   void copyStackRegistersToClipboard(void) {
-    GtkClipboard *clipboard;
     char *clipboardString = malloc(stackClipboardBytes());
 
     if(clipboardString == NULL) {
       return;
     }
 
-    clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
-    gtk_clipboard_clear(clipboard);
-    gtk_clipboard_set_text(clipboard, "", 0); //JM FOUND TIP TO PROPERLY CLEAR CLIPBOARD: https://stackoverflow.com/questions/2418487/clear-the-system-clipboard-using-the-gtk-lib-in-c/2419673#2419673
-
     copyStackRegistersToClipboardString(clipboardString, LAST_SPARE_REGISTER);
 
-    gtk_clipboard_set_text(clipboard, clipboardString, -1);
+    guiSetClipboardText(clipboardString);
     free(clipboardString);
   }
 
 
   void copyAllRegistersToClipboard(void) {
-    GtkClipboard *clipboard;
     uint32_t bytes = stackClipboardBytes();
     char *clipboardString, *ptr;
 
@@ -585,10 +496,6 @@ char letteredRegisterName(calcRegister_t regist) {
       return;
     }
     ptr = clipboardString;
-
-    clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
-    gtk_clipboard_clear(clipboard);
-    gtk_clipboard_set_text(clipboard, "", 0); //JM FOUND TIP TO PROPERLY CLEAR CLIPBOARD: https://stackoverflow.com/questions/2418487/clear-the-system-clipboard-using-the-gtk-lib-in-c/2419673#2419673
 
     copyStackRegistersToClipboardString(ptr, LAST_SPARE_REGISTER);
 
@@ -657,50 +564,12 @@ char letteredRegisterName(calcRegister_t regist) {
       }
     }
 
-    gtk_clipboard_set_text(clipboard, clipboardString, -1);
+    guiSetClipboardText(clipboardString);
     free(clipboardString);
   }
+#endif // PC_BUILD
 
 
-  #define cursorCycle 3                      //JM cursor vv
-  int8_t cursorBlinkCounter;                 //JM cursor ^^
-  gboolean refreshLcd(gpointer unusedData) { // This function is called every SCREEN_REFRESH_PERIOD ms by a GTK timer
-    // Cursor blinking
-    static bool_t cursorBlink=true;
-
-    if(cursorEnabled) {
-      if(++cursorBlinkCounter > cursorCycle) {         //JM cursor vv
-        cursorBlinkCounter = 0;
-        if(cursorBlink && !checkHP) {
-          showGlyph(STD_CURSOR, cursorFont, xCursor, yCursor - checkHPoffset, vmNormal, true, false, false);
-        }                                              //JM cursor ^^
-        else {
-          hideCursor();
-        }
-      cursorBlink = !cursorBlink;
-      }
-    }
-
-    // Function name display
-    if(showFunctionNameCounter > 0) {
-      showFunctionNameCounter -= SCREEN_REFRESH_PERIOD;
-      if(showFunctionNameCounter <= 0) {
-        tmpString[0] = 0;
-        showFunctionName(ITM_NOP, 0, "SF:R");   // no hide first: the new name covers the same band, and taking the old one
-      }                                         //   down would mark that band for a push in between
-    }
-
-    // Update date and time
-    if(!screenHoldsDrawnPixels) {                          // if not CLLCD, PIXEL, POINT or AGRAPH painted
-      showDateTime();
-    }
-
-    lcd_refresh();
-    refresh_gui();
-
-    return TRUE;
-  }
-#elif defined(DMCP_BUILD)
   #define cursorCycle 3                      //JM cursor vv
   int8_t cursorBlinkCounter;                 //JM cursor ^^
   void refreshLcd(void) { // This function is called roughly every SCREEN_REFRESH_PERIOD ms from the main loop
@@ -734,9 +603,10 @@ char letteredRegisterName(calcRegister_t regist) {
       dmcpResetAutoOff();
       fnPollTimerApp();
     }
-    checkBattery();
+    #if defined(DMCP_BUILD)
+      checkBattery();
+    #endif // DMCP_BUILD
   }
-#endif // PC_BUILD DMCP_BUILD
 
 
 void execTimerApp(uint16_t timerType) {
@@ -2254,9 +2124,7 @@ return res;
     if((mode != timed && !blockForcedRefreshes) || (getUptimeMs() >> 10) != halfSecTick3) { //1.024 second refresh interval; slot compare catches skipped slots
       halfSecTick3 = getUptimeMs() >> 10;
       ret_value = true;
-      #if defined(DMCP_BUILD)
-        dmcpResetAutoOff();
-      #endif //DMCP_BUILD
+      dmcpResetAutoOff();
 
       //refreshScreen();   //to update stack
       if(clearT && !blockMonitoring) {
@@ -2269,7 +2137,7 @@ return res;
       //lcd_refresh();
       fnTimerStart(TO_KB_ACTV, TO_KB_ACTV, TO_KB_ACTV_ZERO); //PROGRAM_KB_ACTV
       if(disp && !blockMonitoring) {
-        sprintf(tmps, "%s %" PRIi32 "  ", txt, loop);
+        snprintf(tmps, sizeof(tmps), "%s %" PRIi32 "  ", txt, loop);
         showString(tmps, &standardFont, 20, /*145-7*/ Y_POSITION_OF_REGISTER_T_LINE + mode * 20, vmNormal, false, false);  //note: displays info 1 line down, if "force" parameter is set
       }
 
@@ -2288,13 +2156,6 @@ return res;
 
 
   bool_t checkHalfSec(void) {
-    #if defined(PC_BUILD)
-      if(!headlessMode) {
-        while(gtk_events_pending()) {
-          gtk_main_iteration();
-        }
-      }
-    #endif //PC_BUILD
     if(!getSystemFlag(FLAG_MONIT)) {
       return false;
     }
@@ -2303,9 +2164,7 @@ return res;
     const uint32_t halfSecSlot = getUptimeMs() >> 10;
     if(halfSecSlot != halfSecTick2) { //1.024 second refresh interval; slot compare catches skipped slots
       halfSecTick2 = halfSecSlot;
-      #if defined(DMCP_BUILD)
-        dmcpResetAutoOff();
-      #endif //DMCP_BUILD
+      dmcpResetAutoOff();
       return true;
     }
     return false;
@@ -3764,20 +3623,18 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
 
     char prefix[200], lastBase[20];
 
-    #if defined(DMCP_BUILD)
-      const int pendingKey = key_tail();                          // peek the DMCP buffer before the pop empties it: >0 a press, 0 a release, -1 nothing
-      keyBuffer_pop();                                            // This causes key updates while the longer time processing register updates happen
-      if( !skippedStackLines && (calcMode == CM_NORMAL || calcMode == CM_MIM) &&
-          !(regist == REGISTER_X)&&// || regist == REGISTER_Y) &&
-          !runningOnSimOrUSB &&                                   // Not on USB: a polar complex or polar vector line takes a rectangular to polar conversion per draw, so defer it and reach the X line and the waiting key sooner: See timer.c fnTimerEndOfActivity()
-          pendingKey > 0 &&                                       // a press, not a release: the file chooser returns without waiting for the release of the key that closed it, and deferring a line does nothing for a release
-          !emptyKeyBuffer() &&
-          key_empty() == 1
-          ) {
-        skippedStackLines = true;
-        return;
-      }
-    #endif //DMCP
+    const int pendingKey = key_tail();                          // peek the DMCP buffer before the pop empties it: >0 a press, 0 a release, -1 nothing
+    keyBuffer_pop();                                            // This causes key updates while the longer time processing register updates happen
+    if( !skippedStackLines && (calcMode == CM_NORMAL || calcMode == CM_MIM) &&
+        !(regist == REGISTER_X)&&// || regist == REGISTER_Y) &&
+        !runningOnSimOrUSB &&                                   // Not on USB: a polar complex or polar vector line takes a rectangular to polar conversion per draw, so defer it and reach the X line and the waiting key sooner: See timer.c fnTimerEndOfActivity()
+        pendingKey > 0 &&                                       // a press, not a release: the file chooser returns without waiting for the release of the key that closed it, and deferring a line does nothing for a release
+        !emptyKeyBuffer() &&
+        key_empty() == 1
+        ) {
+      skippedStackLines = true;
+      return;
+    }
 
     /* The function name is drawn over the T line, and nothing draws it a second time: showFunctionName runs from the key handling, never from a composition. A T
      * register drawn into that band would overwrite the name, and the next push would take it off the screen early. The register refresh returns instead, and
@@ -6267,16 +6124,14 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
         printf(">>> BEGIN _refreshPemScreen calcMode=%d previousCalcMode=%d screenUpdatingMode=%d skippedStackLines=%u\n", calcMode, previousCalcMode, screenUpdatingMode, skippedStackLines);    //JMYY
       #endif // PC_BUILD &&MONITOR_CLRSCR
       skippedStackLines = false;                                    // See timer.c skippedStackLines
-      #if defined(DMCP_BUILD)
-        keyBuffer_pop();                                            // This causes key updates while the longer time processing register updates happen
-        if(!runningOnSimOrUSB &&                             // Automatically, when on battery (hence low processor), change to skip long processing register printing, recovering the fragmented screen here: See timer.c fnTimerEndOfActivity()
-           !emptyKeyBuffer() &&
-           key_empty() == 1
-          ) {
-          skippedStackLines = true;
-          return;
-        }
-      #endif //DMCP_BUILD
+      keyBuffer_pop();                                            // This causes key updates while the longer time processing register updates happen
+      if(!runningOnSimOrUSB &&                             // Automatically, when on battery (hence low processor), change to skip long processing register printing, recovering the fragmented screen here: See timer.c fnTimerEndOfActivity()
+         !emptyKeyBuffer() &&
+         key_empty() == 1
+        ) {
+        skippedStackLines = true;
+        return;
+      }
 
       if(functionNameOnScreen) {     // nothing under the name changes while it is up, and the listing redraw would mark those rows and push the name off the screen
         return;
@@ -6526,9 +6381,7 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
         //}
         refreshStatusBar();
 
-        #if defined(DMCP_BUILD)
-          lcd_refresh_dma();               //the whole repaint reaches the display, not only the menu: a screen drawn with the menu suppressed never left the buffer
-        #endif //DMCP_BUILD
+        lcd_refresh_dma();               //the whole repaint reaches the display, not only the menu: a screen drawn with the menu suppressed never left the buffer
 
 
 //2023-07-26 this is new and to be tested for stability
@@ -6778,9 +6631,6 @@ static void displayLRtemporaryInformation(char *prefix1, char *prefix2, char *pr
     }
 
     doRefreshSoftMenu = false;
-    #if !defined(DMCP_BUILD)
-      refreshLcd(NULL);
-    #endif // !DMCP_BUILD
 
     #if defined(REFRESH_ON_SCREEN_MONITOR)
       char aaa[111];
@@ -6916,6 +6766,9 @@ void fnSNAP(uint16_t unusedButMandatoryParameter) {
 
 void fnScreenDump(uint16_t unusedButMandatoryParameter) {
   #if defined(PC_BUILD) || defined(ANDROID_BUILD)
+    if(!snapSkipRefresh) {
+      lcd_refresh();                  // the capture is taken from the pushed screen, and --snapskiprefresh takes it as it is
+    }
     FILE *bmp = NULL;
     char bmpFileName[C47_PATH_MAX];   // holds whatever _ioFileNameOverride holds; fnMenuDump uses 1024 for the same job
     time_t rawTime;
@@ -6931,7 +6784,7 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
       int32_t yRows  = yLast - yFirst + 1;
       snapRowFirst = 0;
       snapRowLast  = SCREEN_HEIGHT - 1;
-    #endif
+    #endif // defined(ANDROID_BUILD) / defined(PC_BUILD)
     uint32_t uint32;
     uint16_t uint16;
     uint8_t  uint8 = 0;
@@ -6942,12 +6795,14 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
       strftime(bmpFileName, sizeof(bmpFileName), "SNAP_%Y%m%d_%H%M%S.bmp", timeInfo);
 
       int fd = requestAndroidFile(1, bmpFileName, 3); // 3 = SCREENS category
-      if (fd < 0) return;
+      if(fd < 0) {
+        return;
+      }
 
       bmp = fdopen(fd, "wb");
-      if (!bmp) {
-          close(fd);
-          return;
+      if(!bmp) {
+        close(fd);
+        return;
       }
     #elif defined(PC_BUILD)
       paintDateTimeForCapture();
@@ -6975,12 +6830,12 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
         }
       }
       bmp = fopen(bmpFileName, "wb");
-    #endif
+    #endif // defined(ANDROID_BUILD) / defined(PC_BUILD)
 
     if(bmp == NULL) {               //a name whose folder does not exist: report and leave, the writes below take no NULL
       #if defined(PC_BUILD)
         printf(">>> SNAP: cannot open %s\n", bmpFileName);
-      #endif
+      #endif // defined(PC_BUILD)
       return;
     }
 
@@ -7079,7 +6934,7 @@ void fnScreenDump(uint16_t unusedButMandatoryParameter) {
 
 
     fclose(bmp);
-  #endif // PC_BUILD || ANDROID_BUILD
+  #endif // defined(PC_BUILD) || defined(ANDROID_BUILD)
 }
 
 

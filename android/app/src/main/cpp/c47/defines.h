@@ -737,12 +737,9 @@
 #define INTEGRATION_TWO_STAGE_EXIT         // If set allows a level to complete before exiting the integrator
 #undef  INTEGRATION_TWO_STAGE_EXIT
 #define DECNUMDIGITS                    75 // Default number of digits used in the decNumber library
-#define BIG_SCREEN_COEF                  1 // 2 = 2 times the standard screen, that is 800x480. Can be a decimal like 1.333
-#define SIMULATOR_ON_SCREEN_KEYBOARD     1 // Set to 0 if you don't want an onscreen keyboard in addition to the screen
 #undef  USECURVES                          // activate spline curve option in the plot menu
 #define XFN_EXTENDED_2PI_FOR_MOD         1 // for X_MOD only, if detect precise X_PI 1034 digits, it extends pi to 2139 (or as per contxt up to 6147) in XFN only. Needs to by exact, to 0 ULP difference.
 #define YYSystem                         true // Enable the shortcut system to allow two-digit year defaults, i.e. 23.1212 [.d] to decode to 2023.1212
-#define PGMPTR_TO_NEXT_AFTER_RTN         0 // 1: top-level RTN rests one step past the RTN (wraps at END). 0: rests on the program's first step as per legacy
 #define BAT_MINIMUM                      2100 // Battery level for abort program
 
 #if defined(TESTSUITE_BUILD)
@@ -781,15 +778,21 @@
   #define EXTRA_INFO_ON_CALC_ERROR 0
 #endif // TESTSUITE_BUILD
 
-#if (BIG_SCREEN_COEF > 1 && SIMULATOR_ON_SCREEN_KEYBOARD == 1)
+#define SIMULATOR_ON_SCREEN_KEYBOARD 1 // Onscreen keyboard in addition to the screen
+#if defined(RASPBERRY)
   #undef SIMULATOR_ON_SCREEN_KEYBOARD
-  #define SIMULATOR_ON_SCREEN_KEYBOARD 0
-#endif // BIG_SCREEN_COEF > 1 && SIMULATOR_ON_SCREEN_KEYBOARD == 1
+  #define SIMULATOR_ON_SCREEN_KEYBOARD 0 // No onscreen keyboard in addition to the screen
+#endif // RASPBERRY
 
-#if defined(PC_BUILD) && !defined(RASPBERRY)
-  #undef SIMULATOR_ON_SCREEN_KEYBOARD
-  #define SIMULATOR_ON_SCREEN_KEYBOARD 1
-#endif // PC_BUILD && !RASPBERRY
+#define BIG_SCREEN_COEF 2 // 2 = 2 times the standard screen, that is 800x480. This must be an integer
+#if (BIG_SCREEN_COEF < 1)
+  #error BIG_SCREEN_COEF must be an integer of 1 or more
+#endif // BIG_SCREEN_COEF < 1
+
+#if (BIG_SCREEN_COEF > 1 && SIMULATOR_ON_SCREEN_KEYBOARD == 1)
+  #undef BIG_SCREEN_COEF
+  #define BIG_SCREEN_COEF 1
+#endif // BIG_SCREEN_COEF > 1 && SIMULATOR_ON_SCREEN_KEYBOARD == 1
 
 //Norm_Key_00_VAR, using -1 output for not applicable, purposely out of range
 #define Norm_Key_00_key   (getNormKey00Key())
@@ -829,6 +832,10 @@
 #define USER_R47fg_g     64
 #define USER_EXPR        65
 #define USER_R47         66  //only used for RB, profile auto selected is USER_R47f_g
+#define USER_XFN_C47     67
+#define USER_FIN_C47     68
+#define USER_XFN_R47     69
+#define USER_FIN_R47     70
 
 
 //*************************
@@ -2082,7 +2089,7 @@ static inline uint8_t regCtoKS(const int16_t regC) {
 
 #define TI_DISPLAY_ROUNDING_MODE                 160  // X prefixed
 #define TI_DISPLAY_ROUNDING_MODE_ONLY            161  // X line blanked
-#define TI_DISK_INFO                             162
+#define TI_DISK_INFO                             254
 
 // Register browser mode
 #define RBR_GLOBAL                                 0 // Global registers are browsed
@@ -2144,8 +2151,6 @@ static inline uint8_t regCtoKS(const int16_t regC) {
 #define PGM_RUNNING                                1
 #define PGM_WAITING                                2
 #define PGM_PAUSED                                 3
-#define PGM_KEY_PRESSED_WHILE_PAUSED               4
-#define PGM_RESUMING                               5
 #define PGM_SINGLE_STEP                            6
 #define PGM_UNDEFINED                            255
 

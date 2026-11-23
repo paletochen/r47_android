@@ -100,6 +100,7 @@
     #include "hal/audio.h"
     #include "hal/gui.h"
     #include "hal/io.h"
+    #include "hal/keys.h"
     #include "hal/lcd.h"
     #include "hal/print_ir.h"
     #include "integers.h"
@@ -268,6 +269,10 @@
   extern const calcKey_t                 kbd_std_R47bk_fg[37];
   extern const calcKey_t                 kbd_std_R47fg_bk[37];
   extern const calcKey_t                 kbd_std_R47fg_g[37];
+  #if defined(OPTION_XFN_1000)
+    extern const calcKey_t                 kbd_xfn_C47[37];
+    extern const calcKey_t                 kbd_xfn_R47[37];
+  #endif // OPTION_XFN_1000
 
   #if defined(PC_BUILD)
     #define kbd_std                      (calcModel == USER_C47 ? kbd_std_C47 : calcModel == USER_DM42 ? kbd_std_DM42 : calcModel == USER_R47f_g ? kbd_std_R47f_g : calcModel == USER_R47bk_fg ? kbd_std_R47bk_fg : calcModel == USER_R47fg_bk ? kbd_std_R47fg_bk : calcModel == USER_R47fg_g ? kbd_std_R47fg_g : \
@@ -310,7 +315,6 @@
   extern bool_t                 hourGlassIconEnabled;
   extern bool_t                 watchIconEnabled;
   extern bool_t                 printerIconEnabled;
-  extern bool_t                 printerIconRefresh;
   extern bool_t                 serialIOIconEnabled;
   extern bool_t                 shiftF;
   extern bool_t                 shiftG;
@@ -667,15 +671,28 @@
   extern uint16_t               alphaRegister;
   extern bool_t                 varMenu42;
 
+  extern bool_t                 backToDMCP;
+  extern uint32_t               nextTimerRefresh;
+
   #if defined(DMCP_BUILD)
-    extern bool_t               backToDMCP;
   #if defined(BUFFER_CLICK_DETECTION)
     extern uint32_t             timeStampKey;                                      //dr - internal keyBuffer POC
   #endif // BUFFER_CLICK_DETECTION
   //extern int                  keyAutoRepeat; // Key repetition
   //extern int16_t              previousItem;
-  extern uint32_t               nextTimerRefresh;
 
   int                           convertKeyCode(int key);
   #endif // DMCP_BUILD
+
+  /**
+   * Processes one key code from the key buffer, as the main loop does.
+   *
+   * \param[in] key 1 to 37 a key press, 38 to 43 a softkey press, 0 a release, 44 the screen capture code, KEY_HOST_EVENT_FIRST and up a host event
+   */
+  void                          processKeyCode(int key);
+
+  /**
+   * Takes keys from the key buffer and processes them, runs the timers and refreshes the screen, until backToDMCP is set.
+   */
+  void                          mainLoop(void);
 #endif // !C47_H

@@ -48,9 +48,15 @@ Java_org_rpncalculators_r47_MainActivity_updateNativeActivityRef(JNIEnv *env,
   }
 
   pthread_mutex_lock(&screenMutex);
+  if(isCoreShutdownRequested()) {
+    clearCoreShutdownRequested();
+    key_pop_all();
+    clearKeyBuffer();
+    resetInputGestures();
+  }
   reDraw = true;
   refreshScreen(190);
-  refreshLcd(NULL);
+  refreshLcd();
   lcd_refresh();
   pthread_mutex_unlock(&screenMutex);
 }
@@ -84,6 +90,10 @@ JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_initNative(
   setupUI();
   init_lcd_buffers();
   lcd_clear_buf();
+  clearCoreShutdownRequested();
+  key_pop_all();
+  clearKeyBuffer();
+  resetInputGestures();
   calcModel = USER_R47f_g;
   void doFnReset(uint16_t confirmation, bool_t autoSav);
   doFnReset(CONFIRMED, false);
@@ -100,13 +110,15 @@ JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_initNative(
   fnTimerConfig(TO_FN_EXEC, execFnTimeout, 0);
   fnTimerConfig(TO_3S_CTFF, shiftCutoff, TO_3S_CTFF);
   fnTimerConfig(TO_CL_DROP, fnTimerDummy1, TO_CL_DROP);
+  fnTimerConfig(TO_AUTO_REPEAT, execAutoRepeat, 0);
   fnTimerConfig(TO_TIMER_APP, execTimerApp, 0);
   fnTimerConfig(TO_ASM_ACTIVE, refreshFn, TO_ASM_ACTIVE);
+  fnTimerConfig(TO_KB_ACTV, fnTimerEndOfActivity, TO_KB_ACTV);
 
   pthread_mutex_lock(&screenMutex);
   reDraw = true;
   refreshScreen(190);
-  refreshLcd(NULL);
+  refreshLcd();
   lcd_refresh();
   pthread_mutex_unlock(&screenMutex);
 }
@@ -120,12 +132,15 @@ JNIEXPORT void JNICALL Java_org_rpncalculators_r47_MainActivity_tick(
     return;
   }
 
-  if (nextTimerRefresh <= now) {
-    refreshTimer(NULL);
-    nextTimerRefresh = now + 5;
+  if (!shouldQueueInputToDmcp() && !isCoreShutdownRequested()) {
+    keyDispatchNow();
+  }
+  if (nextTimerRefresh != 0 && nextTimerRefresh <= now) {
+    refreshTimer();
+    lcd_refresh();
   }
   if (nextScreenRefresh <= now) {
-    refreshLcd(NULL);
+    refreshLcd();
     lcd_refresh();
     nextScreenRefresh = now + 100;
   }
@@ -179,6 +194,10 @@ Java_org_rpncalculators_r47_MainActivity_loadStateNative(JNIEnv *env,
   }
 
   pthread_mutex_lock(&screenMutex);
+  if (shouldQueueInputToDmcp()) {
+    pthread_mutex_unlock(&screenMutex);
+    return;
+  }
   extern void restoreCalc(void);
   restoreCalc();
   extern void scanLabelsAndPrograms(void);
@@ -201,7 +220,7 @@ Java_org_rpncalculators_r47_MainActivity_loadStateNative(JNIEnv *env,
   defineCurrentProgramFromCurrentStep();
   updateMatrixHeightCache();
   refreshScreen(190);
-  refreshLcd(NULL);
+  refreshLcd();
   lcd_refresh();
   pthread_mutex_unlock(&screenMutex);
 }
@@ -217,7 +236,7 @@ Java_org_rpncalculators_r47_MainActivity_forceRefreshNative(
 
   pthread_mutex_lock(&screenMutex);
   refreshScreen(190);
-  refreshLcd(NULL);
+  refreshLcd();
   lcd_refresh();
   pthread_mutex_unlock(&screenMutex);
 }
@@ -241,6 +260,10 @@ Java_org_rpncalculators_r47_MainActivity_loadAutoSaveNative(JNIEnv *env,
   }
 
   pthread_mutex_lock(&screenMutex);
+  if (shouldQueueInputToDmcp()) {
+    pthread_mutex_unlock(&screenMutex);
+    return JNI_FALSE;
+  }
   extern void fnLoadAuto(void);
   fnLoadAuto();
   extern void scanLabelsAndPrograms(void);
@@ -263,7 +286,7 @@ Java_org_rpncalculators_r47_MainActivity_loadAutoSaveNative(JNIEnv *env,
   defineCurrentProgramFromCurrentStep();
   updateMatrixHeightCache();
   refreshScreen(95);
-  refreshLcd(NULL);
+  refreshLcd();
   lcd_refresh();
   pthread_mutex_unlock(&screenMutex);
   return JNI_TRUE;

@@ -4,22 +4,12 @@
 #include "c47.h"
 
 kb_timer_t  timer[TMR_NUMBER];
-#if defined(PC_BUILD)
-gint64      timerLastCalled;
-#endif // PC_BUILD
-
-#if defined(DMCP_BUILD)
 uint32_t    timerLastCalled;
 bool_t      mutexRefreshTimer = false;
-#endif // DMCP_BUILD
 
 
 uint32_t getUptimeMs(void) {
-  #if defined(DMCP_BUILD)
-    return (uint32_t)sys_current_ms();
-  #else // !DMCP_BUILD
-    return (uint32_t)(g_get_monotonic_time() / 1000);
-  #endif // DMCP_BUILD
+  return (uint32_t)sys_current_ms();
 }
 
 
@@ -70,7 +60,6 @@ void fnLastT (uint16_t unusedButMandatoryParameter) {
 
 
 void fnRebuildTimerRefresh(void) {
-  #if defined(DMCP_BUILD)
   uint32_t next;
 
   if(mutexRefreshTimer == false) {
@@ -87,51 +76,9 @@ void fnRebuildTimerRefresh(void) {
       }
     }
   }
-  #endif // DMCP_BUILD
 }
 
 
-#if defined(PC_BUILD)
-/********************************************//**
- * \brief Refreshes timer. This function is
- * called every 5 ms by a GTK timer.
- *
- * \param[in] data gpointer Not used
- * \return gboolean         What will happen next?
- *                          * true  = timer will call this function again
- *                          * false = timer stops calling this function
- ***********************************************/
-gboolean refreshTimer(gpointer data) {      // This function is called every 5 ms by a GTK timer
-  gint64 now = g_get_monotonic_time();
-
-  if(now < timerLastCalled) {
-    for(int i = 0; i < TMR_NUMBER; i++) {
-      if(timer[i].state == TMR_RUNNING) {
-        timer[i].state = TMR_COMPLETED;
-        timer[i].func(timer[i].param);      // Callback to configured function
-      }
-    }
-  }
-  else {
-    for(int i = 0; i < TMR_NUMBER; i++) {
-      if(timer[i].state == TMR_RUNNING) {
-        if(timer[i].timer_will_expire <= now) {
-          timer[i].state = TMR_COMPLETED;
-          timer[i].func(timer[i].param);    // Callback to configured function
-        }
-      }
-    }
-  }
-
-  timerLastCalled = now;
-
-//fnRebuildTimerRefresh();
-
-  return TRUE;
-}
-#endif // PC_BUILD
-
-#if defined(DMCP_BUILD)
 void refreshTimer(void) {                   // This function is called when nextTimerRefresh has been elapsed
   uint32_t now = (uint32_t)sys_current_ms();
 
@@ -162,7 +109,6 @@ void refreshTimer(void) {                   // This function is called when next
 
   fnRebuildTimerRefresh();
 }
-#endif // DMCP_BUILD
 
 
 void fnTimerDummy1(uint16_t param) {
@@ -174,11 +120,6 @@ void fnTimerDummy1(uint16_t param) {
 
 
 void fnTimerEndOfActivity(uint16_t param) {
-#if defined(PC_BUILD)
-  printf("fnTimerEndOfActivity called  %u\n", param);
-#endif // PC_BUILD
-
-#if defined(DMCP_BUILD)
                                 #if defined(DM42_POWERMARKS)
                                   powerMarkerMsF(1, 10000);
                                 #endif //DM42_POWERMARKS
@@ -195,7 +136,6 @@ void fnTimerEndOfActivity(uint16_t param) {
                                 #if defined(DM42_POWERMARKS)
                                   powerMarkerMsF(1, 15000);
                                 #endif //DM42_POWERMARKS
-#endif // DMCP_BUILD
 }
 
 
@@ -209,9 +149,7 @@ void fnTimerReset(void) {
     timer[i].param = 0;
   }
 
-  #if defined(DMCP_BUILD)
-    mutexRefreshTimer = false;
-  #endif
+  mutexRefreshTimer = false;
   fnRebuildTimerRefresh();
 }
 
@@ -229,13 +167,7 @@ void fnTimerConfig(uint8_t nr, void(*func)(uint16_t), uint16_t param) {
 
 
 void fnTimerStart(uint8_t nr, uint16_t param, uint32_t time) {//time is in ms
-  #if defined(DMCP_BUILD)
-  uint32_t now = (uint32_t)sys_current_ms();                  //DMCP time is in ms
-  #endif // DMCP_BUILD
-
-  #if defined(PC_BUILD)
-  gint64 now = g_get_monotonic_time();                        //PC time is in us
-  #endif // PC_BUILD
+  uint32_t now = (uint32_t)sys_current_ms();
 
   #if defined(OPTION_LP_DP_TIMING)
   if(nr == TO_CL_LONG || nr == TO_FN_LONG) {
@@ -248,15 +180,7 @@ void fnTimerStart(uint8_t nr, uint16_t param, uint32_t time) {//time is in ms
 
   if(nr < TMR_NUMBER) {
     timer[nr].param = param;
-    #if defined(DMCP_BUILD)
     timer[nr].timer_will_expire = (uint32_t)(now + time);     // is in ms
-    #endif // DMCP_BUILD
-    #if defined(PC_BUILD)
-    timer[nr].timer_will_expire = (gint64)(now + time *1000); // time * 1000 is in us
-    if(timer[nr].timer_will_expire < 0) {
-      timer[nr].timer_will_expire = time *1000;
-    }
-    #endif // PC_BUILD
     timer[nr].state = TMR_RUNNING;
   }
   fnRebuildTimerRefresh();
@@ -632,12 +556,8 @@ void fnUpdateTimerApp(void) {
   if(calcMode == CM_TIMER) {
     fnShowTimerApp();
     displayShiftAndTamBuffer();
-      #if defined(DMCP_BUILD)
       refreshLcd();
       lcd_refresh();
-    #else // !DMCP_BUILD
-      refreshLcd(NULL);
-    #endif // DMCP_BUILD
   }
   #endif // OPTION_STOPWATCH
 }

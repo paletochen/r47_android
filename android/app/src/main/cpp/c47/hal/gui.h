@@ -16,4 +16,11 @@
     void calcModeAimGui    (void);
     void calcModeTamGui    (void);
   #endif // defined(DMCP_BUILD) || SIMULATOR_ON_SCREEN_KEYBOARD == 0
+
+  #if defined(PC_BUILD)
+    /**
+     * Puts text on the PC clipboard.
+     */
+    void guiSetClipboardText(const char *text);
+  #endif // PC_BUILD
 #endif // !GUI_H

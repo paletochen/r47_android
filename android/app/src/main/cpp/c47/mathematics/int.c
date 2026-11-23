@@ -18,11 +18,7 @@ void fnCheckInteger(uint16_t mode) {
     SET_TI_TRUE_FALSE(mode == CHECK_INTEGER_FP);
   }
   else {
-    #if defined(DMCP_BUILD)
       lcd_refresh();
-    #else // !DMCP_BUILD
-      refreshLcd(NULL);
-    #endif // DMCP_BUILD
 
     switch(mode) {
       case CHECK_INTEGER: {

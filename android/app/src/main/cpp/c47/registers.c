@@ -7,7 +7,7 @@
   #include <android/log.h>
   #define LOG_TAG "R47Native"
   #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
-#endif
+#endif // defined(ANDROID_BUILD)
 
 #include "reservedRegisterLookup.h"
 
@@ -1754,12 +1754,6 @@ static bool_t isValidIndirectRegisterParam(int16_t value) {
 int16_t indirectAddressing(calcRegister_t regist, uint16_t parameterType, int16_t minValue, int16_t maxValue, bool_t tryAllocate) {
   int16_t value;
   bool_t isValidAlpha = false;
-  #if defined(PC_BUILD)
-    //printf("parameterType %u\n", parameterType);
-    //fflush(stdout);
-    //printf("currentNumberOfLocalFlags %u\n", currentNumberOfLocalFlags);
-    //fflush(stdout);
-  #endif   // PC_BUILD
 
   switch(parameterType) {
     case INDPM_REGISTER: {
@@ -1851,7 +1845,7 @@ int16_t indirectAddressing(calcRegister_t regist, uint16_t parameterType, int16_
       displayCalcErrorMessage(ERROR_UNDEF_SOURCE_VAR, ERR_REGISTER_LINE);
       #if defined(ANDROID_BUILD)
         LOGE("ERROR_UNDEF_SOURCE_VAR in indirectAddressing: variable '%s' not found", REGISTER_STRING_DATA(regist));
-      #endif
+      #endif // defined(ANDROID_BUILD)
       #if (EXTRA_INFO_ON_CALC_ERROR == 1)
         sprintf(errorMessage, "string '%s' is not a named variable - tryAllocate is %s", REGISTER_STRING_DATA(regist), (tryAllocate ? "true" : "false"));
         moreInfoOnError("In function indirectAddressing:", errorMessage, NULL, NULL);

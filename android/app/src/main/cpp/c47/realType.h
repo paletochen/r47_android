@@ -194,6 +194,7 @@
   #define realIsPositive(source)                                 ((TO_REAL_HEADER(source)->bits & DECNEG) == 0)
   #define realIsSpecial(source)                                  ((TO_REAL_HEADER(source)->bits & DECSPECIAL) != 0)
   #define realLn(operand, res, ctxt)                             decNumberLn              (TO_REAL_T(res), TO_REAL_T(operand), ctxt)
+  #define realLog10Dec(operand, res, ctxt)                       decNumberLog10           (TO_REAL_T(res), TO_REAL_T(operand), ctxt)
   #define realMinus(operand, res, ctxt)                          decNumberMinus           (TO_REAL_T(res), TO_REAL_T(operand), ctxt)
   #define realMultiply(operand1, operand2, res, ctxt)            decNumberMultiply        (TO_REAL_T(res), TO_REAL_T(operand1), TO_REAL_T(operand2), ctxt)
   #define realNextToward(from, toward, res, ctxt)                decNumberNextToward      (TO_REAL_T(res), TO_REAL_T(from),     TO_REAL_T(toward),   ctxt)
@@ -212,4 +213,11 @@
   #define realToString(source, destination)                      decNumberToString        (TO_REAL_T(source), destination)
   #define stringToReal(source, destination, ctxt)                decNumberFromString      (TO_REAL_T(destination), source, ctxt)
   #define uInt32ToReal(source, destination)                      decNumberFromUInt32      (TO_REAL_T(destination), source)
+
+  static inline realContext_t rampedContext(const realContext_t *base, int32_t digits) {
+    realContext_t c = *base;
+    c.digits = digits;
+    c.status = 0;
+    return c;
+  }
 #endif // !REALTYPE_H

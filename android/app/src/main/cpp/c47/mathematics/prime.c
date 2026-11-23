@@ -1855,17 +1855,6 @@ typedef struct FactorAdder {
     dumpExponents(REGISTER_X, faddr, 13);
     updateMatrixHeightCache();
     refreshRegisterLine(REGISTER_X);
-    #if defined(PC_BUILD) //Note clear the correct number of lines to ensure no old register debris remains on screen. This is only required on SIM as the hardware clears the screen presumably
-      if(cachedDisplayStack <= 3) {
-        refreshRegisterLine(REGISTER_Y);
-      }
-      if(cachedDisplayStack <= 2) {
-        refreshRegisterLine(REGISTER_Z);
-      }
-      if(cachedDisplayStack <= 1) {
-        refreshRegisterLine(REGISTER_T);
-      }
-    #endif //PC_BUILD
 
     return true;
 

@@ -167,25 +167,46 @@ bool_t real34CompareLessThan(const real34_t *number1, const real34_t *number2) {
 #endif
 
 
-bool_t realCompareAbsGreaterThan(const real_t *number1, const real_t *number2) {
+// Returns -1, 0 or 1 as |number1| is less than, equal to or greater than |number2|, and 2 when an operand is NaN, without writing an operand. With opposite
+// signs the operand of fewer digits is copied and given the sign of the other. With a common sign the operands compare in place, reversed when negative.
+// The comparison result is written over the copy buffer, which decNumber permits for an operand. The buffer is sized at run time to the operand of fewer
+// digits, and to no less than the context digits, as a NaN result takes the NaN operand's payload up to that many digits.
+static int32_t realCompareAbs(const real_t *number1, const real_t *number2) {
   realContext_t context = ctxtReal39;
-  #if defined(ALLOW_159)
-    REAL_T_PTR(num1, 159);
-    REAL_T_PTR(num2, 159);
-    const int32_t k = 159;
-  #else
-    REAL_T_PTR(num1, 75);
-    REAL_T_PTR(num2, 75);
-    const int32_t k = 75;
-  #endif //ALLOW_159
-  if(max(number1->digits, number2->digits) > k) {
-    sprintf(errorMessage, "Exceed %" PRId32 " digits :realCompareAbsGreaterThan", k);
-    displayBugScreen(errorMessage);
+  const int32_t k = max(context.digits, min(number1->digits, number2->digits));
+  REAL_T_PTR(copy, k);
+  const real_t *operand1 = number1;
+  const real_t *operand2 = number2;
+  if(realIsNegative(number1) != realIsNegative(number2)) {
+    if(number1->digits <= number2->digits) {
+      realCopy(number1, copy);
+      realSetSignFrom(number2, copy);
+      operand1 = copy;
+    }
+    else {
+      realCopy(number2, copy);
+      realSetSignFrom(number1, copy);
+      operand2 = copy;
+    }
   }
-  realCopyAbs(number1, num1);
-  realCopyAbs(number2, num2);
-  realCompare(num1, num2, num2, &context);
-  return !realIsNaN(num2) && realIsPositive(num2) && !realIsZero(num2);
+  if(realIsNegative(operand1)) {
+    realCompare(operand2, operand1, copy, &context);
+  }
+  else {
+    realCompare(operand1, operand2, copy, &context);
+  }
+  if(realIsNaN(copy)) {
+    return 2;
+  }
+  if(realIsZero(copy)) {
+    return 0;
+  }
+  return realIsNegative(copy) ? -1 : 1;
+}
+
+
+bool_t realCompareAbsGreaterThan(const real_t *number1, const real_t *number2) {
+  return realCompareAbs(number1, number2) == 1;
 }
 
 
@@ -208,24 +229,7 @@ bool_t realCompareAbsGreaterEqual(const real_t *number1, const real_t *number2) 
 
 
 bool_t realCompareAbsLessThan(const real_t *number1, const real_t *number2) {
-  realContext_t context = ctxtReal39;
-  #if defined(ALLOW_159)
-    REAL_T_PTR(num1, 159);
-    REAL_T_PTR(num2, 159);
-    const int32_t k = 159;
-  #else
-    REAL_T_PTR(num1, 75);
-    REAL_T_PTR(num2, 75);
-    const int32_t k = 75;
-  #endif //OPTION_CUBIC_159 || OPTION_EIGEN_159
-  if(max(number1->digits, number2->digits) > k) {
-    sprintf(errorMessage, "Exceed %" PRId32 " digits :realCompareAbsLessThan", k);
-    displayBugScreen(errorMessage);
-  }
-  realCopyAbs(number1, num1);
-  realCopyAbs(number2, num2);
-  realCompare(num1, num2, num2, &context);
-  return !realIsNaN(num2) && realIsNegative(num2) && !realIsZero(num2);
+  return realCompareAbs(number1, number2) == -1;
 }
 
 
@@ -254,24 +258,7 @@ bool_t realCompareIdentical(const real_t *number1, const real_t *number2) {
 
 
 bool_t realCompareAbsEqual(const real_t *number1, const real_t *number2) {
-  realContext_t context = ctxtReal39;
-  #if defined(ALLOW_159)
-    REAL_T_PTR(num1, 159);
-    REAL_T_PTR(num2, 159);
-    const int32_t k = 159;
-  #else
-    REAL_T_PTR(num1, 75);
-    REAL_T_PTR(num2, 75);
-    const int32_t k = 75;
-  #endif //ALLOW_159
-  if(max(number1->digits, number2->digits) > k) {
-    sprintf(errorMessage, "Exceed %" PRId32 " digits :realCompareAbsEqual", k);
-    displayBugScreen(errorMessage);
-  }
-  realCopyAbs(number1, num1);
-  realCopyAbs(number2, num2);
-  realCompare(num1, num2, num2, &context);
-  return realIsZero(num2);
+  return realCompareAbs(number1, number2) == 0;
 }
 
 

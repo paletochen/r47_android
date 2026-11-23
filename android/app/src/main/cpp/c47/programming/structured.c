@@ -1179,7 +1179,7 @@ static bool_t structWalkProgram(bool_t numbering, const uint8_t *stopAt) {
     // A label after a return starts the next routine, with any number of REMs between the two. A structure still open there would close in a routine of its own, which
     // no jump could pair with its opener, so it is flagged as crossed and refused when its closer is reached.
     // The counters run on: they never issue a number twice, so a routine's numbers are its own without a step at the boundary.
-    if(op == ITM_LBL && (previousOp == ITM_RTN || previousOp == ITM_RTNP1)) {
+    if(op == ITM_LBL && (previousOp == ITM_RTN || previousOp == ITM_RTNSTP || previousOp == ITM_RTNP1)) {
       uint16_t open;
 
       forSeen = false; // the next routine declares its own local registers from the start

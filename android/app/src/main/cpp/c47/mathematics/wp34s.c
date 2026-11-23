@@ -687,11 +687,22 @@ static void doWP34S_SinCosTanTaylor(real_t* angle, bool* sinNeg, bool* cosNeg, b
 
   // sin(90-x) = cos(x), cos(90-x) = sin(x)
   if(angularMode != amRadian && realCompareEqual(angle, angle45)) { // angle == 45°
-    if(sinOut != NULL) {
-     realCopy(const39_root2on2, sinOut);
+    if(savedContextDigits <= 39) {
+      if(sinOut != NULL) {
+        realCopy(const39_root2on2, sinOut);
+      }
+      if(cosOut != NULL) {
+        realCopy(const39_root2on2, cosOut);
+      }
     }
-    if(cosOut != NULL) {
-      realCopy(const39_root2on2, cosOut);
+    else {
+      realSquareRoot(const_1on2, angle, realContext);
+      if(sinOut != NULL) {
+        realCopy(angle, sinOut);
+      }
+      if(cosOut != NULL) {
+        realCopy(angle, cosOut);
+      }
     }
     if(tanOut != NULL) {
       realSetOne(tanOut);
@@ -848,22 +859,19 @@ static void doTaylorIterations(const real_t *a, real_t* angle, real_t* a2, real_
     }
 
     if(explicitTaylorIterVisibilitySelection && checkHalfSec()) {
-      char ss[100];
-      sprintf(ss, "Taylor Iter: %d/%d; Dig: %d/", i, TaylorIterationMax, -(int16_t)tExp);
-      ss[40] = 0; //Hard limit to screen display
+      char ss[41]; //Hard limit to screen display
+      snprintf(ss, sizeof(ss), "Taylor Iter: %d/%d; Dig: %d/", i, TaylorIterationMax, -(int16_t)tExp);
       #if defined(DEBUGTAYLOR)
         printf("%s%d\n", ss, epsilonDigits);
       #endif //DEBUGTAYLOR
       if(progressHalfSecUpdate_Integer(timed, ss, epsilonDigits, halfSec_clearZ, halfSec_clearT, halfSec_disp)) { //timed
       }
     }
-    #if !defined(PC_BUILD)
-      if(exitKeyWaiting()) {
-        progressHalfSecUpdate_Integer(force+1, "Interrupted Iter:", i, halfSec_clearZ, halfSec_clearT, halfSec_disp);
-        displayCalcErrorMessage(ERROR_SOLVER_ABORT, REGISTER_T);
-        break;
-      }
-    #endif //!PC_BUILD
+    if(exitKeyWaiting()) {
+      progressHalfSecUpdate_Integer(force+1, "Interrupted Iter:", i, halfSec_clearZ, halfSec_clearT, halfSec_disp);
+      displayCalcErrorMessage(ERROR_SOLVER_ABORT, REGISTER_T);
+      break;
+    }
 
     #if defined(DEBUGTAYLOR)
       if(i > 1 && i % 1 == 0) { //left mod for printing interleaved status
@@ -1015,20 +1023,120 @@ void C47_WP34S_SinCosTanTaylor_temp1071(const real_t *a, bool_t swap, real_t *si
 
   // The eight working reals come from the heap, not the frame: eight 1071 digit decNumbers at 724 bytes is 5792 of this function's 5832 byte frame, on an arm build with
   // OPTION_XFN_1000 forced on. That frame is the stack reason XFN 1000 is kept off the DM42, defines.h:36.
-  REAL_T_ALLOC(angle,            1071);
-  REAL_T_ALLOC(a2,               1071);
-  REAL_T_ALLOC(t,                1071);
-  REAL_T_ALLOC(j,                1071);
-  REAL_T_ALLOC(z,                1071);
-  REAL_T_ALLOC(sin,              1071);
-  REAL_T_ALLOC(cos,              1071);
-  REAL_T_ALLOC(epsilonOrCompare, 1071);
+  REAL_T_ALLOC(angle,            1089);
+  REAL_T_ALLOC(a2,               1089);
+  REAL_T_ALLOC(t,                1089);
+  REAL_T_ALLOC(j,                1089);
+  REAL_T_ALLOC(z,                1089);
+  REAL_T_ALLOC(sin,              1089);
+  REAL_T_ALLOC(cos,              1089);
+  REAL_T_ALLOC(epsilonOrCompare, 1089);
   if(angle == NULL || a2 == NULL || t == NULL || j == NULL || z == NULL || sin == NULL || cos == NULL || epsilonOrCompare == NULL) {
     displayCalcErrorMessage(ERROR_RAM_FULL, ERR_REGISTER_LINE);
     goto freeWork;
   }
 
-  doTaylorIterations(a, angle, a2, t, j, z, sin, cos, sinOut, cosOut, epsilonOrCompare, true /*doEpsilon*/, 1040, realContext);
+  int32_t workDigits = (realContext->digits <= 1071) ? 1086 : realContext->digits;
+  realContext_t workCtx = rampedContext(realContext, workDigits);
+  realContext_t termCtx = workCtx;
+  int32_t halvings = 0;
+
+  realCopy(a, angle);
+  if(!realIsZero(angle) && !realIsSpecial(angle) && realGetExponent(angle) >= -3) {
+    halvings = 10;
+    uInt32ToReal(9765625U, z); // 2^-10 = 9765625 * 10^-10
+    realAdjustExponent(z, -10);
+    realMultiply(angle, z, angle, &workCtx);
+  }
+
+  bool_t needSin = (sinOut != NULL) || (tanOut != NULL) || (halvings > 0);
+  bool_t needCos = (cosOut != NULL) || (tanOut != NULL) || (halvings > 0);
+
+  if(realIsZero(angle)) {
+    realSetZero(sin);
+    realSetOne(cos);
+  }
+  else {
+    realMultiply(angle, angle, a2, &workCtx);
+    realChangeSign(a2);
+    realSetOne(t);
+    realSetOne(sin);
+    realSetOne(cos);
+    bool_t endSin = !needSin;
+    bool_t endCos = !needCos;
+
+    for(uint32_t m = 1; !(endSin && endCos) && m < (uint32_t)TaylorIterationMax; m++) {
+      int32_t curExp = realIsZero(t) ? -workDigits : realGetExponent(t);
+      int32_t td = workDigits + curExp + 8;
+      if(td < 12) {
+        td = 12;
+      }
+      else if(td > workDigits) {
+        td = workDigits;
+      }
+      termCtx.digits = td;
+
+      uint32_t cosDiv = (2U * m - 1U) * (2U * m);
+      uInt32ToReal(cosDiv, j);
+      realMultiply(t, a2, t, &termCtx);
+      realDivide(t, j, t, &termCtx);
+      int32_t tExp = realIsZero(t) ? -(workDigits + 4) : realGetExponent(t);
+
+      if(!endCos) {
+        if(tExp < -workDigits - 1) {
+          endCos = true;
+        }
+        else {
+          realAdd(cos, t, cos, &workCtx);
+        }
+      }
+
+      if(!endSin) {
+        uInt32ToReal(2U * m + 1U, j);
+        realDivide(t, j, z, &termCtx);
+        int32_t zExp = realIsZero(z) ? -(workDigits + 4) : realGetExponent(z);
+        if(zExp < -workDigits - 1) {
+          endSin = true;
+        }
+        else {
+          realAdd(sin, z, sin, &workCtx);
+        }
+      }
+
+      if(explicitTaylorIterVisibilitySelection && checkHalfSec()) {
+        char ss[41]; //Hard limit to screen display
+        snprintf(ss, sizeof(ss), "Taylor Iter: %u/%d; Dig: %d/", (unsigned)m, TaylorIterationMax, -(int)tExp);
+        if(progressHalfSecUpdate_Integer(timed, ss, 1040, halfSec_clearZ, halfSec_clearT, halfSec_disp)) {
+        }
+      }
+      #if !defined(PC_BUILD)
+        if(exitKeyWaiting()) {
+          progressHalfSecUpdate_Integer(force + 1, "Interrupted Iter:", (int)m, halfSec_clearZ, halfSec_clearT, halfSec_disp);
+          displayCalcErrorMessage(ERROR_SOLVER_ABORT, REGISTER_T);
+          break;
+        }
+      #endif // !PC_BUILD
+    }
+
+    if(needSin) {
+      realMultiply(sin, angle, sin, &workCtx);
+    }
+    for(int32_t k = 0; k < halvings; k++) {
+      realMultiply(sin, cos, z, &workCtx);
+      realAdd(z, z, z, &workCtx);
+      realMultiply(cos, cos, epsilonOrCompare, &workCtx);
+      realMultiply(sin, sin, t, &workCtx);
+      realSubtract(epsilonOrCompare, t, cos, &workCtx);
+      realCopy(z, sin);
+    }
+    if(realIsZero(cos)) {
+      realSetPositiveSign(cos);
+    }
+    if(realIsZero(sin)) {
+      realSetPositiveSign(sin);
+    }
+    explicitTaylorIterVisibilitySelection = false;
+  }
 
   if(sinOut != NULL) {
     realPlus(sin, sinOut, realContext);
@@ -1051,14 +1159,14 @@ void C47_WP34S_SinCosTanTaylor_temp1071(const real_t *a, bool_t swap, real_t *si
   }
 
 freeWork:
-  REAL_T_FREE(angle,            1071);
-  REAL_T_FREE(a2,               1071);
-  REAL_T_FREE(t,                1071);
-  REAL_T_FREE(j,                1071);
-  REAL_T_FREE(z,                1071);
-  REAL_T_FREE(sin,              1071);
-  REAL_T_FREE(cos,              1071);
-  REAL_T_FREE(epsilonOrCompare, 1071);
+  REAL_T_FREE(angle,            1089);
+  REAL_T_FREE(a2,               1089);
+  REAL_T_FREE(t,                1089);
+  REAL_T_FREE(j,                1089);
+  REAL_T_FREE(z,                1089);
+  REAL_T_FREE(sin,              1089);
+  REAL_T_FREE(cos,              1089);
+  REAL_T_FREE(epsilonOrCompare, 1089);
 }
 #endif // OPTION_XFN_1000
 
@@ -1169,22 +1277,19 @@ static bool_t doAtan(real_t *a, real_t *angle, real_t *a2, real_t *t, real_t *j,
 
 
     if(explicitTaylorIterVisibilitySelection && checkHalfSec()) {
-      char ss[100];
-      sprintf(ss, "Taylor Iter: %d/%d; Dig: %d/", i, TaylorIterationMax, -(int16_t)realGetExponent(b));
-      ss[40] = 0; //Hard limit to screen display
+      char ss[41]; //Hard limit to screen display
+      snprintf(ss, sizeof(ss), "Taylor Iter: %d/%d; Dig: %d/", i, TaylorIterationMax, -(int16_t)realGetExponent(b));
       #if defined(DEBUGTAYLOR)
         printf("%s%d\n", ss, epsilonDigits);
       #endif //DEBUGTAYLOR
       if(progressHalfSecUpdate_Integer(timed, ss, epsilonDigits, halfSec_clearZ, halfSec_clearT, halfSec_disp)) { //timed
       }
     }
-    #if !defined(PC_BUILD)
-      if(exitKeyWaiting()) {
-        progressHalfSecUpdate_Integer(force+1, "Interrupted Iter:", i, halfSec_clearZ, halfSec_clearT, halfSec_disp);
-        displayCalcErrorMessage(ERROR_SOLVER_ABORT, REGISTER_T);
-        break;
-      }
-    #endif //!PC_BUILD
+    if(exitKeyWaiting()) {
+      progressHalfSecUpdate_Integer(force+1, "Interrupted Iter:", i, halfSec_clearZ, halfSec_clearT, halfSec_disp);
+      displayCalcErrorMessage(ERROR_SOLVER_ABORT, REGISTER_T);
+      break;
+    }
 
 
     #if defined(DEBUGTAYLOR)
@@ -3106,20 +3211,12 @@ static void gser(const real_t *a, const real_t *x, const real_t *gln, real_t *re
 }
 
 
-static void gcheckSmall(real_t *v, realContext_t *realContext) {
-  if(realCompareAbsLessThan(v, const_1e_10000)) {
-    realCopy(const_1e_10000, v);
-  }
-}
-
-
 static void gcf(const real_t *a, const real_t *x, const real_t *gln, real_t *res, realContext_t *realContext) {
   real_t an, b, c, d, h, t, u, v, i;
   int32_t n;
 
   realAdd(x, const_1, &t, realContext);
   realSubtract(&t, a, &b, realContext);    // b = (x+1) - a
-  gcheckSmall(&b, realContext);
   realSetPlusInfinity(&c);
   realDivide(const_1, &b, &d, realContext);
   realCopy(&d, &h);
@@ -3131,11 +3228,9 @@ static void gcf(const real_t *a, const real_t *x, const real_t *gln, real_t *res
     realAdd(&b, const_2, &b, realContext);
     realMultiply(&an, &d, &t, realContext);
     realAdd(&t, &b, &v, realContext);
-    gcheckSmall(&v, realContext);
     realDivide(const_1, &v, &d, realContext);
     realDivide(&an, &c, &t, realContext);
     realAdd(&b, &t, &c, realContext);
-    gcheckSmall(&c, realContext);
     realMultiply(&d, &c, &t, realContext);
     realMultiply(&h, &t, &u, realContext);
     if(realCompareEqual(&u, &h)) {
@@ -3414,28 +3509,13 @@ void WP34S_Erfc(const real_t *x, real_t *res, realContext_t *realContext) {
 #endif // OPTION_DIST_NORML
 
 
-static void betaFractionCheckScale(real_t *value) {
-  bool_t negative;
-
-  if(realCompareAbsLessThan(value, const_1e_10000)) {
-    negative = realIsNegative(value);
-    realCopy(const_1e_10000, value);
-    if(negative) {
-      realSetNegativeSign(value);
-    }
-  }
-}
-
-
 static void betaFractionStep(const real_t *coefficient, real_t *d, real_t *c, realContext_t *realContext) {
   real_t term, value;
 
   realFMA(coefficient, d, const_1, &value, realContext);
-  betaFractionCheckScale(&value);
   realDivide(const_1, &value, d, realContext);
   realDivide(coefficient, c, &term, realContext);
   realAdd(&term, const_1, c, realContext);
-  betaFractionCheckScale(c);
 }
 
 
@@ -3463,7 +3543,6 @@ bool_t WP34S_BetaFraction(const real_t *a, const real_t *b, const real_t *x, int
   realDivide(x, &ap1, &term, realContext);
   realFMA(&term, &ab, const__1, &term, realContext);
   realChangeSign(&term);
-  betaFractionCheckScale(&term);
   realDivide(const_1, &term, &d, realContext);
   realCopy(&d, res);
   realSetZero(&m);
@@ -3510,83 +3589,6 @@ bool_t WP34S_BetaFraction(const real_t *a, const real_t *b, const real_t *x, int
 }
 
 
-static void check_low(real_t *d) {
-  real_t real_1e_32;
-
-  realSetOne(&real_1e_32);
-  real_1e_32.exponent -= 32;
-  if(realCompareAbsLessThan(d, &real_1e_32)) {
-    realCopy(d, &real_1e_32);
-  }
-}
-
-
-static void ib_step(const real_t *aa, real_t *d, real_t *c, realContext_t *realContext) {
-  real_t t, u;
-
-  realMultiply(aa, d, &t, realContext);
-  realAdd(&t, const_1, &u, realContext);   // d = 1+aa*d
-  check_low(&u);
-  realDivide(const_1, &u, d, realContext);
-  realDivide(aa, c, &t, realContext);
-  realAdd(&t, const_1, c, realContext);    // c = 1+aa/c
-  check_low(c);
-}
-
-
-static void betacf(const real_t *a, const real_t *b, const real_t *x, real_t *r, realContext_t *realContext) {
-  real_t aa, c, d, apb, am1, ap1, m, m2, oldr;
-  int i;
-  real_t t, u, v, w;
-  int32_t loop = 0;
-
-  realAdd(a, const_1, &ap1, realContext);        // ap1 = 1+a
-  realSubtract(a, const_1, &am1, realContext);   // am1 = a-1
-  realAdd(a, b, &apb, realContext);              // apb = a+b
-  realSetOne(&c);                                // c = 1
-  realDivide(x, &ap1, &t, realContext);
-  realMultiply(&t, &apb, &u, realContext);
-  realSubtract(const_1, &u, &t, realContext);    // t = 1-apb*x/ap1
-  check_low(&t);
-  realDivide(const_1, &t, &d, realContext);      // d = 1/t
-  realCopy(&d, r);    // res = d
-  realSetZero(&m);
-  for(i=0; i<500; i++) {
-    realCopy(r, &oldr);
-    realAdd(&m, const_1, &m, realContext);       // m = i+1
-    realMultiply(&m, const_2, &m2, realContext);
-    realSubtract(b, &m, &t, realContext);
-    realMultiply(&t, &m, &u, realContext);
-    realMultiply(&u, x, &t, realContext);        // t = m*(b-m)*x
-    realAdd(&am1, &m2, &u, realContext);
-    realAdd(a, &m2, &v, realContext);
-    realMultiply(&u, &v, &w, realContext);       // w = (am1+m2)*(a+m2)
-    realDivide(&t, &w, &aa, realContext);        // aa = t/w
-    ib_step(&aa, &d, &c, realContext);
-    realMultiply(r, &d, &t, realContext);
-    realMultiply(&t, &c, r, realContext);        // r = r*d*c
-    realAdd(a, &m, &t, realContext);
-    realAdd(&apb, &m, &u, realContext);
-    realMultiply(&t, &u, &w, realContext);
-    realMultiply(&w, x, &t, realContext);
-    realMinus(&t, &w, realContext);              // w = -(a+m)*(apb+m)*x
-    realAdd(a, &m2, &t, realContext);
-    realAdd(&ap1, &m2, &u, realContext);
-    realMultiply(&t, &u, &v, realContext);       // v = (a+m2)*(ap1+m2)
-    realDivide(&w, &v, &aa, realContext);        // aa = w/v
-    ib_step(&aa, &d, &c, realContext);
-    realMultiply(&d, &c, &v, realContext);
-    realMultiply(r, &v, r, realContext);         // r *= d*c
-    if(realCompareEqual(&oldr, r)) {
-      break;
-    }
-    if(monitorExit(&loop, "Iter: ")) {
-      break;
-    }
-  }
-}
-
-
 // Regularised incomplete beta function Ix(a, b)
 void WP34S_betai(const real_t *b, const real_t *a, const real_t *x, real_t *res, realContext_t *realContext) {
   real_t t, u, v, w, y;
@@ -3607,7 +3609,8 @@ void WP34S_betai(const real_t *b, const real_t *a, const real_t *x, real_t *res,
     realMultiply(a, &v, &t, realContext);
     realSubtract(&t, &u, &v, realContext);     // v = lng(...)+a.ln(x)
     realSubtract(const_1, x, &y, realContext); // y = 1-x
-    WP34S_Ln(&y, &u, realContext);             // u = ln(1-x)
+    realMinus(x, &u, realContext);
+    WP34S_Ln1P(&u, &u, realContext);           // u = ln(1-x)
     realMultiply(&u, b, &t, realContext);
     realAdd(&t, &v, &u, realContext);          // u = lng(...)+a.ln(x)+b.ln(1-x)
     realExp(&u, &w, realContext);
@@ -3622,7 +3625,10 @@ void WP34S_betai(const real_t *b, const real_t *a, const real_t *x, real_t *res,
       realSetZero(res);
     }
     else {
-      betacf(a, b, x, &t, realContext);
+      if(!WP34S_BetaFraction(a, b, x, -37, 500, &t, realContext)) {
+        realSetNaN(res);
+        return;
+      }
       realDivide(&t, a, &u, realContext);
       realMultiply(&w, &u, res, realContext);
     }
@@ -3632,7 +3638,10 @@ void WP34S_betai(const real_t *b, const real_t *a, const real_t *x, real_t *res,
       realSetOne(res);
     }
     else {
-      betacf(b, a, &y, &t, realContext);
+      if(!WP34S_BetaFraction(b, a, &y, -37, 500, &t, realContext)) {
+        realSetNaN(res);
+        return;
+      }
       realDivide(&t, b, &u, realContext);
       realMultiply(&w, &u, &t, realContext);
       realSubtract(const_1, &t, res, realContext);
