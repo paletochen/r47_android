@@ -50,6 +50,7 @@ To run individual suites:
 | **16** | `test_r47_last_key_code_mapping` | `lastKeyCode`, `KEY?`, R47 layout keycode parity | Verifies that `setLastKeyCode` maps R47 key layout indices (UP=23, DOWN=28, SHIFT=11, COS=18, +/-=16, E=15) to standard HP-42S/DM42 keycodes (UP=51, DOWN=61), ensuring HP-42S programs (e.g. Almanac) correctly navigate views without premature termination. |
 | **17** | `test_program_copy_and_line_stripping` | `CM_PEM` program copy/paste, `stripProgramLinePrefix`, `parseAndPasteProgram` | Verifies stripping of numbered step prefixes and two-pass compilation of RPN program text into bytecode. |
 | **18** | `test_c47_character_set_conversion_and_math_ops` | C47 UTF-8 glyphs, RTF unwrapping, 90 `.p47u`/`.txt` + 69 `.rtf` programs | Verifies byte-level round-trip compilation and glyph parity across the repository's RPN program corpus. |
+| **19** | `test_rejig_aliases_and_insertion_shift` | `rejig` aliases (`TICKS`, `CLV`, `DIE`, `⎙`), `PTP_DISABLED` rejection, `parseAndPasteProgram` insertion shift | Verifies exact bytecode compilation of `rejig` aliases, rejection of non-programmable printer prefixes, and `PROT_NONE` guard-page bounds safety during mid-memory program insertion. |
 
 
 ---

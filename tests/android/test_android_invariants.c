@@ -12,6 +12,8 @@
 #include <dirent.h>
 #include <errno.h>
 #include <stdatomic.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
 // Environment emulation for Android build on PC host
 #ifndef ANDROID_BUILD
@@ -1324,6 +1326,23 @@ void test_dmcp_key_queue_invariants(void) {
     TEST_ASSERT(parseCalculatorKeyId("1") == 38, "Softkey '1' must map to 38");
     TEST_ASSERT(parseCalculatorKeyId("6") == 43, "Softkey '6' must map to 43");
     TEST_ASSERT(parseCalculatorKeyId("7") == 0, "Out-of-range softkey '7' must return 0");
+    TEST_ASSERT(parseCalculatorKeyId(NULL) == 0 && parseCalculatorKeyId("") == 0, "NULL and empty key IDs must return 0");
+    const size_t keyPageSz = (size_t)sysconf(_SC_PAGESIZE);
+    uint8_t *keyGuard = (uint8_t *)mmap(NULL, keyPageSz * 2u, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    TEST_ASSERT(keyGuard != MAP_FAILED, "mmap for parseCalculatorKeyId guard page must succeed");
+    if(mprotect(keyGuard + keyPageSz, keyPageSz, PROT_NONE) != 0) {
+        munmap(keyGuard, keyPageSz * 2u);
+        TEST_ASSERT(false, "mprotect for parseCalculatorKeyId guard page must succeed");
+    }
+    char *guardedOneChar = (char *)(keyGuard + keyPageSz - 2u);
+    guardedOneChar[0] = '0';
+    guardedOneChar[1] = '\0';
+    int zeroKeyRes = parseCalculatorKeyId(guardedOneChar);
+    guardedOneChar[0] = '7';
+    guardedOneChar[1] = '\0';
+    int sevenKeyRes = parseCalculatorKeyId(guardedOneChar);
+    munmap(keyGuard, keyPageSz * 2u);
+    TEST_ASSERT(zeroKeyRes == 0 && sevenKeyRes == 0, "1-char '0' and '7' adjacent to PROT_NONE must return 0 without accessing data[2]");
     TEST_ASSERT(parseCalculatorKeyId("00") == 1, "Key '00' must map to 1");
     TEST_ASSERT(parseCalculatorKeyId("36") == 37, "Key '36' must map to 37");
     TEST_ASSERT(parseCalculatorKeyId("37") == 0, "Out-of-range key '37' must return 0");
@@ -2849,6 +2868,171 @@ static void test_c47_character_set_conversion_and_math_ops(void) {
     calcMode = CM_NORMAL;
 }
 
+/**
+ * Invokes parseAndPasteProgram in CM_PEM and unconditionally restores calcMode and numberOfPrograms before returning.
+ */
+static char *runPasteInPem(const char *listing) {
+  extern char *parseAndPasteProgram(const char *codeText);
+  calcMode = CM_PEM;
+  char *err = parseAndPasteProgram(listing);
+  calcMode = CM_NORMAL;
+  numberOfPrograms = 1;
+  currentProgramNumber = 1;
+  return err;
+}
+
+/**
+ * Verifies rejig command aliases (TICKS, CLV, DIE, U+2399 printer prefixes), PTP_DISABLED rejection, and guard-page-backed insertion shifts.
+ */
+static void test_rejig_aliases_and_insertion_shift(void) {
+  static uint8_t alias_prog_buf[65536];
+  memset(alias_prog_buf, 0, sizeof(alias_prog_buf));
+  beginOfProgramMemory = alias_prog_buf;
+  mock_program_list[0].instructionPointer = alias_prog_buf;
+  mock_program_list[0].step = 1;
+  firstFreeProgramByte = alias_prog_buf;
+  freeProgramBytes = 65000;
+  endOfCurrentProgram = alias_prog_buf;
+  numberOfPrograms = 1;
+  currentProgramNumber = 1;
+
+  const char *rejigAliasListing =
+    "LBL 'RJGAL'\n"
+    "TICKS\n"
+    "TICKS#\n"
+    "CLV 'VAR'\n"
+    "DELITM 'VAR'\n"
+    "CLV IND R05\n"
+    "DIE 'msg'\n"
+    "FINISH 'msg'\n"
+    "DIE \xe2\x80\x98No mate!\xe2\x80\x99\n"
+    "\xe2\x8e\x99xy\n"
+    "\xe2\x8e\x99\xce\xb1 X\n"
+    "\xe2\x8e\x99" "Alpha X\n"
+    "\xe2\x8e\x99XFN\n"
+    "\xe2\x8e\x99Sigma\n"
+    "\xe2\x8e\x99ON\n"
+    "\xe2\x8e\x99r R07\n"
+    "\xe2\x8e\x99# 65\n"
+    "\xe2\x8e\x99OFF\n"
+    "RTN\n"
+    "END\n";
+
+  // clang-format off
+  const uint8_t expectedAliasBytes[] = {
+    (uint8_t)ITM_LBL, (uint8_t)STRING_LABEL_VARIABLE, 5, 'R', 'J', 'G', 'A', 'L',
+    (uint8_t)((ITM_TICKS >> 8) | 0x80), (uint8_t)(ITM_TICKS & 0xff),
+    (uint8_t)((ITM_TICKS >> 8) | 0x80), (uint8_t)(ITM_TICKS & 0xff),
+    (uint8_t)((ITM_DELITM >> 8) | 0x80), (uint8_t)(ITM_DELITM & 0xff), (uint8_t)STRING_LABEL_VARIABLE, 3, 'V', 'A', 'R',
+    (uint8_t)((ITM_DELITM >> 8) | 0x80), (uint8_t)(ITM_DELITM & 0xff), (uint8_t)STRING_LABEL_VARIABLE, 3, 'V', 'A', 'R',
+    (uint8_t)((ITM_DELITM >> 8) | 0x80), (uint8_t)(ITM_DELITM & 0xff), (uint8_t)INDIRECT_REGISTER, 5,
+    (uint8_t)((ITM_FINISH >> 8) | 0x80), (uint8_t)(ITM_FINISH & 0xff), (uint8_t)STRING_LABEL_VARIABLE, 3, 'm', 's', 'g',
+    (uint8_t)((ITM_FINISH >> 8) | 0x80), (uint8_t)(ITM_FINISH & 0xff), (uint8_t)STRING_LABEL_VARIABLE, 3, 'm', 's', 'g',
+    (uint8_t)((ITM_FINISH >> 8) | 0x80), (uint8_t)(ITM_FINISH & 0xff), (uint8_t)STRING_LABEL_VARIABLE, 8, 'N', 'o', ' ', 'm', 'a', 't', 'e', '!',
+    (uint8_t)((ITM_PRINTERXY >> 8) | 0x80), (uint8_t)(ITM_PRINTERXY & 0xff),
+    (uint8_t)((ITM_PRINTERALPHA >> 8) | 0x80), (uint8_t)(ITM_PRINTERALPHA & 0xff), (uint8_t)REGISTER_X_IN_KS_CODE,
+    (uint8_t)((ITM_PRINTERALPHA >> 8) | 0x80), (uint8_t)(ITM_PRINTERALPHA & 0xff), (uint8_t)REGISTER_X_IN_KS_CODE,
+    (uint8_t)((ITM_PRINTERXFN >> 8) | 0x80), (uint8_t)(ITM_PRINTERXFN & 0xff),
+    (uint8_t)((ITM_PRINTERSIGMA >> 8) | 0x80), (uint8_t)(ITM_PRINTERSIGMA & 0xff),
+    (uint8_t)((ITM_PRINTERON >> 8) | 0x80), (uint8_t)(ITM_PRINTERON & 0xff),
+    (uint8_t)((ITM_PRINTERR >> 8) | 0x80), (uint8_t)(ITM_PRINTERR & 0xff), 7,
+    (uint8_t)((ITM_PRINTERHASH >> 8) | 0x80), (uint8_t)(ITM_PRINTERHASH & 0xff), 0, 65,
+    (uint8_t)((ITM_PRINTEROFF >> 8) | 0x80), (uint8_t)(ITM_PRINTEROFF & 0xff),
+    (uint8_t)ITM_RTN,
+    (uint8_t)((ITM_END >> 8) | 0x80), (uint8_t)(ITM_END & 0xff)
+  };
+  // clang-format on
+
+  char *aliasErr = runPasteInPem(rejigAliasListing);
+  bool aliasCompileOk = (aliasErr == NULL);
+  if(aliasErr != NULL) {
+    printf("Unexpected error in parseAndPasteProgram on rejig alias listing: '%s'\n", aliasErr);
+    free(aliasErr);
+  }
+  TEST_ASSERT(aliasCompileOk, "parseAndPasteProgram must compile TICKS, CLV, DIE, and U+2399 printer commands cleanly");
+
+  size_t aliasCompiledLen = (size_t)(endOfCurrentProgram - alias_prog_buf);
+  TEST_ASSERT(aliasCompiledLen == sizeof(expectedAliasBytes), "Inline rejig alias program must match expected byte length");
+  TEST_ASSERT(memcmp(alias_prog_buf, expectedAliasBytes, sizeof(expectedAliasBytes)) == 0,
+              "Inline rejig alias program must match expected C47 opcodes and operands");
+
+  char *missingClvArgErr = runPasteInPem("LBL 'BAD1'\nCLV\nEND\n");
+  bool rejectedClvNoArg = (missingClvArgErr != NULL);
+  if(missingClvArgErr != NULL) {
+    free(missingClvArgErr);
+  }
+  TEST_ASSERT(rejectedClvNoArg, "parseAndPasteProgram must reject CLV without an operand");
+
+  char *missingDieArgErr = runPasteInPem("LBL 'BAD2'\nDIE\nEND\n");
+  bool rejectedDieNoArg = (missingDieArgErr != NULL);
+  if(missingDieArgErr != NULL) {
+    free(missingDieArgErr);
+  }
+  TEST_ASSERT(rejectedDieNoArg, "parseAndPasteProgram must reject DIE without an operand");
+
+  char *missingPrtAlphaArgErr = runPasteInPem("LBL 'BAD3'\n\xe2\x8e\x99\xce\xb1\nEND\n");
+  bool rejectedPrtAlphaNoArg = (missingPrtAlphaArgErr != NULL);
+  if(missingPrtAlphaArgErr != NULL) {
+    free(missingPrtAlphaArgErr);
+  }
+  TEST_ASSERT(rejectedPrtAlphaNoArg, "parseAndPasteProgram must reject U+2399 alpha print without a register operand");
+
+  char *spacedU2399Err = runPasteInPem("LBL 'BAD4'\n\xe2\x8e\x99 ON\nEND\n");
+  bool rejectedSpacedU2399 = (spacedU2399Err != NULL);
+  if(spacedU2399Err != NULL) {
+    free(spacedU2399Err);
+  }
+  TEST_ASSERT(rejectedSpacedU2399, "parseAndPasteProgram must reject space-separated U+2399 printer token rather than emitting ITM_PRINTER");
+
+  char *spacedPrintErr = runPasteInPem("LBL 'BAD5'\nPrint ON\nEND\n");
+  bool rejectedSpacedPrint = (spacedPrintErr != NULL);
+  if(spacedPrintErr != NULL) {
+    free(spacedPrintErr);
+  }
+  TEST_ASSERT(rejectedSpacedPrint, "parseAndPasteProgram must reject bare Print prefix rather than emitting ITM_PRINTER");
+
+  // Place startPtr at the start of an RW page immediately preceded by a PROT_NONE guard page so any access before startPtr faults.
+  const size_t pgmPageSz = (size_t)sysconf(_SC_PAGESIZE);
+  uint8_t *pgmGuard = (uint8_t *)mmap(NULL, pgmPageSz * 2u, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  TEST_ASSERT(pgmGuard != MAP_FAILED, "mmap for parseAndPasteProgram guard page must succeed");
+  if(mprotect(pgmGuard, pgmPageSz, PROT_NONE) != 0) {
+    munmap(pgmGuard, pgmPageSz * 2u);
+    TEST_ASSERT(false, "mprotect for parseAndPasteProgram guard page must succeed");
+  }
+  uint8_t *guardedStart = pgmGuard + pgmPageSz;
+  const uint8_t trailingPgm[4] = {0xAAu, 0xBBu, 0xCCu, 0xDDu};
+  memcpy(guardedStart, trailingPgm, sizeof(trailingPgm));
+  guardedStart[sizeof(trailingPgm)]     = 0xFFu;
+  guardedStart[sizeof(trailingPgm) + 1] = 0xFFu;
+  beginOfProgramMemory = guardedStart;
+  mock_program_list[0].instructionPointer = guardedStart;
+  firstFreeProgramByte = guardedStart + sizeof(trailingPgm);
+  freeProgramBytes = 4000;
+  endOfCurrentProgram = guardedStart;
+  numberOfPrograms = 2;
+  currentProgramNumber = 1;
+
+  char *shiftErr = runPasteInPem(rejigAliasListing);
+  bool shiftOk = (shiftErr == NULL);
+  if(shiftErr != NULL) {
+    free(shiftErr);
+  }
+  bool shiftBytesOk = shiftOk &&
+                      memcmp(guardedStart, expectedAliasBytes, sizeof(expectedAliasBytes)) == 0 &&
+                      memcmp(guardedStart + sizeof(expectedAliasBytes), trailingPgm, sizeof(trailingPgm)) == 0 &&
+                      guardedStart[sizeof(expectedAliasBytes) + sizeof(trailingPgm)] == 0xFFu &&
+                      guardedStart[sizeof(expectedAliasBytes) + sizeof(trailingPgm) + 1u] == 0xFFu;
+
+  beginOfProgramMemory = alias_prog_buf;
+  mock_program_list[0].instructionPointer = alias_prog_buf;
+  firstFreeProgramByte = alias_prog_buf;
+  endOfCurrentProgram = alias_prog_buf;
+  munmap(pgmGuard, pgmPageSz * 2u);
+
+  TEST_ASSERT(shiftOk, "parseAndPasteProgram must insert cleanly ahead of a subsequent program without accessing memory before startPtr");
+  TEST_ASSERT(shiftBytesOk, "Insertion shift must preserve subsequent program bytes and .END. sentinel immediately after pasted bytecode");
+}
+
 #include "jni_bridge.h"
 
 /**
@@ -3337,6 +3521,7 @@ int main(void) {
     RUN_TEST(test_r47_last_key_code_mapping);
     RUN_TEST(test_program_copy_and_line_stripping);
     RUN_TEST(test_c47_character_set_conversion_and_math_ops);
+    RUN_TEST(test_rejig_aliases_and_insertion_shift);
 
     printf("====================================================\n");
     printf("  Summary: %d Run, %d Passed, %d Failed\n", tests_run, tests_passed, tests_failed);

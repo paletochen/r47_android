@@ -1390,6 +1390,9 @@ static int findItemOpcode(const char *cmd) {
   else if((uint8_t)cmd[0] == 0xf0 && (uint8_t)cmd[1] == 0x9f && (uint8_t)cmd[2] == 0x96 && (uint8_t)cmd[3] == 0xa8) { // 🖨
     prtSfx = cmd + 4;
   }
+  else if((uint8_t)cmd[0] == 0xe2 && (uint8_t)cmd[1] == 0x8e && (uint8_t)cmd[2] == 0x99) { // ⎙
+    prtSfx = cmd + 3;
+  }
   else if((uint8_t)cmd[0] == 0xa3 && (uint8_t)cmd[1] == 0x99) { // STD_PRINTER
     prtSfx = cmd + 2;
   }
@@ -1475,9 +1478,6 @@ static int findItemOpcode(const char *cmd) {
     }
     if(strcmp(prtSfx, "Σ") == 0 || strcasecmp(prtSfx, "Sigma") == 0 || strcmp(prtSfx, "\x83\xa3") == 0) {
       return 1720; // fnP_Sigma (STD_PRINTER STD_SIGMA)
-    }
-    if(*prtSfx == '\0') {
-      return 961; // ITM_PRINTER
     }
   }
 
@@ -1864,6 +1864,15 @@ static int findItemOpcode(const char *cmd) {
   }
   if(strcasecmp(cmd, "UNIT") == 0) {
     return 1867; // ITM_UNIT (renamed to PFX)
+  }
+  if(strcasecmp(cmd, "TICKS") == 0) {
+    return ITM_TICKS;
+  }
+  if(strcasecmp(cmd, "CLV") == 0) {
+    return ITM_DELITM;
+  }
+  if(strcasecmp(cmd, "DIE") == 0) {
+    return ITM_FINISH;
   }
 
   char c47Cmd[128];
@@ -3534,6 +3543,10 @@ static const char *parseInstructionToken(const char *p, EncodedStep *outStep, ch
   }
 
   uint16_t ptp = indexOfItems[op].status & PTP_STATUS;
+  if(ptp == PTP_DISABLED) {
+    snprintf(errMsg, errLen, "Command '%s' is not programmable", cmd);
+    return NULL;
+  }
   if(ptp == PTP_NONE) {
     char peekArg[64];
     extractArgToken(p, peekArg, sizeof(peekArg));
@@ -4088,8 +4101,8 @@ char *parseAndPasteProgram(const char *codeText) {
       startPtr              = startPtr              - oldBeginOfProgramMemory + beginOfProgramMemory;
     }
 
-    for(uint8_t *pos = firstFreeProgramByte + 1 + totalBytes; pos > startPtr; --pos) {
-      *pos = *(pos - totalBytes);
+    if(firstFreeProgramByte >= startPtr) {
+      memmove(startPtr + totalBytes, startPtr, (size_t)(firstFreeProgramByte - startPtr) + 2u);
     }
 
     uint8_t *dest = startPtr;

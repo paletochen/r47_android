@@ -251,7 +251,7 @@ int parseCalculatorKeyId(const char *data) {
   if(data[1] == '\0' && data[0] >= '1' && data[0] <= '6') {
     return data[0] - '1' + 38;
   }
-  if(data[2] == '\0' && data[0] >= '0' && data[0] <= '3' && data[1] >= '0' && data[1] <= '9') {
+  if(data[0] >= '0' && data[0] <= '3' && data[1] >= '0' && data[1] <= '9' && data[2] == '\0') {
     const int code = (data[0] - '0') * 10 + (data[1] - '0') + 1;
     return (code >= 1 && code <= 37) ? code : 0;
   }
