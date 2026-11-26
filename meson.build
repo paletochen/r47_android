@@ -32,6 +32,10 @@ if get_option('RASPBERRY')
   add_project_arguments('-DRASPBERRY',  native : true, language : 'c')
 endif
 
+if get_option('RPI_LCD_ONLY')
+  add_project_arguments('-DRPI_LCD_ONLY',  native : true, language : 'c')
+endif
+
 if get_option('DECNUMBER_FASTMUL')
   add_project_arguments('-DDECNUMBER_FASTMUL=1',  native : false, language : 'c')
 endif

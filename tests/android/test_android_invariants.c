@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <limits.h>
 #include <assert.h>
 #include <time.h>
 #include <pthread.h>
@@ -280,7 +281,8 @@ decQuad *decQuadFromString(decQuad *df, const char *string, decContext *set) {
         if (hasNonNumeric) {
             df->bytes[0] = 0x7c;
         } else {
-            df->bytes[0] = 0x00;
+            memset(df->bytes, 0, sizeof(df->bytes));
+            strncpy((char *)&df->bytes[1], string, sizeof(df->bytes) - 2u);
         }
     }
     return df;
@@ -289,8 +291,91 @@ uint32_t decQuadIsNaN(const decQuad *df) {
     if (!df) return 0;
     return (df->bytes[0] == 0x7c) ? 1 : 0;
 }
+/**
+ * Copies a 128-bit decimal quad value in the host mock environment.
+ */
+decQuad *decQuadCopy(decQuad *df, const decQuad *dn) {
+  if(df != NULL && dn != NULL) {
+    *df = *dn;
+  }
+  return df;
+}
 
-uint32_t getRegisterDataType(calcRegister_t regist) { (void)regist; return mock_register_datatype; }
+/**
+ * Zero-initialises a 128-bit decimal quad value in the host mock environment.
+ */
+decQuad *decQuadZero(decQuad *df) {
+  if(df != NULL) {
+    memset(df, 0, sizeof(*df));
+  }
+  return df;
+}
+
+/**
+ * Sets the sign bit on a real34_t value in the host mock environment.
+ */
+void setReal34NegativeSign(real34_t *r) {
+  if(r != NULL) {
+    r->bytes[15] |= 0x80u;
+  }
+}
+const uint8_t constants[32768] = {0};
+static registerHeader_t mock_global_registers[NUMBER_OF_GLOBAL_REGISTERS] = {{0}};
+registerHeader_t *globalRegister = mock_global_registers;
+
+static bool_t mock_matrix_pool_active = false;
+static uint8_t mock_reg_pool[8][512];
+static uint32_t mock_next_pool_slot = 1u;
+static int mock_lift_stack_count = 0;
+static int mock_realloc_call_count = 0;
+static calcRegister_t mock_realloc_last_reg = 0;
+static uint32_t mock_realloc_last_type = 0;
+static uint16_t mock_realloc_last_blocks = 0;
+static uint32_t mock_realloc_last_tag = 0;
+static bool_t mock_realloc_should_succeed = true;
+
+/**
+ * Records RPN stack lift invocations and rotates REGISTER_X into REGISTER_Y when matrix register pooling is active.
+ */
+void liftStack(void) {
+  mock_lift_stack_count++;
+  if(mock_matrix_pool_active && mock_next_pool_slot < 8u) {
+    uint32_t slot = mock_next_pool_slot++;
+    memset(mock_reg_pool[slot], 0x5A, sizeof(real34_t));
+    globalRegister[REGISTER_Y] = globalRegister[REGISTER_X];
+    globalRegister[REGISTER_X].dataType = dtReal34;
+    globalRegister[REGISTER_X].pointerToRegisterData = slot;
+  }
+}
+
+/**
+ * Records register reallocation parameters and simulates per-register descriptor allocation or failure.
+ */
+bool_t reallocateRegister(calcRegister_t regist, uint32_t dataType, uint16_t dataSizeWithoutDataLenBlocks, uint32_t tag) {
+  mock_realloc_call_count++;
+  mock_realloc_last_reg = regist;
+  mock_realloc_last_type = dataType;
+  mock_realloc_last_blocks = dataSizeWithoutDataLenBlocks;
+  mock_realloc_last_tag = tag;
+  if(!mock_realloc_should_succeed) {
+    return false;
+  }
+  if(mock_matrix_pool_active && mock_next_pool_slot < 8u) {
+    uint32_t slot = mock_next_pool_slot++;
+    memset(mock_reg_pool[slot], 0xFF, sizeof(mock_reg_pool[slot]));
+    globalRegister[regist].dataType = dataType;
+    globalRegister[regist].pointerToRegisterData = slot;
+  }
+  mock_register_datatype = dataType;
+  return true;
+}
+
+uint32_t getRegisterDataType(calcRegister_t regist) {
+  if(mock_matrix_pool_active) {
+    return globalRegister[regist].dataType;
+  }
+  return mock_register_datatype;
+}
 uint32_t getRegisterTag(calcRegister_t regist) { (void)regist; return 0; }
 const char* getDataTypeName(uint16_t dt, bool_t a, bool_t b) { (void)dt; (void)a; (void)b; return "Real"; }
 void stringToUtf8(const char *str, uint8_t *utf8) {
@@ -311,7 +396,15 @@ void stringToUtf8(const char *str, uint8_t *utf8) {
 }
 void longIntegerRegisterToDisplayString(calcRegister_t regist, char *displayString, int32_t strLg, int16_t maxWidth, int16_t maxExp, bool_t allowLARGELI) { (void)regist; (void)maxWidth; (void)maxExp; (void)allowLARGELI; if (displayString && strLg > 0) displayString[0] = '\0'; }
 static real34_t mock_reg_data[4];
-void* getRegisterDataPointer(calcRegister_t regist) { (void)regist; return mock_reg_data; }
+void* getRegisterDataPointer(calcRegister_t regist) {
+  if(mock_matrix_pool_active) {
+    uint32_t slot = globalRegister[regist].pointerToRegisterData;
+    if(slot > 0u && slot < 8u) {
+      return mock_reg_pool[slot];
+    }
+  }
+  return mock_reg_data;
+}
 void real34ToDisplayString(const real34_t *real34, uint32_t tag, char *displayString, const font_t *font, int16_t maxWidth, int16_t displayHasNDigits, bool_t limitExponent, bool_t frontSpace, irfracOption_t limitIrfrac) { (void)real34; (void)tag; (void)font; (void)maxWidth; (void)displayHasNDigits; (void)limitExponent; (void)frontSpace; (void)limitIrfrac; if (displayString) strcpy(displayString, "0"); }
 void complex34ToDisplayString(const complex34_t *complex34, char *displayString, const font_t *font, int16_t maxWidth, int16_t displayHasNDigits, bool_t limitExponent, bool_t frontSpace, irfracOption_t limitIrfrac, const uint16_t tagAngle, const bool_t tagPolar, const int16_t expStep) { (void)complex34; (void)font; (void)maxWidth; (void)displayHasNDigits; (void)limitExponent; (void)frontSpace; (void)limitIrfrac; (void)tagAngle; (void)tagPolar; (void)expStep; if (displayString) strcpy(displayString, "0"); }
 void shortIntegerToDisplayString(calcRegister_t regist, char *displayString, bool_t determineFont, uint8_t baseOverride, int16_t maxWidth) { (void)regist; (void)determineFont; (void)baseOverride; (void)maxWidth; if (displayString) strcpy(displayString, "0"); }
@@ -518,9 +611,13 @@ void setConfirmationMode(void (*func)(uint16_t)) {
     (void)func;
 }
 
+static int mock_error_count = 0;
+static uint8_t mock_last_error_code = ERROR_NONE;
+
 void displayCalcErrorMessage(uint8_t errorCode, calcRegister_t errMessageRegisterLine) {
-    (void)errorCode;
-    (void)errMessageRegisterLine;
+  (void)errMessageRegisterLine;
+  mock_error_count++;
+  mock_last_error_code = errorCode;
 }
 
 void doSave(uint16_t saveType) {
@@ -3489,6 +3586,555 @@ void test_lcd_pixel_mutex_concurrency_under_locked_screen_mutex(void) {
   Java_org_rpncalculators_r47_MainActivity_setLcdColors(env, NULL, vintageFg, vintageBg);
 }
 
+/**
+ * Resets matrix register pool descriptors and error tracking variables before each tryPasteMatrix invocation.
+ */
+static void resetMatrixPasteMocks(bool_t allowAlloc) {
+  memset(mock_reg_pool, 0, sizeof(mock_reg_pool));
+  memset(mock_global_registers, 0, sizeof(mock_global_registers));
+  mock_matrix_pool_active = true;
+  mock_next_pool_slot = 1u;
+  uint32_t initSlot = mock_next_pool_slot++;
+  memset(mock_reg_pool[initSlot], 0xA5, sizeof(real34_t));
+  globalRegister[REGISTER_X].dataType = dtReal34;
+  globalRegister[REGISTER_X].pointerToRegisterData = initSlot;
+  mock_lift_stack_count = 0;
+  mock_realloc_call_count = 0;
+  mock_realloc_last_reg = 0;
+  mock_realloc_last_type = 0;
+  mock_realloc_last_blocks = 0;
+  mock_realloc_last_tag = 0;
+  mock_realloc_should_succeed = allowAlloc;
+  mock_error_count = 0;
+  mock_last_error_code = ERROR_NONE;
+  calcMode = CM_NORMAL;
+  clearSystemFlag(FLAG_ASLIFT);
+}
+
+/**
+ * Executes the assertions for isMatrixBlockCountValid and tryPasteMatrix while test_matrix_paste_block_bounds restores mock state afterward.
+ */
+static void runMatrixPasteBlockBoundsChecks(void) {
+  init_lcd_buffers();
+
+  TEST_ASSERT(REAL34_SIZE_IN_BLOCKS == 4u, "REAL34_SIZE_IN_BLOCKS must equal 4 blocks");
+  TEST_ASSERT(COMPLEX34_SIZE_IN_BLOCKS == 8u, "COMPLEX34_SIZE_IN_BLOCKS must equal 8 blocks");
+  TEST_ASSERT(TO_BLOCKS(sizeof(matrixHeader_t)) == 1u, "matrixHeader_t must occupy 1 block");
+
+  // 1. Zero dimensions are rejected for both real and complex matrices.
+  TEST_ASSERT(!isMatrixBlockCountValid(0UL, 0UL, false), "0x0 real matrix must be rejected");
+  TEST_ASSERT(!isMatrixBlockCountValid(0UL, 1UL, false), "0x1 real matrix must be rejected");
+  TEST_ASSERT(!isMatrixBlockCountValid(1UL, 0UL, false), "1x0 real matrix must be rejected");
+  TEST_ASSERT(!isMatrixBlockCountValid(0UL, 1UL, true), "0x1 complex matrix must be rejected");
+  TEST_ASSERT(!isMatrixBlockCountValid(1UL, 0UL, true), "1x0 complex matrix must be rejected");
+
+  // 2. Dimensions exceeding 0xFFFFu and 64-bit wraparound inputs are rejected.
+  TEST_ASSERT(!isMatrixBlockCountValid(0xFFFFUL, 1UL, false), "65535x1 real matrix (262141 blocks) must be rejected");
+  TEST_ASSERT(!isMatrixBlockCountValid(0x10000UL, 1UL, false), "65536x1 real matrix must be rejected");
+  TEST_ASSERT(!isMatrixBlockCountValid(1UL, 0x10000UL, false), "1x65536 real matrix must be rejected");
+  TEST_ASSERT(!isMatrixBlockCountValid(0x10000UL, 0x10000UL, false), "65536x65536 real matrix must be rejected");
+  TEST_ASSERT(!isMatrixBlockCountValid(1UL << 32, 1UL << 32, false), "(1UL<<32)x(1UL<<32) real matrix must not wrap 64-bit product to 0");
+  TEST_ASSERT(!isMatrixBlockCountValid(1UL << 32, 1UL << 32, true), "(1UL<<32)x(1UL<<32) complex matrix must not wrap 64-bit product to 0");
+  TEST_ASSERT(!isMatrixBlockCountValid(1UL << 32, 1UL, false), "(1UL<<32)x1 real matrix must be rejected");
+  TEST_ASSERT(!isMatrixBlockCountValid(1UL, 1UL << 32, true), "1x(1UL<<32) complex matrix must be rejected");
+  TEST_ASSERT(!isMatrixBlockCountValid(ULONG_MAX, 1UL, false), "ULONG_MAXx1 real matrix must be rejected");
+  TEST_ASSERT(!isMatrixBlockCountValid(ULONG_MAX, ULONG_MAX, true), "ULONG_MAXxULONG_MAX complex matrix must be rejected");
+
+  // 3. Real matrix exact uint16_t block boundaries (rows * cols * 4 + 1 <= 65535).
+  TEST_ASSERT(isMatrixBlockCountValid(1UL, 1UL, false), "1x1 real matrix (5 blocks) must be valid");
+  TEST_ASSERT(isMatrixBlockCountValid(127UL, 127UL, false), "127x127 real matrix (64517 blocks) must be valid");
+  TEST_ASSERT(isMatrixBlockCountValid(129UL, 127UL, false), "129x127 real matrix (65533 blocks) must be valid");
+  TEST_ASSERT(isMatrixBlockCountValid(16383UL, 1UL, false), "16383x1 real matrix (65533 blocks) must be valid");
+  TEST_ASSERT(isMatrixBlockCountValid(1UL, 16383UL, false), "1x16383 real matrix (65533 blocks) must be valid");
+  TEST_ASSERT(!isMatrixBlockCountValid(16384UL, 1UL, false), "16384x1 real matrix (65537 blocks) must be rejected");
+  TEST_ASSERT(!isMatrixBlockCountValid(1UL, 16384UL, false), "1x16384 real matrix (65537 blocks) must be rejected");
+  TEST_ASSERT(!isMatrixBlockCountValid(128UL, 128UL, false), "128x128 real matrix (65537 blocks) must be rejected");
+  TEST_ASSERT(!isMatrixBlockCountValid(200UL, 200UL, false), "200x200 real matrix (160001 blocks) must be rejected");
+
+  // 4. Complex matrix exact uint16_t block boundaries (rows * cols * 8 + 1 <= 65535).
+  TEST_ASSERT(isMatrixBlockCountValid(1UL, 1UL, true), "1x1 complex matrix (9 blocks) must be valid");
+  TEST_ASSERT(isMatrixBlockCountValid(90UL, 90UL, true), "90x90 complex matrix (64801 blocks) must be valid");
+  TEST_ASSERT(isMatrixBlockCountValid(91UL, 91UL, false), "91x91 real matrix (33125 blocks) must be valid");
+  TEST_ASSERT(!isMatrixBlockCountValid(91UL, 91UL, true), "91x91 complex matrix (66249 blocks) must be rejected");
+  TEST_ASSERT(isMatrixBlockCountValid(8191UL, 1UL, true), "8191x1 complex matrix (65529 blocks) must be valid");
+  TEST_ASSERT(isMatrixBlockCountValid(1UL, 8191UL, true), "1x8191 complex matrix (65529 blocks) must be valid");
+  TEST_ASSERT(!isMatrixBlockCountValid(8192UL, 1UL, true), "8192x1 complex matrix (65537 blocks) must be rejected");
+  TEST_ASSERT(!isMatrixBlockCountValid(1UL, 8192UL, true), "1x8192 complex matrix (65537 blocks) must be rejected");
+
+  // 5. End-to-end tryPasteMatrix verification on oversized real, oversized complex, header-only, signed non-matrix, and valid inputs.
+  // 5a. Oversized real matrices with element body report ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX without allocating.
+  resetMatrixPasteMocks(true);
+  setSystemFlag(FLAG_ASLIFT);
+  TEST_ASSERT(tryPasteMatrix("200x200\n1\n2\n3"), "200x200 matrix paste with body must be consumed as a matrix error");
+  TEST_ASSERT(mock_error_count == 1 && mock_last_error_code == ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX,
+              "200x200 matrix paste must report ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX");
+  TEST_ASSERT(mock_realloc_call_count == 0 && mock_lift_stack_count == 0,
+              "Oversized real matrix paste must neither lift stack nor call reallocateRegister");
+
+  resetMatrixPasteMocks(true);
+  TEST_ASSERT(tryPasteMatrix("16384x1\n42"), "16384x1 real matrix paste with body must be consumed as a matrix error");
+  TEST_ASSERT(mock_error_count == 1 && mock_last_error_code == ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX,
+              "16384x1 real matrix paste must report ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX");
+  TEST_ASSERT(mock_realloc_call_count == 0 && !getSystemFlag(FLAG_ASLIFT),
+              "16384x1 real matrix paste must leave reallocateRegister uncalled and FLAG_ASLIFT clear");
+
+  resetMatrixPasteMocks(true);
+  TEST_ASSERT(tryPasteMatrix("4294967296x4294967296\n1"), "(1<<32)x(1<<32) matrix paste must be rejected before element allocation");
+  TEST_ASSERT(mock_error_count == 1 && mock_last_error_code == ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX,
+              "(1<<32)x(1<<32) matrix paste must report ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX");
+  TEST_ASSERT(mock_realloc_call_count == 0, "(1<<32)x(1<<32) matrix paste must not call reallocateRegister");
+
+  // 5b. Header-only oversized dimension token ("200x200" without elements) returns false so caller treats it as plain text.
+  resetMatrixPasteMocks(true);
+  TEST_ASSERT(!tryPasteMatrix("200x200"), "Header-only '200x200' without element body must return false");
+  TEST_ASSERT(mock_error_count == 0 && mock_realloc_call_count == 0,
+              "Header-only '200x200' must not raise a matrix error or allocate");
+
+  // 5c. Signed expressions such as "-2x3\n5", "-2x3 + 5", or "2x-3\n1" must not wrap strtoul into an oversized matrix error.
+  resetMatrixPasteMocks(true);
+  TEST_ASSERT(!tryPasteMatrix("-2x3\n5"), "Signed multiline text '-2x3\\n5' must return false from tryPasteMatrix");
+  TEST_ASSERT(!tryPasteMatrix("-2x3 + 5"), "Signed algebraic text '-2x3 + 5' must return false from tryPasteMatrix");
+  TEST_ASSERT(!tryPasteMatrix("+2x3\n1"), "Signed '+2x3' text must return false from tryPasteMatrix");
+  TEST_ASSERT(!tryPasteMatrix("2x-3\n1"), "Negative column text '2x-3' must return false from tryPasteMatrix");
+  TEST_ASSERT(mock_error_count == 0 && mock_realloc_call_count == 0,
+              "Signed non-matrix text must not trigger ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX");
+
+  // 5d. Oversized complex matrices (91x91 = 66249 blocks, 8192x1 = 65537 blocks) are rejected once complex elements are parsed.
+  resetMatrixPasteMocks(true);
+  setSystemFlag(FLAG_ASLIFT);
+  TEST_ASSERT(tryPasteMatrix("91x91\n1 + jx2\n3"), "91x91 complex matrix paste must be consumed as a matrix error");
+  TEST_ASSERT(mock_error_count == 1 && mock_last_error_code == ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX,
+              "91x91 complex matrix paste must report ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX");
+  TEST_ASSERT(mock_realloc_call_count == 0 && mock_lift_stack_count == 0,
+              "91x91 complex matrix paste must not lift stack or truncate block count into reallocateRegister");
+
+  resetMatrixPasteMocks(true);
+  TEST_ASSERT(tryPasteMatrix("8192x1\n1 + ix2"), "8192x1 complex matrix paste must be consumed as a matrix error");
+  TEST_ASSERT(mock_error_count == 1 && mock_last_error_code == ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX,
+              "8192x1 complex matrix paste must report ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX");
+  TEST_ASSERT(mock_realloc_call_count == 0, "8192x1 complex matrix paste must not call reallocateRegister");
+
+  // 5e. Failed reallocateRegister (RAM full) never calls liftStack(), preserves prior FLAG_ASLIFT state, and leaves REGISTER_X untouched.
+  resetMatrixPasteMocks(false);
+  setSystemFlag(FLAG_ASLIFT);
+  TEST_ASSERT(tryPasteMatrix("2x2\n1\n2\n3\n4"), "2x2 real matrix paste when reallocateRegister fails with ASLIFT set still returns true");
+  TEST_ASSERT(mock_realloc_call_count == 1 && mock_realloc_last_reg == TEMP_REGISTER_1 &&
+              mock_realloc_last_type == dtReal34Matrix && mock_realloc_last_blocks == 16u,
+              "Failed matrix paste with ASLIFT set must probe TEMP_REGISTER_1 first");
+  TEST_ASSERT(mock_lift_stack_count == 0 && getSystemFlag(FLAG_ASLIFT),
+              "Failed reallocateRegister with ASLIFT set must not call liftStack() and must preserve FLAG_ASLIFT");
+  TEST_ASSERT(globalRegister[REGISTER_X].dataType == dtReal34 && REGISTER_REAL34_DATA(REGISTER_X)->bytes[0] == 0xA5u &&
+              globalRegister[REGISTER_Y].pointerToRegisterData == 0u,
+              "Failed reallocateRegister with ASLIFT set must preserve REGISTER_X and leave REGISTER_Y untouched");
+
+  resetMatrixPasteMocks(false);
+  TEST_ASSERT(tryPasteMatrix("2x2\n1\n2\n3\n4"), "2x2 real matrix paste when reallocateRegister fails with ASLIFT clear still returns true");
+  TEST_ASSERT(mock_realloc_call_count == 1 && mock_realloc_last_reg == REGISTER_X && mock_lift_stack_count == 0 && !getSystemFlag(FLAG_ASLIFT),
+              "Failed reallocateRegister with ASLIFT clear must leave stack unlifted and FLAG_ASLIFT clear");
+
+  // 5f. Valid 2x2 real and complex matrix pastes swap descriptors atomically, zero TEMP_REGISTER_1, initialise mtag, and write elements.
+  resetMatrixPasteMocks(true);
+  setSystemFlag(FLAG_ASLIFT);
+  TEST_ASSERT(tryPasteMatrix("[2x2]\n1\n2\n3\n4"), "Valid [2x2] real matrix paste must succeed");
+  TEST_ASSERT(mock_error_count == 0 && mock_lift_stack_count == 1, "Valid [2x2] real matrix paste with ASLIFT must lift stack once");
+  TEST_ASSERT(mock_realloc_call_count == 1 && mock_realloc_last_reg == TEMP_REGISTER_1 &&
+              mock_realloc_last_type == dtReal34Matrix && mock_realloc_last_blocks == 16u,
+              "Valid [2x2] real matrix paste with ASLIFT must allocate 16 blocks via TEMP_REGISTER_1");
+  TEST_ASSERT(globalRegister[REGISTER_Y].dataType == dtReal34 && REGISTER_REAL34_DATA(REGISTER_Y)->bytes[0] == 0xA5u,
+              "Stack lift must move prior REGISTER_X payload into REGISTER_Y");
+  TEST_ASSERT(globalRegister[TEMP_REGISTER_1].dataType == dtReal34 && REGISTER_REAL34_DATA(TEMP_REGISTER_1)->bytes[0] == 0x00u,
+              "Descriptor swap must leave liftStack's dtReal34 slot in TEMP_REGISTER_1 zero-initialised");
+  TEST_ASSERT(globalRegister[REGISTER_X].dataType == dtReal34Matrix &&
+              REGISTER_MATRIX_HEADER(REGISTER_X)->matrixRows == 2u && REGISTER_MATRIX_HEADER(REGISTER_X)->matrixColumns == 2u,
+              "Valid [2x2] real matrix paste must swap matrix descriptor into REGISTER_X with matrixRows=2 and matrixColumns=2");
+  TEST_ASSERT(REGISTER_MATRIX_HEADER(REGISTER_X)->mtag == amNone, "Valid [2x2] real matrix paste must initialise mtag to amNone");
+  real34_t *realElems = REGISTER_REAL34_MATRIX_ELEMENTS(REGISTER_X);
+  TEST_ASSERT(realElems[0].bytes[1] == '1' && realElems[1].bytes[1] == '2' && realElems[2].bytes[1] == '3' && realElems[3].bytes[1] == '4',
+              "Valid [2x2] real matrix paste must write all four parsed real34 elements into REGISTER_X");
+  TEST_ASSERT(getSystemFlag(FLAG_ASLIFT), "Successful real matrix paste must set FLAG_ASLIFT");
+
+  resetMatrixPasteMocks(true);
+  TEST_ASSERT(tryPasteMatrix("2x2\n1 + jx2\n3 - jx4\n5\n-jx6"), "Valid 2x2 complex matrix paste must succeed");
+  TEST_ASSERT(mock_error_count == 0 && mock_realloc_call_count == 1 && mock_realloc_last_reg == REGISTER_X &&
+              mock_realloc_last_type == dtComplex34Matrix && mock_realloc_last_blocks == 32u,
+              "Valid 2x2 complex matrix paste must allocate 32 blocks");
+  TEST_ASSERT(globalRegister[REGISTER_X].dataType == dtComplex34Matrix &&
+              REGISTER_MATRIX_HEADER(REGISTER_X)->matrixRows == 2u && REGISTER_MATRIX_HEADER(REGISTER_X)->matrixColumns == 2u,
+              "Valid 2x2 complex matrix paste must populate matrixRows=2 and matrixColumns=2");
+  TEST_ASSERT(REGISTER_MATRIX_HEADER(REGISTER_X)->mtag == amNone, "Valid 2x2 complex matrix paste must initialise mtag to amNone");
+  complex34_t *cplxElems = REGISTER_COMPLEX34_MATRIX_ELEMENTS(REGISTER_X);
+  TEST_ASSERT(VARIABLE_REAL34_DATA(&cplxElems[0])->bytes[1] == '1' && VARIABLE_IMAG34_DATA(&cplxElems[0])->bytes[1] == '2' &&
+              VARIABLE_REAL34_DATA(&cplxElems[1])->bytes[1] == '3' && VARIABLE_IMAG34_DATA(&cplxElems[1])->bytes[1] == '4' &&
+              (VARIABLE_IMAG34_DATA(&cplxElems[1])->bytes[15] & 0x80u) != 0u &&
+              VARIABLE_REAL34_DATA(&cplxElems[2])->bytes[1] == '5' && VARIABLE_IMAG34_DATA(&cplxElems[2])->bytes[1] == 0u &&
+              VARIABLE_REAL34_DATA(&cplxElems[3])->bytes[1] == 0u && VARIABLE_IMAG34_DATA(&cplxElems[3])->bytes[1] == '6' &&
+              (VARIABLE_IMAG34_DATA(&cplxElems[3])->bytes[15] & 0x80u) != 0u,
+              "Valid 2x2 complex matrix paste must write real, imaginary, and sign bits for all four elements");
+  TEST_ASSERT(getSystemFlag(FLAG_ASLIFT), "Successful complex matrix paste must set FLAG_ASLIFT");
+}
+
+/**
+ * Verifies uint16_t matrix block-count bounds in isMatrixBlockCountValid and end-to-end matrix clipboard handling in tryPasteMatrix.
+ */
+static void test_matrix_paste_block_bounds(void) {
+  runMatrixPasteBlockBoundsChecks();
+  mock_matrix_pool_active = false;
+  memset(mock_global_registers, 0, sizeof(mock_global_registers));
+  mock_realloc_should_succeed = true;
+  mock_register_datatype = dtReal34;
+  clearSystemFlag(FLAG_ASLIFT);
+}
+
+/**
+ * Prepares the mock PEM program buffer before a single-program parseAndPasteProgram test run.
+ */
+static void resetPemLiteralBuffer(uint8_t *progBuf, size_t bufSize) {
+  memset(progBuf, 0, bufSize);
+  beginOfProgramMemory = progBuf;
+  mock_program_list[0].instructionPointer = progBuf;
+  mock_program_list[0].step = 1;
+  firstFreeProgramByte = progBuf;
+  freeProgramBytes = 65000;
+  endOfCurrentProgram = progBuf;
+  numberOfPrograms = 1;
+  currentProgramNumber = 1;
+}
+
+/**
+ * Resets the mock PEM buffer, invokes runPasteInPem, and prints the parser diagnostic if compilation fails unexpectedly.
+ */
+static bool runPemLiteralCase(uint8_t *progBuf, size_t bufSize, const char *listing, const char *caseDesc) {
+  resetPemLiteralBuffer(progBuf, bufSize);
+  char *err = runPasteInPem(listing);
+  if(err != NULL) {
+    printf("  [DIAG] %s failed with error: '%s'\n", caseDesc, err);
+    free(err);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Verifies 255-character STRING_LONG_INTEGER, STRING_REAL34, RTF export lines (>2 KB and >5 KB), and C47 glyph-boundary STRING_LABEL_VARIABLE clamping.
+ */
+static void test_program_long_literals_and_glyph_clamping(void) {
+  extern void c47StringToReadableUtf8(const char *src, char *dest, size_t destSize);
+  static uint8_t litProgBuf[65536];
+  static char listingBuf[16384];
+  const size_t lblHeaderBytes = 8u;  // ITM_LBL, STRING_LABEL_VARIABLE, 5, 'X', 'P', 'L', 'I', 'T'
+
+  // 1. Plain 255-digit STRING_LONG_INTEGER, overlong 270-digit clamping, and 255-digit + ".5" NUL-termination before strchr('.').
+  char digits255[256];
+  memset(digits255, '7', 255);
+  digits255[255] = '\0';
+  snprintf(listingBuf, sizeof(listingBuf), "LBL 'XPLIT'\n%s\nEND\n", digits255);
+
+  TEST_ASSERT(runPemLiteralCase(litProgBuf, sizeof(litProgBuf), listingBuf, "Plain 255-digit integer"),
+              "Plain 255-digit STRING_LONG_INTEGER must compile cleanly");
+  uint8_t *litStep = litProgBuf + lblHeaderBytes;
+  TEST_ASSERT(litStep[0] == (uint8_t)ITM_LITERAL && litStep[1] == (uint8_t)STRING_LONG_INTEGER && litStep[2] == 255u,
+              "Plain 255-digit integer must encode as [ITM_LITERAL, STRING_LONG_INTEGER, 255]");
+  TEST_ASSERT(memcmp(&litStep[3], digits255, 255u) == 0, "Plain 255-digit integer payload must match all 255 digits");
+  TEST_ASSERT((size_t)(endOfCurrentProgram - litProgBuf) == lblHeaderBytes + 3u + 255u + 2u,
+              "Compiled 255-digit integer program must end immediately with 2-byte ITM_END");
+
+  char digits270[271];
+  memset(digits270, '9', 270);
+  digits270[270] = '\0';
+  snprintf(listingBuf, sizeof(listingBuf), "LBL 'XPLIT'\n%s\nEND\n", digits270);
+  TEST_ASSERT(runPemLiteralCase(litProgBuf, sizeof(litProgBuf), listingBuf, "Overlong 270-digit integer"),
+              "270-digit integer must clamp cleanly without failing");
+  TEST_ASSERT(litStep[0] == (uint8_t)ITM_LITERAL && litStep[1] == (uint8_t)STRING_LONG_INTEGER && litStep[2] == 255u &&
+              memcmp(&litStep[3], digits270, 255u) == 0,
+              "Overlong 270-digit integer must clamp to 255 digits");
+
+  // 255 '9' digits followed by ".5" (257 chars): clamping at byte 255 drops ".5", so NUL-termination at normNum[255] must classify it as STRING_LONG_INTEGER.
+  char digits255Dot5[260];
+  memset(digits255Dot5, '9', 255);
+  memcpy(&digits255Dot5[255], ".5", 3u);
+  snprintf(listingBuf, sizeof(listingBuf), "LBL 'XPLIT'\n%s\nEND\n", digits255Dot5);
+  TEST_ASSERT(runPemLiteralCase(litProgBuf, sizeof(litProgBuf), listingBuf, "255 digits followed by .5"),
+              "255 digits followed by .5 must clamp cleanly");
+  TEST_ASSERT(litStep[0] == (uint8_t)ITM_LITERAL && litStep[1] == (uint8_t)STRING_LONG_INTEGER && litStep[2] == 255u &&
+              memcmp(&litStep[3], digits255Dot5, 255u) == 0,
+              "Clamped 255-digit payload without '.' in emitted bytes must be classified as STRING_LONG_INTEGER");
+
+  // 2. RTF 255-digit STRING_LONG_INTEGER with \u8200? punctuation-space after every digit (>2000 bytes on one line, matching covExportLongLiteral).
+  size_t pos = (size_t)snprintf(listingBuf, sizeof(listingBuf),
+                                "{\\rtf1\\ansi\\deff0\n0000: { Prgm #1/1 } \\par\n0001:  LBL \\u8216?XPLIT\\u8217?\\par\n0002:    ");
+  size_t line2Start = pos - 9u;
+  for(int i = 0; i < 255; i++) {
+    listingBuf[pos++] = '7';
+    if(i < 254) {
+      memcpy(&listingBuf[pos], "\\u8200?", 7u);
+      pos += 7u;
+    }
+  }
+  size_t rtfIntLineLen = (pos + 4u) - line2Start;
+  pos += (size_t)snprintf(&listingBuf[pos], sizeof(listingBuf) - pos, "\\par\n0003:  END\\par\n}}\n");
+  TEST_ASSERT(rtfIntLineLen > 2000u, "RTF 255-digit grouped integer line must exceed 2000 bytes");
+
+  TEST_ASSERT(runPemLiteralCase(litProgBuf, sizeof(litProgBuf), listingBuf, "RTF >2000-byte 255-digit grouped integer"),
+              "RTF 255-digit STRING_LONG_INTEGER with \\u8200? grouping spaces must compile cleanly");
+  TEST_ASSERT(litStep[0] == (uint8_t)ITM_LITERAL && litStep[1] == (uint8_t)STRING_LONG_INTEGER && litStep[2] == 255u &&
+              memcmp(&litStep[3], digits255, 255u) == 0,
+              "RTF 255-digit grouped integer must strip all 254 \\u8200? separators and emit all 255 '7' digits");
+
+  // Also test when the >2000-byte grouped RTF integer is step 1 (exercising documentHasLineNumbers on >2000-byte line 1).
+  pos = (size_t)snprintf(listingBuf, sizeof(listingBuf), "0001:    ");
+  for(int i = 0; i < 255; i++) {
+    listingBuf[pos++] = '7';
+    if(i < 254) {
+      memcpy(&listingBuf[pos], "\\u8200?", 7u);
+      pos += 7u;
+    }
+  }
+  pos += (size_t)snprintf(&listingBuf[pos], sizeof(listingBuf) - pos, "\\par\n0002:  END\\par\n");
+  TEST_ASSERT(runPemLiteralCase(litProgBuf, sizeof(litProgBuf), listingBuf, "Step-1 RTF >2000-byte 255-digit integer"),
+              "Step-1 >2000-byte RTF 255-digit integer must compile cleanly");
+  TEST_ASSERT(litProgBuf[0] == (uint8_t)ITM_LITERAL && litProgBuf[1] == (uint8_t)STRING_LONG_INTEGER && litProgBuf[2] == 255u &&
+              memcmp(&litProgBuf[3], digits255, 255u) == 0,
+              "Step-1 RTF 255-digit integer must strip prefix and emit all 255 '7' digits");
+
+  // 3. 255-char STRING_REAL34 scientific literal ("1e555...5" with 253 exponent digits): plain, readable UTF-8 round-trip, >5000-byte RTF line, and >255-byte exponent
+  // rejection.
+  char real255[256];
+  real255[0] = '1';
+  real255[1] = 'e';
+  memset(&real255[2], '5', 253);
+  real255[255] = '\0';
+
+  snprintf(listingBuf, sizeof(listingBuf), "LBL 'XPLIT'\n%s\nEND\n", real255);
+  TEST_ASSERT(runPemLiteralCase(litProgBuf, sizeof(litProgBuf), listingBuf, "Plain 255-char STRING_REAL34"),
+              "Plain 255-char STRING_REAL34 ('1e' + 253 '5's) must compile cleanly");
+  TEST_ASSERT(litStep[0] == (uint8_t)ITM_LITERAL && litStep[1] == (uint8_t)STRING_REAL34 && litStep[2] == 255u &&
+              memcmp(&litStep[3], real255, 255u) == 0,
+              "Plain 255-char scientific literal must encode as [ITM_LITERAL, STRING_REAL34, 255, '1','e','5'*253]");
+
+  // Overlong scientific literals (>255 bytes after synthetic '.e' check) must be rejected rather than severing the exponent into NaN or a wrong power of 10.
+  char badExp1[260];
+  memset(badExp1, '9', 254);
+  memcpy(&badExp1[254], "e5", 3u);
+  snprintf(listingBuf, sizeof(listingBuf), "LBL 'XPLIT'\n%s\nEND\n", badExp1);
+  resetPemLiteralBuffer(litProgBuf, sizeof(litProgBuf));
+  char *badExpErr = runPasteInPem(listingBuf);
+  bool rejectedBadExp1 = (badExpErr != NULL);
+  free(badExpErr);
+  TEST_ASSERT(rejectedBadExp1, "256-char '9'*254 + 'e5' must be rejected rather than emitting trailing 'e'");
+
+  char badExp2[260];
+  memset(badExp2, '9', 253);
+  memcpy(&badExp2[253], "e-5", 4u);
+  snprintf(listingBuf, sizeof(listingBuf), "LBL 'XPLIT'\n%s\nEND\n", badExp2);
+  resetPemLiteralBuffer(litProgBuf, sizeof(litProgBuf));
+  badExpErr = runPasteInPem(listingBuf);
+  bool rejectedBadExp2 = (badExpErr != NULL);
+  free(badExpErr);
+  TEST_ASSERT(rejectedBadExp2, "256-char '9'*253 + 'e-5' must be rejected rather than emitting trailing 'e-'");
+
+  char badExp3[260];
+  badExp3[0] = '1';
+  badExp3[1] = '.';
+  memset(&badExp3[2], '0', 250);
+  memcpy(&badExp3[252], "e123", 5u);
+  snprintf(listingBuf, sizeof(listingBuf), "LBL 'XPLIT'\n%s\nEND\n", badExp3);
+  resetPemLiteralBuffer(litProgBuf, sizeof(litProgBuf));
+  badExpErr = runPasteInPem(listingBuf);
+  bool rejectedBadExp3 = (badExpErr != NULL);
+  free(badExpErr);
+  TEST_ASSERT(rejectedBadExp3, "256-char '1.' + '0'*250 + 'e123' must be rejected rather than truncating exponent to 'e12'");
+
+  char badExp4[540];
+  badExp4[0] = '1';
+  badExp4[1] = '.';
+  memset(&badExp4[2], '0', 515);
+  memcpy(&badExp4[517], "e50", 4u);
+  snprintf(listingBuf, sizeof(listingBuf), "LBL 'XPLIT'\n%s\nEND\n", badExp4);
+  resetPemLiteralBuffer(litProgBuf, sizeof(litProgBuf));
+  badExpErr = runPasteInPem(listingBuf);
+  bool rejectedBadExp4 = (badExpErr != NULL);
+  free(badExpErr);
+  TEST_ASSERT(rejectedBadExp4, "520-char '1.' + '0'*515 + 'e50' (>512 bytes) must be rejected rather than severing its exponent");
+
+  char badExp5[540];
+  memset(badExp5, '9', 515);
+  memcpy(&badExp5[515], "e5", 3u);
+  snprintf(listingBuf, sizeof(listingBuf), "LBL 'XPLIT'\n%s\nEND\n", badExp5);
+  resetPemLiteralBuffer(litProgBuf, sizeof(litProgBuf));
+  badExpErr = runPasteInPem(listingBuf);
+  bool rejectedBadExp5 = (badExpErr != NULL);
+  free(badExpErr);
+  TEST_ASSERT(rejectedBadExp5, "517-char '9'*515 + 'e5' (>512 bytes) must be rejected rather than compiling as STRING_LONG_INTEGER");
+
+  // 3b. Readable UTF-8 round-trip of _decodeNumeral output ("1." PRODUCT_SIGN STD_SUB_10 + 253 * STD_SUP_5 -> "1.e555...5", 256 chars).
+  char decodedRealC47[600];
+  size_t dcPos = 0;
+  decodedRealC47[dcPos++] = '1';
+  decodedRealC47[dcPos++] = '.';
+  decodedRealC47[dcPos++] = (char)0x80;
+  decodedRealC47[dcPos++] = (char)0xd7;
+  decodedRealC47[dcPos++] = (char)0xa4;
+  decodedRealC47[dcPos++] = (char)0x7d;
+  for(int i = 0; i < 253; i++) {
+    decodedRealC47[dcPos++] = (char)0xa1;
+    decodedRealC47[dcPos++] = (char)0x65;
+  }
+  decodedRealC47[dcPos] = '\0';
+  char readableRealUtf8[600];
+  c47StringToReadableUtf8(decodedRealC47, readableRealUtf8, sizeof(readableRealUtf8));
+  TEST_ASSERT(strlen(readableRealUtf8) == 256u && strncmp(readableRealUtf8, "1.e555", 6u) == 0,
+              "c47StringToReadableUtf8 must format decoded 255-byte 1e555...5 as 256-char '1.e555...5'");
+
+  snprintf(listingBuf, sizeof(listingBuf), "0001: LBL 'XPLIT'\n0002: %s\n0003: END\n", readableRealUtf8);
+  TEST_ASSERT(runPemLiteralCase(litProgBuf, sizeof(litProgBuf), listingBuf, "Readable UTF-8 256-char 1.e555...5 round-trip"),
+              "256-char '1.e' + 253 '5's decoded step must compile cleanly");
+  TEST_ASSERT(litStep[0] == (uint8_t)ITM_LITERAL && litStep[1] == (uint8_t)STRING_REAL34 && litStep[2] == 255u &&
+              memcmp(&litStep[3], real255, 255u) == 0,
+              "Decoded '1.e' + 253 '5's must strip the synthetic radix dot before 'e' and retain all 253 exponent digits");
+
+  // 3c. Exact fnPExport RTF output for covExportLongLiteral's 255-char 1e555...5 (>5000 bytes on a single RTF line).
+  pos = (size_t)snprintf(listingBuf, sizeof(listingBuf),
+                         "{\\rtf1\\ansi\\deff0\n0001:  LBL \\u8216?XPLIT\\u8217?\\par\n0002:    1.\\u215?\\u9341?");
+  size_t rtfRealLineStart = pos - 24u;
+  for(int i = 0; i < 253; i++) {
+    memcpy(&listingBuf[pos], "\\super 5\\nosupersub ", 20u);
+    pos += 20u;
+  }
+  size_t rtfRealLineLen = (pos + 4u) - rtfRealLineStart;
+  pos += (size_t)snprintf(&listingBuf[pos], sizeof(listingBuf) - pos, "\\par\n0003:  END\\par\n}}\n");
+  TEST_ASSERT(rtfRealLineLen > 5000u, "covExportLongLiteral 1e555...5 RTF line must exceed 5000 bytes");
+
+  TEST_ASSERT(runPemLiteralCase(litProgBuf, sizeof(litProgBuf), listingBuf, "RTF >5000-byte 1e555...5 line"),
+              "RTF >5000-byte 1e555...5 line from fnPExport must compile without mid-token truncation");
+  TEST_ASSERT(litStep[0] == (uint8_t)ITM_LITERAL && litStep[1] == (uint8_t)STRING_REAL34 && litStep[2] == 255u &&
+              memcmp(&litStep[3], real255, 255u) == 0,
+              "RTF >5000-byte 1e555...5 line must unwrap all 253 '\\super 5\\nosupersub ' digits into 255-byte STRING_REAL34");
+
+  // 4. Up-to-255-byte STRING_LABEL_VARIABLE literals and C47 1-or-2-byte glyph boundary clamping.
+  // 4a. Exact 255 ASCII chars and overlong 300 ASCII chars -> 255 bytes.
+  char ascii300[301];
+  memset(ascii300, 'A', 300);
+  ascii300[255] = '\0';
+  snprintf(listingBuf, sizeof(listingBuf), "LBL 'XPLIT'\n'%s'\nEND\n", ascii300);
+  TEST_ASSERT(runPemLiteralCase(litProgBuf, sizeof(litProgBuf), listingBuf, "255-byte ASCII string literal"),
+              "255-byte ASCII string literal must compile cleanly");
+  TEST_ASSERT(litStep[0] == (uint8_t)ITM_LITERAL && litStep[1] == (uint8_t)STRING_LABEL_VARIABLE && litStep[2] == 255u &&
+              memcmp(&litStep[3], ascii300, 255u) == 0,
+              "255-byte ASCII string literal must retain all 255 bytes");
+
+  ascii300[255] = 'B';
+  ascii300[300] = '\0';
+  snprintf(listingBuf, sizeof(listingBuf), "LBL 'XPLIT'\n'%s'\nEND\n", ascii300);
+  TEST_ASSERT(runPemLiteralCase(litProgBuf, sizeof(litProgBuf), listingBuf, "300-byte ASCII string literal"),
+              "300-byte ASCII string literal must clamp cleanly");
+  TEST_ASSERT(litStep[0] == (uint8_t)ITM_LITERAL && litStep[1] == (uint8_t)STRING_LABEL_VARIABLE && litStep[2] == 255u &&
+              memcmp(&litStep[3], ascii300, 255u) == 0 && litStep[3 + 254] == 'A',
+              "300-byte ASCII string literal must clamp to exact first 255 bytes");
+
+  // 4b. 128 2-byte C47 glyphs (UTF-8 "α" = 0xCE 0xB1 -> C47 0x83 0xB1, 256 C47 bytes) must clamp to 254 bytes (127 glyphs), never splitting glyph 128 at byte 255.
+  pos = (size_t)snprintf(listingBuf, sizeof(listingBuf), "LBL 'XPLIT'\n'");
+  for(int i = 0; i < 128; i++) {
+    listingBuf[pos++] = (char)0xce;
+    listingBuf[pos++] = (char)0xb1;
+  }
+  pos += (size_t)snprintf(&listingBuf[pos], sizeof(listingBuf) - pos, "'\nEND\n");
+  TEST_ASSERT(runPemLiteralCase(litProgBuf, sizeof(litProgBuf), listingBuf, "128-alpha string literal"),
+              "128-alpha string literal must compile cleanly");
+  TEST_ASSERT(litStep[0] == (uint8_t)ITM_LITERAL && litStep[1] == (uint8_t)STRING_LABEL_VARIABLE && litStep[2] == 254u,
+              "128 2-byte C47 glyphs (256 bytes) must clamp on glyph boundary at 254 bytes, not 255");
+  for(size_t k = 0; k < 254u; k += 2u) {
+    TEST_ASSERT(litStep[3u + k] == 0x83u && litStep[3u + k + 1u] == 0xb1u,
+                "Every 2-byte C47 alpha glyph in 254-byte clamped literal must be intact");
+  }
+  TEST_ASSERT(litStep[3u + 254u] == (uint8_t)((ITM_END >> 8) | 0x80) && litStep[3u + 255u] == (uint8_t)(ITM_END & 0xff),
+              "ITM_END must follow immediately at offset 254 without any half-glyph byte");
+
+  // 4c. 254 ASCII bytes followed by a 2-byte C47 glyph ("α") -> 256 C47 bytes total -> must clamp to 254 bytes without placing 0x83 at byte 255.
+  pos = (size_t)snprintf(listingBuf, sizeof(listingBuf), "LBL 'XPLIT'\n'");
+  memset(&listingBuf[pos], 'Z', 254u);
+  pos += 254u;
+  listingBuf[pos++] = (char)0xce;
+  listingBuf[pos++] = (char)0xb1;
+  pos += (size_t)snprintf(&listingBuf[pos], sizeof(listingBuf) - pos, "'\nEND\n");
+  TEST_ASSERT(runPemLiteralCase(litProgBuf, sizeof(litProgBuf), listingBuf, "254 ASCII + 2-byte glyph string literal"),
+              "254 ASCII + 1 2-byte glyph string literal must compile cleanly");
+  TEST_ASSERT(litStep[0] == (uint8_t)ITM_LITERAL && litStep[1] == (uint8_t)STRING_LABEL_VARIABLE && litStep[2] == 254u &&
+              litStep[3u + 253u] == 'Z' && litStep[3u + 254u] == (uint8_t)((ITM_END >> 8) | 0x80),
+              "254 ASCII bytes + 2-byte glyph must clamp to 254 bytes without splitting the trailing 2-byte glyph");
+
+  // 4d. 1 ASCII byte ('A') + 130 3-byte UTF-8 glyphs ("∫" = 0xE2 0x88 0xAB -> C47 0xA2 0x2B, 2 bytes each) -> 261 C47 bytes, clamped to 255 bytes ('A' + 127 glyphs).
+  pos = (size_t)snprintf(listingBuf, sizeof(listingBuf), "LBL 'XPLIT'\n'A");
+  for(int i = 0; i < 130; i++) {
+    listingBuf[pos++] = (char)0xe2;
+    listingBuf[pos++] = (char)0x88;
+    listingBuf[pos++] = (char)0xab;
+  }
+  pos += (size_t)snprintf(&listingBuf[pos], sizeof(listingBuf) - pos, "'\nEND\n");
+  TEST_ASSERT(runPemLiteralCase(litProgBuf, sizeof(litProgBuf), listingBuf, "1 ASCII + 130 integral-glyph string literal"),
+              "1 ASCII + 130 integral-glyph string literal must compile cleanly");
+  TEST_ASSERT(litStep[0] == (uint8_t)ITM_LITERAL && litStep[1] == (uint8_t)STRING_LABEL_VARIABLE && litStep[2] == 255u &&
+              litStep[3] == 'A',
+              "1 ASCII byte + 130 2-byte C47 glyphs must clamp to exact 255 bytes ('A' + 127 2-byte glyphs)");
+  for(size_t k = 1u; k < 255u; k += 2u) {
+    TEST_ASSERT(litStep[3u + k] == 0xa2u && litStep[3u + k + 1u] == 0x2bu,
+                "Every 2-byte C47 integral glyph in 255-byte odd-aligned literal must be intact");
+  }
+
+  // 4e. 200 3-byte UTF-8 glyphs ("∫", 600 UTF-8 bytes > 512) -> clamps cleanly to 254 C47 bytes without mid-UTF8 corruption.
+  pos = (size_t)snprintf(listingBuf, sizeof(listingBuf), "LBL 'XPLIT'\n'");
+  for(int i = 0; i < 200; i++) {
+    listingBuf[pos++] = (char)0xe2;
+    listingBuf[pos++] = (char)0x88;
+    listingBuf[pos++] = (char)0xab;
+  }
+  pos += (size_t)snprintf(&listingBuf[pos], sizeof(listingBuf) - pos, "'\nEND\n");
+  TEST_ASSERT(runPemLiteralCase(litProgBuf, sizeof(litProgBuf), listingBuf, "200-integral (600 UTF-8 byte) string literal"),
+              "200-integral (600 UTF-8 byte) string literal must compile cleanly");
+  TEST_ASSERT(litStep[0] == (uint8_t)ITM_LITERAL && litStep[1] == (uint8_t)STRING_LABEL_VARIABLE && litStep[2] == 254u,
+              "200 3-byte UTF-8 glyphs (600 UTF-8 bytes) must clamp to 254 C47 bytes");
+
+  // 4f. covExportLongLiteral RTF 127-superscript-letter string (>2500 bytes on a single RTF line) preserves all 127 2-byte STD_SUP_a glyphs (254 bytes).
+  pos = (size_t)snprintf(listingBuf, sizeof(listingBuf),
+                         "{\\rtf1\\ansi\\deff0\n0001:  LBL \\u8216?XPLIT\\u8217?\\par\n0002:    \\u8216?");
+  for(int i = 0; i < 127; i++) {
+    memcpy(&listingBuf[pos], "\\super a\\nosupersub ", 20u);
+    pos += 20u;
+  }
+  pos += (size_t)snprintf(&listingBuf[pos], sizeof(listingBuf) - pos, "\\u8217?\\par\n0003:  END\\par\n}}\n");
+  TEST_ASSERT(runPemLiteralCase(litProgBuf, sizeof(litProgBuf), listingBuf, "covExportLongLiteral >2500-byte RTF 127-STD_SUP_a string"),
+              "covExportLongLiteral >2500-byte RTF string literal must compile cleanly");
+  TEST_ASSERT(litStep[0] == (uint8_t)ITM_LITERAL && litStep[1] == (uint8_t)STRING_LABEL_VARIABLE && litStep[2] == 254u,
+              "Unwrapped RTF superscript 'a'*127 string literal must emit 127 2-byte STD_SUP_a glyphs (254 bytes)");
+  for(size_t k = 0; k < 254u; k += 2u) {
+    TEST_ASSERT(litStep[3u + k] == (uint8_t)STD_SUP_a[0] && litStep[3u + k + 1u] == (uint8_t)STD_SUP_a[1],
+                "Every 2-byte STD_SUP_a glyph in covExportLongLiteral RTF string literal must be preserved");
+  }
+
+  // Verify quoted RTF \super 9, \super Z, \sub z, \sub A also preserve exact C47 2-byte glyphs inside string literals.
+  const char rtfMixedSupSubListing[] =
+    "{\\rtf1\\ansi\\deff0\n"
+    "0001:  LBL \\u8216?XPLIT\\u8217?\\par\n"
+    "0002:    \\u8216?\\super 9\\nosupersub \\super Z\\nosupersub \\sub z\\nosupersub \\sub A\\nosupersub \\u8217?\\par\n"
+    "0003:  END\\par\n"
+    "}}\n";
+  TEST_ASSERT(runPemLiteralCase(litProgBuf, sizeof(litProgBuf), rtfMixedSupSubListing, "RTF mixed quoted sup/sub string"),
+              "RTF mixed quoted sup/sub string literal must compile cleanly");
+  TEST_ASSERT(litStep[0] == (uint8_t)ITM_LITERAL && litStep[1] == (uint8_t)STRING_LABEL_VARIABLE && litStep[2] == 8u &&
+              litStep[3] == (uint8_t)STD_SUP_9[0] && litStep[4] == (uint8_t)STD_SUP_9[1] &&
+              litStep[5] == (uint8_t)STD_SUP_Z[0] && litStep[6] == (uint8_t)STD_SUP_Z[1] &&
+              litStep[7] == (uint8_t)STD_SUB_z[0] && litStep[8] == (uint8_t)STD_SUB_z[1] &&
+              litStep[9] == (uint8_t)STD_SUB_A[0] && litStep[10] == (uint8_t)STD_SUB_A[1],
+              "Quoted RTF \\super 9/Z and \\sub z/A must map to exact 2-byte C47 glyphs");
+
+  // Malformed lone high-bit byte right before closing quote must not skip past NUL terminator into uninitialised c47Str stack bytes.
+  const char malformedHighByteListing[] = "LBL 'XPLIT'\n'abc\xc3'\nEND\n";
+  TEST_ASSERT(runPemLiteralCase(litProgBuf, sizeof(litProgBuf), malformedHighByteListing, "Trailing lone high-bit byte literal"),
+              "String literal with trailing lone high-bit byte must not fail");
+  TEST_ASSERT(litStep[0] == (uint8_t)ITM_LITERAL && litStep[1] == (uint8_t)STRING_LABEL_VARIABLE && litStep[2] == 3u &&
+              memcmp(&litStep[3], "abc", 3u) == 0,
+              "Trailing lone high-bit byte before NUL must be dropped rather than over-reading c47Str past NUL");
+}
+
 // --------------------------------------------------------------------------
 // MAIN RUNNER
 // --------------------------------------------------------------------------
@@ -3522,6 +4168,8 @@ int main(void) {
     RUN_TEST(test_program_copy_and_line_stripping);
     RUN_TEST(test_c47_character_set_conversion_and_math_ops);
     RUN_TEST(test_rejig_aliases_and_insertion_shift);
+    RUN_TEST(test_matrix_paste_block_bounds);
+    RUN_TEST(test_program_long_literals_and_glyph_clamping);
 
     printf("====================================================\n");
     printf("  Summary: %d Run, %d Passed, %d Failed\n", tests_run, tests_passed, tests_failed);

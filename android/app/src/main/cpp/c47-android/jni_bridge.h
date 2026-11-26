@@ -122,6 +122,15 @@ Java_org_rpncalculators_r47_MainActivity_pasteProgramNative(JNIEnv *env,
                                                            jobject thiz,
                                                            jstring codeTextObj);
 bool isProgramMode(void);
+/**
+ * Returns true when rows and cols are in 1..0xFFFFu and the matrix header plus element storage fits in 0xFFFFu C47 blocks.
+ */
+bool isMatrixBlockCountValid(unsigned long rows, unsigned long cols, bool isComplex);
+/**
+ * Parses clipboard matrix text (<rows>x<cols> header plus real or complex elements) into REGISTER_X with screenMutex unlocked on entry. Returns true when input
+ * is consumed as a matrix (stored in REGISTER_X or refused with ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX), or false when str is not a matrix.
+ */
+bool_t tryPasteMatrix(const char *str);
 char *getCurrentProgramString(void);
 char *parseAndPasteProgram(const char *codeText);
 const char *stripProgramLinePrefix(const char *line);

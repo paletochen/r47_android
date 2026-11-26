@@ -227,3 +227,6 @@ tools/hwtest/**/STATE/
 !tools/rejig_patched/
 !tools/rejig_patched/rejig
 !tools/rejig_patched/rejig.exe
+
+# When this file is present, compiling on the Raspberry Pi produces a program that does not display a keyboard, only the screen.
+RPI_LCD_ONLY

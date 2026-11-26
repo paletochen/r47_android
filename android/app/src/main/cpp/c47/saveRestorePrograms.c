@@ -314,8 +314,6 @@ void fnPExport(void) {
     uint16_t line, firstLine;
     uint8_t *step, *nextStep;
     uint16_t numberOfSteps = getNumberOfSteps();
-    char asciiString[448];           //cannot use errorMessage buffer in disk write operations
-                                     //solution is to use a local variable of sufficient length to contain a step string.
 
     firstDisplayedLocalStepNumber = 0;
     defineFirstDisplayedStep();
@@ -389,40 +387,29 @@ void fnPExport(void) {
       #endif // OPTION_STRUCT_INDENT
 
 
-//MAKE THIS MORE EFFICIENT!
-      //additional indents prepended
-      if(indent > 0) {
-        uint16_t ii = 0;
-        stringCopy(asciiString, tmpString);
-        stringCopy(tmpString + indent, asciiString);
-        while(ii < indent) {
-          tmpString[ii++]= ' ';
-        }
-      }
-
-
       char tmpp[30];
-      asciiString[0]=0;
 
       //Add extra blank line before LBL
-      if(newLine){
-        stringCopy(asciiString + stringByteLength(asciiString), "\\par\n");
+      if(newLine) {
+        ioFileWrite("\\par\n", 5);
       }
 
-      //Line Number and base indent ==> asciiString
+      //Line Number and base indent
       sprintf(tmpp, "%04d:  " , firstDisplayedLocalStepNumber + line - lineOffset + lineOffsetTam);
-      stringCopy(asciiString + stringByteLength(asciiString), tmpp);
+      ioFileWrite(tmpp, strlen(tmpp));
+      while(indent-- > 0) {
+        ioFileWrite(" ", 1);
+      }
 
-      //Add instruction
-      stringCopy(asciiString + stringByteLength(asciiString), tmpString);        //add number + instruction: 0000:  1/X
+      //Add instruction, unprintable characters converted. One glyph at a time, as no buffer contains the RTF of a line: a superscript letter is 20 bytes
+      for(const char *glyph = tmpString; *glyph != 0; glyph += (*glyph & 0x80) ? 2 : 1) {
+        const char oneGlyph[3] = {glyph[0], (glyph[0] & 0x80) ? glyph[1] : 0, 0};
+        stringToRTF(oneGlyph, tmpp);
+        ioFileWrite(tmpp, strlen(tmpp));
+      }
 
       //Add end line
-      stringCopy(asciiString + stringByteLength(asciiString), "\\par\n");
-
-      //Convert unprintable characters
-      stringToRTF(asciiString, tmpString);
-
-      ioFileWrite(tmpString, strlen(tmpString));
+      ioFileWrite("\\par\n", 5);
 
       if(isAtEndOfProgram(step)) {
         programListEnd = true;

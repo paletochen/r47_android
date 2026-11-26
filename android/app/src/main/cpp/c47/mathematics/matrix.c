@@ -2396,6 +2396,11 @@ bool_t initMatrixRegister(calcRegister_t regist, uint16_t rows, uint16_t cols, b
   #endif //PC_BUILD
 
   const size_t neededSize = (rows * cols) * (complex ? COMPLEX34_SIZE_IN_BLOCKS : REAL34_SIZE_IN_BLOCKS);
+  // A block count past 0xFFFF is refused: reallocateRegister() takes it in a uint16_t, so a larger request reserves only its low 16 bits while the fill writes every
+  // element. restoreRegister() makes the same test before it restores a matrix.
+  if((uint64_t)neededSize + TO_BLOCKS(sizeof(matrixHeader_t)) > 0xFFFFu) {
+    return false;
+  }
   reallocateRegister(regist, complex ? dtComplex34Matrix : dtReal34Matrix, neededSize, amNone);
   if(regist == INVALID_VARIABLE) {
     return false;
@@ -2513,6 +2518,10 @@ bool_t redimMatrixRegister(calcRegister_t regist, uint16_t rows, uint16_t cols, 
   }
   else if(getRegisterDataType(regist) == dtReal34Matrix) {
     const size_t newSize = (rows * cols) * REAL34_SIZE_IN_BLOCKS;
+    // The same bound, made before the copy of the matrix below is taken.
+    if((uint64_t)newSize + TO_BLOCKS(sizeof(matrixHeader_t)) > 0xFFFFu) {
+      return false;
+    }
     real34Matrix_t newMatrix;
     convertReal34MatrixRegisterToReal34Matrix(regist, &newMatrix);
     if(lastErrorCode == ERROR_NONE) {
@@ -2535,6 +2544,10 @@ bool_t redimMatrixRegister(calcRegister_t regist, uint16_t rows, uint16_t cols, 
   }
   else if(getRegisterDataType(regist) == dtComplex34Matrix) {
     const size_t newSize = (rows * cols) * COMPLEX34_SIZE_IN_BLOCKS;
+    // The same bound, made before the copy of the matrix below is taken.
+    if((uint64_t)newSize + TO_BLOCKS(sizeof(matrixHeader_t)) > 0xFFFFu) {
+      return false;
+    }
     complex34Matrix_t newMatrix;
     convertComplex34MatrixRegisterToComplex34Matrix(regist, &newMatrix);
     if(lastErrorCode == ERROR_NONE) {

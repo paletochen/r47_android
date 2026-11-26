@@ -15,10 +15,10 @@
 #include "memory.h"
 #include "sort.h"
 
-#ifndef LOG_TAG
+#if !defined(LOG_TAG)
 #define LOG_TAG "R47Helpers"
-#endif
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#endif // !defined(LOG_TAG)
+#include "jni_bridge.h"
 
 void ascii_clean(char *str) {
     if (!str || !*str) return;
@@ -698,6 +698,12 @@ static bool hasProgramLinePrefix(const char *line) {
 
 static bool isProgramHeaderLine(const char *s);
 
+#define PGM_RAW_LINE_BUF_SIZE  8192u
+#define PGM_NORM_LINE_BUF_SIZE 4096u
+#define PGM_MAX_LITERAL_BYTES  255u
+#define PGM_MAX_REM_BYTES      120u
+#define PGM_MAX_NAME_BYTES     15u
+
 static void normalizeProgramText(const char *src, char *dest, size_t destSize);
 
 static bool documentHasLineNumbers(const char *text) {
@@ -720,12 +726,12 @@ static bool documentHasLineNumbers(const char *text) {
     if(lineLen == 0) {
       continue;
     }
-    char rawLine[1024];
+    char rawLine[PGM_RAW_LINE_BUF_SIZE];
     size_t copyLen = (lineLen < sizeof(rawLine) - 1) ? lineLen : sizeof(rawLine) - 1;
     memcpy(rawLine, lineStart, copyLen);
     rawLine[copyLen] = '\0';
 
-    char temp[1024];
+    char temp[PGM_NORM_LINE_BUF_SIZE];
     normalizeProgramText(rawLine, temp, sizeof(temp));
 
     const char *s = temp;
@@ -748,6 +754,329 @@ static bool documentHasLineNumbers(const char *text) {
     return hasProgramLinePrefix(s);
   }
   return false;
+}
+
+/**
+ * Returns true when rows and cols are in 1..0xFFFFu and the matrix header plus element storage fits in 0xFFFFu C47 blocks.
+ */
+bool isMatrixBlockCountValid(unsigned long rows, unsigned long cols, bool isComplex) {
+  if(rows == 0 || cols == 0 || rows > 0xFFFFu || cols > 0xFFFFu) {
+    return false;
+  }
+  const uint64_t elemBlocks = isComplex ? (uint64_t)COMPLEX34_SIZE_IN_BLOCKS : (uint64_t)REAL34_SIZE_IN_BLOCKS;
+  return ((uint64_t)rows * (uint64_t)cols * elemBlocks + (uint64_t)TO_BLOCKS(sizeof(matrixHeader_t))) <= 0xFFFFu;
+}
+
+/**
+ * Repaints the calculator screen and flushes LCD scanlines while screenMutex is owned by the caller.
+ */
+static void refreshScreenUnderLock(void) {
+  reDraw = true;
+  screenUpdatingMode = SCRUPD_AUTO;
+  refreshScreen(1);
+  refreshLcd();
+  lcd_refresh();
+}
+
+/**
+ * Displays ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX on the register line and refreshes the LCD under screenMutex.
+ */
+static bool_t failMatrixPasteForMemory(void) {
+  pthread_mutex_lock(&screenMutex);
+  displayCalcErrorMessage(ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX, ERR_REGISTER_LINE);
+  refreshScreenUnderLock();
+  pthread_mutex_unlock(&screenMutex);
+  return true;
+}
+
+/**
+ * Parses clipboard matrix text (<rows>x<cols> header plus real or complex elements) into REGISTER_X with screenMutex unlocked on entry. Returns true when input
+ * is consumed as a matrix (stored in REGISTER_X or refused with ERROR_NOT_ENOUGH_MEMORY_FOR_NEW_MATRIX), or false when str is not a matrix.
+ */
+bool_t tryPasteMatrix(const char *str) {
+  if(!str || !*str) {
+    return false;
+  }
+
+  const char *p = str;
+  while(*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') {
+    p++;
+  }
+
+  const char *lineEnd = strpbrk(p, "\r\n");
+  const char *eq = strchr(p, '=');
+  if(eq != NULL && (lineEnd == NULL || eq < lineEnd)) {
+    p = eq + 1;
+    while(*p == ' ' || *p == '\t') {
+      p++;
+    }
+  }
+
+  if(*p == '[') {
+    p++;
+    while(*p == ' ' || *p == '\t') {
+      p++;
+    }
+  }
+
+  if(*p < '0' || *p > '9') {
+    return false;
+  }
+  char *endRows = NULL;
+  unsigned long rows = strtoul(p, &endRows, 10);
+  if(rows == 0 || endRows == NULL || endRows == p) {
+    return false;
+  }
+  while(*endRows == ' ' || *endRows == '\t') {
+    endRows++;
+  }
+
+  if(*endRows != 'x' && *endRows != 'X') {
+    return false;
+  }
+  endRows++;
+  while(*endRows == ' ' || *endRows == '\t') {
+    endRows++;
+  }
+
+  if(*endRows < '0' || *endRows > '9') {
+    return false;
+  }
+  char *endCols = NULL;
+  unsigned long cols = strtoul(endRows, &endCols, 10);
+  if(cols == 0 || endCols == NULL || endCols == endRows) {
+    return false;
+  }
+
+  while(*endCols == ' ' || *endCols == '\t' || *endCols == ']') {
+    endCols++;
+  }
+
+  if(*endCols != '\r' && *endCols != '\n' && *endCols != ' ' && *endCols != '\t' && *endCols != '\0') {
+    return false;
+  }
+
+  if(!isMatrixBlockCountValid(rows, cols, false)) {
+    // A bare "<rows>x<cols>" token with no element body is left to the caller as plain text rather than refused as a matrix.
+    const char *afterHdr = endCols;
+    while(*afterHdr == ' ' || *afterHdr == '\t' || *afterHdr == '\r' || *afterHdr == '\n') {
+      afterHdr++;
+    }
+    if(*afterHdr == '\0') {
+      return false;
+    }
+    return failMatrixPasteForMemory();
+  }
+
+  uint32_t totalElements = (uint32_t)(rows * cols);
+  const char *curr = endCols;
+
+  const char *scan = curr;
+  uint32_t lineCount = 0;
+  while(*scan) {
+    while(*scan == ' ' || *scan == '\t') {
+      scan++;
+    }
+    if(*scan == '\r' || *scan == '\n') {
+      while(*scan == '\r' || *scan == '\n') {
+        scan++;
+      }
+      continue;
+    }
+    if(*scan == '\0') {
+      break;
+    }
+    lineCount++;
+    while(*scan && *scan != '\r' && *scan != '\n') {
+      scan++;
+    }
+  }
+
+  bool_t lineByLine = (lineCount >= totalElements);
+
+  real34_t *realElements = (real34_t *)malloc(totalElements * sizeof(real34_t));
+  real34_t *imagElements = (real34_t *)calloc(totalElements, sizeof(real34_t));
+  if(!realElements || !imagElements) {
+    if(realElements) {
+      free(realElements);
+    }
+    if(imagElements) {
+      free(imagElements);
+    }
+    return false;
+  }
+
+  bool_t isComplex = false;
+
+  for(uint32_t i = 0; i < totalElements; i++) {
+    char elemBuf[256];
+    elemBuf[0] = '\0';
+
+    while(*curr == ' ' || *curr == '\t' || *curr == '\r' || *curr == '\n' || *curr == ';' || *curr == ',') {
+      curr++;
+    }
+
+    if(*curr == '\0') {
+      real34SetZero(&realElements[i]);
+      real34SetZero(&imagElements[i]);
+      continue;
+    }
+
+    if(lineByLine) {
+      const char *nl = strpbrk(curr, "\r\n");
+      size_t elen = nl ? (size_t)(nl - curr) : strlen(curr);
+      if(elen >= sizeof(elemBuf)) {
+        elen = sizeof(elemBuf) - 1;
+      }
+      memcpy(elemBuf, curr, elen);
+      elemBuf[elen] = '\0';
+      curr += elen;
+    }
+    else {
+      const char *delim = curr;
+      while(*delim && *delim != ' ' && *delim != '\t' && *delim != '\r' && *delim != '\n' && *delim != ';' && *delim != ',') {
+        delim++;
+      }
+      size_t elen = (size_t)(delim - curr);
+      if(elen >= sizeof(elemBuf)) {
+        elen = sizeof(elemBuf) - 1;
+      }
+      memcpy(elemBuf, curr, elen);
+      elemBuf[elen] = '\0';
+      curr = delim;
+    }
+
+    char *e = elemBuf + strlen(elemBuf);
+    while(e > elemBuf && (*(e - 1) == ' ' || *(e - 1) == '\t')) {
+      *(--e) = '\0';
+    }
+
+    char *cpxUnit = strstr(elemBuf, "jx");
+    if(!cpxUnit) {
+      cpxUnit = strstr(elemBuf, "ix");
+    }
+    if(!cpxUnit) {
+      cpxUnit = strstr(elemBuf, "\x83\xc1");
+    }
+
+    if(cpxUnit != NULL) {
+      isComplex = true;
+      char *signPtr = NULL;
+      for(char *c = cpxUnit - 1; c >= elemBuf; c--) {
+        if(*c == '+' || *c == '-') {
+          signPtr = c;
+          break;
+        }
+      }
+
+      if(signPtr != NULL) {
+        char realPart[128];
+        size_t rLen = (size_t)(signPtr - elemBuf);
+        if(rLen >= sizeof(realPart)) {
+          rLen = sizeof(realPart) - 1;
+        }
+        memcpy(realPart, elemBuf, rLen);
+        realPart[rLen] = '\0';
+
+        char *reEnd = realPart + strlen(realPart);
+        while(reEnd > realPart && (*(reEnd - 1) == ' ' || *(reEnd - 1) == '\t')) {
+          *(--reEnd) = '\0';
+        }
+        stringToReal34(realPart, &realElements[i]);
+
+        char *imagVal = cpxUnit + (cpxUnit[1] == 'x' || cpxUnit[1] == 'X' ? 2 : 1);
+        while(*imagVal == ' ' || *imagVal == '\t') {
+          imagVal++;
+        }
+        if(*imagVal == '\0') {
+          real34Copy(const34_1, &imagElements[i]);
+        }
+        else {
+          stringToReal34(imagVal, &imagElements[i]);
+        }
+        if(*signPtr == '-') {
+          real34SetNegativeSign(&imagElements[i]);
+        }
+      }
+      else {
+        real34SetZero(&realElements[i]);
+        char *imagVal = cpxUnit + (cpxUnit[1] == 'x' || cpxUnit[1] == 'X' ? 2 : 1);
+        while(*imagVal == ' ' || *imagVal == '\t') {
+          imagVal++;
+        }
+        if(*imagVal == '\0') {
+          real34Copy(const34_1, &imagElements[i]);
+        }
+        else {
+          stringToReal34(imagVal, &imagElements[i]);
+        }
+        if(elemBuf[0] == '-') {
+          real34SetNegativeSign(&imagElements[i]);
+        }
+      }
+    }
+    else {
+      char *lastDot = strrchr(elemBuf, '.');
+      char *lastComma = strrchr(elemBuf, ',');
+      if(lastComma != NULL && lastDot == NULL) {
+        for(char *c = elemBuf; *c; c++) {
+          if(*c == ',') {
+            *c = '.';
+          }
+        }
+      }
+      stringToReal34(elemBuf, &realElements[i]);
+      real34SetZero(&imagElements[i]);
+    }
+  }
+
+  if(isComplex && !isMatrixBlockCountValid(rows, cols, true)) {
+    free(realElements);
+    free(imagElements);
+    return failMatrixPasteForMemory();
+  }
+
+  // Reserve the matrix in TEMP_REGISTER_1 before liftStack() so an out-of-memory failure leaves REGISTER_X and the RPN stack untouched, then swap descriptors.
+  pthread_mutex_lock(&screenMutex);
+  const bool_t needLift = (calcMode == CM_NORMAL && getSystemFlag(FLAG_ASLIFT));
+  const uint32_t dataType = isComplex ? dtComplex34Matrix : dtReal34Matrix;
+  const uint16_t dataBlocks = (uint16_t)((isComplex ? COMPLEX34_SIZE_IN_BLOCKS : REAL34_SIZE_IN_BLOCKS) * rows * cols);
+  const calcRegister_t allocReg = needLift ? TEMP_REGISTER_1 : REGISTER_X;
+  bool_t allocOk = reallocateRegister(allocReg, dataType, dataBlocks, amNone);
+  if(allocOk) {
+    if(needLift) {
+      liftStack();
+      registerHeader_t liftedX = globalRegister[REGISTER_X];
+      globalRegister[REGISTER_X] = globalRegister[TEMP_REGISTER_1];
+      globalRegister[TEMP_REGISTER_1] = liftedX;
+      real34SetZero(REGISTER_REAL34_DATA(TEMP_REGISTER_1));
+    }
+    REGISTER_MATRIX_HEADER(REGISTER_X)->matrixRows = (uint16_t)rows;
+    REGISTER_MATRIX_HEADER(REGISTER_X)->matrixColumns = (uint16_t)cols;
+    REGISTER_MATRIX_HEADER(REGISTER_X)->mtag = amNone;
+    if(isComplex) {
+      complex34_t *dst = REGISTER_COMPLEX34_MATRIX_ELEMENTS(REGISTER_X);
+      for(uint32_t i = 0; i < totalElements; i++) {
+        real34Copy(&realElements[i], VARIABLE_REAL34_DATA(dst + i));
+        real34Copy(&imagElements[i], VARIABLE_IMAG34_DATA(dst + i));
+      }
+    }
+    else {
+      real34_t *dst = REGISTER_REAL34_MATRIX_ELEMENTS(REGISTER_X);
+      for(uint32_t i = 0; i < totalElements; i++) {
+        real34Copy(&realElements[i], dst + i);
+      }
+    }
+    setSystemFlag(FLAG_ASLIFT);
+  }
+
+  free(realElements);
+  free(imagElements);
+
+  refreshScreenUnderLock();
+  pthread_mutex_unlock(&screenMutex);
+
+  return true;
 }
 
 char *getCurrentProgramString(void) {
@@ -813,6 +1142,18 @@ static bool isHexOrDecDigitByte(uint8_t c) {
   return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
 }
 
+#define RTF_LEFT_SINGLE_QUOTE  0x2018u
+#define RTF_RIGHT_SINGLE_QUOTE 0x2019u
+#define RTF_LEFT_DOUBLE_QUOTE  0x201Cu
+#define RTF_RIGHT_DOUBLE_QUOTE 0x201Du
+
+/**
+ * Packs a 2-byte C47 glyph base plus character offset into the 15-bit BMP code point consumed by codePointToUtf8.
+ */
+static uint32_t c47GlyphOffsetToCodePoint(const char *baseGlyph, uint8_t offset) {
+  return (((uint32_t)((uint8_t)baseGlyph[0] & 0x7Fu)) << 8) | (uint32_t)((uint8_t)baseGlyph[1] + offset);
+}
+
 static void normalizeProgramText(const char *src, char *dest, size_t destSize) {
   if(dest == NULL || destSize == 0) {
     return;
@@ -832,9 +1173,12 @@ static void normalizeProgramText(const char *src, char *dest, size_t destSize) {
     return;
   }
 
-  char rtfBuf[1024];
+  char rtfBuf[PGM_NORM_LINE_BUF_SIZE];
   size_t ri = 0;
   const uint8_t *r = (const uint8_t *)src;
+  bool rtfInComment = false;
+  uint16_t rtfQuoteClose = 0;
+  int rtfSupSub = 0;
   while(*r && ri < sizeof(rtfBuf) - 6) {
     if(r[0] == '\\') {
       if(strncmp((const char *)r, "\\par", 4) == 0 &&
@@ -842,19 +1186,24 @@ static void normalizeProgramText(const char *src, char *dest, size_t destSize) {
         r += 4;
         continue;
       }
+      // Outside quotes \sub and \super format exponents and item names; inside quotes they encode 2-byte C47 glyphs via 15-bit BMP code points.
       if(strncmp((const char *)r, "\\sub ", 5) == 0) {
+        rtfSupSub = (rtfQuoteClose != 0) ? -1 : 0;
         r += 5;
         continue;
       }
       if(strncmp((const char *)r, "\\super ", 7) == 0) {
+        rtfSupSub = (rtfQuoteClose != 0) ? 1 : 0;
         r += 7;
         continue;
       }
       if(strncmp((const char *)r, "\\nosupersub ", 12) == 0) {
+        rtfSupSub = 0;
         r += 12;
         continue;
       }
       if(strncmp((const char *)r, "\\nosupersub", 11) == 0 && (r[11] == '\0' || r[11] == '\\')) {
+        rtfSupSub = 0;
         r += 11;
         continue;
       }
@@ -876,6 +1225,22 @@ static void normalizeProgramText(const char *src, char *dest, size_t destSize) {
             uval = -uval;
           }
           uint32_t cp = (uint32_t)((uint16_t)(uval & 0xffff));
+          if(!rtfInComment) {
+            if(rtfQuoteClose == 0) {
+              if(cp == RTF_LEFT_SINGLE_QUOTE) {
+                rtfQuoteClose = RTF_RIGHT_SINGLE_QUOTE;
+                rtfSupSub = 0;
+              }
+              else if(cp == RTF_LEFT_DOUBLE_QUOTE) {
+                rtfQuoteClose = RTF_RIGHT_DOUBLE_QUOTE;
+                rtfSupSub = 0;
+              }
+            }
+            else if(cp == rtfQuoteClose) {
+              rtfQuoteClose = 0;
+              rtfSupSub = 0;
+            }
+          }
           uint8_t utfTmp[8];
           codePointToUtf8(cp, utfTmp);
           size_t tlen = strlen((char *)utfTmp);
@@ -885,6 +1250,59 @@ static void normalizeProgramText(const char *src, char *dest, size_t destSize) {
           }
           r = numP;
           continue;
+        }
+      }
+    }
+    if(!rtfInComment) {
+      if(rtfQuoteClose == 0) {
+        if(r[0] == '{' || r[0] == ';' || r[0] == '@' || (r[0] == '/' && r[1] == '/') ||
+           (r[0] == '#' && (ri == 0 || rtfBuf[ri - 1] == ' ' || rtfBuf[ri - 1] == '\t'))) {
+          rtfInComment = true;
+        }
+        else if(r[0] == '"') {
+          rtfQuoteClose = '"';
+          rtfSupSub = 0;
+        }
+        else if(r[0] == '\'' && (ri == 0 || rtfBuf[ri - 1] == ' ' || rtfBuf[ri - 1] == '\t' || rtfBuf[ri - 1] == ':')) {
+          rtfQuoteClose = '\'';
+          rtfSupSub = 0;
+        }
+      }
+      else {
+        if(r[0] == rtfQuoteClose &&
+           (r[1] == '\0' || r[1] == ' ' || r[1] == '\t' || r[1] == '\r' || r[1] == '\n' ||
+            strncmp((const char *)(r + 1), "\\par", 4) == 0)) {
+          rtfQuoteClose = 0;
+          rtfSupSub = 0;
+        }
+        else if(rtfSupSub != 0) {
+          uint32_t supSubCp = 0;
+          if(rtfSupSub == 1 && r[0] >= '0' && r[0] <= '9') {
+            supSubCp = c47GlyphOffsetToCodePoint(STD_SUP_0, (uint8_t)(r[0] - '0'));
+          }
+          else if(rtfSupSub == 1 && r[0] >= 'a' && r[0] <= 'z') {
+            supSubCp = c47GlyphOffsetToCodePoint(STD_SUP_a, (uint8_t)(r[0] - 'a'));
+          }
+          else if(rtfSupSub == 1 && r[0] >= 'A' && r[0] <= 'Z') {
+            supSubCp = c47GlyphOffsetToCodePoint(STD_SUP_A, (uint8_t)(r[0] - 'A'));
+          }
+          else if(rtfSupSub == -1 && r[0] >= 'a' && r[0] <= 'z') {
+            supSubCp = c47GlyphOffsetToCodePoint(STD_SUB_a, (uint8_t)(r[0] - 'a'));
+          }
+          else if(rtfSupSub == -1 && r[0] >= 'A' && r[0] <= 'Z') {
+            supSubCp = c47GlyphOffsetToCodePoint(STD_SUB_A, (uint8_t)(r[0] - 'A'));
+          }
+          if(supSubCp != 0) {
+            uint8_t utfTmp[8];
+            codePointToUtf8(supSubCp, utfTmp);
+            size_t tlen = strlen((char *)utfTmp);
+            if(ri + tlen < sizeof(rtfBuf) - 1) {
+              memcpy(&rtfBuf[ri], utfTmp, tlen);
+              ri += tlen;
+            }
+            r++;
+            continue;
+          }
         }
       }
     }
@@ -1932,15 +2350,18 @@ static int findItemOpcode(const char *cmd) {
   return -1;
 }
 
-static void readableUtf8ToC47String(const char *src, char *dest, size_t destSize) {
+/**
+ * Converts readable UTF-8 text into C47 internal code points, clamping on whole 1-or-2-byte glyph boundaries within destSize - 1.
+ */
+static size_t readableUtf8ToC47String(const char *src, char *dest, size_t destSize) {
   if(dest == NULL || destSize == 0) {
-    return;
+    return 0;
   }
   if(src == NULL) {
     dest[0] = '\0';
-    return;
+    return 0;
   }
-  char preBuf[512];
+  char preBuf[1024];
   size_t pi = 0;
   const uint8_t *s = (const uint8_t *)src;
   while(*s && pi < sizeof(preBuf) - 4) {
@@ -1998,15 +2419,23 @@ static void readableUtf8ToC47String(const char *src, char *dest, size_t destSize
   }
   preBuf[pi] = '\0';
 
-  char c47Tmp[512];
+  char c47Tmp[1024];
   extern void utf8ToString(const uint8_t *utf8, char *str);
   utf8ToString((const uint8_t *)preBuf, c47Tmp);
-  size_t len = strlen(c47Tmp);
-  if(len >= destSize) {
-    len = destSize - 1;
+  size_t len = 0;
+  while(c47Tmp[len] != '\0') {
+    size_t glyphBytes = ((uint8_t)c47Tmp[len] & 0x80u) ? 2u : 1u;
+    if(glyphBytes == 2u && c47Tmp[len + 1] == '\0') {
+      break;
+    }
+    if(len + glyphBytes >= destSize) {
+      break;
+    }
+    len += glyphBytes;
   }
   memcpy(dest, c47Tmp, len);
   dest[len] = '\0';
+  return len;
 }
 
 static bool tryParseNumericOrLocalRegister(const char *s, bool allowBareDigits, uint8_t *outCode) {
@@ -2113,15 +2542,7 @@ static bool parseRegisterArg(const char *arg, uint8_t *outCode, char *outVar, ui
       return true;
     }
 
-    char c47Inner[64];
-    readableUtf8ToC47String(rawInner, c47Inner, sizeof(c47Inner));
-    size_t len = strlen(c47Inner);
-    if(len > 15) {
-      len = 15;
-    }
-    memcpy(outVar, c47Inner, len);
-    outVar[len] = '\0';
-    *outVarLen = (uint8_t)len;
+    *outVarLen = (uint8_t)readableUtf8ToC47String(rawInner, outVar, PGM_MAX_NAME_BYTES + 1u);
     *outCode = STRING_LABEL_VARIABLE;
     return true;
   }
@@ -2230,15 +2651,7 @@ static bool parseRegisterArg(const char *arg, uint8_t *outCode, char *outVar, ui
   if(strcasecmp(arg, "V") == 0) { *outCode = REGISTER_V_IN_KS_CODE; *outVarLen = 0; return true; }
   if(strcasecmp(arg, "W") == 0) { *outCode = REGISTER_W_IN_KS_CODE; *outVarLen = 0; return true; }
 
-  char c47Var[64];
-  readableUtf8ToC47String(arg, c47Var, sizeof(c47Var));
-  size_t len = strlen(c47Var);
-  if(len > 15) {
-    len = 15;
-  }
-  memcpy(outVar, c47Var, len);
-  outVar[len] = '\0';
-  *outVarLen = (uint8_t)len;
+  *outVarLen = (uint8_t)readableUtf8ToC47String(arg, outVar, PGM_MAX_NAME_BYTES + 1u);
   *outCode = STRING_LABEL_VARIABLE;
   return true;
 }
@@ -2302,15 +2715,7 @@ static bool parseLabelArg(const char *arg, uint8_t *outCode, char *outName, uint
     memcpy(rawName, start, rawLen);
     rawName[rawLen] = '\0';
 
-    char c47Name[64];
-    readableUtf8ToC47String(rawName, c47Name, sizeof(c47Name));
-    size_t len = strlen(c47Name);
-    if(len > 15) {
-      len = 15;
-    }
-    memcpy(outName, c47Name, len);
-    outName[len] = '\0';
-    *outNameLen = (uint8_t)len;
+    *outNameLen = (uint8_t)readableUtf8ToC47String(rawName, outName, PGM_MAX_NAME_BYTES + 1u);
     *outCode = LOCAL_LABEL_VARIABLE;
     return true;
   }
@@ -2355,15 +2760,7 @@ static bool parseLabelArg(const char *arg, uint8_t *outCode, char *outName, uint
     memcpy(rawName, start, rawLen);
     rawName[rawLen] = '\0';
 
-    char c47Name[64];
-    readableUtf8ToC47String(rawName, c47Name, sizeof(c47Name));
-    size_t len = strlen(c47Name);
-    if(len > 15) {
-      len = 15;
-    }
-    memcpy(outName, c47Name, len);
-    outName[len] = '\0';
-    *outNameLen = (uint8_t)len;
+    *outNameLen = (uint8_t)readableUtf8ToC47String(rawName, outName, PGM_MAX_NAME_BYTES + 1u);
     *outCode = STRING_LABEL_VARIABLE;
     return true;
   }
@@ -2389,15 +2786,7 @@ static bool parseLabelArg(const char *arg, uint8_t *outCode, char *outName, uint
     }
   }
 
-  char c47Name[64];
-  readableUtf8ToC47String(arg, c47Name, sizeof(c47Name));
-  size_t len = strlen(c47Name);
-  if(len > 15) {
-    len = 15;
-  }
-  memcpy(outName, c47Name, len);
-  outName[len] = '\0';
-  *outNameLen = (uint8_t)len;
+  *outNameLen = (uint8_t)readableUtf8ToC47String(arg, outName, PGM_MAX_NAME_BYTES + 1u);
   *outCode = STRING_LABEL_VARIABLE;
   return true;
 }
@@ -3217,17 +3606,13 @@ static const char *parseInstructionToken(const char *p, EncodedStep *outStep, ch
   }
 
   if(isString) {
-    char rawStr[256];
+    char rawStr[1024];
     size_t copyLen = (rawLen < sizeof(rawStr) - 1) ? rawLen : sizeof(rawStr) - 1;
     memcpy(rawStr, strStart, copyLen);
     rawStr[copyLen] = '\0';
 
-    char c47Str[256];
-    readableUtf8ToC47String(rawStr, c47Str, sizeof(c47Str));
-    size_t c47Len = strlen(c47Str);
-    if(c47Len > 120) {
-      c47Len = 120;
-    }
+    char c47Str[PGM_MAX_LITERAL_BYTES + 1u];
+    size_t c47Len = readableUtf8ToC47String(rawStr, c47Str, sizeof(c47Str));
     outStep->bytes[0] = (uint8_t)ITM_LITERAL;
     outStep->bytes[1] = (uint8_t)STRING_LABEL_VARIABLE;
     outStep->bytes[2] = (uint8_t)c47Len;
@@ -3397,11 +3782,29 @@ static const char *parseInstructionToken(const char *p, EncodedStep *outStep, ch
     if(isValidRealNumericLiteral(p, tokLen)) {
       const char *start = p;
       p = tokEnd;
-      char normNum[256];
+      char normNum[PGM_NORM_LINE_BUF_SIZE];
       normalizeRealTokenString(start, tokLen, false, normNum, sizeof(normNum));
       size_t ni = strlen(normNum);
-      if(ni > 250) {
-        ni = 250;
+      // _decodeNumeral formats integer-mantissa scientific literals with a trailing radix mark ("1." + "e..."), turning a 255-byte literal into 256 characters;
+      // drop that radix mark before checking the 255-byte step limit so all 253 exponent digits stay intact.
+      if(ni > PGM_MAX_LITERAL_BYTES) {
+        char *dotExp = strstr(normNum, ".e");
+        if(dotExp == NULL) {
+          dotExp = strstr(normNum, ".E");
+        }
+        if(dotExp != NULL && dotExp > normNum && dotExp[-1] >= '0' && dotExp[-1] <= '9') {
+          memmove(dotExp, dotExp + 1, ni - (size_t)(dotExp - normNum));
+          ni--;
+        }
+      }
+      if(ni > PGM_MAX_LITERAL_BYTES) {
+        if(strchr(normNum, 'e') != NULL || strchr(normNum, 'E') != NULL ||
+           memchr(start, 'e', tokLen) != NULL || memchr(start, 'E', tokLen) != NULL) {
+          snprintf(errMsg, errLen, "Real literal exceeds maximum %u-byte step length", (unsigned)PGM_MAX_LITERAL_BYTES);
+          return NULL;
+        }
+        ni = PGM_MAX_LITERAL_BYTES;
+        normNum[ni] = '\0';
       }
       bool isReal = (strchr(normNum, '.') != NULL || strchr(normNum, 'e') != NULL || strchr(normNum, 'E') != NULL);
       outStep->bytes[0] = (uint8_t)ITM_LITERAL;
@@ -3831,12 +4234,8 @@ static const char *parseInstructionToken(const char *p, EncodedStep *outStep, ch
     }
     memcpy(rawRem, rs, rlen);
     rawRem[rlen] = '\0';
-    char c47Rem[256];
-    readableUtf8ToC47String(rawRem, c47Rem, sizeof(c47Rem));
-    size_t c47Len = strlen(c47Rem);
-    if(c47Len > 120) {
-      c47Len = 120;
-    }
+    char c47Rem[PGM_MAX_REM_BYTES + 1u];
+    size_t c47Len = readableUtf8ToC47String(rawRem, c47Rem, sizeof(c47Rem));
     outStep->bytes[opBytes] = STRING_LABEL_VARIABLE;
     outStep->bytes[opBytes + 1] = (uint8_t)c47Len;
     memcpy(&outStep->bytes[opBytes + 2], c47Rem, c47Len);
@@ -3953,10 +4352,10 @@ char *parseAndPasteProgram(const char *codeText) {
       p++;
     }
     size_t lineLen = (size_t)(p - lineStart);
-    if(lineLen >= 1024) {
-      lineLen = 1023;
+    char lineBuf[PGM_RAW_LINE_BUF_SIZE];
+    if(lineLen >= sizeof(lineBuf)) {
+      lineLen = sizeof(lineBuf) - 1;
     }
-    char lineBuf[1024];
     memcpy(lineBuf, lineStart, lineLen);
     lineBuf[lineLen] = '\0';
 
@@ -3967,11 +4366,12 @@ char *parseAndPasteProgram(const char *codeText) {
       p++;
     }
 
-    char normLine[1024];
+    char normLine[PGM_NORM_LINE_BUF_SIZE];
     normalizeProgramText(lineBuf, normLine, sizeof(normLine));
+    const bool lineHadPrefix = hasProgramLinePrefix(normLine);
 
     if(!reachedFirstStep) {
-      if(hasProgramLinePrefix(normLine)) {
+      if(lineHadPrefix) {
         reachedFirstStep = true;
       }
       else {
@@ -3980,18 +4380,16 @@ char *parseAndPasteProgram(const char *codeText) {
       }
     }
 
-    const char *prefixed = hasLineNumbers ? stripProgramLinePrefix(normLine) : normLine;
-    char cleanBuf[1024];
-    strncpy(cleanBuf, prefixed, sizeof(cleanBuf) - 1);
-    cleanBuf[sizeof(cleanBuf) - 1] = '\0';
-    stripProgramComment(cleanBuf);
+    const ptrdiff_t prefixOffset = hasLineNumbers ? (stripProgramLinePrefix(normLine) - normLine) : 0;
+    char *cleanLine = normLine + prefixOffset;
+    stripProgramComment(cleanLine);
 
-    if(stepCount == 0 && isProgramHeaderLine(cleanBuf)) {
+    if(stepCount == 0 && isProgramHeaderLine(cleanLine)) {
       lineNum++;
       continue;
     }
 
-    if(hasLineNumbers && stepCount > 0 && !hasProgramLinePrefix(normLine)) {
+    if(hasLineNumbers && stepCount > 0 && !lineHadPrefix) {
       EncodedStep *last = &steps[stepCount - 1];
       if(last->size == 2 && last->bytes[0] == (uint8_t)((ITM_END >> 8) | 0x80) && last->bytes[1] == (uint8_t)(ITM_END & 0xff)) {
         lineNum++;
@@ -3999,7 +4397,7 @@ char *parseAndPasteProgram(const char *codeText) {
       }
     }
 
-    const char *lp = cleanBuf;
+    const char *lp = cleanLine;
     while(*lp) {
       while(*lp == ' ' || *lp == '\t') {
         lp++;

@@ -778,6 +778,11 @@
   #define EXTRA_INFO_ON_CALC_ERROR 0
 #endif // TESTSUITE_BUILD
 
+#if !defined(RASPBERRY) || !defined(RPI_LCD_ONLY)
+  #undef RASPBERRY
+  #undef RPI_LCD_ONLY
+#endif // !RASPBERRY || !RPI_LCD_ONLY
+
 #define SIMULATOR_ON_SCREEN_KEYBOARD 1 // Onscreen keyboard in addition to the screen
 #if defined(RASPBERRY)
   #undef SIMULATOR_ON_SCREEN_KEYBOARD

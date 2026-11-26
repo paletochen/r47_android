@@ -20,6 +20,7 @@ char                  lastTemp[16];
   uint32_t            deadKey;
   bool_t              testDeadKeys = false;
   bool_t              swapCtrlCode = false;
+  bool_t              forceFf = false;
   bool_t              snapKeepShift = false;
 #endif // PC_BUILD
 

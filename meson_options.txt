@@ -10,6 +10,12 @@ option('RASPBERRY',
   description : 'Set if running on a RaspberryPi for a better layout'
 )
 
+option('RPI_LCD_ONLY',
+  type        : 'boolean',
+  value       : false,
+  description : 'Set if running on a RaspberryPi and no onscreen keyboard is wanted'
+)
+
 option('DMCPVERSION',
   type        : 'string',
   value       : '',

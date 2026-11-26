@@ -3787,16 +3787,17 @@ static void checkAndEat(int16_t *source, int16_t last, int16_t *dest) {
 static void showShortIntegerLine(calcRegister_t showRegis, int16_t tag, int16_t startOffset, int16_t numLines, bool_t showName) {
   int16_t source, last, d, dest;
   int16_t lastSlot = startOffset + (numLines - 1) * SHOWLineSize;
+  const int16_t scratch = 12 * SHOWLineSize;                            //the digits are built from scratch + ERROR_MESSAGE_LENGTH / 2 on, and they end below 2100
   setRegisterTag(showRegis, tag);
   if(showName) {
-    viewRegName2(tmpString + 2400);                                     //name at 2400, where the digits are put after it
+    viewRegName2(tmpString + scratch);                                  //name at scratch, where the digits are put after it
   }
   else {
-    tmpString[2400] = 0;
+    tmpString[scratch] = 0;
   }
-  shortIntegerToDisplayString(showRegis, tmpString + 2400 + stringByteLength(tmpString + 2400), true, noBaseOverride, SCREEN_WIDTH);
-  last = 2400 + stringByteLength(tmpString + 2400);
-  source = 2400;
+  shortIntegerToDisplayString(showRegis, tmpString + scratch + stringByteLength(tmpString + scratch), true, noBaseOverride, SCREEN_WIDTH);
+  last = scratch + stringByteLength(tmpString + scratch);
+  source = scratch;
   tmpString[startOffset] = 0;
   for(d = startOffset; d <= lastSlot ; d += SHOWLineSize) {
     dest = d;

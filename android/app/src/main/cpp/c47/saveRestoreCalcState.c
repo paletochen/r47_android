@@ -1808,7 +1808,16 @@ int64_t stringToInt64(const char *str) {
       }
 
       longIntegerInit(lgInt);
-      stringToLongInteger(value, 10, lgInt);
+      // mpz_set_str() takes a - sign and refuses a + sign, so a + sign before a digit is skipped. A value it refuses leaves the register as it is.
+      if(stringToLongInteger(value + (value[0] == '+' && value[1] >= '0' && value[1] <= '9' ? 1 : 0), 10, lgInt) != 0) {
+        longIntegerFree(lgInt);
+        displayCalcErrorMessage(ERROR_INVALID_INTEGER_INPUT, ERR_REGISTER_LINE);
+        #if (EXTRA_INFO_ON_CALC_ERROR == 1)
+          sprintf(errorMessage, "long integer of a character other than a sign or a digit refused for register %d", (int)regist);
+          moreInfoOnError("In function restoreRegister:", errorMessage, NULL, NULL);
+        #endif // (EXTRA_INFO_ON_CALC_ERROR == 1)
+        return false;
+      }
       convertLongIntegerToLongIntegerRegister(lgInt, regist);
       longIntegerFree(lgInt);
     }
@@ -1835,7 +1844,7 @@ int64_t stringToInt64(const char *str) {
 
     else if(strcmp(type, "ShoI") == 0) {
       uint16_t sign = (value[0] == '-' ? 1 : 0);
-      uint64_t val  = stringToUint64(value + 1);
+      uint64_t val  = stringToUint64(value + sign);                              // only a - sign is skipped, sign keeps it: strtoull() takes a + sign or none
 
       value = strchr(value, '#') ? strchr(value, '#') + 1 : next_word(value);    // accept "+255#16" or the old "+255 16"
       uint32_t base = toUint32(value);
@@ -2182,7 +2191,8 @@ int64_t stringToInt64(const char *str) {
         allocateLocalRegisters(numberOfRegs);
       }
 
-      if((loadMode != LM_ALL && loadMode != LM_REGISTERS) || lastErrorCode == ERROR_NONE) {
+      // allocateLocalRegisters() leaves the count as it was when it fails, and lastErrorCode can be the error of an entry before this section.
+      if((loadMode != LM_ALL && loadMode != LM_REGISTERS) || currentNumberOfLocalRegisters == numberOfRegs) {
         #if defined(LOADDEBUG)
           sprintf(line, ", loadMode:%d, %s\n", loadMode, tmpString);
           debugPrintf(3, "B", tmpString);

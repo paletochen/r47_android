@@ -23,6 +23,9 @@ GMP_MESON_BUILD  = subprojects/gmp-6.2.1/meson.build
 GMP_MESON_SOURCE = subprojects/packagefiles/gmp-6.2.1/meson.build
 DMCP_PACKAGE = 4
 
+RASPBERRY = $(shell tools/onARaspberry)
+RPI_LCD_ONLY = $(shell tools/raspberryLcdOnly)
+
 ifneq ($(filter t47,$(MAKECMDGOALS)),)
   BUILD_PC    = build.sim.t47
   DIST_DIR_PC = build.sim.t47
@@ -49,16 +52,16 @@ clean: $(GMP_MESON_BUILD)
 	rm -f src_files_stamp testPgms_stamp
 
 build.sim:
-	meson setup $(BUILD_PC) --buildtype=custom -DRASPBERRY=`tools/onARaspberry` -DDECNUMBER_FASTMUL=true
+	meson setup $(BUILD_PC) --buildtype=custom -DRASPBERRY=$(RASPBERRY) -DRPI_LCD_ONLY=$(RPI_LCD_ONLY) -DDECNUMBER_FASTMUL=true
 
 build.sim.t47:
-	meson setup $(BUILD_PC) --buildtype=custom -DRASPBERRY=`tools/onARaspberry` -DDECNUMBER_FASTMUL=true -Dc_args="-DT47"
+	meson setup $(BUILD_PC) --buildtype=custom -DRASPBERRY=$(RASPBERRY) -DRPI_LCD_ONLY=$(RPI_LCD_ONLY) -DDECNUMBER_FASTMUL=true -Dc_args="-DT47"
 
 # Optimized headless build for the benchmark suite: mirrors the DMCP hardware
 # flags (-Os, LTO) as closely as a native build can, so that relative timings
 # track the calculator rather than an unoptimized debug build.
 build.sim.t47.bench:
-	meson setup build.sim.t47.bench --buildtype=custom -DRASPBERRY=`tools/onARaspberry` -DDECNUMBER_FASTMUL=true -Db_lto=true -Dc_args="-DT47 -Os"
+	meson setup build.sim.t47.bench --buildtype=custom -DRASPBERRY=$(RASPBERRY) -DRPI_LCD_ONLY=$(RPI_LCD_ONLY) -DDECNUMBER_FASTMUL=true -Db_lto=true -Dc_args="-DT47 -Os"
 
 benchbin: build.sim.t47.bench
 	cd build.sim.t47.bench && ninja sim
@@ -132,7 +135,7 @@ simr47: $(BUILD_PC)
 	install -C $(BUILD_PC)/src/generateConstants/constantPointers.c src/generated/
 	install -C $(BUILD_PC)/src/generateConstants/constantPointers2.c src/generated/
 	install -C $(BUILD_PC)/src/ttf2RasterFonts/rasterFontsData.c src/generated/
-	
+
 ifeq ($(MAKECMDGOALS),t47)
 t47: simr47
 else
@@ -170,9 +173,9 @@ test_asan: clean testPgms
 	meson setup $(BUILD_PC)
 ifeq ($(OS),Windows_NT)
 	@echo "Warning: AddressSanitizer not supported on Windows MinGW, building without ASAN"
-	meson setup $(BUILD_PC) --buildtype=custom -DRASPBERRY=`tools/onARaspberry` -DDECNUMBER_FASTMUL=true -Dc_args="-Wno-deprecated-declarations"
+	meson setup $(BUILD_PC) --buildtype=custom -DRASPBERRY=$(RASPBERRY) -DRPI_LCD_ONLY=$(RPI_LCD_ONLY) -DDECNUMBER_FASTMUL=true -Dc_args="-Wno-deprecated-declarations"
 else
-	meson setup $(BUILD_PC) --buildtype=custom -DRASPBERRY=`tools/onARaspberry` -DDECNUMBER_FASTMUL=true -Dc_args="-Wno-deprecated-declarations" -Db_sanitize=address
+	meson setup $(BUILD_PC) --buildtype=custom -DRASPBERRY=$(RASPBERRY) -DRPI_LCD_ONLY=$(RPI_LCD_ONLY) -DDECNUMBER_FASTMUL=true -Dc_args="-Wno-deprecated-declarations" -Db_sanitize=address
 endif
 	cd $(BUILD_PC) && ninja test
 
